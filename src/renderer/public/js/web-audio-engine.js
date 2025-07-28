@@ -1,3 +1,7 @@
+/**
+ * 基于Web Audio API的纯JavaScript音频引擎
+ * 替代原生C++模块，避免DLL依赖问题
+ */
 
 class WebAudioEngine {
     constructor() {
@@ -54,10 +58,13 @@ class WebAudioEngine {
     async loadTrack(filePath) {
         try {
             console.log(`🔄 加载音频文件: ${filePath}`);
+
+            // 停止当前播放
             this.stop();
 
-            // 读取文件
+            // 读取文件 - 支持多种方式
             let arrayBuffer;
+
             if (window.electronAPI && window.electronAPI.readAudioFile) {
                 // 使用Electron API读取文件
                 console.log('🔄 使用Electron API读取文件');
@@ -100,13 +107,19 @@ class WebAudioEngine {
 
             console.log(`✅ 音频解码成功: Web Audio时长 ${webAudioDuration.toFixed(2)}s, 元数据时长 ${metadata.duration || 0}s`);
             console.log(`✅ 使用时长: ${this.duration.toFixed(2)}s`);
+
             console.log(`✅ 音频文件加载成功: ${this.currentTrack.title}`);
+
+            // 触发事件
             if (this.onTrackChanged) {
                 this.onTrackChanged(this.currentTrack);
             }
+
+            // 触发时长更新事件
             if (this.onDurationChanged) {
                 this.onDurationChanged(filePath, this.duration);
             }
+
             return true;
         } catch (error) {
             console.error('❌ 音频文件加载失败:', error);
@@ -200,8 +213,12 @@ class WebAudioEngine {
             this.isPlaying = true;
             this.isPaused = false;
 
+            // 开始进度更新
             this.startProgressTimer();
+
             console.log('✅ 播放成功启动');
+
+            // 触发事件
             if (this.onPlaybackStateChanged) {
                 console.log('🔄 Web Audio Engine: 触发播放状态变化事件');
                 this.onPlaybackStateChanged(true);
@@ -259,8 +276,12 @@ class WebAudioEngine {
             this.isPlaying = false;
             this.isPaused = true;
 
+            // 停止进度更新
             this.stopProgressTimer();
+
             console.log(`⏸️ 暂停播放，位置: ${this.pauseTime.toFixed(2)}s`);
+
+            // 触发事件
             if (this.onPlaybackStateChanged) {
                 console.log('🔄 Web Audio Engine: 触发暂停状态变化事件');
                 this.onPlaybackStateChanged(false);
@@ -298,12 +319,17 @@ class WebAudioEngine {
             this.startTime = 0;
             this.pauseTime = 0;
 
+            // 停止进度更新
             this.stopProgressTimer();
+
             console.log('⏹️ 停止播放');
 
+            // 触发事件
             if (this.onPlaybackStateChanged) {
                 this.onPlaybackStateChanged(false);
             }
+
+            // 触发位置重置事件
             if (this.onPositionChanged) {
                 this.onPositionChanged(0);
             }
@@ -340,6 +366,7 @@ class WebAudioEngine {
                 this.sourceNode = null;
             }
 
+            // 停止进度更新
             this.stopProgressTimer();
 
             // 设置新位置
@@ -348,6 +375,8 @@ class WebAudioEngine {
             this.isPlaying = false;
 
             console.log(`⏭️ 跳转到: ${position.toFixed(2)}s`);
+
+            // 如果之前在播放，继续播放
             if (wasPlaying) {
                 await this.play();
             }
@@ -518,6 +547,7 @@ class WebAudioEngine {
 
         const loadResult = await this.loadTrack(filePath);
         if (loadResult) {
+            // 自动开始播放
             return await this.play();
         }
         return false;

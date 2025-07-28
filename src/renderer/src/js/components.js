@@ -1,4 +1,3 @@
-
 class Component extends EventEmitter {
     constructor(element) {
         super();
@@ -366,18 +365,15 @@ class Player extends Component {
     }
 
     updatePlayModeDisplay(mode) {
-        // Check if play mode elements exist
+        // 检查是否有这个模式
         if (!this.modeSequenceIcon || !this.modeShuffleIcon || !this.modeRepeatOneIcon) {
             console.warn('🎵 Player: 播放模式图标元素不存在');
             return;
         }
 
-        // Hide all icons first
         this.modeSequenceIcon.style.display = 'none';
         this.modeShuffleIcon.style.display = 'none';
         this.modeRepeatOneIcon.style.display = 'none';
-
-        // Show the appropriate icon
         switch (mode) {
             case 'sequence':
                 this.modeSequenceIcon.style.display = 'block';
@@ -397,7 +393,6 @@ class Player extends Component {
                 if (this.playModeBtn) this.playModeBtn.title = '顺序播放';
                 break;
         }
-
         console.log('🎵 Player: 播放模式显示更新为:', mode);
     }
 
@@ -1323,7 +1318,6 @@ class Lyrics extends EventEmitter {
         this.trackCover = this.element.querySelector('#lyrics-cover-image');
         this.trackTitle = this.element.querySelector('#lyrics-track-title');
         this.trackArtist = this.element.querySelector('#lyrics-track-artist');
-        this.trackAlbum = this.element.querySelector('#lyrics-track-album');
 
         // 歌词显示
         this.lyricsDisplay = this.element.querySelector('#lyrics-display');
@@ -1354,6 +1348,9 @@ class Lyrics extends EventEmitter {
 
         // 播放模式控制
         this.playmodeBtn = this.element.querySelector('#lyrics-playmode-btn');
+        this.modeSequenceIcon = this.playmodeBtn.querySelector('.lyrics-mode-sequence');
+        this.modeShuffleIcon = this.playmodeBtn.querySelector('.lyrics-mode-shuffle');
+        this.modeRepeatOneIcon = this.playmodeBtn.querySelector('.lyrics-mode-repeat-one');
 
         // 全屏状态
         this.isFullscreen = false;
@@ -1374,21 +1371,21 @@ class Lyrics extends EventEmitter {
             this.toggleFullscreen();
         });
 
-        this.playBtn.addEventListener('click', () => {
-            this.togglePlayPause();
+        this.playBtn.addEventListener('click', async () => {
+            await this.togglePlayPause();
         });
 
-        this.prevBtn.addEventListener('click', () => {
-            api.previousTrack();
+        this.prevBtn.addEventListener('click', async () => {
+            await api.previousTrack();
         });
 
-        this.nextBtn.addEventListener('click', () => {
-            api.nextTrack();
+        this.nextBtn.addEventListener('click', async () => {
+            await api.nextTrack();
         });
 
         // 音量控制事件
-        this.volumeBtn.addEventListener('click', () => {
-            this.toggleMute();
+        this.volumeBtn.addEventListener('click', async () => {
+            await this.toggleVolumeMute();
         });
 
         // 音量条点击和拖拽事件
@@ -1417,12 +1414,13 @@ class Lyrics extends EventEmitter {
 
         // 播放模式切换事件
         this.playmodeBtn.addEventListener('click', () => {
-            this.togglePlayMode();
+            const newMode = api.togglePlayMode();
+            this.updatePlayModeDisplay(newMode);
         });
 
         // 进度条交互事件
-        this.progressBar.addEventListener('click', (e) => {
-            this.seekToPosition(e);
+        this.progressBar.addEventListener('click', async (e) => {
+            await this.seekToPosition(e);
         });
 
         this.progressBar.addEventListener('mousedown', (e) => {
@@ -1435,9 +1433,9 @@ class Lyrics extends EventEmitter {
             }
         });
 
-        document.addEventListener('mouseup', () => {
+        document.addEventListener('mouseup', async () => {
             if (this.isDraggingProgress) {
-                this.endProgressDrag();
+                await this.endProgressDrag();
             }
         });
 
@@ -1482,8 +1480,8 @@ class Lyrics extends EventEmitter {
             this.updatePlayButton();
         });
 
-        api.on('trackChanged', (track) => {
-            this.updateTrackInfo(track);
+        api.on('trackChanged', async (track) => {
+            await this.updateTrackInfo(track);
         });
 
         // 监听时长变化事件，确保总时长正确显示
@@ -1517,7 +1515,7 @@ class Lyrics extends EventEmitter {
         this.currentTrack = track;
         this.isVisible = true;
         this.isPlaying = api.isPlaying;
-        // Show page with animation
+        // 动画显示
         this.page.style.display = 'block';
         setTimeout(() => {
             this.page.classList.add('show');
@@ -1588,7 +1586,6 @@ class Lyrics extends EventEmitter {
             this.progressFill.style.width = `${percentage}%`;
             this.progressHandle.style.left = `${percentage}%`;
         }
-
         // 更新时间显示
         if (this.currentTimeEl) {
             this.currentTimeEl.textContent = this.formatTime(currentTime);
@@ -1657,14 +1654,11 @@ class Lyrics extends EventEmitter {
             const lyricsResult = await api.getLyrics(track.title, track.artist, track.album);
 
             if (lyricsResult.success) {
-                // 解析LRC格式歌词
                 this.lyrics = api.parseLRC(lyricsResult.lrc);
-
                 if (this.lyrics.length > 0) {
                     // 缓存歌词到track对象
                     track.lyrics = this.lyrics;
                     track.lrcText = lyricsResult.lrc;
-
                     this.renderLyrics();
                     console.log('✅ Lyrics: 歌词加载成功');
                 } else {
@@ -1766,10 +1760,10 @@ class Lyrics extends EventEmitter {
         this.lyricsDisplay.scrollTop = 0;
         // 添加点击事件，允许用户跳转到指定时间
         this.lyricsDisplay.querySelectorAll('.lyrics-line').forEach(line => {
-            line.addEventListener('click', () => {
+            line.addEventListener('click', async () => {
                 const time = parseFloat(line.dataset.time);
                 if (!isNaN(time)) {
-                    api.seek(time);
+                    await api.seek(time);
                 }
             });
         });
@@ -1894,13 +1888,11 @@ class Lyrics extends EventEmitter {
 
     // 初始化控件状态
     async initializeControls() {
-        // 初始化音量控制
         const currentVolume = api.getVolume ? (await api.getVolume() * 100) : 50;
         await this.setVolume(currentVolume);
 
-        // 初始化播放模式
         const currentMode = api.getPlayMode ? api.getPlayMode() : 'repeat';
-        this.updatePlayModeButton(currentMode);
+        this.updatePlayModeDisplay(currentMode);
         console.log('🎵 Lyrics: 控件状态初始化完成');
     }
 
@@ -1948,7 +1940,7 @@ class Lyrics extends EventEmitter {
         this.setVolume(volume);
     }
 
-    async toggleMute() {
+    async toggleVolumeMute() {
         if (this.currentVolume > 0) {
             this.previousVolume = this.currentVolume;
             await this.setVolume(0);
@@ -1957,35 +1949,34 @@ class Lyrics extends EventEmitter {
         }
     }
 
-    // 播放模式控制方法
-    togglePlayMode() {
-        const modes = ['repeat', 'repeat-one', 'shuffle'];
-        const currentMode = api.getPlayMode() || 'repeat';
-        const currentIndex = modes.indexOf(currentMode);
-        const nextIndex = (currentIndex + 1) % modes.length;
-        const nextMode = modes[nextIndex];
-
-        api.setPlayMode(nextMode);
-        this.updatePlayModeButton(nextMode);
-        console.log('🎵 Lyrics: 播放模式切换为', nextMode);
-    }
-
-    updatePlayModeButton(mode) {
-        const iconMap = {
-            'repeat': 'assets/icons/repeat.svg',
-            'repeat-one': 'assets/icons/repeat-one.svg',
-            'shuffle': 'assets/icons/shuffle.svg'
-        };
-
-        const titleMap = {
-            'repeat': '列表循环',
-            'repeat-one': '单曲循环',
-            'shuffle': '随机播放'
-        };
-
-        const icon = this.playmodeBtn.querySelector('.icon');
-        icon.src = iconMap[mode] || iconMap['repeat'];
-        this.playmodeBtn.title = titleMap[mode] || titleMap['repeat'];
+    updatePlayModeDisplay(mode) {
+        if (!this.modeSequenceIcon || !this.modeShuffleIcon || !this.modeRepeatOneIcon) {
+            console.warn('🎵 Player: 播放模式图标元素不存在');
+            return;
+        }
+        this.modeSequenceIcon.style.display = 'none';
+        this.modeShuffleIcon.style.display = 'none';
+        this.modeRepeatOneIcon.style.display = 'none';
+        switch (mode) {
+            case 'sequence':
+                this.modeSequenceIcon.style.display = 'block';
+                if (this.playModeBtn) this.playModeBtn.title = '顺序播放';
+                break;
+            case 'shuffle':
+                this.modeShuffleIcon.style.display = 'block';
+                if (this.playModeBtn) this.playModeBtn.title = '随机播放';
+                break;
+            case 'repeat-one':
+                this.modeRepeatOneIcon.style.display = 'block';
+                if (this.playModeBtn) this.playModeBtn.title = '单曲循环';
+                break;
+            default:
+                // 默认显示顺序播放
+                this.modeSequenceIcon.style.display = 'block';
+                if (this.playModeBtn) this.playModeBtn.title = '顺序播放';
+                break;
+        }
+        console.log('🎵 Player: 播放模式显示更新为:', mode);
     }
 
     // 进度条交互方法

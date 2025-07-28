@@ -243,7 +243,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 // === api.js ===
-// API wrapper for communicating with Electron main process and C++ backend
 
 class MusicBoxAPI extends EventEmitter {
     constructor() {
@@ -260,7 +259,6 @@ class MusicBoxAPI extends EventEmitter {
 
         // Progress tracking
         this.progressInterval = null;
-        this.progressUpdateRate = 1000; // Update every second
 
         // 初始化Web Audio Engine
         this.webAudioEngine = null;
@@ -353,7 +351,7 @@ class MusicBoxAPI extends EventEmitter {
     }
 
     setupEventListeners() {
-        // Web Audio Engine events (优先级更高)
+        // Web Audio Engine events
         if (this.webAudioEngine) {
             console.log('🔄 API: 设置Web Audio Engine事件监听器');
 
@@ -445,8 +443,6 @@ class MusicBoxAPI extends EventEmitter {
     async loadTrack(filePath) {
         try {
             console.log(`🔄 加载音频文件: ${filePath}`);
-
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 const result = await this.webAudioEngine.loadTrack(filePath);
                 if (result) {
@@ -487,7 +483,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             const result = await window.electronAPI.audio.loadTrack(filePath);
             if (result) {
                 this.currentTrack = await window.electronAPI.audio.getCurrentTrack();
@@ -511,8 +506,6 @@ class MusicBoxAPI extends EventEmitter {
     async play() {
         try {
             console.log('🔄 API: 请求播放');
-
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 const result = await this.webAudioEngine.play();
                 if (result) {
@@ -527,7 +520,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             const result = await window.electronAPI.audio.play();
             if (result) {
                 this.isPlaying = true;
@@ -543,8 +535,6 @@ class MusicBoxAPI extends EventEmitter {
     async pause() {
         try {
             console.log('🔄 API: 请求暂停播放');
-
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 const result = this.webAudioEngine.pause();
                 if (result) {
@@ -559,7 +549,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             const result = await window.electronAPI.audio.pause();
             if (result) {
                 this.isPlaying = false;
@@ -590,7 +579,6 @@ class MusicBoxAPI extends EventEmitter {
     
     async seek(position) {
         try {
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 const result = await this.webAudioEngine.seek(position);
                 if (result) {
@@ -603,7 +591,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             const result = await window.electronAPI.audio.seek(position);
             if (result) {
                 this.position = position;
@@ -618,7 +605,6 @@ class MusicBoxAPI extends EventEmitter {
     
     async setVolume(volume) {
         try {
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 const result = this.webAudioEngine.setVolume(volume);
                 if (result) {
@@ -630,7 +616,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             await window.electronAPI.audio.setVolume(volume);
             this.volume = volume;
             this.emit('volumeChanged', volume);
@@ -669,8 +654,6 @@ class MusicBoxAPI extends EventEmitter {
     async setPlaylist(tracks, startIndex = -1) {
         try {
             console.log(`🔄 API: 设置播放列表，${tracks.length}首歌曲，起始索引: ${startIndex}`);
-
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 const result = this.webAudioEngine.setPlaylist(tracks, startIndex);
                 if (result) {
@@ -687,7 +670,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             await window.electronAPI.audio.setPlaylist(tracks);
             this.playlist = tracks;
             this.currentIndex = startIndex;
@@ -754,7 +736,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             this.currentIndex = nextIndex;
             this.currentTrack = nextTrack;
             this.emit('trackIndexChanged', this.currentIndex);
@@ -787,10 +768,8 @@ class MusicBoxAPI extends EventEmitter {
                 console.log('⚠️ 上一首歌曲不存在');
                 return false;
             }
-
             console.log(`⏮️ 切换到上一首 (${this.playMode}模式): ${prevTrack.title || prevTrack.filePath}`);
 
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 // 手动设置索引和播放
                 this.webAudioEngine.currentIndex = prevIndex;
@@ -820,7 +799,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             this.currentIndex = prevIndex;
             this.currentTrack = prevTrack;
             this.emit('trackIndexChanged', this.currentIndex);
@@ -1381,13 +1359,10 @@ class MusicBoxAPI extends EventEmitter {
     }
 }
 
-// Create global API instance
 const api = new MusicBoxAPI();
 
 
 // === components.js ===
-// Component system for MusicBox UI
-
 class Component extends EventEmitter {
     constructor(element) {
         super();
@@ -1549,23 +1524,16 @@ class Player extends Component {
             }
         });
 
-        // Volume button click to toggle mute
         this.volumeBtn.addEventListener('click', () => {
             this.toggleMute();
         });
-
-        // Play mode button click to toggle play mode
         this.playModeBtn.addEventListener('click', () => {
             const newMode = api.togglePlayMode();
             this.updatePlayModeDisplay(newMode);
         });
-
-        // Lyrics button click to show/hide lyrics
         this.lyricsBtn.addEventListener('click', () => {
             this.emit('toggleLyrics');
         });
-
-        // Playlist button click to show/hide playlist
         this.playlistBtn.addEventListener('click', () => {
             this.emit('togglePlaylist');
         });
@@ -1608,7 +1576,7 @@ class Player extends Component {
     }
 
     setupAPIListeners() {
-        // Enhanced API event listeners for real-time updates
+        // 用于实时更新的增强型 API 事件监听
         api.on('trackLoaded', (track) => {
             console.log('Track loaded in player:', track);
             this.updateTrackInfo(track);
@@ -1644,7 +1612,7 @@ class Player extends Component {
         this.progressFill.style.width = `${progress * 100}%`;
         this.progressHandle.style.left = `${progress * 100}%`;
 
-        // Update tooltip position and content
+        // 更新进度条位置和内容
         const time = this.duration * progress;
         this.progressTooltip.textContent = formatTime(time);
         this.progressTooltip.style.left = `${progress * 100}%`;
@@ -1762,18 +1730,15 @@ class Player extends Component {
     }
 
     updatePlayModeDisplay(mode) {
-        // Check if play mode elements exist
+        // 检查是否有这个模式
         if (!this.modeSequenceIcon || !this.modeShuffleIcon || !this.modeRepeatOneIcon) {
             console.warn('🎵 Player: 播放模式图标元素不存在');
             return;
         }
 
-        // Hide all icons first
         this.modeSequenceIcon.style.display = 'none';
         this.modeShuffleIcon.style.display = 'none';
         this.modeRepeatOneIcon.style.display = 'none';
-
-        // Show the appropriate icon
         switch (mode) {
             case 'sequence':
                 this.modeSequenceIcon.style.display = 'block';
@@ -1793,7 +1758,6 @@ class Player extends Component {
                 if (this.playModeBtn) this.playModeBtn.title = '顺序播放';
                 break;
         }
-
         console.log('🎵 Player: 播放模式显示更新为:', mode);
     }
 
@@ -2750,6 +2714,9 @@ class Lyrics extends EventEmitter {
 
         // 播放模式控制
         this.playmodeBtn = this.element.querySelector('#lyrics-playmode-btn');
+        this.modeSequenceIcon = this.playmodeBtn.querySelector('.lyrics-mode-sequence');
+        this.modeShuffleIcon = this.playmodeBtn.querySelector('.lyrics-mode-shuffle');
+        this.modeRepeatOneIcon = this.playmodeBtn.querySelector('.lyrics-mode-repeat-one');
 
         // 全屏状态
         this.isFullscreen = false;
@@ -2770,21 +2737,21 @@ class Lyrics extends EventEmitter {
             this.toggleFullscreen();
         });
 
-        this.playBtn.addEventListener('click', () => {
-            this.togglePlayPause();
+        this.playBtn.addEventListener('click', async () => {
+            await this.togglePlayPause();
         });
 
-        this.prevBtn.addEventListener('click', () => {
-            api.previousTrack();
+        this.prevBtn.addEventListener('click', async () => {
+            await api.previousTrack();
         });
 
-        this.nextBtn.addEventListener('click', () => {
-            api.nextTrack();
+        this.nextBtn.addEventListener('click', async () => {
+            await api.nextTrack();
         });
 
         // 音量控制事件
-        this.volumeBtn.addEventListener('click', () => {
-            this.toggleMute();
+        this.volumeBtn.addEventListener('click', async () => {
+            await this.toggleVolumeMute();
         });
 
         // 音量条点击和拖拽事件
@@ -2813,12 +2780,13 @@ class Lyrics extends EventEmitter {
 
         // 播放模式切换事件
         this.playmodeBtn.addEventListener('click', () => {
-            this.togglePlayMode();
+            const newMode = api.togglePlayMode();
+            this.updatePlayModeDisplay(newMode);
         });
 
         // 进度条交互事件
-        this.progressBar.addEventListener('click', (e) => {
-            this.seekToPosition(e);
+        this.progressBar.addEventListener('click', async (e) => {
+            await this.seekToPosition(e);
         });
 
         this.progressBar.addEventListener('mousedown', (e) => {
@@ -2831,9 +2799,9 @@ class Lyrics extends EventEmitter {
             }
         });
 
-        document.addEventListener('mouseup', () => {
+        document.addEventListener('mouseup', async () => {
             if (this.isDraggingProgress) {
-                this.endProgressDrag();
+                await this.endProgressDrag();
             }
         });
 
@@ -2878,8 +2846,8 @@ class Lyrics extends EventEmitter {
             this.updatePlayButton();
         });
 
-        api.on('trackChanged', (track) => {
-            this.updateTrackInfo(track);
+        api.on('trackChanged', async (track) => {
+            await this.updateTrackInfo(track);
         });
 
         // 监听时长变化事件，确保总时长正确显示
@@ -2913,7 +2881,7 @@ class Lyrics extends EventEmitter {
         this.currentTrack = track;
         this.isVisible = true;
         this.isPlaying = api.isPlaying;
-        // Show page with animation
+        // 动画显示
         this.page.style.display = 'block';
         setTimeout(() => {
             this.page.classList.add('show');
@@ -2984,7 +2952,6 @@ class Lyrics extends EventEmitter {
             this.progressFill.style.width = `${percentage}%`;
             this.progressHandle.style.left = `${percentage}%`;
         }
-
         // 更新时间显示
         if (this.currentTimeEl) {
             this.currentTimeEl.textContent = this.formatTime(currentTime);
@@ -3053,14 +3020,11 @@ class Lyrics extends EventEmitter {
             const lyricsResult = await api.getLyrics(track.title, track.artist, track.album);
 
             if (lyricsResult.success) {
-                // 解析LRC格式歌词
                 this.lyrics = api.parseLRC(lyricsResult.lrc);
-
                 if (this.lyrics.length > 0) {
                     // 缓存歌词到track对象
                     track.lyrics = this.lyrics;
                     track.lrcText = lyricsResult.lrc;
-
                     this.renderLyrics();
                     console.log('✅ Lyrics: 歌词加载成功');
                 } else {
@@ -3162,10 +3126,10 @@ class Lyrics extends EventEmitter {
         this.lyricsDisplay.scrollTop = 0;
         // 添加点击事件，允许用户跳转到指定时间
         this.lyricsDisplay.querySelectorAll('.lyrics-line').forEach(line => {
-            line.addEventListener('click', () => {
+            line.addEventListener('click', async () => {
                 const time = parseFloat(line.dataset.time);
                 if (!isNaN(time)) {
-                    api.seek(time);
+                    await api.seek(time);
                 }
             });
         });
@@ -3290,13 +3254,11 @@ class Lyrics extends EventEmitter {
 
     // 初始化控件状态
     async initializeControls() {
-        // 初始化音量控制
         const currentVolume = api.getVolume ? (await api.getVolume() * 100) : 50;
         await this.setVolume(currentVolume);
 
-        // 初始化播放模式
         const currentMode = api.getPlayMode ? api.getPlayMode() : 'repeat';
-        this.updatePlayModeButton(currentMode);
+        this.updatePlayModeDisplay(currentMode);
         console.log('🎵 Lyrics: 控件状态初始化完成');
     }
 
@@ -3344,7 +3306,7 @@ class Lyrics extends EventEmitter {
         this.setVolume(volume);
     }
 
-    async toggleMute() {
+    async toggleVolumeMute() {
         if (this.currentVolume > 0) {
             this.previousVolume = this.currentVolume;
             await this.setVolume(0);
@@ -3353,35 +3315,34 @@ class Lyrics extends EventEmitter {
         }
     }
 
-    // 播放模式控制方法
-    togglePlayMode() {
-        const modes = ['repeat', 'repeat-one', 'shuffle'];
-        const currentMode = api.getPlayMode() || 'repeat';
-        const currentIndex = modes.indexOf(currentMode);
-        const nextIndex = (currentIndex + 1) % modes.length;
-        const nextMode = modes[nextIndex];
-
-        api.setPlayMode(nextMode);
-        this.updatePlayModeButton(nextMode);
-        console.log('🎵 Lyrics: 播放模式切换为', nextMode);
-    }
-
-    updatePlayModeButton(mode) {
-        const iconMap = {
-            'repeat': 'assets/icons/repeat.svg',
-            'repeat-one': 'assets/icons/repeat-one.svg',
-            'shuffle': 'assets/icons/shuffle.svg'
-        };
-
-        const titleMap = {
-            'repeat': '列表循环',
-            'repeat-one': '单曲循环',
-            'shuffle': '随机播放'
-        };
-
-        const icon = this.playmodeBtn.querySelector('.icon');
-        icon.src = iconMap[mode] || iconMap['repeat'];
-        this.playmodeBtn.title = titleMap[mode] || titleMap['repeat'];
+    updatePlayModeDisplay(mode) {
+        if (!this.modeSequenceIcon || !this.modeShuffleIcon || !this.modeRepeatOneIcon) {
+            console.warn('🎵 Player: 播放模式图标元素不存在');
+            return;
+        }
+        this.modeSequenceIcon.style.display = 'none';
+        this.modeShuffleIcon.style.display = 'none';
+        this.modeRepeatOneIcon.style.display = 'none';
+        switch (mode) {
+            case 'sequence':
+                this.modeSequenceIcon.style.display = 'block';
+                if (this.playModeBtn) this.playModeBtn.title = '顺序播放';
+                break;
+            case 'shuffle':
+                this.modeShuffleIcon.style.display = 'block';
+                if (this.playModeBtn) this.playModeBtn.title = '随机播放';
+                break;
+            case 'repeat-one':
+                this.modeRepeatOneIcon.style.display = 'block';
+                if (this.playModeBtn) this.playModeBtn.title = '单曲循环';
+                break;
+            default:
+                // 默认显示顺序播放
+                this.modeSequenceIcon.style.display = 'block';
+                if (this.playModeBtn) this.playModeBtn.title = '顺序播放';
+                break;
+        }
+        console.log('🎵 Player: 播放模式显示更新为:', mode);
     }
 
     // 进度条交互方法
@@ -3428,7 +3389,6 @@ class Lyrics extends EventEmitter {
 
 
 // === app.js ===
-// Main application class for MusicBox
 
 class MusicBoxApp extends EventEmitter {
     constructor() {
@@ -3489,7 +3449,6 @@ class MusicBoxApp extends EventEmitter {
     }
 
     initializeComponents() {
-        // Initialize main components
         this.components.player = new Player();
         this.components.search = new Search();
         this.components.navigation = new Navigation();
@@ -3499,7 +3458,7 @@ class MusicBoxApp extends EventEmitter {
         this.components.settings = new Settings(document.getElementById('settings-page'));
         this.components.lyrics = new Lyrics(document.getElementById('lyrics-page'));
 
-        // Setup component event listeners
+        // 设置组件事件监听
         this.components.search.on('searchResults', (results) => {
             this.handleSearchResults(results);
         });
@@ -3605,7 +3564,7 @@ class MusicBoxApp extends EventEmitter {
             this.handleKeyboardShortcut(e);
         });
 
-        // Add playlist button
+        // 添加播放列表按钮
         const addPlaylistBtn = document.getElementById('add-playlist-btn');
         if (addPlaylistBtn) {
             addPlaylistBtn.addEventListener('click', () => {
@@ -3613,7 +3572,7 @@ class MusicBoxApp extends EventEmitter {
             });
         }
 
-        // File loading functionality
+        // 文件加载功能
         this.setupFileLoading();
 
         // API events
@@ -3693,16 +3652,13 @@ class MusicBoxApp extends EventEmitter {
 
             // 如果没有缓存或缓存为空，检查内存中的音乐库
             this.library = await api.getTracks();
-
             if (this.library.length === 0) {
-                // Show welcome screen for first-time users
                 this.showWelcomeScreen();
             } else {
-                // Load library view
+                // 加载库视图
                 this.filteredLibrary = [...this.library];
                 this.updateTrackList();
             }
-
         } catch (error) {
             console.error('Failed to load initial data:', error);
             this.showError('Failed to load music library');
@@ -3807,11 +3763,10 @@ class MusicBoxApp extends EventEmitter {
             </div>
         `;
 
-        // Add event listeners for welcome screen buttons
+        // 为主页按钮添加事件监听
         document.getElementById('scan-folder-btn')?.addEventListener('click', () => {
             this.scanMusicFolder();
         });
-
         document.getElementById('add-files-btn')?.addEventListener('click', () => {
             this.addMusicFiles();
         });
@@ -3840,14 +3795,12 @@ class MusicBoxApp extends EventEmitter {
         try {
             const filePaths = await api.openFiles();
             if (filePaths.length > 0) {
-                // Process selected files
                 for (const filePath of filePaths) {
                     const metadata = await api.getTrackMetadata(filePath);
                     if (metadata) {
                         this.library.push(metadata);
                     }
                 }
-
                 this.filteredLibrary = [...this.library];
                 this.updateTrackList();
                 showToast(`添加 ${filePaths.length} 首音乐`, 'success');
@@ -3918,7 +3871,7 @@ class MusicBoxApp extends EventEmitter {
 
     handleViewChange(view) {
         this.currentView = view;
-        // Implement view switching logic here
+        // todo 在此处实现视图切换逻辑
         console.log('View changed to:', view);
     }
 
@@ -3954,13 +3907,12 @@ class MusicBoxApp extends EventEmitter {
     }
 
     handleKeyboardShortcut(e) {
-        // Global keyboard shortcuts
         if (e.target.tagName === 'INPUT') return;
 
         switch (e.code) {
             case 'Space':
                 e.preventDefault();
-                // Handled by Player component
+                // 控制台组件处理
                 break;
             case 'ArrowRight':
                 if (e.ctrlKey || e.metaKey) {
@@ -3984,21 +3936,17 @@ class MusicBoxApp extends EventEmitter {
     }
 
     showCreatePlaylistDialog() {
-        // Implement playlist creation dialog
+        // todo 实现播放列表创建对话框
         const name = prompt('Enter playlist name:');
         if (name) {
-            // Create playlist logic here
             console.log('Creating playlist:', name);
         }
     }
 
     cleanup() {
-        // Save current state
         if (this.components.player) {
             api.setSetting('volume', this.components.player.volume);
         }
-
-        // Cleanup components
         Object.values(this.components).forEach(component => {
             if (component.destroy) {
                 component.destroy();
@@ -4274,7 +4222,6 @@ class MusicBoxApp extends EventEmitter {
         }
     }
 
-    // Update track duration in library
     updateLibraryTrackDuration(filePath, duration) {
         // 更新音乐库中的时长
         const libraryTrack = this.library.find(track => track.filePath === filePath);
@@ -4349,7 +4296,6 @@ class MusicBoxApp extends EventEmitter {
     }
 }
 
-// Initialize the application
 const app = new MusicBoxApp();
 
 
