@@ -37,9 +37,7 @@
 
 ### 预编译版本下载
 
-项目处于DEV阶段，暂不提供Releases。
-
-[//]: # (前往 [Releases]&#40;https://github.com/your-username/MusicBox/releases&#41; 页面下载适合你操作系统的安装包：)
+前往 [Releases](https://github.com/asxez/MusicBox/releases) 页面下载适合你操作系统的安装包：
 
 ### 从源码构建
 
