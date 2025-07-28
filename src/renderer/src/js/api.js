@@ -1,4 +1,3 @@
-// API wrapper for communicating with Electron main process and C++ backend
 
 class MusicBoxAPI extends EventEmitter {
     constructor() {
@@ -15,7 +14,6 @@ class MusicBoxAPI extends EventEmitter {
 
         // Progress tracking
         this.progressInterval = null;
-        this.progressUpdateRate = 1000; // Update every second
 
         // 初始化Web Audio Engine
         this.webAudioEngine = null;
@@ -108,7 +106,7 @@ class MusicBoxAPI extends EventEmitter {
     }
 
     setupEventListeners() {
-        // Web Audio Engine events (优先级更高)
+        // Web Audio Engine events
         if (this.webAudioEngine) {
             console.log('🔄 API: 设置Web Audio Engine事件监听器');
 
@@ -200,8 +198,6 @@ class MusicBoxAPI extends EventEmitter {
     async loadTrack(filePath) {
         try {
             console.log(`🔄 加载音频文件: ${filePath}`);
-
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 const result = await this.webAudioEngine.loadTrack(filePath);
                 if (result) {
@@ -242,7 +238,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             const result = await window.electronAPI.audio.loadTrack(filePath);
             if (result) {
                 this.currentTrack = await window.electronAPI.audio.getCurrentTrack();
@@ -266,8 +261,6 @@ class MusicBoxAPI extends EventEmitter {
     async play() {
         try {
             console.log('🔄 API: 请求播放');
-
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 const result = await this.webAudioEngine.play();
                 if (result) {
@@ -282,7 +275,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             const result = await window.electronAPI.audio.play();
             if (result) {
                 this.isPlaying = true;
@@ -298,8 +290,6 @@ class MusicBoxAPI extends EventEmitter {
     async pause() {
         try {
             console.log('🔄 API: 请求暂停播放');
-
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 const result = this.webAudioEngine.pause();
                 if (result) {
@@ -314,7 +304,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             const result = await window.electronAPI.audio.pause();
             if (result) {
                 this.isPlaying = false;
@@ -345,7 +334,6 @@ class MusicBoxAPI extends EventEmitter {
     
     async seek(position) {
         try {
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 const result = await this.webAudioEngine.seek(position);
                 if (result) {
@@ -358,7 +346,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             const result = await window.electronAPI.audio.seek(position);
             if (result) {
                 this.position = position;
@@ -373,7 +360,6 @@ class MusicBoxAPI extends EventEmitter {
     
     async setVolume(volume) {
         try {
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 const result = this.webAudioEngine.setVolume(volume);
                 if (result) {
@@ -385,7 +371,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             await window.electronAPI.audio.setVolume(volume);
             this.volume = volume;
             this.emit('volumeChanged', volume);
@@ -424,8 +409,6 @@ class MusicBoxAPI extends EventEmitter {
     async setPlaylist(tracks, startIndex = -1) {
         try {
             console.log(`🔄 API: 设置播放列表，${tracks.length}首歌曲，起始索引: ${startIndex}`);
-
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 const result = this.webAudioEngine.setPlaylist(tracks, startIndex);
                 if (result) {
@@ -442,7 +425,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             await window.electronAPI.audio.setPlaylist(tracks);
             this.playlist = tracks;
             this.currentIndex = startIndex;
@@ -509,7 +491,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             this.currentIndex = nextIndex;
             this.currentTrack = nextTrack;
             this.emit('trackIndexChanged', this.currentIndex);
@@ -542,10 +523,8 @@ class MusicBoxAPI extends EventEmitter {
                 console.log('⚠️ 上一首歌曲不存在');
                 return false;
             }
-
             console.log(`⏮️ 切换到上一首 (${this.playMode}模式): ${prevTrack.title || prevTrack.filePath}`);
 
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 // 手动设置索引和播放
                 this.webAudioEngine.currentIndex = prevIndex;
@@ -575,7 +554,6 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 回退到IPC
             this.currentIndex = prevIndex;
             this.currentTrack = prevTrack;
             this.emit('trackIndexChanged', this.currentIndex);
@@ -1136,5 +1114,4 @@ class MusicBoxAPI extends EventEmitter {
     }
 }
 
-// Create global API instance
 const api = new MusicBoxAPI();
