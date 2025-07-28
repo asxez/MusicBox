@@ -1054,6 +1054,8 @@ class Settings extends EventEmitter {
         this.rememberPositionToggle = this.element.querySelector('#remember-position-toggle');
         this.autoScanToggle = this.element.querySelector('#auto-scan-toggle');
         this.selectFolderBtn = this.element.querySelector('#select-folder-btn');
+        this.selectLyricsFolderBtn = this.element.querySelector('#select-lyrics-folder-btn');
+        this.lyricsFolderPath = this.element.querySelector('#lyrics-folder-path');
         this.rescanLibraryBtn = this.element.querySelector('#rescan-library-btn');
         this.checkUpdatesBtn = this.element.querySelector('#check-updates-btn');
 
@@ -1104,6 +1106,27 @@ class Settings extends EventEmitter {
         // 按钮事件
         this.selectFolderBtn.addEventListener('click', () => {
             this.emit('selectMusicFolder');
+        });
+
+        this.selectLyricsFolderBtn.addEventListener('click', async () => {
+            try {
+                const result = await window.electronAPI.selectFolder();
+                if (result && result.filePaths && result.filePaths.length > 0) {
+                    const selectedPath = result.filePaths[0];
+                    this.updateSetting('lyricsDirectory', selectedPath);
+                    this.lyricsFolderPath.textContent = selectedPath;
+                    this.lyricsFolderPath.classList.add('selected');
+
+                    // 更新本地歌词管理器
+                    if (window.localLyricsManager) {
+                        window.localLyricsManager.setLyricsDirectory(selectedPath);
+                    }
+
+                    console.log(`✅ Settings: 本地歌词目录已设置为 ${selectedPath}`);
+                }
+            } catch (error) {
+                console.error('❌ Settings: 选择歌词目录失败:', error);
+            }
         });
 
         this.rescanLibraryBtn.addEventListener('click', () => {
@@ -1190,23 +1213,44 @@ class Settings extends EventEmitter {
         this.autoplayToggle.checked = this.settings.autoplay || false;
         this.rememberPositionToggle.checked = this.settings.rememberPosition || false;
         this.autoScanToggle.checked = this.settings.autoScan || false;
+
+        // 初始化本地歌词目录
+        const lyricsDirectory = this.settings.lyricsDirectory;
+        if (lyricsDirectory) {
+            this.lyricsFolderPath.textContent = lyricsDirectory;
+            this.lyricsFolderPath.classList.add('selected');
+
+            // 设置本地歌词管理器
+            if (window.localLyricsManager) {
+                window.localLyricsManager.setLyricsDirectory(lyricsDirectory);
+            }
+        } else {
+            this.lyricsFolderPath.textContent = '未选择';
+            this.lyricsFolderPath.classList.remove('selected');
+        }
     }
 
     // 加载设置
     loadSettings() {
-        const savedSettings = localStorage.getItem('musicbox-settings');
-        return savedSettings ? JSON.parse(savedSettings) : {};
+        return window.cacheManager.getLocalCache('musicbox-settings')
     }
 
     // 更新设置
     updateSetting(key, value) {
         this.settings[key] = value;
-        localStorage.setItem('musicbox-settings', JSON.stringify(this.settings));
+        window.cacheManager.setLocalCache('musicbox-settings', this.settings);
     }
 
     // 获取设置值
     getSetting(key, defaultValue = null) {
         return this.settings[key] !== undefined ? this.settings[key] : defaultValue;
+    }
+
+    // 更新音乐文件夹路径显示
+    updateMusicFolderPath(path) {
+        this.updateSetting('musicDirectory', path);
+        console.log(`✅ Settings: 音乐文件夹路径已更新为 ${path}`);
+        // 这里可以添加UI更新逻辑，比如显示选中的路径
     }
 
     // 缓存管理方法

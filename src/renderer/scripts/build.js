@@ -70,14 +70,21 @@ async function bundleJS() {
     
     // Add any remaining files (exclude web-audio-engine.js)
     for (const file of files) {
-        if (!fileOrder.includes(file) && file !== 'web-audio-engine.js' && file !== 'cache-manager.js') {
+        if (
+            !fileOrder.includes(file) &&
+            file !== 'web-audio-engine.js' &&
+            file !== 'cache-manager.js' &&
+            file !== 'local-lyrics-manager.js'
+        ) {
             const filePath = path.join(jsDir, file);
             const content = fs.readFileSync(filePath, 'utf8');
             console.log(`✓ Adding ${file} (${content.length} chars)`);
             bundledCode += `// === ${file} ===\n${content}\n\n`;
-        } else if (file === 'web-audio-engine.js') {
-            console.log(`⚠ Skipping ${file} (loaded separately)`);
-        } else if (file === 'cache-manager.js') {
+        } else if (
+            file === 'web-audio-engine.js' ||
+            file === 'cache-manager.js' ||
+            file === 'local-lyrics-manager.js'
+        ) {
             console.log(`⚠ Skipping ${file} (loaded separately)`);
         }
     }

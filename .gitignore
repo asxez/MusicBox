@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 src/renderer/node_modules/
+src/renderer/public/assets
+src/renderer/public/js
+src/renderer/public/styles
 
 # Build outputs
 build/

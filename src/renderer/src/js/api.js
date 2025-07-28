@@ -807,19 +807,35 @@ class MusicBoxAPI extends EventEmitter {
     // File Dialog Methods
     async openDirectory() {
         try {
-            return await window.electronAPI.openDirectory();
+            // 使用原始的openDirectory方法，返回字符串路径（用于音乐目录扫描等）
+            const result = await window.electronAPI.openDirectory();
+            return result; // 直接返回字符串路径或null
         } catch (error) {
             console.error('Failed to open directory dialog:', error);
             return null;
         }
     }
-    
+
     async openFiles() {
         try {
             return await window.electronAPI.openFiles();
         } catch (error) {
             console.error('Failed to open files dialog:', error);
             return [];
+        }
+    }
+
+    // 选择音乐文件夹方法（用于设置页面）
+    async selectMusicFolder() {
+        try {
+            const result = await window.electronAPI.selectFolder();
+            if (result && result.filePaths && result.filePaths.length > 0 && !result.canceled) {
+                return { path: result.filePaths[0], success: true };
+            }
+            return { success: false };
+        } catch (error) {
+            console.error('Failed to select music folder:', error);
+            return { success: false, error: error.message };
         }
     }
     
@@ -1022,7 +1038,7 @@ class MusicBoxAPI extends EventEmitter {
         try {
             console.log(`🎵 获取歌词: ${title} - ${artist}`);
 
-            // 检查缓存
+            // 第一优先级：检查localStorage缓存
             if (window.cacheManager) {
                 const cached = window.cacheManager.getLyricsCache(title, artist, album);
                 if (cached) {
@@ -1031,6 +1047,29 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
+            // 第二优先级：检查本地歌词文件
+            if (window.localLyricsManager) {
+                try {
+                    const localResult = await window.localLyricsManager.getLyrics(title, artist, album);
+                    if (localResult.success) {
+                        console.log(`✅ 本地歌词获取成功: ${title} - ${localResult.fileName}`);
+
+                        // 将本地歌词保存到缓存中
+                        if (window.cacheManager) {
+                            window.cacheManager.setLyricsCache(title, artist, album, localResult);
+                        }
+
+                        return localResult;
+                    } else {
+                        console.log(`ℹ️ 本地歌词未找到: ${title} - ${localResult.error}`);
+                    }
+                } catch (localError) {
+                    console.warn(`⚠️ 本地歌词获取异常: ${title} - ${localError.message}`);
+                }
+            }
+
+            // 第三优先级：通过网络接口获取
+            console.log(`🌐 尝试网络获取歌词: ${title}`);
             const params = new URLSearchParams();
             if (title) params.append('title', title);
             if (artist) params.append('artist', artist);
@@ -1042,13 +1081,17 @@ class MusicBoxAPI extends EventEmitter {
             const lrcText = await response.text();
 
             if (!lrcText || lrcText.trim() === '') {
-                throw new Error('歌词内容为空');
+                console.error(`⚠️ 歌词内容为空`);
             }
 
-            console.log(`✅ 歌词获取成功: ${title}`);
-            const result = { success: true, lrc: lrcText.trim() };
+            console.log(`✅ 网络歌词获取成功: ${title}`);
+            const result = {
+                success: true,
+                lrc: lrcText.trim(),
+                source: 'network'
+            };
 
-            // 缓存结果
+            // 缓存网络获取的结果
             if (window.cacheManager) {
                 window.cacheManager.setLyricsCache(title, artist, album, result);
             }
@@ -1057,7 +1100,11 @@ class MusicBoxAPI extends EventEmitter {
 
         } catch (error) {
             console.error(`❌ 歌词获取失败: ${title} - ${error.message}`);
-            const errorResult = { success: false, error: error.message };
+            const errorResult = {
+                success: false,
+                error: error.message,
+                source: 'error'
+            };
 
             // 缓存失败结果（短时间）
             if (window.cacheManager) {
