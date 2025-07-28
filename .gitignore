@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+src/renderer/node_modules/
+
+# Build outputs
+build/
+dist/
+src/renderer/dist/
+
+# dotenv environment variables file
+.env
+
+# IDE files
+.vscode/
+.idea/
+.vs/
+
+# Electron
+out/
+app/

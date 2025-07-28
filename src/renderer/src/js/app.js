@@ -1,0 +1,908 @@
+
+class MusicBoxApp extends EventEmitter {
+    constructor() {
+        super();
+        this.isInitialized = false;
+        this.currentView = 'library';
+        this.library = [];
+        this.filteredLibrary = [];
+        this.components = {};
+
+        this.init();
+    }
+
+    async init() {
+        try {
+            // Wait for DOM to be ready
+            if (document.readyState === 'loading') {
+                await new Promise(resolve => {
+                    document.addEventListener('DOMContentLoaded', resolve);
+                });
+            }
+
+            // Initialize API
+            await this.initializeAPI();
+
+            // Initialize components
+            this.initializeComponents();
+
+            // Setup event listeners
+            this.setupEventListeners();
+
+            // Load initial data
+            await this.loadInitialData();
+
+            // Hide loading screen and show app
+            this.showApp();
+
+            this.isInitialized = true;
+            console.log('MusicBox initialized successfully');
+
+        } catch (error) {
+            console.error('Failed to initialize MusicBox:', error);
+            this.showError('应用初始化失败');
+        }
+    }
+
+    async initializeAPI() {
+        const success = await api.initializeAudio();
+        if (!success) {
+            throw new Error('Failed to initialize audio engine');
+        }
+
+        // Load saved settings
+        const savedVolume = await api.getSetting('volume');
+        if (savedVolume !== null) {
+            await api.setVolume(savedVolume);
+        }
+    }
+
+    initializeComponents() {
+        this.components.player = new Player();
+        this.components.search = new Search();
+        this.components.navigation = new Navigation();
+        this.components.trackList = new TrackList('#content-area');
+        this.components.playlist = new Playlist(document.getElementById('playlist-panel'));
+        this.components.contextMenu = new ContextMenu(document.getElementById('context-menu'));
+        this.components.settings = new Settings(document.getElementById('settings-page'));
+        this.components.lyrics = new Lyrics(document.getElementById('lyrics-page'));
+
+        // 设置组件事件监听
+        this.components.search.on('searchResults', (results) => {
+            this.handleSearchResults(results);
+        });
+
+        this.components.search.on('searchCleared', () => {
+            this.handleSearchCleared();
+        });
+
+        this.components.navigation.on('viewChanged', (view) => {
+            this.handleViewChange(view);
+        });
+
+        this.components.navigation.on('showSettings', () => {
+            this.components.settings.toggle();
+        });
+
+        this.components.trackList.on('trackPlayed', (track, index) => {
+            this.handleTrackPlayed(track, index);
+        });
+
+        this.components.trackList.on('trackRightClick', (track, index, x, y) => {
+            this.components.contextMenu.show(x, y, track, index);
+        });
+
+        // Player events
+        this.components.player.on('togglePlaylist', () => {
+            this.components.playlist.toggle();
+        });
+
+        this.components.player.on('toggleLyrics', () => {
+            this.components.lyrics.toggle(api.currentTrack);
+        });
+
+        this.components.player.on('trackIndexChanged', (index) => {
+            this.handleTrackIndexChanged(index);
+        });
+
+        // Playlist events
+        this.components.playlist.on('trackSelected', ({track, index}) => {
+            this.handlePlaylistTrackSelected(track, index);
+        });
+
+        this.components.playlist.on('trackPlayed', ({track, index}) => {
+            this.handlePlaylistTrackPlayed(track, index);
+        });
+
+        this.components.playlist.on('trackRemoved', ({track, index}) => {
+            this.handlePlaylistTrackRemoved(track, index);
+        });
+
+        this.components.playlist.on('playlistCleared', () => {
+            this.handlePlaylistCleared();
+        });
+
+        // Context menu events
+        this.components.contextMenu.on('play', ({track, index}) => {
+            this.handleTrackPlayed(track, index);
+        });
+
+        this.components.contextMenu.on('addToPlaylist', ({track, index}) => {
+            this.addToPlaylist(track);
+        });
+
+        this.components.contextMenu.on('delete', ({track, index}) => {
+            this.handleDeleteTrack(track, index);
+        });
+
+        // Settings events
+        this.components.settings.on('selectMusicFolder', () => {
+            this.handleSelectMusicFolder();
+        });
+
+        this.components.settings.on('rescanLibrary', () => {
+            this.handleRescanLibrary();
+        });
+
+        this.components.settings.on('defaultVolumeChanged', (volume) => {
+            this.handleDefaultVolumeChanged(volume);
+        });
+
+        // Lyrics events
+        this.components.lyrics.on('togglePlay', () => {
+            this.components.player.togglePlay();
+        });
+
+        this.components.lyrics.on('previousTrack', () => {
+            this.components.player.previousTrack();
+        });
+
+        this.components.lyrics.on('nextTrack', () => {
+            this.components.player.nextTrack();
+        });
+    }
+
+    setupEventListeners() {
+        // Window events
+        window.addEventListener('beforeunload', () => {
+            this.cleanup();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            this.handleKeyboardShortcut(e);
+        });
+
+        // 添加播放列表按钮
+        const addPlaylistBtn = document.getElementById('add-playlist-btn');
+        if (addPlaylistBtn) {
+            addPlaylistBtn.addEventListener('click', () => {
+                this.showCreatePlaylistDialog();
+            });
+        }
+
+        // 文件加载功能
+        this.setupFileLoading();
+
+        // API events
+        api.on('libraryUpdated', () => {
+            this.refreshLibrary();
+        });
+
+        api.on('playlistChanged', (tracks) => {
+            console.log('🎵 API播放列表改变:', tracks.length, '首歌曲');
+            // 确保播放列表组件与API同步
+            if (this.components.playlist && tracks.length > 0) {
+                this.components.playlist.setTracks(tracks, api.currentIndex);
+            }
+        });
+
+        api.on('libraryTrackDurationUpdated', ({filePath, duration}) => {
+            console.log('🎵 更新音乐库歌曲时长:', filePath, duration.toFixed(2) + 's');
+            this.updateLibraryTrackDuration(filePath, duration);
+        });
+
+        api.on('playModeChanged', (mode) => {
+            console.log('🎵 播放模式改变:', mode);
+            this.components.player.updatePlayModeDisplay(mode);
+        });
+
+        // Update lyrics page when track changes
+        api.on('trackChanged', (track) => {
+            if (this.components.lyrics.isVisible) {
+                this.components.lyrics.show(track);
+            }
+        });
+
+        // Update lyrics page progress
+        api.on('positionChanged', (position) => {
+            if (this.components.lyrics.isVisible) {
+                this.components.lyrics.updateProgress(position, api.duration);
+            }
+        });
+
+        // Update lyrics page play button
+        api.on('playbackStateChanged', (state) => {
+            if (this.components.lyrics.isVisible) {
+                this.components.lyrics.updatePlayButton(state === 'playing');
+            }
+        });
+
+        api.on('scanProgress', (progress) => {
+            this.updateScanProgress(progress);
+        });
+    }
+
+    async loadInitialData() {
+        try {
+            console.log('📚 开始加载初始数据...');
+
+            // 首先尝试从缓存加载音乐库
+            const hasCachedLibrary = await api.hasCachedLibrary();
+
+            if (hasCachedLibrary) {
+                console.log('📚 发现缓存的音乐库，优先加载...');
+                this.showCacheLoadingStatus();
+
+                // 从缓存加载音乐库
+                this.library = await api.loadCachedTracks();
+
+                if (this.library.length > 0) {
+                    console.log(`✅ 从缓存加载 ${this.library.length} 个音乐文件`);
+                    this.filteredLibrary = [...this.library];
+                    this.updateTrackList();
+                    this.hideCacheLoadingStatus();
+
+                    // 在后台验证缓存
+                    this.validateCacheInBackground();
+                    return;
+                }
+            }
+
+            // 如果没有缓存或缓存为空，检查内存中的音乐库
+            this.library = await api.getTracks();
+            if (this.library.length === 0) {
+                this.showWelcomeScreen();
+            } else {
+                // 加载库视图
+                this.filteredLibrary = [...this.library];
+                this.updateTrackList();
+            }
+        } catch (error) {
+            console.error('Failed to load initial data:', error);
+            this.showError('Failed to load music library');
+        }
+    }
+
+    showCacheLoadingStatus() {
+        const statusElement = document.getElementById('cache-loading-status');
+        if (statusElement) {
+            statusElement.style.display = 'block';
+            statusElement.textContent = '正在从缓存加载音乐库...';
+        }
+    }
+
+    hideCacheLoadingStatus() {
+        const statusElement = document.getElementById('cache-loading-status');
+        if (statusElement) {
+            statusElement.style.display = 'none';
+        }
+    }
+
+    async validateCacheInBackground() {
+        try {
+            console.log('🔍 在后台验证缓存...');
+
+            // 设置验证进度监听器
+            api.on('cacheValidationProgress', (progress) => {
+                console.log(`🔍 缓存验证进度: ${progress.current}/${progress.total}`);
+            });
+
+            api.on('cacheValidationCompleted', (result) => {
+                console.log('✅ 后台缓存验证完成:', result);
+
+                // 如果有无效文件被清理，更新UI
+                if (result.invalid > 0) {
+                    this.showInfo(`已清理 ${result.invalid} 个无效的音乐文件`);
+
+                    // 更新音乐库
+                    if (result.tracks) {
+                        this.library = result.tracks;
+                        this.filteredLibrary = [...this.library];
+                        this.updateTrackList();
+                    }
+                }
+            });
+
+            api.on('cacheValidationError', (error) => {
+                console.warn('⚠️ 后台缓存验证失败:', error);
+            });
+
+            // 启动验证
+            await api.validateCache();
+
+        } catch (error) {
+            console.warn('⚠️ 后台缓存验证失败:', error);
+        }
+    }
+
+    showApp() {
+        const loading = document.getElementById('loading');
+        const app = document.getElementById('app');
+
+        if (loading) {
+            loading.style.opacity = '0';
+            setTimeout(() => {
+                loading.style.display = 'none';
+            }, 300);
+        }
+
+        if (app) {
+            app.style.display = 'grid';
+            setTimeout(() => {
+                app.style.opacity = '1';
+            }, 100);
+        }
+    }
+
+    showWelcomeScreen() {
+        const contentArea = document.getElementById('content-area');
+        if (!contentArea) return;
+
+        contentArea.innerHTML = `
+            <div class="welcome-screen">
+                <div class="welcome-content">
+                    <h1>欢迎！</h1>
+                    <p>添加喜欢的音乐吧！</p>
+                    <div class="welcome-actions">
+                        <button class="primary-button" id="scan-folder-btn">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z"/>
+                            </svg>
+                            添加音乐目录
+                        </button>
+                        <button class="secondary-button" id="add-files-btn">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                            </svg>
+                            添加音乐
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 为主页按钮添加事件监听
+        document.getElementById('scan-folder-btn')?.addEventListener('click', () => {
+            this.scanMusicFolder();
+        });
+        document.getElementById('add-files-btn')?.addEventListener('click', () => {
+            this.addMusicFiles();
+        });
+    }
+
+    async scanMusicFolder() {
+        try {
+            const folderPath = await api.openDirectory();
+            if (folderPath) {
+                this.showScanProgress();
+                const success = await api.scanDirectory(folderPath);
+                if (success) {
+                    showToast('音乐目录扫描成功', 'success');
+                    await this.refreshLibrary();
+                } else {
+                    showToast('音乐目录扫描失败', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('扫描目录失败：', error);
+            showToast('音乐目录扫描失败', 'error');
+        }
+    }
+
+    async addMusicFiles() {
+        try {
+            const filePaths = await api.openFiles();
+            if (filePaths.length > 0) {
+                for (const filePath of filePaths) {
+                    const metadata = await api.getTrackMetadata(filePath);
+                    if (metadata) {
+                        this.library.push(metadata);
+                    }
+                }
+                this.filteredLibrary = [...this.library];
+                this.updateTrackList();
+                showToast(`添加 ${filePaths.length} 首音乐`, 'success');
+            }
+        } catch (error) {
+            console.error('添加音乐失败', error);
+            showToast('添加音乐失败', 'error');
+        }
+    }
+
+    showScanProgress() {
+        const contentArea = document.getElementById('content-area');
+        if (!contentArea) return;
+
+        contentArea.innerHTML = `
+            <div class="scan-progress">
+                <div class="scan-content">
+                    <h2>扫描音乐库</h2>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="scan-progress-fill"></div>
+                    </div>
+                    <p id="scan-status">加载中...</p>
+                </div>
+            </div>
+        `;
+    }
+
+    updateScanProgress(progress) {
+        const progressFill = document.getElementById('scan-progress-fill');
+        const statusText = document.getElementById('scan-status');
+
+        if (progressFill && statusText) {
+            const percent = progress.totalFiles > 0 ?
+                (progress.processedFiles / progress.totalFiles) * 100 : 0;
+
+            progressFill.style.width = `${percent}%`;
+            statusText.textContent = progress.isComplete ?
+                'Scan completed!' :
+                `Processing: ${progress.currentFile}`;
+        }
+    }
+
+    async refreshLibrary() {
+        try {
+            this.library = await api.getTracks();
+            this.filteredLibrary = [...this.library];
+            this.updateTrackList();
+        } catch (error) {
+            console.error('Failed to refresh library:', error);
+        }
+    }
+
+    updateTrackList() {
+        if (this.components.trackList) {
+            this.components.trackList.setTracks(this.filteredLibrary);
+        }
+    }
+
+    handleSearchResults(results) {
+        this.filteredLibrary = results;
+        this.updateTrackList();
+    }
+
+    handleSearchCleared() {
+        this.filteredLibrary = [...this.library];
+        this.updateTrackList();
+    }
+
+    handleViewChange(view) {
+        this.currentView = view;
+        // todo 在此处实现视图切换逻辑
+        console.log('View changed to:', view);
+    }
+
+    handleTrackPlayed(track, index) {
+        console.log('🎵 从音乐库播放歌曲:', track.title);
+
+        if (this.components.playlist) {
+            // 如果播放列表为空，将整个音乐库添加到播放列表
+            if (this.components.playlist.tracks.length === 0) {
+                console.log('🎵 播放列表为空，添加整个音乐库');
+                this.components.playlist.setTracks(this.filteredLibrary, index);
+                this.playTrackFromPlaylist(track, index);
+            } else {
+                // 播放列表不为空，检查歌曲是否已在播放列表中
+                const existingIndex = this.components.playlist.tracks.findIndex(t =>
+                    t.filePath === track.filePath
+                );
+
+                if (existingIndex === -1) {
+                    // 歌曲不在播放列表中，添加到末尾并播放
+                    const newIndex = this.components.playlist.addTrack(track);
+                    this.playTrackFromPlaylist(track, newIndex);
+                } else {
+                    // 歌曲已在播放列表中，直接播放
+                    this.playTrackFromPlaylist(track, existingIndex);
+                }
+            }
+        } else {
+            // 如果播放列表组件不存在，使用传统播放方式
+            console.warn('播放列表组件不存在，使用传统播放方式');
+            api.setPlaylist([track], 0);
+        }
+    }
+
+    handleKeyboardShortcut(e) {
+        if (e.target.tagName === 'INPUT') return;
+
+        switch (e.code) {
+            case 'Space':
+                e.preventDefault();
+                // 控制台组件处理
+                break;
+            case 'ArrowRight':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    api.nextTrack();
+                }
+                break;
+            case 'ArrowLeft':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    api.previousTrack();
+                }
+                break;
+            case 'KeyF':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    document.getElementById('search-input')?.focus();
+                }
+                break;
+        }
+    }
+
+    showCreatePlaylistDialog() {
+        // todo 实现播放列表创建对话框
+        const name = prompt('Enter playlist name:');
+        if (name) {
+            console.log('Creating playlist:', name);
+        }
+    }
+
+    cleanup() {
+        if (this.components.player) {
+            api.setSetting('volume', this.components.player.volume);
+        }
+        Object.values(this.components).forEach(component => {
+            if (component.destroy) {
+                component.destroy();
+            }
+        });
+    }
+
+    // File Loading Methods
+    setupFileLoading() {
+        // Add drag and drop support
+        document.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        });
+
+        document.addEventListener('drop', (e) => {
+            e.preventDefault();
+            this.handleFileDrop(e);
+        });
+
+        // Add keyboard shortcuts for file operations
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key) {
+                    case 'o':
+                        e.preventDefault();
+                        this.openFileDialog();
+                        break;
+                    case 'O':
+                        e.preventDefault();
+                        this.openDirectoryDialog();
+                        break;
+                }
+            }
+        });
+
+        // Add menu items for file operations (if running in Electron)
+        if (window.electronAPI) {
+            this.addFileMenuItems();
+        }
+    }
+
+    async handleFileDrop(e) {
+        const files = Array.from(e.dataTransfer.files);
+        const audioFiles = files.filter(file =>
+            file.type.startsWith('audio/') ||
+            /\.(mp3|wav|flac|ogg|m4a|aac)$/i.test(file.name)
+        );
+
+        if (audioFiles.length > 0) {
+            console.log(`Dropped ${audioFiles.length} audio files`);
+
+            if (audioFiles.length === 1) {
+                // Single file - load and play
+                await this.loadAndPlayFile(audioFiles[0].path);
+            } else {
+                // Multiple files - add to playlist
+                await this.addFilesToPlaylist(audioFiles);
+            }
+        }
+    }
+
+    async openFileDialog() {
+        try {
+            const files = await api.openFileDialog();
+            if (files && files.length > 0) {
+                console.log(`Selected ${files.length} files`);
+
+                if (files.length === 1) {
+                    await this.loadAndPlayFile(files[0]);
+                } else {
+                    await this.addFilesToPlaylist(files);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to open file dialog:', error);
+            this.showError('Failed to open file dialog');
+        }
+    }
+
+    async openDirectoryDialog() {
+        try {
+            const directory = await api.openDirectoryDialog();
+            if (directory) {
+                console.log(`Selected directory: ${directory}`);
+                await this.scanDirectory(directory);
+            }
+        } catch (error) {
+            console.error('Failed to open directory dialog:', error);
+            this.showError('Failed to open directory dialog');
+        }
+    }
+
+    async loadAndPlayFile(filePath) {
+        try {
+            console.log(`Loading and playing file: ${filePath}`);
+            const success = await api.loadTrack(filePath);
+            if (success) {
+                await api.play();
+                this.showSuccess(`Now playing: ${filePath.split(/[/\\]/).pop()}`);
+            } else {
+                this.showError(`Failed to load file: ${filePath}`);
+            }
+        } catch (error) {
+            console.error('Failed to load and play file:', error);
+            this.showError('Failed to load audio file');
+        }
+    }
+
+    async addFilesToPlaylist(files) {
+        try {
+            console.log(`Adding ${files.length} files to playlist`);
+            // For now, just load the first file
+            if (files.length > 0) {
+                await this.loadAndPlayFile(files[0].path || files[0]);
+            }
+            this.showSuccess(`Added ${files.length} files to playlist`);
+        } catch (error) {
+            console.error('Failed to add files to playlist:', error);
+            this.showError('Failed to add files to playlist');
+        }
+    }
+
+    async scanDirectory(directoryPath) {
+        try {
+            console.log(`Scanning directory: ${directoryPath}`);
+            this.showInfo('扫描音乐文件...');
+
+            const success = await api.scanDirectory(directoryPath);
+            if (success) {
+                this.showSuccess('音乐目录扫描完成');
+                await this.refreshLibrary();
+            } else {
+                this.showError('扫描失败');
+            }
+        } catch (error) {
+            console.error('扫描失败：', error);
+            this.showError('扫描失败');
+        }
+    }
+
+    addFileMenuItems() {
+        // This would add menu items to the Electron menu
+        // For now, we'll just add some UI hints
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            searchInput.placeholder = '搜索... (Ctrl+O 添加音乐, Ctrl+Shift+O 添加音乐目录)';
+        }
+    }
+
+    showSuccess(message) {
+        console.log(`✅ ${message}`);
+        // TODO: Add toast notification system
+        showToast(message, 'success');
+    }
+
+    showError(message) {
+        const loading = document.getElementById('loading');
+        if (loading) {
+            loading.innerHTML = `
+                <div class="error-message">
+                    <h2>错误</h2>
+                    <p>${message}</p>
+                    <button onclick="location.reload()">重试</button>
+                </div>
+            `;
+        }
+        showToast(message, 'error');
+    }
+
+    showInfo(message) {
+        console.log(`ℹ️ ${message}`);
+        showToast(message, 'info');
+    }
+
+    // Playlist event handlers
+    handlePlaylistTrackSelected(track, index) {
+        console.log('🎵 播放列表选择歌曲:', track.title);
+        // Just select, don't play automatically
+    }
+
+    handlePlaylistTrackPlayed(track, index) {
+        console.log('🎵 播放列表双击播放歌曲:', track.title, '索引:', index);
+
+        // 直接播放播放列表中的指定歌曲
+        this.playTrackFromPlaylist(track, index);
+    }
+
+    handlePlaylistTrackRemoved(track, index) {
+        console.log('🎵 从播放列表移除歌曲:', track.title, '索引:', index);
+
+        // 同步更新API播放列表
+        if (this.components.playlist && this.components.playlist.tracks.length >= 0) {
+            console.log('🔄 同步删除操作到API，剩余歌曲:', this.components.playlist.tracks.length);
+
+            // 获取当前播放索引
+            const currentIndex = this.components.playlist.currentTrackIndex;
+
+            // 更新API播放列表
+            api.setPlaylist(this.components.playlist.tracks, currentIndex);
+
+            // 如果删除的是当前播放的歌曲，需要特殊处理
+            if (index === api.currentIndex) {
+                console.log('⚠️ 删除的是当前播放歌曲，停止播放');
+                api.pause();
+            }
+        }
+    }
+
+    handlePlaylistCleared() {
+        console.log('🎵 播放列表已清空');
+
+        // 同步清空API播放列表
+        api.setPlaylist([], -1);
+        api.pause();
+        console.log('🔄 API播放列表已清空');
+    }
+
+    // Play track from playlist
+    async playTrackFromPlaylist(track, index) {
+        try {
+            console.log('🎵 从播放列表播放歌曲:', track.title, '索引:', index);
+
+            // 确保API的播放列表与组件播放列表同步
+            if (this.components.playlist && this.components.playlist.tracks.length > 0) {
+                console.log('🔄 同步播放列表到API:', this.components.playlist.tracks.length, '首歌曲');
+
+                // 先设置API的播放列表为组件的播放列表
+                const setPlaylistResult = await api.setPlaylist(this.components.playlist.tracks, index);
+
+                if (setPlaylistResult) {
+                    // 更新播放列表组件的当前歌曲
+                    this.components.playlist.setCurrentTrack(index);
+
+                    // 加载并播放指定的歌曲
+                    const loadResult = await api.loadTrack(track.filePath);
+                    if (loadResult) {
+                        // 开始播放
+                        const playResult = await api.play();
+                        if (playResult) {
+                            console.log('✅ 播放列表播放成功');
+                        } else {
+                            console.log('❌ 播放列表播放失败');
+                        }
+                    } else {
+                        console.log('❌ 播放列表加载文件失败');
+                    }
+                } else {
+                    console.log('❌ 设置播放列表失败');
+                }
+            } else {
+                console.warn('播放列表为空或不存在');
+            }
+        } catch (error) {
+            console.error('❌ 播放列表播放错误:', error);
+        }
+    }
+
+    // Handle track index change (for prev/next buttons)
+    handleTrackIndexChanged(index) {
+        console.log('🎵 播放索引改变:', index);
+        console.log('🎵 当前播放列表长度:', this.components.playlist?.tracks?.length || 0);
+        console.log('🎵 API播放列表长度:', api.playlist?.length || 0);
+
+        // 更新播放列表组件的当前歌曲
+        if (this.components.playlist) {
+            if (index >= 0 && index < this.components.playlist.tracks.length) {
+                this.components.playlist.setCurrentTrack(index);
+                console.log('✅ 播放列表组件已更新到索引:', index);
+            } else {
+                console.warn('⚠️ 索引超出播放列表范围:', index, '/', this.components.playlist.tracks.length);
+            }
+        }
+    }
+
+    updateLibraryTrackDuration(filePath, duration) {
+        // 更新音乐库中的时长
+        const libraryTrack = this.library.find(track => track.filePath === filePath);
+        if (libraryTrack) {
+            libraryTrack.duration = duration;
+            console.log('✅ 更新音乐库歌曲时长:', libraryTrack.title, duration.toFixed(2) + 's');
+        }
+
+        // 更新过滤后的音乐库
+        const filteredTrack = this.filteredLibrary.find(track => track.filePath === filePath);
+        if (filteredTrack) {
+            filteredTrack.duration = duration;
+        }
+
+        // 更新播放列表组件中的时长（如果存在）
+        if (this.components.playlist) {
+            const playlistTrack = this.components.playlist.tracks.find(track => track.filePath === filePath);
+            if (playlistTrack) {
+                playlistTrack.duration = duration;
+                this.components.playlist.render(); // 重新渲染播放列表
+            }
+        }
+
+        // 更新音乐列表显示
+        this.updateTrackList();
+    }
+
+    // Context menu event handlers
+    handleDeleteTrack(track, index) {
+        if (confirm(`确定要删除歌曲 "${track.title}" 吗？`)) {
+            console.log('🗑️ 删除歌曲:', track.title);
+            // TODO: 实现删除歌曲的逻辑
+            this.showInfo('删除功能将在后续版本中实现');
+        }
+    }
+
+    // Settings event handlers
+    async handleSelectMusicFolder() {
+        try {
+            const result = await api.selectMusicFolder();
+            if (result && result.path) {
+                this.components.settings.updateMusicFolderPath(result.path);
+                console.log('📁 选择音乐文件夹:', result.path);
+            }
+        } catch (error) {
+            console.error('❌ 选择音乐文件夹失败:', error);
+        }
+    }
+
+    async handleRescanLibrary() {
+        try {
+            console.log('🔄 重新扫描音乐库');
+            await api.scanLibrary();
+            this.showInfo('开始重新扫描音乐库');
+        } catch (error) {
+            console.error('❌ 重新扫描失败:', error);
+        }
+    }
+
+    handleDefaultVolumeChanged(volume) {
+        console.log('🔊 默认音量改变:', volume);
+        // TODO: 保存默认音量设置
+    }
+
+    // Add track to playlist
+    addToPlaylist(track) {
+        if (this.components.playlist) {
+            this.components.playlist.addTrack(track);
+            console.log('🎵 添加歌曲到播放列表:', track.title);
+            this.showInfo(`已添加 "${track.title}" 到播放列表`);
+        }
+    }
+}
+
+const app = new MusicBoxApp();

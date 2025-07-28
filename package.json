@@ -1,0 +1,75 @@
+{
+  "name": "musicbox",
+  "version": "0.1.0",
+  "description": "A local music player with a high level of appearance.",
+  "main": "src/main/main.js",
+  "author": "2973918177@qq.com",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
+    "dev:main": "chcp 65001 && electron src/main/main.js",
+    "dev:renderer": "cd src/renderer && npm run serve",
+    "build": "npm run build:renderer && npm run build:main",
+    "build:renderer": "cd src/renderer && npm run build",
+    "build:main": "electron-builder",
+    "build:all": "electron-builder -mwl",
+    "postinstall": "cd src/renderer && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0",
+    "electron": "31.0.0-beta.1",
+    "electron-builder": "^24.0.0",
+    "electron-rebuild": "^3.2.9",
+    "rimraf": "^4.1.2"
+  },
+  "build": {
+    "appId": "com.musicbox.app",
+    "productName": "MusicBox",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/main/**/*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "music-metadata": "^7.14.0"
+  }
+}
