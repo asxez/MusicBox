@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // File dialogs
   openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
+  selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
   openFiles: () => ipcRenderer.invoke('dialog:openFiles'),
 
   // Audio engine communication
@@ -102,5 +103,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     set: (key, value) => ipcRenderer.invoke('settings:set', key, value),
     getAll: () => ipcRenderer.invoke('settings:getAll'),
     reset: () => ipcRenderer.invoke('settings:reset')
+  },
+
+  // Local lyrics operations
+  lyrics: {
+    readLocalFile: (filePath) => ipcRenderer.invoke('lyrics:readLocalFile', filePath),
+    searchLocalFiles: (lyricsDir, title, artist, album) =>
+      ipcRenderer.invoke('lyrics:searchLocalFiles', lyricsDir, title, artist, album)
   }
 });

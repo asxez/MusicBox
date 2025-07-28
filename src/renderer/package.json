@@ -4,15 +4,14 @@
   "private": true,
   "scripts": {
     "serve": "http-server public -p 8080 -c-1",
-    "build": "npm run build:css && npm run build:js && npm run copy:assets && npm run copy:audio-engine && npm run copy:cache_manager",
+    "build": "npm run build:css && npm run build:js && npm run copy:assets && npm run copy:audio-engine && npm run copy:cache-manager && npm run copy:local-lyrics-manager",
     "build:css": "sass src/styles/main.scss public/styles/main.css --style=compressed",
     "build:js": "node scripts/build.js",
     "copy:assets": "node scripts/copy-assets.js",
     "copy:audio-engine": "node -e \"require('fs').copyFileSync('src/js/web-audio-engine.js', 'public/js/web-audio-engine.js')\"",
-    "copy:cache_manager": "node -e \"require('fs').copyFileSync('src/js/cache-manager.js', 'public/js/cache-manager.js')\"",
+    "copy:cache-manager": "node -e \"require('fs').copyFileSync('src/js/cache-manager.js', 'public/js/cache-manager.js')\"",
+    "copy:local-lyrics-manager": "node -e \"require('fs').copyFileSync('src/js/local-lyrics-manager.js', 'public/js/local-lyrics-manager.js')\"",
     "dev": "concurrently \"npm run watch:css\" \"npm run watch:js\" \"npm run serve\"",
-    "watch:css": "sass src/styles/main.scss public/styles/main.css --watch",
-    "watch:js": "node scripts/watch.js",
     "lint": "eslint src/**/*.js",
     "clean": "rimraf public/styles public/js public/assets"
   },
