@@ -7,7 +7,8 @@
     <br />
     <!-- <a href="#-特性"><strong>✨ 查看特性</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp; -->
     <a href="#-安装"><strong>📦 下载安装</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    <a href="#-开发"><strong>🛠 开发指南</strong></a>
+    <a href="#-开发"><strong>🛠️ 开发指南</strong></a>
+    <a href="#-相关截图"><strong>📌 相关截图</strong></a>
     <br />
   </p>
 </p>
