@@ -1,0 +1,103 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 背景渐变 - 柔和的灰色调 -->
+    <linearGradient id="backgroundGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8fafc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e2e8f0;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 音符渐变 - 主题蓝色 -->
+    <linearGradient id="musicGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#335eea;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#4f46e5;stop-opacity:0.6" />
+    </linearGradient>
+    
+    <!-- 装饰渐变 -->
+    <linearGradient id="decorGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#64748b;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#94a3b8;stop-opacity:0.2" />
+    </linearGradient>
+    
+    <!-- 阴影滤镜 -->
+    <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+  
+  <!-- 主背景 -->
+  <rect width="200" height="200" rx="12" ry="12" fill="url(#backgroundGradient)"/>
+  
+  <!-- 边框 -->
+  <rect x="1" y="1" width="198" height="198" rx="11" ry="11" fill="none" stroke="rgba(148, 163, 184, 0.2)" stroke-width="1"/>
+  
+  <!-- 装饰性背景图案 -->
+  <g opacity="0.1">
+    <!-- 同心圆装饰 -->
+    <circle cx="100" cy="100" r="80" fill="none" stroke="url(#decorGradient)" stroke-width="1"/>
+    <circle cx="100" cy="100" r="60" fill="none" stroke="url(#decorGradient)" stroke-width="1"/>
+    <circle cx="100" cy="100" r="40" fill="none" stroke="url(#decorGradient)" stroke-width="1"/>
+  </g>
+  
+  <!-- 主音符图标 -->
+  <g transform="translate(100, 100)" filter="url(#softShadow)">
+    <!-- 大音符 -->
+    <g transform="translate(-15, -20)">
+      <!-- 音符头 -->
+      <ellipse cx="0" cy="15" rx="8" ry="6" fill="url(#musicGradient)" transform="rotate(-20)"/>
+      <!-- 音符杆 -->
+      <rect x="6" y="-10" width="2.5" height="25" fill="url(#musicGradient)"/>
+      <!-- 音符旗 -->
+      <path d="M 8.5 -10 Q 20 -15 25 -5 L 25 5 Q 20 0 15 2 L 15 -2 Q 12 -5 8.5 -8 Z" fill="url(#musicGradient)"/>
+    </g>
+    
+    <!-- 小音符 -->
+    <g transform="translate(8, -15)">
+      <!-- 音符头 -->
+      <ellipse cx="0" cy="12" rx="6" ry="4.5" fill="url(#musicGradient)" transform="rotate(-20)" opacity="0.8"/>
+      <!-- 音符杆 -->
+      <rect x="4.5" y="-5" width="2" height="17" fill="url(#musicGradient)" opacity="0.8"/>
+      <!-- 音符旗 -->
+      <path d="M 6.5 -5 Q 15 -8 18 -2 L 18 5 Q 15 2 12 3 L 12 0 Q 10 -2 6.5 -4 Z" fill="url(#musicGradient)" opacity="0.8"/>
+    </g>
+  </g>
+  
+  <!-- 装饰性音波 -->
+  <g opacity="0.3">
+    <!-- 左侧音波 -->
+    <path d="M 30 100 Q 40 85 50 100 Q 40 115 30 100" fill="none" stroke="url(#musicGradient)" stroke-width="2" stroke-linecap="round"/>
+    <path d="M 20 100 Q 35 75 50 100 Q 35 125 20 100" fill="none" stroke="url(#musicGradient)" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+    
+    <!-- 右侧音波 -->
+    <path d="M 170 100 Q 160 85 150 100 Q 160 115 170 100" fill="none" stroke="url(#musicGradient)" stroke-width="2" stroke-linecap="round"/>
+    <path d="M 180 100 Q 165 75 150 100 Q 165 125 180 100" fill="none" stroke="url(#musicGradient)" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+  </g>
+  
+  <!-- 底部频谱装饰 -->
+  <g transform="translate(60, 150)" opacity="0.4">
+    <rect x="0" y="8" width="3" height="6" fill="url(#musicGradient)" rx="1.5"/>
+    <rect x="6" y="5" width="3" height="12" fill="url(#musicGradient)" rx="1.5"/>
+    <rect x="12" y="3" width="3" height="16" fill="url(#musicGradient)" rx="1.5"/>
+    <rect x="18" y="7" width="3" height="8" fill="url(#musicGradient)" rx="1.5"/>
+    <rect x="24" y="4" width="3" height="14" fill="url(#musicGradient)" rx="1.5"/>
+    <rect x="30" y="9" width="3" height="4" fill="url(#musicGradient)" rx="1.5"/>
+    <rect x="36" y="6" width="3" height="10" fill="url(#musicGradient)" rx="1.5"/>
+    <rect x="42" y="8" width="3" height="6" fill="url(#musicGradient)" rx="1.5"/>
+    <rect x="48" y="2" width="3" height="18" fill="url(#musicGradient)" rx="1.5"/>
+    <rect x="54" y="7" width="3" height="8" fill="url(#musicGradient)" rx="1.5"/>
+    <rect x="60" y="9" width="3" height="4" fill="url(#musicGradient)" rx="1.5"/>
+    <rect x="66" y="4" width="3" height="14" fill="url(#musicGradient)" rx="1.5"/>
+    <rect x="72" y="8" width="3" height="6" fill="url(#musicGradient)" rx="1.5"/>
+    <rect x="78" y="5" width="3" height="12" fill="url(#musicGradient)" rx="1.5"/>
+  </g>
+  
+  <!-- 顶部装饰点 -->
+  <g opacity="0.2">
+    <circle cx="50" cy="50" r="2" fill="url(#musicGradient)"/>
+    <circle cx="150" cy="50" r="2" fill="url(#musicGradient)"/>
+    <circle cx="50" cy="150" r="2" fill="url(#musicGradient)"/>
+    <circle cx="150" cy="150" r="2" fill="url(#musicGradient)"/>
+  </g>
+  
+  <!-- 中心高光 -->
+  <ellipse cx="100" cy="70" rx="40" ry="20" fill="rgba(255,255,255,0.1)"/>
+</svg>

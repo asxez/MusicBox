@@ -1,0 +1,32 @@
+{
+  "name": "musicbox-renderer",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "serve": "http-server public -p 8080 -c-1",
+    "build": "npm run build:css && npm run build:js && npm run copy:assets && npm run copy:audio-engine && npm run copy:cache_manager",
+    "build:css": "sass src/styles/main.scss public/styles/main.css --style=compressed",
+    "build:js": "node scripts/build.js",
+    "copy:assets": "node scripts/copy-assets.js",
+    "copy:audio-engine": "node -e \"require('fs').copyFileSync('src/js/web-audio-engine.js', 'public/js/web-audio-engine.js')\"",
+    "copy:cache_manager": "node -e \"require('fs').copyFileSync('src/js/cache-manager.js', 'public/js/cache-manager.js')\"",
+    "dev": "concurrently \"npm run watch:css\" \"npm run watch:js\" \"npm run serve\"",
+    "watch:css": "sass src/styles/main.scss public/styles/main.css --watch",
+    "watch:js": "node scripts/watch.js",
+    "lint": "eslint src/**/*.js",
+    "clean": "rimraf public/styles public/js public/assets"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.7",
+    "fuse.js": "^6.6.2"
+  },
+  "devDependencies": {
+    "chokidar": "^3.6.0",
+    "concurrently": "^7.6.0",
+    "eslint": "^8.35.0",
+    "http-server": "^14.1.1",
+    "rimraf": "^4.1.2",
+    "sass": "^1.58.3",
+    "terser": "^5.16.6"
+  }
+}

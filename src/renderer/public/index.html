@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="light">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <title>MusicBox</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <noscript>
+        <strong>MusicBox requires JavaScript to function properly. Please enable JavaScript to continue.</strong>
+    </noscript>
+
+    <!-- Loading screen -->
+    <div id="loading" class="loading-screen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">MusicBox loading...</div>
+        <div id="cache-loading-status" class="cache-loading-status" style="display: none;">
+            正在从缓存加载音乐库...
+        </div>
+    </div>
+
+    <!-- Main application -->
+    <div id="app" class="app" style="display: none;">
+        <!-- Navigation bar -->
+        <nav id="navbar" class="navbar">
+            <div class="navbar-content">
+                <div class="navbar-left">
+                    <button class="nav-button" id="back-btn" disabled>
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                        </svg>
+                    </button>
+                    <button class="nav-button" id="forward-btn" disabled>
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="navbar-center">
+                    <div class="search-container">
+                        <input type="text" id="search-input" placeholder="搜索..." class="search-input">
+                        <svg class="search-icon" viewBox="0 0 24 24">
+                            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="navbar-right">
+                    <button class="nav-button" id="settings-btn">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.82,11.69,4.82,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+                        </svg>
+                    </button>
+                    <button class="nav-button" id="theme-toggle">
+                        <img class="icon light-icon" src="assets/icons/light.svg" alt="切换到深色主题">
+                        <img class="icon dark-icon" src="assets/icons/dark.svg" alt="切换到浅色主题" style="display: none;">
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar">
+            <!-- 侧边栏收缩/展开按钮 -->
+            <div class="sidebar-toggle">
+                <button class="sidebar-toggle-btn" id="sidebar-toggle-btn">
+                    <img class="icon collapse-icon" src="assets/icons/arrow-left.svg" alt="收缩侧边栏">
+                    <img class="icon expand-icon" src="assets/icons/menu.svg" alt="展开侧边栏">
+                </button>
+            </div>
+
+            <div class="sidebar-content">
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">音乐库</h3>
+                    <ul class="sidebar-menu">
+                        <li>
+                            <a href="#" class="sidebar-link active" data-view="library">
+                                <svg class="sidebar-icon" viewBox="0 0 24 24">
+                                    <path d="M12,3V12.26C11.5,12.09 11,12 10.5,12C8.01,12 6,14.01 6,16.5S8.01,21 10.5,21S15,18.99 15,16.5V6H19V3H12Z"/>
+                                </svg>
+                                <span class="sidebar-text">我的音乐</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="sidebar-link" data-view="albums">
+                                <svg class="sidebar-icon" viewBox="0 0 24 24">
+                                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+                                </svg>
+                                <span class="sidebar-text">专辑</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="sidebar-link" data-view="artists">
+                                <svg class="sidebar-icon" viewBox="0 0 24 24">
+                                    <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
+                                </svg>
+                                <span class="sidebar-text">艺术家</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="sidebar-link" data-view="genres">
+                                <svg class="sidebar-icon" viewBox="0 0 24 24">
+                                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+                                </svg>
+                                <span class="sidebar-text">流派</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">播放列表</h3>
+                    <ul class="sidebar-menu" id="playlists-menu">
+                        <li>
+                            <a href="#" class="sidebar-link" data-view="favorites">
+                                <svg class="sidebar-icon" viewBox="0 0 24 24">
+                                    <path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z"/>
+                                </svg>
+                                <span class="sidebar-text">收藏</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="sidebar-link" data-view="recent">
+                                <svg class="sidebar-icon" viewBox="0 0 24 24">
+                                    <path d="M13,3A9,9 0 0,0 4,12H1L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z"/>
+                                </svg>
+                                <span class="sidebar-text">最近播放</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="sidebar-link" data-view="queue">
+                                <svg class="sidebar-icon" viewBox="0 0 24 24">
+                                    <path d="M15,6H3V8H15V6M15,10H3V12H15V10M3,16H11V14H3V16M17,6V14.18C16.69,14.07 16.35,14 16,14A3,3 0 0,0 13,17A3,3 0 0,0 16,20A3,3 0 0,0 19,17V8H22V6H17Z"/>
+                                </svg>
+                                <span class="sidebar-text">列表</span>
+                            </a>
+                        </li>
+                        <li>
+                            <button class="sidebar-button" id="add-playlist-btn">
+                                <svg class="sidebar-icon" viewBox="0 0 24 24">
+                                    <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                                </svg>
+                                <span class="sidebar-text">创建新歌单</span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main content area -->
+        <main id="main-content" class="main-content">
+            <div id="content-area" class="content-area">
+                <!-- Content will be dynamically loaded here -->
+            </div>
+        </main>
+
+        <!-- Audio player -->
+        <div id="player" class="player">
+            <!-- Progress bar at the top -->
+            <div class="progress-bar">
+                <div class="progress-bar-container">
+                    <div class="progress-track">
+                        <div id="progress-fill" class="progress-fill"></div>
+                        <div id="progress-handle" class="progress-handle"></div>
+                        <div id="progress-tooltip" class="progress-tooltip">0:00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls section -->
+            <div class="controls">
+                <!-- Left: Track info -->
+                <div class="playing">
+                    <div class="container">
+                        <img id="track-cover" class="track-cover" src="assets/images/default-cover.svg" alt="Album cover">
+                        <div class="track-info">
+                            <div id="track-title" class="track-name">未选择歌曲</div>
+                            <div id="track-artist" class="track-artist">未知艺术家</div>
+                        </div>
+                        <div class="like-button">
+                            <button class="button-icon" id="like-btn">
+                                <img class="icon" src="assets/icons/heart.svg" alt="喜欢">
+                            </button>
+                        </div>
+                    </div>
+                    <div class="blank"></div>
+                </div>
+
+                <!-- Center: Playback controls -->
+                <div class="middle-control-buttons">
+                    <div class="blank"></div>
+                    <div class="container">
+                        <button class="button-icon" id="prev-btn">
+                            <img class="icon" src="assets/icons/previous.svg" alt="上一首">
+                        </button>
+                        <button class="button-icon play" id="play-pause-btn">
+                            <img class="icon play-icon" src="assets/icons/play.svg" alt="播放">
+                            <img class="icon pause-icon" src="assets/icons/pause.svg" alt="暂停" style="display: none;">
+                        </button>
+                        <button class="button-icon" id="next-btn">
+                            <img class="icon" src="assets/icons/next.svg" alt="下一首">
+                        </button>
+                    </div>
+                    <div class="blank"></div>
+                </div>
+
+                <!-- Right: Additional controls -->
+                <div class="right-control-buttons">
+                    <div class="blank"></div>
+                    <div class="container">
+                        <button class="button-icon" id="lyrics-btn">
+                            <img class="icon" src="assets/icons/arrow-up.svg" alt="歌词">
+                        </button>
+                        <button class="button-icon" id="playlist-btn">
+                            <img class="icon" src="assets/icons/playlist.svg" alt="播放列表">
+                        </button>
+                        <button class="button-icon" id="play-mode-btn" title="播放模式">
+                            <img class="icon mode-sequence" src="assets/icons/repeat.svg" alt="顺序播放">
+                            <img class="icon mode-shuffle" src="assets/icons/shuffle.svg" alt="随机播放" style="display: none;">
+                            <img class="icon mode-repeat-one" src="assets/icons/repeat-one.svg" alt="单曲循环" style="display: none;">
+                        </button>
+                        <div class="volume-control">
+                            <button class="button-icon" id="volume-btn">
+                                <img class="icon volume-high" src="assets/icons/volume.svg" alt="音量">
+                                <img class="icon volume-half" src="assets/icons/volume-half.svg" alt="音量" style="display: none;">
+                                <img class="icon volume-mute" src="assets/icons/volume-mute.svg" alt="静音" style="display: none;">
+                            </button>
+                            <div class="volume-bar">
+                                <div class="volume-slider-container">
+                                    <div class="volume-slider">
+                                        <div id="volume-fill" class="volume-fill"></div>
+                                        <div id="volume-handle" class="volume-handle"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Playlist Panel -->
+        <div id="playlist-panel" class="playlist-panel" style="display: none;">
+            <div class="playlist-header">
+                <h3 class="playlist-title">播放队列</h3>
+                <button class="playlist-close" id="playlist-close">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="playlist-content">
+                <div class="playlist-info">
+                    <span id="playlist-count">0 首歌曲</span>
+                    <button class="playlist-clear" id="playlist-clear">清空</button>
+                </div>
+                <div class="playlist-tracks" id="playlist-tracks">
+                    <!-- Playlist tracks will be dynamically added here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Context Menu -->
+        <div id="context-menu" class="context-menu" style="display: none;">
+            <div class="context-menu-item" id="context-play">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
+                </svg>
+                <span>播放</span>
+            </div>
+            <div class="context-menu-item" id="context-add-to-playlist">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                </svg>
+                <span>添加到播放列表</span>
+            </div>
+            <div class="context-menu-divider"></div>
+            <div class="context-menu-item" id="context-delete">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                </svg>
+                <span>删除</span>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settings-page" class="settings-page" style="display: none;">
+            <div class="settings-container">
+                <div class="settings-content">
+                    <!-- 设置页面关闭按钮 -->
+                    <button class="settings-close-btn" id="settings-close-btn" title="关闭设置">
+                        <img class="icon" src="assets/icons/x.svg" alt="关闭">
+                    </button>
+
+                    <div class="settings-header">
+                        <h1 class="settings-title">设置</h1>
+                        <p class="settings-subtitle">个性化您的音乐体验</p>
+                    </div>
+
+                    <!-- 外观设置 -->
+                    <div class="settings-section">
+                        <h2 class="section-title">外观</h2>
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">语言</label>
+                                <p class="item-description">选择界面显示语言</p>
+                            </div>
+                            <div class="item-control">
+                                <select class="settings-select" id="language-select">
+                                    <option value="zh-CN">简体中文</option>
+                                    <option value="zh-TW">繁體中文</option>
+                                    <option value="en">English</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 音频设置 -->
+                    <div class="settings-section">
+                        <h2 class="section-title">音频</h2>
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">默认音量</label>
+                                <p class="item-description">设置应用启动时的默认音量</p>
+                            </div>
+                            <div class="item-control">
+                                <div class="volume-slider-container">
+                                    <input type="range" class="volume-slider" id="default-volume" min="0" max="100" value="50">
+                                    <span class="volume-value">50%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">淡入淡出</label>
+                                <p class="item-description">在歌曲切换时启用淡入淡出效果</p>
+                            </div>
+                            <div class="item-control">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="crossfade-toggle" class="toggle-input">
+                                    <label for="crossfade-toggle" class="toggle-label"></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 播放设置 -->
+                    <div class="settings-section">
+                        <h2 class="section-title">播放</h2>
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">自动播放</label>
+                                <p class="item-description">启动应用时自动播放上次的音乐</p>
+                            </div>
+                            <div class="item-control">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="autoplay-toggle" class="toggle-input">
+                                    <label for="autoplay-toggle" class="toggle-label"></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">记住播放位置</label>
+                                <p class="item-description">重新打开应用时恢复上次的播放位置</p>
+                            </div>
+                            <div class="item-control">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="remember-position-toggle" class="toggle-input">
+                                    <label for="remember-position-toggle" class="toggle-label"></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 库设置 -->
+                    <div class="settings-section">
+                        <h2 class="section-title">音乐库</h2>
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">音乐文件夹</label>
+                                <p class="item-description">选择包含您音乐文件的文件夹</p>
+                            </div>
+                            <div class="item-control">
+                                <button class="settings-button" id="select-folder-btn">选择文件夹</button>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">自动扫描</label>
+                                <p class="item-description">定期自动扫描音乐文件夹中的新文件</p>
+                            </div>
+                            <div class="item-control">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="auto-scan-toggle" class="toggle-input">
+                                    <label for="auto-scan-toggle" class="toggle-label"></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">重新扫描库</label>
+                                <p class="item-description">手动重新扫描所有音乐文件</p>
+                            </div>
+                            <div class="item-control">
+                                <button class="settings-button secondary" id="rescan-library-btn">重新扫描</button>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">缓存统计</label>
+                                <p class="item-description" id="cache-stats-description">查看音乐库缓存信息</p>
+                            </div>
+                            <div class="item-control">
+                                <button class="settings-button" id="view-cache-stats-btn">查看统计</button>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">验证缓存</label>
+                                <p class="item-description">检查缓存文件的有效性并清理无效条目</p>
+                            </div>
+                            <div class="item-control">
+                                <button class="settings-button" id="validate-cache-btn">验证缓存</button>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">清空缓存</label>
+                                <p class="item-description">删除所有缓存数据，下次启动将重新扫描</p>
+                            </div>
+                            <div class="item-control">
+                                <button class="settings-button danger" id="clear-cache-btn">清空缓存</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 关于 -->
+                    <div class="settings-section">
+                        <h2 class="section-title">关于</h2>
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">版本信息</label>
+                                <p class="item-description">MusicBox v1.0.0</p>
+                            </div>
+                            <div class="item-control">
+                                <button class="settings-button secondary" id="check-updates-btn">检查更新</button>
+                            </div>
+                        </div>
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">MADE BY</label>
+                                <p class="item-description">ASXE</p>
+                            </div>
+                            <div class="item-control">
+                                <button class="settings-button secondary" id="MADE-BY">前往</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lyrics Page -->
+        <div id="lyrics-page" class="lyrics-page" style="display: none;">
+            <!-- 背景模糊层 -->
+            <div class="lyrics-background"></div>
+
+            <!-- 全屏按钮 -->
+            <div class="lyrics-fullscreen-button">
+                <button class="fullscreen-btn" id="lyrics-fullscreen">
+                    <img class="icon fullscreen-icon" src="assets/icons/fullscreen.svg" alt="全屏">
+                    <img class="icon fullscreen-exit-icon" src="assets/icons/fullscreen-exit.svg" alt="退出全屏" style="display: none;">
+                </button>
+            </div>
+
+            <!-- 关闭按钮 -->
+            <div class="lyrics-close-button">
+                <button class="close-btn" id="lyrics-close">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 主要内容区域 -->
+            <div class="lyrics-main">
+                <!-- 左侧：封面和歌曲信息 -->
+                <div class="lyrics-left-side">
+                    <div class="lyrics-cover-section">
+                        <!-- 封面容器 -->
+                        <div class="lyrics-cover-container">
+                            <img class="lyrics-cover-image" id="lyrics-cover-image" src="assets/images/default-cover.svg" alt="封面">
+                            <div class="lyrics-cover-shadow"></div>
+                        </div>
+
+                        <!-- 歌曲信息 -->
+                        <div class="lyrics-track-info">
+                            <h2 class="lyrics-track-title" id="lyrics-track-title">歌曲标题</h2>
+                            <p class="lyrics-track-artist" id="lyrics-track-artist">艺术家</p>
+                        </div>
+
+                        <!-- 扩展控制面板 -->
+                        <div class="lyrics-function-area" id="lyrics-function-area">
+                            <!-- 顶部：音量和播放模式控制 -->
+                            <div class="top-controls">
+                                <!-- 音量控制 -->
+                                <div class="volume-control-section">
+                                    <button class="button-icon volume-btn" id="lyrics-volume-btn" title="音量">
+                                        <img class="icon volume-icon" src="assets/icons/volume.svg" alt="音量">
+                                        <img class="icon volume-half-icon" src="assets/icons/volume-half.svg" alt="音量" style="display: none;">
+                                        <img class="icon volume-mute-icon" src="assets/icons/volume-mute.svg" alt="静音" style="display: none;">
+                                    </button>
+                                    <div class="volume-bar">
+                                        <div class="volume-slider-container">
+                                            <div class="volume-slider">
+                                                <div id="lyrics-volume-fill" class="volume-fill"></div>
+                                                <div id="lyrics-volume-handle" class="volume-handle"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 播放模式控制 -->
+                                <div class="playmode-control-section">
+                                    <button class="button-icon playmode-btn" id="lyrics-playmode-btn" title="播放模式">
+                                        <img class="icon" src="assets/icons/repeat.svg" alt="列表循环">
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 进度条 -->
+                        <div class="lyrics-progress-section">
+                            <div class="lyrics-progress-bar" id="lyrics-progress-bar">
+                                <div class="lyrics-progress-track">
+                                    <div class="lyrics-progress-fill" id="lyrics-progress-fill"></div>
+                                    <div class="lyrics-progress-handle" id="lyrics-progress-handle"></div>
+                                </div>
+                            </div>
+                            <div class="lyrics-time">
+                                <span id="lyrics-current-time">0:00</span>
+                                <span id="lyrics-duration">0:00</span>
+                            </div>
+                        </div>
+
+                        <!-- 播放控制 -->
+                        <div class="lyrics-controls">
+                            <!-- 左侧控制按钮 -->
+<!--                            <button class="button-icon" id="lyrics-repeat-btn" title="循环模式">-->
+<!--                                <img class="icon" src="assets/icons/repeat.svg" alt="循环">-->
+<!--                            </button>-->
+
+                            <!-- 中间主要播放控制 -->
+                            <div class="middle">
+                                <button class="button-icon" id="lyrics-prev-btn">
+                                    <img class="icon" src="assets/icons/previous.svg" alt="上一首">
+                                </button>
+                                <button class="button-icon play" id="lyrics-play-btn">
+                                    <img class="icon play-icon" src="assets/icons/play.svg" alt="播放">
+                                    <img class="icon pause-icon" src="assets/icons/pause.svg" alt="暂停" style="display: none;">
+                                </button>
+                                <button class="button-icon" id="lyrics-next-btn">
+                                    <img class="icon" src="assets/icons/next.svg" alt="下一首">
+                                </button>
+                            </div>
+
+                            <!-- 右侧控制按钮 -->
+<!--                            <button class="button-icon" id="lyrics-shuffle-btn" title="随机播放">-->
+<!--                                <img class="icon" src="assets/icons/shuffle.svg" alt="随机">-->
+<!--                            </button>-->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧：歌词显示 -->
+                <div class="lyrics-right-side">
+                    <div class="lyrics-container">
+                        <div class="lyrics-display" id="lyrics-display">
+                            <div class="lyrics-text">
+                                <div class="lyrics-line-spacer"></div>
+                                <p class="lyrics-line">暂无歌词</p>
+                                <p class="lyrics-line">请欣赏音乐</p>
+                                <div class="lyrics-line-spacer"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/cache-manager.js"></script>
+    <script src="js/web-audio-engine.js"></script>
+    <script src="js/bundle.js"></script>
+</body>
+</html>
