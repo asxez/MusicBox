@@ -14,6 +14,7 @@
     "build:renderer": "cd src/renderer && npm run build",
     "build:main": "electron-builder",
     "build:all": "electron-builder -mwl",
+    "build:icons": "electron-icon-builder --input=./docs/images/logo.png --output=build --flatten",
     "postinstall": "cd src/renderer && npm install"
   },
   "devDependencies": {
@@ -31,6 +32,7 @@
     },
     "files": [
       "src/main/**/*",
+      "src/renderer/public/**/*",
       "node_modules/**/*"
     ],
     "mac": {
@@ -71,6 +73,7 @@
   },
   "dependencies": {
     "chardet": "^2.1.0",
+    "electron-icon-builder": "^2.0.1",
     "iconv-lite": "^0.6.3",
     "music-metadata": "^7.14.0"
   }

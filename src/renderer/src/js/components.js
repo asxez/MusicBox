@@ -1232,7 +1232,10 @@ class Settings extends EventEmitter {
 
     // 加载设置
     loadSettings() {
-        return window.cacheManager.getLocalCache('musicbox-settings')
+        let settings = window.cacheManager.getLocalCache('musicbox-settings');
+        if (settings === null)
+            settings = {};
+        return settings;
     }
 
     // 更新设置

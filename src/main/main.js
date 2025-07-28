@@ -102,7 +102,7 @@ const isDev = process.env.NODE_ENV === 'development';
 // Keep a global reference of the window object
 let mainWindow;
 
-function createWindow() {
+async function createWindow() {
     // Create the browser window
     mainWindow = new BrowserWindow({
         width: 1440,
@@ -121,12 +121,38 @@ function createWindow() {
     });
 
     // Load the app
+    let htmlPath;
+
     if (isDev) {
-        mainWindow.loadURL('http://localhost:8080');
-        mainWindow.webContents.openDevTools();
+        // 开发环境：从源码目录加载
+        htmlPath = path.join(__dirname, '../renderer/public/index.html');
+        console.log(`🔧 开发环境 - Loading HTML from: ${htmlPath}`);
     } else {
-        mainWindow.loadFile(path.join(__dirname, '../renderer/public/index.html'));
-        // mainWindow.webContents.openDevTools();
+        // 生产环境：使用app.getAppPath()获取正确路径
+        const appPath = app.getAppPath();
+        htmlPath = path.join(appPath, 'src/renderer/public/index.html');
+        console.log(`📦 生产环境 - App path: ${appPath}`);
+        console.log(`📦 生产环境 - Loading HTML from: ${htmlPath}`);
+        console.log(`📦 生产环境 - __dirname: ${__dirname}`);
+        console.log(`📦 生产环境 - File exists: ${fs.existsSync(htmlPath)}`);
+    }
+
+    try {
+        await mainWindow.loadFile(htmlPath);
+        console.log(`✅ HTML文件加载成功: ${htmlPath}`);
+    } catch (error) {
+        console.error(`❌ HTML文件加载失败: ${error.message}`);
+        console.error(`❌ 尝试的路径: ${htmlPath}`);
+
+        // 如果加载失败，尝试备用路径
+        const fallbackPath = path.join(__dirname, '../renderer/public/index.html');
+        console.log(`🔄 尝试备用路径: ${fallbackPath}`);
+        try {
+            await mainWindow.loadFile(fallbackPath);
+            console.log(`✅ 备用路径加载成功: ${fallbackPath}`);
+        } catch (fallbackError) {
+            console.error(`❌ 备用路径也失败: ${fallbackError.message}`);
+        }
     }
 
     // Show window when ready

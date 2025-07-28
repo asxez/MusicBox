@@ -1,0 +1,7 @@
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+  installerIcon: 'build/icons/icon.ico'
+  uninstallerIcon: 'build/icons/icon.ico'
