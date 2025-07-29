@@ -23,32 +23,25 @@
 
 ## 📖 项目简介
 
-**MusicBox**
-是一款专注于本地音乐播放的桌面应用程序，采用现代化的技术栈和精美的用户界面设计。项目灵感来源于 [YesPlayMusic](https://github.com/qier222/YesPlayMusic)
-的设计美学，致力于为用户提供优雅、流畅的本地音乐播放体验。
-
-### 🎯 设计理念
-
-- **高颜值界面**：参考 YesPlayMusic 的ui设计，提供简洁优雅的用户界面
-- **本地优先**：专注于本地音乐文件播放
-- **高性能音频**：基于 Web Audio API 的音频引擎，提供高质量音频播放
-- **跨平台支持**：基于 Electron 框架，支持 Windows、macOS 和 Linux
+- **MusicBox**是一款专注于本地音乐播放的桌面应用程序，采用现代化的技术栈和精美的用户界面设计。
+- 项目灵感来源于 [YesPlayMusic](https://github.com/qier222/YesPlayMusic) 的设计美学。
 
 ## 📔 TODOS
+✅已完成，❌未完成，🔄部分完成，❓待定
 
-已完成的✅，未完成的❌，待定❓
-- ❌   侧边导航栏页面
-- ❌   音乐变速
-- ✅❌ 进一步完善设置功能
-- ❌   音质处理
-- ❓   桌面歌词显示
-- ❌   更多其他特性
+🔄 侧边导航栏页面
+❌ 音乐变速
+🔄 进一步完善设置功能
+❌ 音质处理
+❓ 桌面歌词显示
+🔄 更多其他特性
+
 
 ## 📦 安装
 
 ### 预编译版本下载
 
-前往 [Releases](https://github.com/asxez/MusicBox/releases) 页面下载适合你操作系统的安装包：
+前往 [Releases](https://github.com/asxez/MusicBox/releases) 页面下载适合你操作系统的安装包，目前项目处于DEV阶段，仅提供Windows版本。
 
 ### 从源码构建
 
@@ -171,11 +164,14 @@ npm run dev:renderer
 
 - [YesPlayMusic](https://github.com/qier222/YesPlayMusic) - 设计灵感来源
 - [Electron](https://electronjs.org/) - 跨平台桌面应用框架
+- [LrcApi](https://github.com/HisAtri/LrcApi) - 提供相关接口
 - [music-metadata](https://github.com/borewit/music-metadata) - 音频元数据解析
 - 所有为项目做出贡献的开发者们
 
 ## 📌 相关截图
 
+![MusicBox 应用截图](docs/images/5.png)
+![MusicBox 应用截图](docs/images/6.png)
 ![MusicBox 应用截图](docs/images/1.png)
 ![MusicBox 应用截图](docs/images/2.png)
 ![MusicBox 应用截图](docs/images/3.png)

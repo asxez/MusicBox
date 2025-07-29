@@ -808,8 +808,7 @@ class MusicBoxAPI extends EventEmitter {
     async openDirectory() {
         try {
             // 使用原始的openDirectory方法，返回字符串路径（用于音乐目录扫描等）
-            const result = await window.electronAPI.openDirectory();
-            return result; // 直接返回字符串路径或null
+            return await window.electronAPI.openDirectory(); // 直接返回字符串路径或null
         } catch (error) {
             console.error('Failed to open directory dialog:', error);
             return null;

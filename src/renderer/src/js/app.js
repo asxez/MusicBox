@@ -13,7 +13,6 @@ class MusicBoxApp extends EventEmitter {
 
     async init() {
         try {
-            // Wait for DOM to be ready
             if (document.readyState === 'loading') {
                 await new Promise(resolve => {
                     document.addEventListener('DOMContentLoaded', resolve);
@@ -51,7 +50,7 @@ class MusicBoxApp extends EventEmitter {
         }
 
         // Load saved settings
-        const savedVolume = await api.getSetting('volume');
+        const savedVolume = window.cacheManager.getLocalCache('volume');
         if (savedVolume !== null) {
             await api.setVolume(savedVolume);
         }
@@ -67,6 +66,12 @@ class MusicBoxApp extends EventEmitter {
         this.components.settings = new Settings(document.getElementById('settings-page'));
         this.components.lyrics = new Lyrics(document.getElementById('lyrics-page'));
 
+        // 初始化新页面组件
+        this.components.homePage = new HomePage('#content-area');
+        this.components.recentPage = new RecentPage('#content-area');
+        this.components.artistsPage = new ArtistsPage('#content-area');
+        this.components.statisticsPage = new StatisticsPage('#content-area');
+
         // 设置组件事件监听
         this.components.search.on('searchResults', (results) => {
             this.handleSearchResults(results);
@@ -76,8 +81,8 @@ class MusicBoxApp extends EventEmitter {
             this.handleSearchCleared();
         });
 
-        this.components.navigation.on('viewChanged', (view) => {
-            this.handleViewChange(view);
+        this.components.navigation.on('viewChanged', async (view) => {
+            await this.handleViewChange(view);
         });
 
         this.components.navigation.on('showSettings', async () => {
@@ -143,6 +148,9 @@ class MusicBoxApp extends EventEmitter {
         this.components.settings.on('rescanLibrary', async () => {
             await this.handleRescanLibrary();
         });
+
+        // 新页面组件事件监听
+        this.setupPageComponentEvents();
 
         this.components.settings.on('defaultVolumeChanged', (volume) => {
             this.handleDefaultVolumeChanged(volume);
@@ -339,8 +347,10 @@ class MusicBoxApp extends EventEmitter {
 
         if (app) {
             app.style.display = 'grid';
-            setTimeout(() => {
+            setTimeout(async () => {
                 app.style.opacity = '1';
+                // 初始化显示首页
+                await this.handleViewChange('home-page');
             }, 100);
         }
     }
@@ -478,10 +488,110 @@ class MusicBoxApp extends EventEmitter {
         this.updateTrackList();
     }
 
-    handleViewChange(view) {
-        this.currentView = view;
-        // todo 在此处实现视图切换逻辑
+    setupPageComponentEvents() {
+        // HomePage events
+        this.components.homePage.on('trackPlayed', async (track, index) => {
+            await this.handleTrackPlayed(track, index);
+        });
+
+        this.components.homePage.on('viewChange', (view) => {
+            this.components.navigation.navigateToView(view);
+        });
+
+        this.components.homePage.on('addMusic', async () => {
+            await this.handleSelectMusicFolder();
+        });
+
+        // RecentPage events
+        this.components.recentPage.on('trackPlayed', async (track, index) => {
+            await this.handleTrackPlayed(track, index);
+        });
+
+        this.components.recentPage.on('playAll', async (tracks) => {
+            await this.handlePlayAllTracks(tracks);
+        });
+
+        this.components.recentPage.on('addToPlaylist', (track) => {
+            this.addToPlaylist(track);
+        });
+
+        this.components.recentPage.on('viewChange', (view) => {
+            this.components.navigation.navigateToView(view);
+        });
+
+        // ArtistsPage events
+        this.components.artistsPage.on('trackPlayed', async (track, index) => {
+            await this.handleTrackPlayed(track, index);
+        });
+
+        this.components.artistsPage.on('playAll', async (tracks) => {
+            await this.handlePlayAllTracks(tracks);
+        });
+
+        this.components.artistsPage.on('addToPlaylist', (track) => {
+            this.addToPlaylist(track);
+        });
+    }
+
+    async handlePlayAllTracks(tracks) {
+        if (!tracks || tracks.length === 0) return;
+
+        // todo 清空当前播放列表
+        await api.clearPlaylist();
+
+        // 添加所有歌曲到播放列表
+        for (const track of tracks) {
+            await api.addToPlaylist(track);
+        }
+
+        // 播放第一首歌曲
+        await this.handleTrackPlayed(tracks[0], 0);
+
+        // 更新播放列表UI
+        this.components.playlist.updatePlaylist();
+    }
+
+    async handleViewChange(view) {
         console.log('View changed to:', view);
+
+        // 隐藏所有页面
+        this.hideAllPages();
+
+        // 显示对应页面
+        this.currentView = view;
+        switch (view) {
+            case 'home-page':
+                await this.components.homePage.show();
+                break;
+            case 'library':
+                this.components.trackList.show();
+                this.updateTrackList();
+                break;
+            case 'recent':
+                await this.components.recentPage.show();
+                break;
+            case 'artists':
+                await this.components.artistsPage.show();
+                break;
+            case 'statistics':
+                await this.components.statisticsPage.show();
+                break;
+            default:
+                console.warn('Unknown view:', view);
+                // 默认显示音乐库
+                this.components.trackList.show();
+                this.updateTrackList();
+                break;
+        }
+    }
+
+    hideAllPages() {
+        // 隐藏所有页面组件
+        if (this.components.homePage) this.components.homePage.hide();
+        if (this.components.recentPage) this.components.recentPage.hide();
+        if (this.components.artistsPage) this.components.artistsPage.hide();
+        if (this.components.statisticsPage) this.components.statisticsPage.hide();
+        if (this.components.trackList) this.components.trackList.hide();
     }
 
     async handleTrackPlayed(track, index) {
@@ -632,7 +742,7 @@ class MusicBoxApp extends EventEmitter {
             }
         } catch (error) {
             console.error('Failed to open file dialog:', error);
-            this.showError('Failed to open file dialog');
+            this.showError('无法打开文件选择框');
         }
     }
 
@@ -645,7 +755,7 @@ class MusicBoxApp extends EventEmitter {
             }
         } catch (error) {
             console.error('Failed to open directory dialog:', error);
-            this.showError('Failed to open directory dialog');
+            this.showError('无法打开目录选择框');
         }
     }
 
@@ -655,13 +765,13 @@ class MusicBoxApp extends EventEmitter {
             const success = await api.loadTrack(filePath);
             if (success) {
                 await api.play();
-                this.showSuccess(`Now playing: ${filePath.split(/[/\\]/).pop()}`);
+                this.showSuccess(`正常播放: ${filePath.split(/[/\\]/).pop()}`);
             } else {
-                this.showError(`Failed to load file: ${filePath}`);
+                this.showError(`无法加载文件: ${filePath}`);
             }
         } catch (error) {
             console.error('Failed to load and play file:', error);
-            this.showError('Failed to load audio file');
+            this.showError('无法加载音乐文件');
         }
     }
 
