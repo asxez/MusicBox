@@ -2082,7 +2082,6 @@ class HomePage extends Component {
         this.recentTracks = [];
         this.personalizedRecommendations = [];
         this.setupElements();
-        this.setupEventListeners();
         console.log('🏠 HomePage: 新首页组件初始化完成');
     }
 
