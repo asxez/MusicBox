@@ -80,12 +80,12 @@ class MusicBoxApp extends EventEmitter {
             this.handleViewChange(view);
         });
 
-        this.components.navigation.on('showSettings', () => {
-            this.components.settings.toggle();
+        this.components.navigation.on('showSettings', async () => {
+            await this.components.settings.toggle();
         });
 
-        this.components.trackList.on('trackPlayed', (track, index) => {
-            this.handleTrackPlayed(track, index);
+        this.components.trackList.on('trackPlayed', async (track, index) => {
+            await this.handleTrackPlayed(track, index);
         });
 
         this.components.trackList.on('trackRightClick', (track, index, x, y) => {
@@ -110,21 +110,21 @@ class MusicBoxApp extends EventEmitter {
             this.handlePlaylistTrackSelected(track, index);
         });
 
-        this.components.playlist.on('trackPlayed', ({track, index}) => {
-            this.handlePlaylistTrackPlayed(track, index);
+        this.components.playlist.on('trackPlayed', async ({track, index}) => {
+            await this.handlePlaylistTrackPlayed(track, index);
         });
 
-        this.components.playlist.on('trackRemoved', ({track, index}) => {
-            this.handlePlaylistTrackRemoved(track, index);
+        this.components.playlist.on('trackRemoved', async ({track, index}) => {
+            await this.handlePlaylistTrackRemoved(track, index);
         });
 
-        this.components.playlist.on('playlistCleared', () => {
-            this.handlePlaylistCleared();
+        this.components.playlist.on('playlistCleared', async () => {
+            await this.handlePlaylistCleared();
         });
 
         // Context menu events
-        this.components.contextMenu.on('play', ({track, index}) => {
-            this.handleTrackPlayed(track, index);
+        this.components.contextMenu.on('play', async ({track, index}) => {
+            await this.handleTrackPlayed(track, index);
         });
 
         this.components.contextMenu.on('addToPlaylist', ({track, index}) => {
@@ -136,12 +136,12 @@ class MusicBoxApp extends EventEmitter {
         });
 
         // Settings events
-        this.components.settings.on('selectMusicFolder', () => {
-            this.handleSelectMusicFolder();
+        this.components.settings.on('selectMusicFolder', async () => {
+            await this.handleSelectMusicFolder();
         });
 
-        this.components.settings.on('rescanLibrary', () => {
-            this.handleRescanLibrary();
+        this.components.settings.on('rescanLibrary', async () => {
+            await this.handleRescanLibrary();
         });
 
         this.components.settings.on('defaultVolumeChanged', (volume) => {
@@ -150,7 +150,7 @@ class MusicBoxApp extends EventEmitter {
 
         // Lyrics events
         this.components.lyrics.on('togglePlay', () => {
-            this.components.player.togglePlay();
+            this.components.player.togglePlayPause();
         });
 
         this.components.lyrics.on('previousTrack', () => {
@@ -164,13 +164,13 @@ class MusicBoxApp extends EventEmitter {
 
     setupEventListeners() {
         // Window events
-        window.addEventListener('beforeunload', () => {
-            this.cleanup();
+        window.addEventListener('beforeunload', async () => {
+            await this.cleanup();
         });
 
         // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            this.handleKeyboardShortcut(e);
+        document.addEventListener('keydown', async (e) => {
+            await this.handleKeyboardShortcut(e);
         });
 
         // 添加播放列表按钮
@@ -185,8 +185,8 @@ class MusicBoxApp extends EventEmitter {
         this.setupFileLoading();
 
         // API events
-        api.on('libraryUpdated', () => {
-            this.refreshLibrary();
+        api.on('libraryUpdated', async () => {
+            await this.refreshLibrary();
         });
 
         api.on('playlistChanged', (tracks) => {
@@ -254,7 +254,7 @@ class MusicBoxApp extends EventEmitter {
                     this.hideCacheLoadingStatus();
 
                     // 在后台验证缓存
-                    this.validateCacheInBackground();
+                    await this.validateCacheInBackground();
                     return;
                 }
             }
@@ -373,11 +373,11 @@ class MusicBoxApp extends EventEmitter {
         `;
 
         // 为主页按钮添加事件监听
-        document.getElementById('scan-folder-btn')?.addEventListener('click', () => {
-            this.scanMusicFolder();
+        document.getElementById('scan-folder-btn')?.addEventListener('click', async () => {
+            await this.scanMusicFolder();
         });
-        document.getElementById('add-files-btn')?.addEventListener('click', () => {
-            this.addMusicFiles();
+        document.getElementById('add-files-btn')?.addEventListener('click', async () => {
+            await this.addMusicFiles();
         });
     }
 
@@ -484,7 +484,7 @@ class MusicBoxApp extends EventEmitter {
         console.log('View changed to:', view);
     }
 
-    handleTrackPlayed(track, index) {
+    async handleTrackPlayed(track, index) {
         console.log('🎵 从音乐库播放歌曲:', track.title);
 
         if (this.components.playlist) {
@@ -492,7 +492,7 @@ class MusicBoxApp extends EventEmitter {
             if (this.components.playlist.tracks.length === 0) {
                 console.log('🎵 播放列表为空，添加整个音乐库');
                 this.components.playlist.setTracks(this.filteredLibrary, index);
-                this.playTrackFromPlaylist(track, index);
+                await this.playTrackFromPlaylist(track, index);
             } else {
                 // 播放列表不为空，检查歌曲是否已在播放列表中
                 const existingIndex = this.components.playlist.tracks.findIndex(t =>
@@ -502,20 +502,20 @@ class MusicBoxApp extends EventEmitter {
                 if (existingIndex === -1) {
                     // 歌曲不在播放列表中，添加到末尾并播放
                     const newIndex = this.components.playlist.addTrack(track);
-                    this.playTrackFromPlaylist(track, newIndex);
+                    await this.playTrackFromPlaylist(track, newIndex);
                 } else {
                     // 歌曲已在播放列表中，直接播放
-                    this.playTrackFromPlaylist(track, existingIndex);
+                    await this.playTrackFromPlaylist(track, existingIndex);
                 }
             }
         } else {
             // 如果播放列表组件不存在，使用传统播放方式
             console.warn('播放列表组件不存在，使用传统播放方式');
-            api.setPlaylist([track], 0);
+            await api.setPlaylist([track], 0);
         }
     }
 
-    handleKeyboardShortcut(e) {
+    async handleKeyboardShortcut(e) {
         if (e.target.tagName === 'INPUT') return;
 
         switch (e.code) {
@@ -526,13 +526,13 @@ class MusicBoxApp extends EventEmitter {
             case 'ArrowRight':
                 if (e.ctrlKey || e.metaKey) {
                     e.preventDefault();
-                    api.nextTrack();
+                    await api.nextTrack();
                 }
                 break;
             case 'ArrowLeft':
                 if (e.ctrlKey || e.metaKey) {
                     e.preventDefault();
-                    api.previousTrack();
+                    await api.previousTrack();
                 }
                 break;
             case 'KeyF':
@@ -552,9 +552,9 @@ class MusicBoxApp extends EventEmitter {
         }
     }
 
-    cleanup() {
+    async cleanup() {
         if (this.components.player) {
-            api.setSetting('volume', this.components.player.volume);
+            await api.setSetting('volume', this.components.player.volume);
         }
         Object.values(this.components).forEach(component => {
             if (component.destroy) {
@@ -571,22 +571,22 @@ class MusicBoxApp extends EventEmitter {
             e.dataTransfer.dropEffect = 'copy';
         });
 
-        document.addEventListener('drop', (e) => {
+        document.addEventListener('drop', async (e) => {
             e.preventDefault();
-            this.handleFileDrop(e);
+            await this.handleFileDrop(e);
         });
 
         // Add keyboard shortcuts for file operations
-        document.addEventListener('keydown', (e) => {
+        document.addEventListener('keydown', async (e) => {
             if (e.ctrlKey || e.metaKey) {
                 switch (e.key) {
                     case 'o':
                         e.preventDefault();
-                        this.openFileDialog();
+                        await this.openFileDialog();
                         break;
                     case 'O':
                         e.preventDefault();
-                        this.openDirectoryDialog();
+                        await this.openDirectoryDialog();
                         break;
                 }
             }
@@ -737,14 +737,14 @@ class MusicBoxApp extends EventEmitter {
         // Just select, don't play automatically
     }
 
-    handlePlaylistTrackPlayed(track, index) {
+    async handlePlaylistTrackPlayed(track, index) {
         console.log('🎵 播放列表双击播放歌曲:', track.title, '索引:', index);
 
         // 直接播放播放列表中的指定歌曲
-        this.playTrackFromPlaylist(track, index);
+        await this.playTrackFromPlaylist(track, index);
     }
 
-    handlePlaylistTrackRemoved(track, index) {
+    async handlePlaylistTrackRemoved(track, index) {
         console.log('🎵 从播放列表移除歌曲:', track.title, '索引:', index);
 
         // 同步更新API播放列表
@@ -755,22 +755,22 @@ class MusicBoxApp extends EventEmitter {
             const currentIndex = this.components.playlist.currentTrackIndex;
 
             // 更新API播放列表
-            api.setPlaylist(this.components.playlist.tracks, currentIndex);
+            await api.setPlaylist(this.components.playlist.tracks, currentIndex);
 
             // 如果删除的是当前播放的歌曲，需要特殊处理
             if (index === api.currentIndex) {
                 console.log('⚠️ 删除的是当前播放歌曲，停止播放');
-                api.pause();
+                await api.pause();
             }
         }
     }
 
-    handlePlaylistCleared() {
+    async handlePlaylistCleared() {
         console.log('🎵 播放列表已清空');
 
         // 同步清空API播放列表
-        api.setPlaylist([], -1);
-        api.pause();
+        await api.setPlaylist([], -1);
+        await api.pause();
         console.log('🔄 API播放列表已清空');
     }
 
