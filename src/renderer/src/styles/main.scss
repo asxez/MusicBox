@@ -21,6 +21,32 @@
   --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.1);
   --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.15);
   --shadow-heavy: 0 8px 32px rgba(0, 0, 0, 0.2);
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover: 0 4px 20px rgba(0, 0, 0, 0.12);
+
+  // Gradients
+  --gradient-primary: linear-gradient(135deg, var(--color-primary) 0%, #4f7cff 100%);
+  --gradient-secondary: linear-gradient(135deg, #f5f5f7 0%, #e8e8ea 100%);
+  --gradient-card: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.6) 100%);
+  --gradient-overlay: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.3) 100%);
+
+  // Card and Layout
+  --border-radius-sm: 8px;
+  --border-radius-md: 12px;
+  --border-radius-lg: 16px;
+  --border-radius-xl: 20px;
+  --border-radius-card: var(--border-radius-md);
+  --border-radius-cover: var(--border-radius-lg);
+
+  // Animation
+  --transition-fast: 0.15s ease-out;
+  --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  // Content spacing
+  --content-padding: 32px;
+  --section-gap: 48px;
+  --card-gap: 24px;
   
   // Spacing
   --spacing-xs: 4px;
@@ -65,6 +91,11 @@
   --color-border: #404040;
   --color-hover: #3a3a3a;
   --color-active: #335eea;
+
+  // Dark theme gradients
+  --gradient-secondary: linear-gradient(135deg, #323232 0%, #2a2a2a 100%);
+  --gradient-card: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  --gradient-overlay: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.6) 100%);
 
   // 深色主题下的图标颜色：纯白色
   .sidebar-toggle-btn .icon {
@@ -2041,6 +2072,312 @@ a {
   }
 }
 
+// Modern UI Components
+.modern-card {
+  background: var(--gradient-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-card);
+  box-shadow: var(--shadow-card);
+  transition: all var(--transition-smooth);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
+  }
+}
+
+.hero-section {
+  background: var(--gradient-primary);
+  border-radius: var(--border-radius-xl);
+  color: white;
+  padding: var(--spacing-xl);
+  margin-bottom: var(--section-gap);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--gradient-overlay);
+    opacity: 0.1;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+.section-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .title-icon {
+    width: 32px;
+    height: 32px;
+    margin-right: var(--spacing-md);
+    opacity: 0.8;
+  }
+
+  .section-more {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-primary);
+    text-decoration: none;
+    opacity: 0.8;
+    transition: opacity var(--transition-fast);
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
+.content-grid {
+  display: grid;
+  gap: var(--card-gap);
+
+  &.grid-2 { grid-template-columns: repeat(2, 1fr); }
+  &.grid-3 { grid-template-columns: repeat(3, 1fr); }
+  &.grid-4 { grid-template-columns: repeat(4, 1fr); }
+  &.grid-5 { grid-template-columns: repeat(5, 1fr); }
+  &.grid-6 { grid-template-columns: repeat(6, 1fr); }
+
+  &.auto-fit {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+
+.music-card {
+  @extend .modern-card;
+  padding: var(--spacing-lg);
+  text-align: center;
+  cursor: pointer;
+
+  .card-cover {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: var(--border-radius-cover);
+    object-fit: cover;
+    margin-bottom: var(--spacing-md);
+    box-shadow: var(--shadow-medium);
+    transition: transform var(--transition-smooth);
+  }
+
+  &:hover .card-cover {
+    transform: scale(1.05);
+  }
+
+  .card-title {
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: var(--spacing-xs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .card-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--section-gap);
+
+  .stat-card {
+    @extend .modern-card;
+    padding: var(--spacing-lg);
+    text-align: center;
+
+    .stat-number {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--color-primary);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .stat-label {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      font-weight: 500;
+    }
+  }
+}
+
+// Button styles
+.button-primary {
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: var(--font-size-md);
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-medium);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.button-secondary {
+  background: var(--gradient-card);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: var(--font-size-md);
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-card-hover);
+    background: var(--color-hover);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// Home page specific styles
+.home-page {
+  .home-section {
+    margin-bottom: var(--section-gap);
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: var(--spacing-xl) var(--spacing-lg);
+
+    .empty-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto var(--spacing-lg);
+      opacity: 0.3;
+
+      svg {
+        width: 100%;
+        height: 100%;
+        fill: var(--color-text-secondary);
+      }
+    }
+
+    .empty-title {
+      font-size: var(--font-size-xl);
+      font-weight: 600;
+      color: var(--color-text);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .empty-description {
+      color: var(--color-text-secondary);
+      margin-bottom: var(--spacing-xl);
+    }
+  }
+}
+
+// Artist list item styles
+.artist-list-item {
+  @extend .modern-card;
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+  cursor: pointer;
+
+  .artist-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: var(--spacing-lg);
+    box-shadow: var(--shadow-light);
+  }
+
+  .artist-info {
+    flex: 1;
+
+    .artist-name {
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+      color: var(--color-text);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .artist-stats {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .play-artist-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: var(--gradient-primary);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-smooth);
+
+    svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    &:hover {
+      transform: scale(1.1);
+      box-shadow: var(--shadow-medium);
+    }
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+}
+
 // Responsive design
 @media (max-width: 1024px) {
   .app {
@@ -2058,6 +2395,38 @@ a {
 
   .track-item {
     grid-template-columns: 40px 1fr 150px 60px;
+  }
+
+  // 新UI组件响应式
+  .content-grid {
+    &.grid-6 { grid-template-columns: repeat(4, 1fr); }
+    &.grid-5 { grid-template-columns: repeat(4, 1fr); }
+    &.auto-fit { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .hero-section {
+    padding: var(--spacing-lg);
+
+    h1 {
+      font-size: 28px !important;
+    }
+
+    p {
+      font-size: 16px !important;
+    }
+  }
+
+  .section-title {
+    font-size: 24px;
+
+    .title-icon {
+      width: 28px;
+      height: 28px;
+    }
   }
 
   // 设置页面响应式
@@ -2111,6 +2480,92 @@ a {
 
   .welcome-actions {
     flex-direction: column;
+  }
+
+  // 新UI组件移动端响应式
+  .content-grid {
+    &.grid-6 { grid-template-columns: repeat(2, 1fr); }
+    &.grid-5 { grid-template-columns: repeat(2, 1fr); }
+    &.grid-4 { grid-template-columns: repeat(2, 1fr); }
+    &.grid-3 { grid-template-columns: repeat(2, 1fr); }
+    &.auto-fit { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+  }
+
+  .hero-section {
+    padding: var(--spacing-md);
+    text-align: center;
+
+    h1 {
+      font-size: 24px !important;
+    }
+
+    p {
+      font-size: 14px !important;
+    }
+
+    div[style*="display: flex"] {
+      flex-direction: column;
+      gap: 12px;
+    }
+  }
+
+  .section-title {
+    font-size: 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+
+    .title-icon {
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  .music-card {
+    padding: var(--spacing-md);
+
+    .card-title {
+      font-size: var(--font-size-sm);
+    }
+
+    .card-subtitle {
+      font-size: var(--font-size-xs);
+    }
+  }
+
+  .artist-list-item {
+    padding: var(--spacing-md);
+
+    .artist-avatar {
+      width: 48px;
+      height: 48px;
+      margin-right: var(--spacing-md);
+    }
+
+    .artist-info .artist-name {
+      font-size: var(--font-size-md);
+    }
+
+    .play-artist-btn {
+      width: 40px;
+      height: 40px;
+
+      svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+  }
+
+  .button-primary,
+  .button-secondary {
+    padding: 10px 20px;
+    font-size: var(--font-size-sm);
   }
 
   // 移动端设置页面优化
@@ -3065,5 +3520,1967 @@ a {
     .lyrics-text .lyrics-line {
       font-size: 16px;
     }
+  }
+}
+
+// ===== 新页面样式 =====
+
+// 通用页面样式
+.page-content {
+  padding: var(--spacing-lg);
+  height: 100%;
+  overflow-y: auto;
+
+  .page-header {
+    margin-bottom: var(--spacing-xl);
+
+    .page-title {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      font-size: var(--font-size-xl);
+      font-weight: 600;
+      color: var(--color-text);
+      margin: 0 0 var(--spacing-sm) 0;
+
+      .page-icon {
+        width: 28px;
+        height: 28px;
+        fill: var(--color-primary);
+      }
+    }
+
+    .page-subtitle {
+      color: var(--color-text-secondary);
+      font-size: var(--font-size-sm);
+      margin: 0;
+    }
+  }
+}
+
+// 沉浸式首页样式
+.immersive-home {
+  // 音乐可视化中心
+  .music-visualization-center {
+    position: relative;
+    height: 400px;
+    margin-bottom: var(--spacing-xl);
+    border-radius: var(--border-radius-xl);
+    overflow: hidden;
+    background: var(--gradient-primary);
+
+    .visualization-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .audio-visualizer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transition: opacity var(--transition-smooth);
+
+      &.active {
+        opacity: 1;
+      }
+    }
+
+    .breathing-guide {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+
+      .breathing-circle {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform var(--transition-smooth);
+        opacity: 0;
+
+        &.active {
+          opacity: 1;
+        }
+
+        .breathing-text {
+          color: white;
+          font-size: var(--font-size-md);
+          font-weight: 500;
+          text-align: center;
+        }
+      }
+    }
+
+    .ambient-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transition: opacity var(--transition-smooth);
+      pointer-events: none;
+
+      &.active {
+        opacity: 1;
+      }
+    }
+
+    .visualization-controls {
+      position: absolute;
+      bottom: var(--spacing-lg);
+      right: var(--spacing-lg);
+      display: flex;
+      gap: var(--spacing-sm);
+
+      .viz-control-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        cursor: pointer;
+        transition: all var(--transition-smooth);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        svg {
+          width: 20px;
+          height: 20px;
+          fill: currentColor;
+        }
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.2);
+          transform: translateY(-2px);
+        }
+
+        &.active {
+          background: rgba(255, 255, 255, 0.3);
+          border-color: rgba(255, 255, 255, 0.4);
+        }
+      }
+    }
+  }
+
+  // 情绪氛围调节器
+  .mood-atmosphere-section {
+    margin-bottom: var(--spacing-xl);
+
+    .atmosphere-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: var(--spacing-lg);
+
+      .atmosphere-card {
+        @extend .modern-card;
+        padding: var(--spacing-xl);
+        cursor: pointer;
+        transition: all var(--transition-smooth);
+        position: relative;
+        overflow: hidden;
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: var(--gradient-primary);
+          opacity: 0;
+          transition: opacity var(--transition-smooth);
+        }
+
+        &:hover {
+          transform: translateY(-4px);
+          box-shadow: var(--shadow-card-hover);
+
+          &::before {
+            opacity: 0.05;
+          }
+        }
+
+        &.active {
+          border-color: var(--color-primary);
+
+          &::before {
+            opacity: 0.1;
+          }
+        }
+
+        .atmosphere-icon {
+          width: 48px;
+          height: 48px;
+          margin-bottom: var(--spacing-md);
+          color: var(--color-primary);
+          position: relative;
+          z-index: 1;
+
+          svg {
+            width: 100%;
+            height: 100%;
+            fill: currentColor;
+          }
+        }
+
+        .atmosphere-content {
+          position: relative;
+          z-index: 1;
+
+          h3 {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            color: var(--color-text);
+            margin: 0 0 var(--spacing-sm) 0;
+          }
+
+          p {
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-sm);
+            margin: 0;
+            line-height: 1.5;
+          }
+        }
+      }
+    }
+  }
+
+  // 专注与冥想助手
+  .focus-meditation-section {
+    margin-bottom: var(--spacing-xl);
+
+    .focus-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: var(--spacing-lg);
+
+      .focus-card {
+        @extend .modern-card;
+        padding: var(--spacing-xl);
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: var(--gradient-secondary);
+          opacity: 0;
+          transition: opacity var(--transition-smooth);
+        }
+
+        &:hover {
+          transform: translateY(-4px);
+          box-shadow: var(--shadow-card-hover);
+
+          &::before {
+            opacity: 0.05;
+          }
+        }
+
+        .focus-icon {
+          width: 64px;
+          height: 64px;
+          margin: 0 auto var(--spacing-lg);
+          color: var(--color-primary);
+          position: relative;
+          z-index: 1;
+
+          svg {
+            width: 100%;
+            height: 100%;
+            fill: currentColor;
+          }
+        }
+
+        .focus-content {
+          position: relative;
+          z-index: 1;
+
+          h3 {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--color-text);
+            margin: 0 0 var(--spacing-sm) 0;
+          }
+
+          p {
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-md);
+            margin: 0 0 var(--spacing-lg) 0;
+            line-height: 1.5;
+          }
+
+          .focus-btn {
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            padding: var(--spacing-md) var(--spacing-xl);
+            border-radius: var(--border-radius-lg);
+            font-size: var(--font-size-md);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-smooth);
+
+            &:hover {
+              transform: translateY(-2px);
+              box-shadow: var(--shadow-medium);
+            }
+          }
+
+          .timer-controls {
+            display: flex;
+            gap: var(--spacing-sm);
+            justify-content: center;
+
+            .timer-btn {
+              background: var(--color-secondary-bg);
+              color: var(--color-text);
+              border: 1px solid var(--color-border);
+              padding: var(--spacing-sm) var(--spacing-md);
+              border-radius: var(--border-radius-md);
+              font-size: var(--font-size-sm);
+              cursor: pointer;
+              transition: all var(--transition-smooth);
+
+              &:hover {
+                background: var(--color-primary);
+                color: white;
+                border-color: var(--color-primary);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 音乐生活方式面板
+  .music-lifestyle-section {
+    margin-bottom: var(--spacing-xl);
+
+    .lifestyle-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: var(--spacing-lg);
+
+      .lifestyle-card {
+        @extend .modern-card;
+        padding: var(--spacing-xl);
+        position: relative;
+        overflow: hidden;
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: var(--gradient-accent);
+          opacity: 0;
+          transition: opacity var(--transition-smooth);
+        }
+
+        &:hover {
+          transform: translateY(-4px);
+          box-shadow: var(--shadow-card-hover);
+
+          &::before {
+            opacity: 0.05;
+          }
+        }
+
+        .lifestyle-icon {
+          width: 48px;
+          height: 48px;
+          margin-bottom: var(--spacing-lg);
+          color: var(--color-primary);
+          position: relative;
+          z-index: 1;
+
+          svg {
+            width: 100%;
+            height: 100%;
+            fill: currentColor;
+          }
+        }
+
+        .lifestyle-content {
+          position: relative;
+          z-index: 1;
+
+          h3 {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            color: var(--color-text);
+            margin: 0 0 var(--spacing-sm) 0;
+          }
+
+          p {
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-sm);
+            margin: 0 0 var(--spacing-lg) 0;
+            line-height: 1.5;
+          }
+
+          .mood-buttons {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+
+            .mood-btn {
+              width: 44px;
+              height: 44px;
+              border-radius: 50%;
+              border: 2px solid var(--color-border);
+              background: var(--color-bg);
+              font-size: 20px;
+              cursor: pointer;
+              transition: all var(--transition-smooth);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+
+              &:hover {
+                transform: scale(1.1);
+                border-color: var(--color-primary);
+              }
+
+              &.selected {
+                background: var(--color-primary);
+                border-color: var(--color-primary);
+                transform: scale(1.2);
+              }
+            }
+          }
+
+          .diary-input {
+            width: 100%;
+            min-height: 80px;
+            padding: var(--spacing-md);
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius-md);
+            background: var(--color-bg);
+            color: var(--color-text);
+            font-size: var(--font-size-sm);
+            font-family: inherit;
+            resize: vertical;
+            margin-bottom: var(--spacing-md);
+            transition: border-color var(--transition-smooth);
+
+            &:focus {
+              outline: none;
+              border-color: var(--color-primary);
+            }
+
+            &::placeholder {
+              color: var(--color-text-secondary);
+            }
+          }
+
+          .save-diary-btn {
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border-radius: var(--border-radius-md);
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-smooth);
+
+            &:hover:not(:disabled) {
+              transform: translateY(-2px);
+              box-shadow: var(--shadow-medium);
+            }
+
+            &:disabled {
+              opacity: 0.6;
+              cursor: not-allowed;
+            }
+          }
+
+          .habits-preview {
+            .habit-item {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding: var(--spacing-sm) 0;
+              border-bottom: 1px solid var(--color-border);
+
+              &:last-child {
+                border-bottom: none;
+              }
+
+              .habit-label {
+                color: var(--color-text-secondary);
+                font-size: var(--font-size-sm);
+              }
+
+              .habit-value {
+                color: var(--color-text);
+                font-weight: 500;
+                font-size: var(--font-size-sm);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 沉浸式空状态
+  .immersive-empty-state {
+    text-align: center;
+    padding: var(--spacing-xxl) var(--spacing-lg);
+
+    .empty-visualization {
+      margin-bottom: var(--spacing-xl);
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+
+      .empty-waves {
+        position: relative;
+        width: 200px;
+        height: 100px;
+
+        .wave {
+          position: absolute;
+          bottom: 0;
+          left: 50%;
+          width: 4px;
+          background: var(--gradient-primary);
+          border-radius: 2px;
+          animation: wave-animation 2s ease-in-out infinite;
+
+          &:nth-child(1) {
+            transform: translateX(-30px);
+            animation-delay: 0s;
+            height: 40px;
+          }
+
+          &:nth-child(2) {
+            transform: translateX(-15px);
+            animation-delay: 0.2s;
+            height: 60px;
+          }
+
+          &:nth-child(3) {
+            transform: translateX(0);
+            animation-delay: 0.4s;
+            height: 80px;
+          }
+        }
+      }
+    }
+
+    .empty-content {
+      h2 {
+        font-size: var(--font-size-xxl);
+        font-weight: 700;
+        color: var(--color-text);
+        margin: 0 0 var(--spacing-md) 0;
+      }
+
+      p {
+        font-size: var(--font-size-lg);
+        color: var(--color-text-secondary);
+        margin: 0 0 var(--spacing-xl) 0;
+        line-height: 1.6;
+      }
+
+      .empty-actions {
+        display: flex;
+        gap: var(--spacing-lg);
+        justify-content: center;
+        flex-wrap: wrap;
+
+        .immersive-btn {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          padding: var(--spacing-lg) var(--spacing-xl);
+          border-radius: var(--border-radius-lg);
+          font-size: var(--font-size-md);
+          font-weight: 500;
+          cursor: pointer;
+          transition: all var(--transition-smooth);
+          text-decoration: none;
+          border: none;
+
+          svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+          }
+
+          &.primary {
+            background: var(--gradient-primary);
+            color: white;
+
+            &:hover {
+              transform: translateY(-4px);
+              box-shadow: var(--shadow-card-hover);
+            }
+          }
+
+          &.secondary {
+            background: var(--color-secondary-bg);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+
+            &:hover {
+              background: var(--color-primary);
+              color: white;
+              border-color: var(--color-primary);
+              transform: translateY(-2px);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .home-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+
+    .stat-card {
+      background: var(--color-secondary-bg);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+      text-align: center;
+      transition: transform var(--transition-fast);
+
+      &:hover {
+        transform: translateY(-2px);
+      }
+
+      .stat-number {
+        font-size: var(--font-size-xl);
+        font-weight: 700;
+        color: var(--color-primary);
+        margin-bottom: var(--spacing-xs);
+      }
+
+      .stat-label {
+        font-size: var(--font-size-sm);
+        color: var(--color-text-secondary);
+      }
+    }
+  }
+
+  .home-section {
+    margin-bottom: var(--spacing-xl);
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-md);
+
+      .section-title {
+        font-size: var(--font-size-lg);
+        font-weight: 600;
+        color: var(--color-text);
+        margin: 0;
+      }
+
+      .section-more {
+        background: none;
+        border: none;
+        color: var(--color-primary);
+        font-size: var(--font-size-sm);
+        cursor: pointer;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        border-radius: var(--radius-sm);
+        transition: background-color var(--transition-fast);
+
+        &:hover {
+          background-color: var(--color-primary-bg);
+        }
+      }
+    }
+
+    .track-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: var(--spacing-md);
+    }
+  }
+
+  .track-card {
+    background: var(--color-secondary-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-medium);
+
+      .track-overlay {
+        opacity: 1;
+      }
+    }
+
+    .track-cover {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-bottom: var(--spacing-sm);
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .track-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity var(--transition-fast);
+
+        .play-btn {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: var(--color-primary);
+          border: none;
+          color: white;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: transform var(--transition-fast);
+
+          &:hover {
+            transform: scale(1.1);
+          }
+
+          svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+          }
+        }
+      }
+    }
+
+    .track-info {
+      .track-title {
+        font-weight: 500;
+        color: var(--color-text);
+        margin-bottom: var(--spacing-xs);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .track-artist {
+        font-size: var(--font-size-sm);
+        color: var(--color-text-secondary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: var(--spacing-xl) 0;
+
+    .empty-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto var(--spacing-lg);
+      opacity: 0.5;
+
+      svg {
+        width: 100%;
+        height: 100%;
+        fill: var(--color-text-secondary);
+      }
+    }
+
+    .empty-title {
+      font-size: var(--font-size-lg);
+      color: var(--color-text);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .empty-description {
+      color: var(--color-text-secondary);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .primary-button {
+      background: var(--color-primary);
+      color: white;
+      border: none;
+      padding: var(--spacing-sm) var(--spacing-lg);
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-sm);
+      cursor: pointer;
+      transition: background-color var(--transition-fast);
+
+      &:hover {
+        background: rgba(var(--color-primary-rgb), 0.8);
+      }
+    }
+  }
+}
+
+// 最近播放页面样式
+.recent-page {
+  .recent-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: var(--radius-md);
+      border: none;
+      font-size: var(--font-size-sm);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+
+      .icon {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+      }
+
+      &:not(.secondary) {
+        background: var(--color-primary);
+        color: white;
+
+        &:hover {
+          background: rgba(var(--color-primary-rgb), 0.8);
+        }
+      }
+
+      &.secondary {
+        background: var(--color-secondary-bg);
+        color: var(--color-text);
+
+        &:hover {
+          background: var(--color-hover);
+        }
+      }
+    }
+  }
+
+  .recent-content {
+    .date-group {
+      margin-bottom: var(--spacing-xl);
+
+      .date-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-md);
+        padding-bottom: var(--spacing-sm);
+        border-bottom: 1px solid var(--color-border);
+
+        .date-title {
+          font-size: var(--font-size-lg);
+          font-weight: 600;
+          color: var(--color-text);
+          margin: 0;
+        }
+
+        .date-count {
+          font-size: var(--font-size-sm);
+          color: var(--color-text-secondary);
+        }
+      }
+
+      .track-list {
+        .track-item {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-md);
+          padding: var(--spacing-sm);
+          border-radius: var(--radius-md);
+          cursor: pointer;
+          transition: background-color var(--transition-fast);
+
+          &:hover {
+            background: var(--color-hover);
+
+            .track-overlay {
+              opacity: 1;
+            }
+
+            .track-actions {
+              opacity: 1;
+            }
+          }
+
+          .track-cover {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            flex-shrink: 0;
+
+            img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+            }
+
+            .track-overlay {
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              background: rgba(0, 0, 0, 0.5);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              opacity: 0;
+              transition: opacity var(--transition-fast);
+
+              .play-btn {
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                background: var(--color-primary);
+                border: none;
+                color: white;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                svg {
+                  width: 12px;
+                  height: 12px;
+                  fill: currentColor;
+                }
+              }
+            }
+          }
+
+          .track-info {
+            flex: 1;
+            min-width: 0;
+
+            .track-title {
+              font-weight: 500;
+              color: var(--color-text);
+              margin-bottom: var(--spacing-xs);
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+
+            .track-meta {
+              display: flex;
+              align-items: center;
+              gap: var(--spacing-xs);
+              font-size: var(--font-size-sm);
+              color: var(--color-text-secondary);
+
+              .track-artist,
+              .track-album {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+              }
+
+              .track-separator {
+                opacity: 0.5;
+              }
+            }
+          }
+
+          .track-time {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: var(--spacing-xs);
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            flex-shrink: 0;
+
+            .play-time {
+              font-weight: 500;
+            }
+          }
+
+          .track-actions {
+            display: flex;
+            gap: var(--spacing-xs);
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+
+            .action-btn {
+              width: 32px;
+              height: 32px;
+              border-radius: var(--radius-sm);
+              background: var(--color-secondary-bg);
+              border: none;
+              color: var(--color-text-secondary);
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              transition: all var(--transition-fast);
+
+              &:hover {
+                background: var(--color-primary);
+                color: white;
+              }
+
+              svg {
+                width: 16px;
+                height: 16px;
+                fill: currentColor;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// 艺术家页面样式
+.artists-page {
+  .artists-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xl);
+
+    .view-controls {
+      display: flex;
+      gap: var(--spacing-xs);
+
+      .view-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-sm);
+        background: var(--color-secondary-bg);
+        border: none;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all var(--transition-fast);
+
+        &:hover {
+          background: var(--color-hover);
+        }
+
+        &.active {
+          background: var(--color-primary);
+          color: white;
+        }
+
+        svg {
+          width: 18px;
+          height: 18px;
+          fill: currentColor;
+        }
+      }
+    }
+
+    .sort-controls {
+      .sort-select {
+        padding: var(--spacing-xs) var(--spacing-sm);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        background: var(--color-secondary-bg);
+        color: var(--color-text);
+        font-size: var(--font-size-sm);
+        cursor: pointer;
+
+        &:focus {
+          outline: none;
+          border-color: var(--color-primary);
+        }
+      }
+    }
+  }
+
+  .artists-content {
+    &.grid-view {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: var(--spacing-lg);
+
+      .artist-card {
+        background: var(--color-secondary-bg);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-md);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+
+        &:hover {
+          transform: translateY(-4px);
+          box-shadow: var(--shadow-medium);
+
+          .artist-overlay {
+            opacity: 1;
+          }
+        }
+
+        .artist-cover {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 1;
+          border-radius: var(--radius-md);
+          overflow: hidden;
+          margin-bottom: var(--spacing-md);
+
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+
+          .artist-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+
+            .play-btn {
+              width: 56px;
+              height: 56px;
+              border-radius: 50%;
+              background: var(--color-primary);
+              border: none;
+              color: white;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              transition: transform var(--transition-fast);
+
+              &:hover {
+                transform: scale(1.1);
+              }
+
+              svg {
+                width: 24px;
+                height: 24px;
+                fill: currentColor;
+              }
+            }
+          }
+        }
+
+        .artist-info {
+          text-align: center;
+
+          .artist-name {
+            font-size: var(--font-size-md);
+            font-weight: 600;
+            color: var(--color-text);
+            margin: 0 0 var(--spacing-xs) 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .artist-stats {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-xs);
+          }
+        }
+      }
+    }
+
+    &.list-view {
+      .artist-row {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+        padding: var(--spacing-md);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: background-color var(--transition-fast);
+
+        &:hover {
+          background: var(--color-hover);
+
+          .artist-actions {
+            opacity: 1;
+          }
+        }
+
+        .artist-cover {
+          width: 64px;
+          height: 64px;
+          border-radius: var(--radius-md);
+          overflow: hidden;
+          flex-shrink: 0;
+
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+        }
+
+        .artist-info {
+          flex: 1;
+          min-width: 0;
+
+          .artist-name {
+            font-size: var(--font-size-md);
+            font-weight: 600;
+            color: var(--color-text);
+            margin: 0 0 var(--spacing-xs) 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .artist-stats {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+          }
+        }
+
+        .artist-actions {
+          display: flex;
+          gap: var(--spacing-xs);
+          opacity: 0;
+          transition: opacity var(--transition-fast);
+
+          .action-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            background: var(--color-secondary-bg);
+            border: none;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-fast);
+
+            &:hover {
+              background: var(--color-primary);
+              color: white;
+            }
+
+            svg {
+              width: 18px;
+              height: 18px;
+              fill: currentColor;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// 艺术家详情页面样式
+.artist-detail {
+  .artist-header {
+    margin-bottom: var(--spacing-xl);
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      background: none;
+      border: none;
+      color: var(--color-text-secondary);
+      font-size: var(--font-size-sm);
+      cursor: pointer;
+      padding: var(--spacing-xs) 0;
+      margin-bottom: var(--spacing-lg);
+      transition: color var(--transition-fast);
+
+      &:hover {
+        color: var(--color-primary);
+      }
+
+      svg {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+      }
+    }
+
+    .artist-hero {
+      display: flex;
+      gap: var(--spacing-xl);
+      align-items: flex-end;
+
+      .artist-cover-large {
+        width: 200px;
+        height: 200px;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        flex-shrink: 0;
+        box-shadow: var(--shadow-medium);
+
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      }
+
+      .artist-info {
+        flex: 1;
+
+        .artist-name {
+          font-size: 48px;
+          font-weight: 700;
+          color: var(--color-text);
+          margin: 0 0 var(--spacing-md) 0;
+          line-height: 1.1;
+        }
+
+        .artist-stats {
+          display: flex;
+          gap: var(--spacing-xs);
+          font-size: var(--font-size-md);
+          color: var(--color-text-secondary);
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .artist-actions {
+          display: flex;
+          gap: var(--spacing-md);
+
+          .primary-button,
+          .secondary-button {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border: none;
+
+            .icon {
+              width: 16px;
+              height: 16px;
+              fill: currentColor;
+            }
+          }
+
+          .primary-button {
+            background: var(--color-primary);
+            color: white;
+
+            &:hover {
+              background: rgba(var(--color-primary-rgb), 0.8);
+              transform: translateY(-1px);
+            }
+          }
+
+          .secondary-button {
+            background: var(--color-secondary-bg);
+            color: var(--color-text);
+
+            &:hover {
+              background: var(--color-hover);
+              transform: translateY(-1px);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .artist-content {
+    .album-section {
+      margin-bottom: var(--spacing-xl);
+
+      .album-header {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+        margin-bottom: var(--spacing-md);
+        padding: var(--spacing-md);
+        background: var(--color-secondary-bg);
+        border-radius: var(--radius-lg);
+
+        .album-cover {
+          width: 64px;
+          height: 64px;
+          border-radius: var(--radius-md);
+          overflow: hidden;
+          flex-shrink: 0;
+
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+        }
+
+        .album-info {
+          flex: 1;
+
+          .album-title {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            color: var(--color-text);
+            margin: 0 0 var(--spacing-xs) 0;
+          }
+
+          .album-stats {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+          }
+        }
+
+        .album-play-btn {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: var(--color-primary);
+          border: none;
+          color: white;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all var(--transition-fast);
+
+          &:hover {
+            transform: scale(1.05);
+            background: rgba(var(--color-primary-rgb), 0.8);
+          }
+
+          svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+          }
+        }
+      }
+
+      .album-tracks {
+        .track-row {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-md);
+          padding: var(--spacing-sm) var(--spacing-md);
+          border-radius: var(--radius-md);
+          cursor: pointer;
+          transition: background-color var(--transition-fast);
+
+          &:hover {
+            background: var(--color-hover);
+
+            .track-actions {
+              opacity: 1;
+            }
+          }
+
+          .track-number {
+            width: 24px;
+            text-align: center;
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            flex-shrink: 0;
+          }
+
+          .track-info {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-width: 0;
+
+            .track-title {
+              font-weight: 500;
+              color: var(--color-text);
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+
+            .track-duration {
+              font-size: var(--font-size-sm);
+              color: var(--color-text-secondary);
+              flex-shrink: 0;
+            }
+          }
+
+          .track-actions {
+            display: flex;
+            gap: var(--spacing-xs);
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+
+            .action-btn {
+              width: 32px;
+              height: 32px;
+              border-radius: var(--radius-sm);
+              background: var(--color-secondary-bg);
+              border: none;
+              color: var(--color-text-secondary);
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              transition: all var(--transition-fast);
+
+              &:hover {
+                background: var(--color-primary);
+                color: white;
+              }
+
+              svg {
+                width: 14px;
+                height: 14px;
+                fill: currentColor;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .page-content {
+    padding: var(--spacing-md);
+  }
+
+  .home-stats {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .track-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+  }
+
+  .artists-content.grid-view {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+  }
+
+  .artist-hero {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center;
+
+    .artist-cover-large {
+      width: 160px !important;
+      height: 160px !important;
+    }
+
+    .artist-name {
+      font-size: 32px !important;
+    }
+  }
+}
+
+// 统计页面样式
+.statistics-page {
+  .stats-overview {
+    margin-bottom: var(--spacing-xl);
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--spacing-lg);
+
+      .stat-card {
+        background: var(--gradient-card);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--color-border);
+        border-radius: var(--border-radius-lg);
+        padding: var(--spacing-xl);
+        text-align: center;
+        transition: all var(--transition-smooth);
+        position: relative;
+        overflow: hidden;
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: var(--gradient-primary);
+          opacity: 0;
+          transition: opacity var(--transition-smooth);
+        }
+
+        &.primary::before {
+          opacity: 0.05;
+        }
+
+        &:hover {
+          transform: translateY(-4px);
+          box-shadow: var(--shadow-card-hover);
+
+          &::before {
+            opacity: 0.08;
+          }
+        }
+
+        .stat-icon {
+          font-size: 32px;
+          margin-bottom: var(--spacing-md);
+          display: block;
+          position: relative;
+          z-index: 1;
+        }
+
+        .stat-number {
+          font-size: 28px;
+          font-weight: 700;
+          color: var(--color-primary);
+          margin-bottom: var(--spacing-xs);
+          position: relative;
+          z-index: 1;
+        }
+
+        .stat-label {
+          font-size: var(--font-size-sm);
+          color: var(--color-text-secondary);
+          font-weight: 500;
+          position: relative;
+          z-index: 1;
+        }
+      }
+    }
+  }
+
+  .stats-section {
+    margin-bottom: var(--spacing-xl);
+
+    .play-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: var(--spacing-lg);
+
+      .stat-card {
+        background: var(--color-secondary-bg);
+        border-radius: var(--border-radius-md);
+        padding: var(--spacing-lg);
+        text-align: center;
+        transition: transform var(--transition-fast);
+
+        &:hover {
+          transform: translateY(-2px);
+        }
+
+        .stat-number {
+          font-size: var(--font-size-xl);
+          font-weight: 700;
+          color: var(--color-primary);
+          margin-bottom: var(--spacing-xs);
+        }
+
+        .stat-label {
+          font-size: var(--font-size-sm);
+          color: var(--color-text-secondary);
+        }
+      }
+    }
+  }
+}
+
+// ===== 沉浸式功能全局样式 =====
+
+// 专注模式
+body.focus-mode {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+
+  .navbar {
+    opacity: 0.3;
+    transition: opacity var(--transition-smooth);
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  .immersive-home .music-visualization-center {
+    height: 60vh;
+    margin-bottom: var(--spacing-lg);
+  }
+}
+
+// 专注模式通知
+.focus-mode-notification {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10000;
+  background: var(--gradient-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-xl);
+  padding: var(--spacing-xl);
+  text-align: center;
+  box-shadow: var(--shadow-card-hover);
+  animation: focus-notification-appear 0.5s ease-out;
+
+  .notification-content {
+    h3 {
+      font-size: var(--font-size-xl);
+      font-weight: 600;
+      color: var(--color-text);
+      margin: 0 0 var(--spacing-sm) 0;
+    }
+
+    p {
+      color: var(--color-text-secondary);
+      margin: 0 0 var(--spacing-lg) 0;
+    }
+
+    .exit-focus-btn {
+      background: var(--gradient-secondary);
+      color: white;
+      border: none;
+      padding: var(--spacing-sm) var(--spacing-lg);
+      border-radius: var(--border-radius-md);
+      font-size: var(--font-size-sm);
+      cursor: pointer;
+      transition: all var(--transition-smooth);
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-medium);
+      }
+    }
+  }
+}
+
+// 冥想计时器覆盖层
+.meditation-timer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: timer-overlay-appear 0.3s ease-out;
+
+  .timer-content {
+    text-align: center;
+    color: white;
+
+    .timer-circle {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto var(--spacing-xl);
+      position: relative;
+
+      &::before {
+        content: '';
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        right: -4px;
+        bottom: -4px;
+        border-radius: 50%;
+        border: 4px solid transparent;
+        border-top-color: var(--color-primary);
+        animation: timer-progress 1s linear infinite;
+      }
+
+      .timer-text {
+        .timer-minutes {
+          font-size: 48px;
+          font-weight: 700;
+          line-height: 1;
+        }
+
+        .timer-label {
+          font-size: var(--font-size-md);
+          opacity: 0.8;
+          margin-top: var(--spacing-xs);
+        }
+      }
+    }
+
+    .timer-controls {
+      display: flex;
+      gap: var(--spacing-lg);
+      justify-content: center;
+
+      button {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        padding: var(--spacing-md) var(--spacing-lg);
+        border-radius: var(--border-radius-lg);
+        font-size: var(--font-size-md);
+        cursor: pointer;
+        transition: all var(--transition-smooth);
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.2);
+          transform: translateY(-2px);
+        }
+      }
+    }
+
+    .timer-complete {
+      .complete-icon {
+        font-size: 64px;
+        margin-bottom: var(--spacing-lg);
+      }
+
+      h3 {
+        font-size: var(--font-size-xxl);
+        font-weight: 600;
+        margin: 0 0 var(--spacing-md) 0;
+      }
+
+      p {
+        font-size: var(--font-size-lg);
+        opacity: 0.8;
+        margin: 0 0 var(--spacing-xl) 0;
+      }
+
+      .close-timer-btn {
+        background: var(--gradient-primary);
+        border: none;
+        color: white;
+        padding: var(--spacing-md) var(--spacing-xl);
+        border-radius: var(--border-radius-lg);
+        font-size: var(--font-size-md);
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--transition-smooth);
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-medium);
+        }
+      }
+    }
+  }
+}
+
+// 动画定义
+@keyframes focus-notification-appear {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes timer-overlay-appear {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(10px);
+  }
+}
+
+@keyframes timer-progress {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes wave-animation {
+  0%, 100% {
+    transform: scaleY(0.5);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
   }
 }
