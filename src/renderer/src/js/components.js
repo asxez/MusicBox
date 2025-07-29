@@ -85,17 +85,17 @@ class Player extends Component {
 
     setupEventListeners() {
         // Play/pause button
-        this.playPauseBtn.addEventListener('click', () => {
-            this.togglePlayPause();
+        this.playPauseBtn.addEventListener('click', async () => {
+            await this.togglePlayPause();
         });
 
         // Previous/next buttons
-        this.prevBtn.addEventListener('click', () => {
-            api.previousTrack();
+        this.prevBtn.addEventListener('click', async () => {
+            await api.previousTrack();
         });
 
-        this.nextBtn.addEventListener('click', () => {
-            api.nextTrack();
+        this.nextBtn.addEventListener('click', async () => {
+            await api.nextTrack();
         });
 
         // Progress bar - improved interaction
@@ -125,13 +125,13 @@ class Player extends Component {
             }
         });
 
-        document.addEventListener('mouseup', () => {
+        document.addEventListener('mouseup', async () => {
             if (this.isDraggingProgress) {
                 this.isDraggingProgress = false;
                 this.progressBarContainer.classList.remove('dragging');
                 this.progressTooltip.style.opacity = '0';
                 const progress = parseFloat(this.progressFill.style.width) / 100;
-                api.seek(this.duration * progress);
+                await api.seek(this.duration * progress);
             }
         });
 
@@ -151,16 +151,16 @@ class Player extends Component {
             }
         });
 
-        document.addEventListener('mouseup', () => {
+        document.addEventListener('mouseup', async () => {
             if (this.isDraggingVolume) {
                 this.isDraggingVolume = false;
                 const volume = parseFloat(this.volumeFill.style.width) / 100;
-                api.setVolume(volume);
+                await api.setVolume(volume);
             }
         });
 
-        this.volumeBtn.addEventListener('click', () => {
-            this.toggleMute();
+        this.volumeBtn.addEventListener('click', async () => {
+            await this.toggleMute();
         });
         this.playModeBtn.addEventListener('click', () => {
             const newMode = api.togglePlayMode();
@@ -174,8 +174,8 @@ class Player extends Component {
         });
 
         // API events
-        api.on('trackChanged', (track) => {
-            this.updateTrackInfo(track);
+        api.on('trackChanged', async (track) => {
+            await this.updateTrackInfo(track);
         });
 
         api.on('playbackStateChanged', (state) => {
@@ -212,9 +212,9 @@ class Player extends Component {
 
     setupAPIListeners() {
         // 用于实时更新的增强型 API 事件监听
-        api.on('trackLoaded', (track) => {
+        api.on('trackLoaded', async (track) => {
             console.log('Track loaded in player:', track);
-            this.updateTrackInfo(track);
+            await this.updateTrackInfo(track);
         });
 
         api.on('durationChanged', (duration) => {
@@ -425,12 +425,12 @@ class Player extends Component {
         }
     }
 
-    toggleMute() {
+    async toggleMute() {
         if (this.volume > 0) {
             this.previousVolume = this.volume;
-            api.setVolume(0);
+            await api.setVolume(0);
         } else {
-            api.setVolume(this.previousVolume || 0.7);
+            await api.setVolume(this.previousVolume || 0.7);
         }
     }
 }
@@ -1049,7 +1049,6 @@ class Settings extends EventEmitter {
         this.languageSelect = this.element.querySelector('#language-select');
         this.defaultVolumeSlider = this.element.querySelector('#default-volume');
         this.volumeValue = this.element.querySelector('.volume-value');
-        this.crossfadeToggle = this.element.querySelector('#crossfade-toggle');
         this.autoplayToggle = this.element.querySelector('#autoplay-toggle');
         this.rememberPositionToggle = this.element.querySelector('#remember-position-toggle');
         this.autoScanToggle = this.element.querySelector('#auto-scan-toggle');
@@ -1087,10 +1086,6 @@ class Settings extends EventEmitter {
         });
 
         // 各种开关设置
-        this.crossfadeToggle.addEventListener('change', (e) => {
-            this.updateSetting('crossfade', e.target.checked);
-        });
-
         this.autoplayToggle.addEventListener('change', (e) => {
             this.updateSetting('autoplay', e.target.checked);
         });
@@ -1138,16 +1133,16 @@ class Settings extends EventEmitter {
         });
 
         // 缓存管理按钮事件
-        this.viewCacheStatsBtn.addEventListener('click', () => {
-            this.showCacheStatistics();
+        this.viewCacheStatsBtn.addEventListener('click', async () => {
+            await this.showCacheStatistics();
         });
 
-        this.validateCacheBtn.addEventListener('click', () => {
-            this.validateCache();
+        this.validateCacheBtn.addEventListener('click', async () => {
+            await this.validateCache();
         });
 
-        this.clearCacheBtn.addEventListener('click', () => {
-            this.clearCache();
+        this.clearCacheBtn.addEventListener('click', async () => {
+            await this.clearCache();
         });
 
         // 关闭设置页面 (ESC键)
@@ -1158,7 +1153,7 @@ class Settings extends EventEmitter {
         });
     }
 
-    show() {
+    async show() {
         this.isVisible = true;
         this.page.style.display = 'block';
 
@@ -1172,7 +1167,7 @@ class Settings extends EventEmitter {
         });
 
         // 加载缓存统计信息
-        this.showCacheStatistics();
+        await this.showCacheStatistics();
         console.log('🎵 Settings: 显示设置页面');
     }
 
@@ -1196,11 +1191,11 @@ class Settings extends EventEmitter {
         console.log('🎵 Settings: 隐藏设置页面');
     }
 
-    toggle() {
+    async toggle() {
         if (this.isVisible) {
             this.hide();
         } else {
-            this.show();
+            await this.show();
         }
     }
 
@@ -1209,7 +1204,6 @@ class Settings extends EventEmitter {
         this.languageSelect.value = this.settings.language || 'zh-CN';
         this.defaultVolumeSlider.value = this.settings.defaultVolume || 50;
         this.volumeValue.textContent = `${this.settings.defaultVolume || 50}%`;
-        this.crossfadeToggle.checked = this.settings.crossfade || false;
         this.autoplayToggle.checked = this.settings.autoplay || false;
         this.rememberPositionToggle.checked = this.settings.rememberPosition || false;
         this.autoScanToggle.checked = this.settings.autoScan || false;
@@ -1394,10 +1388,10 @@ class Lyrics extends EventEmitter {
         this.volumeHalfIcon = this.volumeBtn.querySelector('.volume-half-icon');
 
         // 播放模式控制
-        this.playmodeBtn = this.element.querySelector('#lyrics-playmode-btn');
-        this.modeSequenceIcon = this.playmodeBtn.querySelector('.lyrics-mode-sequence');
-        this.modeShuffleIcon = this.playmodeBtn.querySelector('.lyrics-mode-shuffle');
-        this.modeRepeatOneIcon = this.playmodeBtn.querySelector('.lyrics-mode-repeat-one');
+        this.playModeBtn = this.element.querySelector('#lyrics-playmode-btn');
+        this.modeSequenceIcon = this.playModeBtn.querySelector('.lyrics-mode-sequence');
+        this.modeShuffleIcon = this.playModeBtn.querySelector('.lyrics-mode-shuffle');
+        this.modeRepeatOneIcon = this.playModeBtn.querySelector('.lyrics-mode-repeat-one');
 
         // 全屏状态
         this.isFullscreen = false;
@@ -1436,20 +1430,20 @@ class Lyrics extends EventEmitter {
         });
 
         // 音量条点击和拖拽事件
-        this.volumeSliderContainer.addEventListener('mousedown', (e) => {
+        this.volumeSliderContainer.addEventListener('mousedown', async (e) => {
             this.isDraggingVolume = true;
-            this.updateVolumeFromEvent(e);
+            await this.updateVolumeFromEvent(e);
         });
 
-        this.volumeSliderContainer.addEventListener('click', (e) => {
+        this.volumeSliderContainer.addEventListener('click', async (e) => {
             if (!this.isDraggingVolume) {
-                this.updateVolumeFromEvent(e);
+                await this.updateVolumeFromEvent(e);
             }
         });
 
-        document.addEventListener('mousemove', (e) => {
+        document.addEventListener('mousemove', async (e) => {
             if (this.isDraggingVolume) {
-                this.updateVolumeFromEvent(e);
+                await this.updateVolumeFromEvent(e);
             }
         });
 
@@ -1460,7 +1454,7 @@ class Lyrics extends EventEmitter {
         });
 
         // 播放模式切换事件
-        this.playmodeBtn.addEventListener('click', () => {
+        this.playModeBtn.addEventListener('click', () => {
             const newMode = api.togglePlayMode();
             this.updatePlayModeDisplay(newMode);
         });
@@ -1552,9 +1546,9 @@ class Lyrics extends EventEmitter {
             this.updatePlayButton();
         });
 
-        api.on('trackLoaded', (track) => {
+        api.on('trackLoaded', async (track) => {
             console.log('Track loaded in lyrics:', track);
-            this.updateTrackInfo(track);
+            await this.updateTrackInfo(track);
         });
     }
 
@@ -1976,7 +1970,7 @@ class Lyrics extends EventEmitter {
     }
 
     // 从鼠标事件更新音量
-    updateVolumeFromEvent(e) {
+    async updateVolumeFromEvent(e) {
         if (!this.volumeSliderContainer) return;
 
         const rect = this.volumeSliderContainer.getBoundingClientRect();
@@ -1984,7 +1978,7 @@ class Lyrics extends EventEmitter {
         const percentage = Math.max(0, Math.min(1, clickX / rect.width));
         const volume = Math.round(percentage * 100);
 
-        this.setVolume(volume);
+        await this.setVolume(volume);
     }
 
     async toggleVolumeMute() {

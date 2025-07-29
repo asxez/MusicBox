@@ -1038,7 +1038,7 @@ class MusicBoxAPI extends EventEmitter {
         try {
             console.log(`🎵 获取歌词: ${title} - ${artist}`);
 
-            // 第一优先级：检查localStorage缓存
+            // 检查localStorage缓存
             if (window.cacheManager) {
                 const cached = window.cacheManager.getLyricsCache(title, artist, album);
                 if (cached) {
@@ -1047,7 +1047,7 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 第二优先级：检查本地歌词文件
+            // 检查本地歌词文件
             if (window.localLyricsManager) {
                 try {
                     const localResult = await window.localLyricsManager.getLyrics(title, artist, album);
@@ -1068,7 +1068,7 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 第三优先级：通过网络接口获取
+            // 通过网络接口获取
             console.log(`🌐 尝试网络获取歌词: ${title}`);
             const params = new URLSearchParams();
             if (title) params.append('title', title);
@@ -1141,13 +1141,10 @@ class MusicBoxAPI extends EventEmitter {
                     }
                 }
             }
-
             // 按时间排序
             lyrics.sort((a, b) => a.time - b.time);
-
             console.log(`✅ LRC解析成功，共 ${lyrics.length} 行歌词`);
             return lyrics;
-
         } catch (error) {
             console.error('❌ LRC解析失败:', error);
             return [];

@@ -78,21 +78,27 @@
                     <h3 class="sidebar-title">音乐库</h3>
                     <ul class="sidebar-menu">
                         <li>
-                            <a href="#" class="sidebar-link active" data-view="library">
+                            <a href="#" class="sidebar-link active" data-view="home-page">
+                                <img class="sidebar-icon" src="assets/icons/home.svg" alt="">
+                                <span class="sidebar-text">首页</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="sidebar-link" data-view="library">
                                 <svg class="sidebar-icon" viewBox="0 0 24 24">
                                     <path d="M12,3V12.26C11.5,12.09 11,12 10.5,12C8.01,12 6,14.01 6,16.5S8.01,21 10.5,21S15,18.99 15,16.5V6H19V3H12Z"/>
                                 </svg>
                                 <span class="sidebar-text">我的音乐</span>
                             </a>
                         </li>
-                        <li>
-                            <a href="#" class="sidebar-link" data-view="albums">
-                                <svg class="sidebar-icon" viewBox="0 0 24 24">
-                                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
-                                </svg>
-                                <span class="sidebar-text">专辑</span>
-                            </a>
-                        </li>
+<!--                        <li>-->
+<!--                            <a href="#" class="sidebar-link" data-view="albums">-->
+<!--                                <svg class="sidebar-icon" viewBox="0 0 24 24">-->
+<!--                                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>-->
+<!--                                </svg>-->
+<!--                                <span class="sidebar-text">专辑</span>-->
+<!--                            </a>-->
+<!--                        </li>-->
                         <li>
                             <a href="#" class="sidebar-link" data-view="artists">
                                 <svg class="sidebar-icon" viewBox="0 0 24 24">
@@ -101,14 +107,14 @@
                                 <span class="sidebar-text">艺术家</span>
                             </a>
                         </li>
-                        <li>
-                            <a href="#" class="sidebar-link" data-view="genres">
-                                <svg class="sidebar-icon" viewBox="0 0 24 24">
-                                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
-                                </svg>
-                                <span class="sidebar-text">流派</span>
-                            </a>
-                        </li>
+<!--                        <li>-->
+<!--                            <a href="#" class="sidebar-link" data-view="genres">-->
+<!--                                <svg class="sidebar-icon" viewBox="0 0 24 24">-->
+<!--                                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>-->
+<!--                                </svg>-->
+<!--                                <span class="sidebar-text">流派</span>-->
+<!--                            </a>-->
+<!--                        </li>-->
                     </ul>
                 </div>
 
@@ -332,19 +338,6 @@
                                 <div class="volume-slider-container">
                                     <input type="range" class="volume-slider" id="default-volume" min="0" max="100" value="50">
                                     <span class="volume-value">50%</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="settings-item">
-                            <div class="item-info">
-                                <label class="item-label">淡入淡出</label>
-                                <p class="item-description">在歌曲切换时启用淡入淡出效果</p>
-                            </div>
-                            <div class="item-control">
-                                <div class="toggle-switch">
-                                    <input type="checkbox" id="crossfade-toggle" class="toggle-input">
-                                    <label for="crossfade-toggle" class="toggle-label"></label>
                                 </div>
                             </div>
                         </div>

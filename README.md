@@ -5,9 +5,10 @@
   <p align="center">
     高颜值的本地音乐播放器
     <br />
+    <br />
     <!-- <a href="#-特性"><strong>✨ 查看特性</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp; -->
     <a href="#-安装"><strong>📦 下载安装</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    <a href="#-开发"><strong>🛠️ 开发指南</strong></a>
+    <a href="#-开发"><strong>🛠️ 开发指南</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
     <a href="#-相关截图"><strong>📌 相关截图</strong></a>
     <br />
   </p>
@@ -32,6 +33,16 @@
 - **本地优先**：专注于本地音乐文件播放
 - **高性能音频**：基于 Web Audio API 的音频引擎，提供高质量音频播放
 - **跨平台支持**：基于 Electron 框架，支持 Windows、macOS 和 Linux
+
+## 📔 TODOS
+
+已完成的✅，未完成的❌，待定❓
+- ❌   侧边导航栏页面
+- ❌   音乐变速
+- ✅❌ 进一步完善设置功能
+- ❌   音质处理
+- ❓   桌面歌词显示
+- ❌   更多其他特性
 
 ## 📦 安装
 
