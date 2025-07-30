@@ -1,6 +1,5 @@
 /**
  * 基于Web Audio API的纯JavaScript音频引擎
- * 替代原生C++模块，避免DLL依赖问题
  */
 
 class WebAudioEngine {

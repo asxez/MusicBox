@@ -110,5 +110,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     readLocalFile: (filePath) => ipcRenderer.invoke('lyrics:readLocalFile', filePath),
     searchLocalFiles: (lyricsDir, title, artist, album) =>
       ipcRenderer.invoke('lyrics:searchLocalFiles', lyricsDir, title, artist, album)
+  },
+
+  // Global shortcuts management
+  globalShortcuts: {
+    register: (shortcuts) => ipcRenderer.invoke('globalShortcuts:register', shortcuts),
+    unregister: () => ipcRenderer.invoke('globalShortcuts:unregister'),
+    setEnabled: (enabled) => ipcRenderer.invoke('globalShortcuts:setEnabled', enabled),
+    isEnabled: () => ipcRenderer.invoke('globalShortcuts:isEnabled'),
+
+    // Listen for global shortcut triggers
+    onTriggered: (callback) => {
+      ipcRenderer.on('global-shortcut-triggered', callback);
+      return () => ipcRenderer.removeListener('global-shortcut-triggered', callback);
+    }
   }
 });

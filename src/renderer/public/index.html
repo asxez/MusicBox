@@ -445,6 +445,55 @@
                         </div>
                     </div>
 
+                    <!-- 快捷键配置 -->
+                    <div class="settings-section">
+                        <h2 class="section-title">快捷键</h2>
+
+                        <!-- 全局快捷键开关 -->
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">启用全局快捷键</label>
+                                <p class="item-description">允许在应用后台时使用快捷键控制播放</p>
+                            </div>
+                            <div class="item-control">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="global-shortcuts-toggle" class="toggle-input">
+                                    <label for="global-shortcuts-toggle" class="toggle-label"></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 快捷键配置容器 -->
+                        <div id="shortcuts-container" class="shortcuts-container">
+                            <!-- 局内快捷键 -->
+                            <div class="shortcuts-group">
+                                <h3 class="shortcuts-group-title">应用内快捷键</h3>
+                                <div class="shortcuts-list" id="local-shortcuts-list">
+                                    <!-- 快捷键将通过JavaScript生成 -->
+                                </div>
+                            </div>
+
+                            <!-- 全局快捷键 -->
+                            <div class="shortcuts-group" id="global-shortcuts-group">
+                                <h3 class="shortcuts-group-title">全局快捷键</h3>
+                                <div class="shortcuts-list" id="global-shortcuts-list">
+                                    <!-- 快捷键将通过JavaScript生成 -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 快捷键操作按钮 -->
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">重置快捷键</label>
+                                <p class="item-description">将所有快捷键恢复为默认设置</p>
+                            </div>
+                            <div class="item-control">
+                                <button class="settings-button danger" id="reset-shortcuts-btn">重置为默认</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 关于 -->
                     <div class="settings-section">
                         <h2 class="section-title">关于</h2>

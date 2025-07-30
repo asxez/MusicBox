@@ -1,4 +1,4 @@
-const {app, BrowserWindow, ipcMain, dialog, shell} = require('electron');
+const {app, BrowserWindow, ipcMain, dialog, shell, globalShortcut} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const iconv = require('iconv-lite');
@@ -980,4 +980,131 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
         // In production, use default behavior
         callback(false);
     }
+});
+
+// 全局快捷键管理
+let globalShortcutsEnabled = false;
+let registeredShortcuts = new Map();
+
+/**
+ * 注册全局快捷键
+ */
+function registerGlobalShortcuts(shortcuts) {
+    console.log('🎹 注册全局快捷键');
+
+    // 先清除所有已注册的快捷键
+    unregisterAllGlobalShortcuts();
+
+    if (!shortcuts || typeof shortcuts !== 'object') {
+        console.warn('⚠️ 无效的快捷键配置');
+        return;
+    }
+
+    Object.entries(shortcuts).forEach(([id, shortcut]) => {
+        if (!shortcut.enabled || !shortcut.key) {
+            return;
+        }
+
+        try {
+            // 转换快捷键格式（从我们的格式转换为Electron格式）
+            const electronKey = convertToElectronShortcut(shortcut.key);
+
+            const success = globalShortcut.register(electronKey, () => {
+                console.log(`🎹 全局快捷键触发: ${shortcut.name} (${electronKey})`);
+
+                // 发送消息到渲染进程
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send('global-shortcut-triggered', id);
+                }
+            });
+
+            if (success) {
+                registeredShortcuts.set(id, electronKey);
+                console.log(`✅ 全局快捷键注册成功: ${shortcut.name} (${electronKey})`);
+            } else {
+                console.warn(`⚠️ 全局快捷键注册失败: ${shortcut.name} (${electronKey})`);
+            }
+        } catch (error) {
+            console.error(`❌ 注册全局快捷键失败: ${shortcut.name}`, error);
+        }
+    });
+
+    console.log(`🎹 已注册 ${registeredShortcuts.size} 个全局快捷键`);
+}
+
+/**
+ * 取消注册所有全局快捷键
+ */
+function unregisterAllGlobalShortcuts() {
+    console.log('🎹 取消注册所有全局快捷键');
+    globalShortcut.unregisterAll();
+    registeredShortcuts.clear();
+}
+
+/**
+ * 转换快捷键格式（从我们的格式转换为Electron格式）
+ */
+function convertToElectronShortcut(shortcutKey) {
+    if (!shortcutKey) return '';
+
+    return shortcutKey
+        .replace(/Ctrl/g, 'CommandOrControl')
+        .replace(/Cmd/g, 'Command')
+        .replace(/ArrowUp/g, 'Up')
+        .replace(/ArrowDown/g, 'Down')
+        .replace(/ArrowLeft/g, 'Left')
+        .replace(/ArrowRight/g, 'Right')
+        .replace(/Space/g, 'Space');
+}
+
+// 全局快捷键IPC处理程序
+ipcMain.handle('globalShortcuts:register', async (event, shortcuts) => {
+    try {
+        if (!globalShortcutsEnabled) {
+            console.log('🎹 全局快捷键已禁用，跳过注册');
+            return false;
+        }
+
+        registerGlobalShortcuts(shortcuts);
+        return true;
+    } catch (error) {
+        console.error('❌ 注册全局快捷键失败:', error);
+        return false;
+    }
+});
+
+ipcMain.handle('globalShortcuts:unregister', async () => {
+    try {
+        unregisterAllGlobalShortcuts();
+        return true;
+    } catch (error) {
+        console.error('❌ 取消注册全局快捷键失败:', error);
+        return false;
+    }
+});
+
+ipcMain.handle('globalShortcuts:setEnabled', async (event, enabled) => {
+    try {
+        globalShortcutsEnabled = enabled;
+        console.log(`🎹 全局快捷键${enabled ? '已启用' : '已禁用'}`);
+
+        if (!enabled) {
+            unregisterAllGlobalShortcuts();
+        }
+
+        return true;
+    } catch (error) {
+        console.error('❌ 设置全局快捷键状态失败:', error);
+        return false;
+    }
+});
+
+ipcMain.handle('globalShortcuts:isEnabled', async () => {
+    return globalShortcutsEnabled;
+});
+
+// 应用退出时清理全局快捷键
+app.on('will-quit', () => {
+    console.log('🎹 应用退出，清理全局快捷键');
+    unregisterAllGlobalShortcuts();
 });
