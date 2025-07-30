@@ -7,8 +7,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
-    "dev:main": "chcp 65001 && electron src/main/main.js",
+    "dev:main": "chcp 65001 && npm run build:renderer && electron src/main/main.js",
     "dev:renderer": "cd src/renderer && npm run serve",
     "build": "npm run build:renderer && npm run build:main",
     "build:renderer": "cd src/renderer && npm run build",
