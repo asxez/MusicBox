@@ -1523,10 +1523,21 @@ class Lyrics extends EventEmitter {
                 this.element.classList.remove('hide-cursor');
                 clearTimeout(mouseTimer);
                 mouseTimer = setTimeout(() => {
-                    this.element.classList.add('hide-cursor');
+                    if (this.isVisible && this.isFullscreen) {
+                        this.element.classList.add('hide-cursor');
+                    }
                 }, HIDE_DELAY);
             }
         });
+        const clearHideTimer = () => {
+            clearTimeout(mouseTimer);
+            mouseTimer = null;
+            this.element.classList.remove('hide-cursor');
+        };
+        document.addEventListener('fullscreenchange', () => {
+            if (!this.isFullscreen) clearHideTimer();
+        });
+
 
         api.on('playbackStateChanged', (state) => {
             this.isPlaying = state === 'playing';
