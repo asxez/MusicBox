@@ -199,15 +199,6 @@ class Player extends Component {
             this.emit('trackIndexChanged', index);
         });
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
-                e.preventDefault();
-                this.togglePlayPause().then(() => {
-                    console.log('⏸️⏭️ 收到键盘更新状态')
-                });
-            }
-        });
     }
 
     setupAPIListeners() {
@@ -404,6 +395,13 @@ class Player extends Component {
     }
 
     async togglePlayPause() {
+        // 防止重复调用的锁定机制
+        if (this._toggleInProgress) {
+            console.log('🚫 Player: 播放状态切换正在进行中，忽略重复调用');
+            return;
+        }
+
+        this._toggleInProgress = true;
         console.log('🔄 Player: 切换播放状态，当前状态:', this.isPlaying);
 
         try {
@@ -422,6 +420,11 @@ class Player extends Component {
             }
         } catch (error) {
             console.error('❌ Player: 切换播放状态失败:', error);
+        } finally {
+            // 延迟释放锁，确保状态更新完成
+            setTimeout(() => {
+                this._toggleInProgress = false;
+            }, 100);
         }
     }
 
@@ -1075,6 +1078,14 @@ class Settings extends EventEmitter {
         this.validateCacheBtn = this.element.querySelector('#validate-cache-btn');
         this.clearCacheBtn = this.element.querySelector('#clear-cache-btn');
         this.cacheStatsDescription = this.element.querySelector('#cache-stats-description');
+
+        // 快捷键配置元素
+        this.globalShortcutsToggle = this.element.querySelector('#global-shortcuts-toggle');
+        this.shortcutsContainer = this.element.querySelector('#shortcuts-container');
+        this.localShortcutsList = this.element.querySelector('#local-shortcuts-list');
+        this.globalShortcutsList = this.element.querySelector('#global-shortcuts-list');
+        this.globalShortcutsGroup = this.element.querySelector('#global-shortcuts-group');
+        this.resetShortcutsBtn = this.element.querySelector('#reset-shortcuts-btn');
     }
 
     setupEventListeners() {
@@ -1156,6 +1167,9 @@ class Settings extends EventEmitter {
         this.clearCacheBtn.addEventListener('click', async () => {
             await this.clearCache();
         });
+
+        // 快捷键配置事件监听器
+        this.setupShortcutEventListeners();
 
         // 关闭设置页面 (ESC键)
         document.addEventListener('keydown', (e) => {
@@ -1337,6 +1351,252 @@ class Settings extends EventEmitter {
             this.clearCacheBtn.textContent = '清空缓存';
         }
     }
+
+    // 快捷键配置相关方法
+    setupShortcutEventListeners() {
+        // 全局快捷键开关
+        this.globalShortcutsToggle.addEventListener('change', async (e) => {
+            await this.toggleGlobalShortcuts(e.target.checked);
+        });
+
+        // 重置快捷键按钮
+        this.resetShortcutsBtn.addEventListener('click', () => {
+            this.showResetShortcutsDialog();
+        });
+
+        // 初始化快捷键配置
+        this.initializeShortcuts();
+    }
+
+    initializeShortcuts() {
+        if (!window.shortcutConfig) {
+            console.warn('快捷键配置管理器未加载');
+            return;
+        }
+
+        // 确保配置已正确加载
+        if (window.cacheManager) {
+            window.shortcutConfig.reloadConfig();
+        }
+
+        const config = window.shortcutConfig.getConfig();
+
+        // 设置全局快捷键开关状态
+        this.globalShortcutsToggle.checked = config.enableGlobalShortcuts;
+        this.updateGlobalShortcutsVisibility(config.enableGlobalShortcuts);
+
+        // 渲染快捷键列表
+        this.renderShortcutsList('local', config.localShortcuts);
+        this.renderShortcutsList('global', config.globalShortcuts);
+
+        console.log('🎹 快捷键配置初始化完成');
+    }
+
+    renderShortcutsList(type, shortcuts) {
+        const container = type === 'local' ? this.localShortcutsList : this.globalShortcutsList;
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        Object.entries(shortcuts).forEach(([id, shortcut]) => {
+            const item = this.createShortcutItem(type, id, shortcut);
+            container.appendChild(item);
+        });
+    }
+
+    createShortcutItem(type, id, shortcut) {
+        const item = document.createElement('div');
+        item.className = 'shortcut-item';
+        item.innerHTML = `
+            <div class="shortcut-info">
+                <div class="shortcut-name">${shortcut.name}</div>
+                <div class="shortcut-description">${shortcut.description}</div>
+            </div>
+            <div class="shortcut-controls">
+                <div class="shortcut-key ${shortcut.enabled ? '' : 'disabled'}"
+                     data-type="${type}"
+                     data-id="${id}"
+                     title="点击修改快捷键">
+                    ${this.formatShortcutKey(shortcut.key)}
+                </div>
+                <div class="shortcut-toggle">
+                    <div class="toggle-switch">
+                        <input type="checkbox"
+                               id="shortcut-${type}-${id}"
+                               class="toggle-input"
+                               ${shortcut.enabled ? 'checked' : ''}
+                               data-type="${type}"
+                               data-id="${id}">
+                        <label for="shortcut-${type}-${id}" class="toggle-label"></label>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 添加事件监听器
+        const keyElement = item.querySelector('.shortcut-key');
+        const toggleElement = item.querySelector('.toggle-input');
+
+        keyElement.addEventListener('click', () => {
+            if (shortcut.enabled) {
+                this.startRecordingShortcut(type, id, keyElement);
+            }
+        });
+
+        toggleElement.addEventListener('change', (e) => {
+            this.toggleShortcut(type, id, e.target.checked);
+        });
+
+        return item;
+    }
+
+    formatShortcutKey(key) {
+        if (!key) return '未设置';
+
+        return key
+            .replace(/Ctrl/g, 'Ctrl')
+            .replace(/Alt/g, 'Alt')
+            .replace(/Shift/g, 'Shift')
+            .replace(/Cmd/g, '⌘')
+            .replace(/ArrowUp/g, '↑')
+            .replace(/ArrowDown/g, '↓')
+            .replace(/ArrowLeft/g, '←')
+            .replace(/ArrowRight/g, '→')
+            .replace(/Space/g, '空格');
+    }
+
+    startRecordingShortcut(type, id, element) {
+        if (!window.shortcutRecorder) {
+            console.warn('快捷键录制器未加载');
+            return;
+        }
+
+        // 开始录制
+        window.shortcutRecorder.startRecording(element);
+
+        // 监听录制结果
+        const handleRecorded = async (shortcutString) => {
+            await this.handleShortcutRecorded(type, id, shortcutString, element);
+            window.shortcutRecorder.off('shortcutRecorded', handleRecorded);
+        };
+
+        window.shortcutRecorder.on('shortcutRecorded', handleRecorded);
+    }
+
+    async handleShortcutRecorded(type, id, shortcutString, element) {
+        // 检查冲突
+        const conflicts = window.shortcutConfig.checkConflicts(type, id, shortcutString);
+
+        if (conflicts.length > 0) {
+            this.showShortcutConflict(conflicts, shortcutString, async () => {
+                // 用户确认覆盖
+                await this.updateShortcut(type, id, shortcutString, element);
+            });
+        } else {
+            await this.updateShortcut(type, id, shortcutString, element);
+        }
+    }
+
+    async updateShortcut(type, id, shortcutString, element) {
+        try {
+            const success = await window.shortcutConfig.updateShortcut(type, id, shortcutString);
+
+            if (success) {
+                element.textContent = this.formatShortcutKey(shortcutString);
+                showToast('快捷键已更新', 'success');
+
+                // 通知应用更新快捷键
+                this.emit('shortcutsUpdated');
+            } else {
+                showToast('快捷键更新失败', 'error');
+            }
+        } catch (error) {
+            console.error('❌ 更新快捷键失败:', error);
+            showToast('快捷键更新失败', 'error');
+        }
+    }
+
+    toggleShortcut(type, id, enabled) {
+        const success = window.shortcutConfig.setShortcutEnabled(type, id, enabled);
+
+        if (success) {
+            // 更新UI
+            const keyElement = document.querySelector(`[data-type="${type}"][data-id="${id}"].shortcut-key`);
+            if (keyElement) {
+                if (enabled) {
+                    keyElement.classList.remove('disabled');
+                } else {
+                    keyElement.classList.add('disabled');
+                }
+            }
+
+            showToast(enabled ? '快捷键已启用' : '快捷键已禁用', 'success');
+            this.emit('shortcutsUpdated');
+        } else {
+            showToast('快捷键状态更新失败', 'error');
+        }
+    }
+
+    async toggleGlobalShortcuts(enabled) {
+        try {
+            const success = await window.shortcutConfig.setGlobalShortcutsEnabled(enabled);
+
+            if (success) {
+                this.updateGlobalShortcutsVisibility(enabled);
+                showToast(enabled ? '全局快捷键已启用' : '全局快捷键已禁用', 'success');
+                this.emit('shortcutsUpdated');
+            } else {
+                showToast('全局快捷键设置失败', 'error');
+                // 恢复开关状态
+                this.globalShortcutsToggle.checked = !enabled;
+            }
+        } catch (error) {
+            console.error('❌ 切换全局快捷键失败:', error);
+            showToast('全局快捷键设置失败', 'error');
+            // 恢复开关状态
+            this.globalShortcutsToggle.checked = !enabled;
+        }
+    }
+
+    updateGlobalShortcutsVisibility(visible) {
+        if (this.globalShortcutsGroup) {
+            if (visible) {
+                this.globalShortcutsGroup.classList.remove('hidden');
+            } else {
+                this.globalShortcutsGroup.classList.add('hidden');
+            }
+        }
+    }
+
+    showShortcutConflict(conflicts, newShortcut, onConfirm) {
+        const conflictNames = conflicts.map(c => `${c.name} (${c.type === 'local' ? '应用内' : '全局'})`).join('、');
+        const message = `快捷键 "${this.formatShortcutKey(newShortcut)}" 与以下快捷键冲突：\n${conflictNames}\n\n是否要覆盖现有快捷键？`;
+
+        if (confirm(message)) {
+            onConfirm();
+        }
+    }
+
+    showResetShortcutsDialog() {
+        const message = '确定要将所有快捷键重置为默认设置吗？\n\n此操作将清除您的所有自定义快捷键配置。';
+
+        if (confirm(message)) {
+            this.resetShortcuts();
+        }
+    }
+
+    resetShortcuts() {
+        const success = window.shortcutConfig.resetToDefaults();
+
+        if (success) {
+            // 重新初始化快捷键配置
+            this.initializeShortcuts();
+            showToast('快捷键已重置为默认设置', 'success');
+            this.emit('shortcutsUpdated');
+        } else {
+            showToast('重置快捷键失败', 'error');
+        }
+    }
 }
 
 // Lyrics component
@@ -1497,25 +1757,6 @@ class Lyrics extends EventEmitter {
             this.updateFullscreenState();
         });
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.isVisible) {
-                if (this.isFullscreen) {
-                    this.exitFullscreen();
-                } else {
-                    this.hide();
-                }
-            } else if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
-                e.preventDefault();
-                this.togglePlayPause().then(() => {
-                    console.log('⏸️⏭️ 收到键盘更新状态')
-                });
-            } else if (e.key === 'F11' && this.isVisible) {
-                e.preventDefault();
-                this.toggleFullscreen();
-            }
-        });
-
         const HIDE_DELAY = 2000;
         let mouseTimer = null;
         this.element.addEventListener('mousemove', () => {
@@ -1623,23 +1864,36 @@ class Lyrics extends EventEmitter {
     }
 
     async togglePlayPause() {
-        console.log('🔄 Player: 切换播放状态，当前状态:', this.isPlaying);
+        // 防止重复调用的锁定机制
+        if (this._toggleInProgress) {
+            console.log('🚫 Lyrics: 播放状态切换正在进行中，忽略重复调用');
+            return;
+        }
+
+        this._toggleInProgress = true;
+        console.log('🔄 Lyrics: 切换播放状态，当前状态:', this.isPlaying);
+
         try {
             if (this.isPlaying) {
-                console.log('🔄 Player: 请求暂停');
+                console.log('🔄 Lyrics: 请求暂停');
                 const result = await api.pause();
                 if (!result) {
-                    console.error('❌ Player: 暂停失败');
+                    console.error('❌ Lyrics: 暂停失败');
                 }
             } else {
-                console.log('🔄 Player: 请求播放');
+                console.log('🔄 Lyrics: 请求播放');
                 const result = await api.play();
                 if (!result) {
-                    console.error('❌ Player: 播放失败');
+                    console.error('❌ Lyrics: 播放失败');
                 }
             }
         } catch (error) {
-            console.error('❌ Player: 切换播放状态失败:', error);
+            console.error('❌ Lyrics: 切换播放状态失败:', error);
+        } finally {
+            // 延迟释放锁，确保状态更新完成
+            setTimeout(() => {
+                this._toggleInProgress = false;
+            }, 100);
         }
     }
 
@@ -2232,7 +2486,7 @@ class HomePage extends Component {
 
             for (let x = 0; x < canvas.width; x += 2) {
                 const y = centerY + Math.sin(x * 0.02 + time) * 20 +
-                         Math.sin(x * 0.01 + time * 1.5) * 10;
+                    Math.sin(x * 0.01 + time * 1.5) * 10;
                 if (x === 0) {
                     ctx.moveTo(x, y);
                 } else {

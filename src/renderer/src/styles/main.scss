@@ -3523,6 +3523,232 @@ a {
   }
 }
 
+// ===== 快捷键配置样式 =====
+
+// 快捷键配置容器
+.shortcuts-container {
+  margin-top: var(--spacing-lg);
+}
+
+// 快捷键分组
+.shortcuts-group {
+  margin-bottom: var(--spacing-xl);
+
+  .shortcuts-group-title {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0 0 var(--spacing-md) 0;
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 1px solid var(--color-border);
+  }
+}
+
+// 快捷键列表
+.shortcuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+// 快捷键项目
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  background: var(--color-secondary-bg);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--color-hover);
+    border-color: var(--color-primary);
+  }
+
+  .shortcut-info {
+    flex: 1;
+    min-width: 0;
+
+    .shortcut-name {
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      color: var(--color-text);
+      margin: 0 0 2px 0;
+    }
+
+    .shortcut-description {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-secondary);
+      margin: 0;
+    }
+  }
+
+  .shortcut-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+
+  .shortcut-key {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    background: var(--color-primary-bg);
+    color: var(--color-primary);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    font-family: 'Courier New', monospace;
+    min-width: 80px;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+
+    &:hover {
+      background: var(--color-primary);
+      color: white;
+    }
+
+    &.recording {
+      background: #ff6b6b;
+      color: white;
+      animation: pulse 1s infinite;
+    }
+
+    &.disabled {
+      background: var(--color-secondary-bg);
+      color: var(--color-text-secondary);
+      cursor: not-allowed;
+    }
+  }
+
+  .shortcut-toggle {
+    .toggle-switch {
+      transform: scale(0.8);
+    }
+  }
+}
+
+// 快捷键录制动画
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+// 全局快捷键组的显示/隐藏
+.shortcuts-group.hidden {
+  display: none;
+}
+
+// 快捷键冲突提示
+.shortcut-conflict {
+  margin-top: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  color: #856404;
+
+  [data-theme='dark'] & {
+    background: #3d2914;
+    border-color: #5a4a1a;
+    color: #ffeaa7;
+  }
+}
+
+// 快捷键重置确认对话框
+.shortcut-reset-dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+
+  &.show {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .dialog-content {
+    background: var(--color-body-bg);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-xl);
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+
+    .show & {
+      transform: scale(1);
+    }
+
+    .dialog-title {
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+      color: var(--color-text);
+      margin: 0 0 var(--spacing-md) 0;
+    }
+
+    .dialog-message {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      margin: 0 0 var(--spacing-lg) 0;
+      line-height: 1.5;
+    }
+
+    .dialog-actions {
+      display: flex;
+      gap: var(--spacing-sm);
+      justify-content: flex-end;
+
+      .dialog-button {
+        padding: var(--spacing-sm) var(--spacing-md);
+        border: none;
+        border-radius: var(--border-radius-sm);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &.primary {
+          background: var(--color-primary);
+          color: white;
+
+          &:hover {
+            background: var(--color-primary-dark);
+          }
+        }
+
+        &.secondary {
+          background: var(--color-secondary-bg);
+          color: var(--color-text);
+
+          &:hover {
+            background: var(--color-hover);
+          }
+        }
+      }
+    }
+  }
+}
+
 // ===== 新页面样式 =====
 
 // 通用页面样式
