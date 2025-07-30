@@ -1,6 +1,5 @@
 /**
  * 基于Web Audio API的纯JavaScript音频引擎
- * 替代原生C++模块，避免DLL依赖问题
  */
 
 class WebAudioEngine {
@@ -273,8 +272,19 @@ class WebAudioEngine {
                 this.sourceNode = null;
             }
 
+            // 停止PitchShifter
+            if (this.pitchShifter) {
+                try {
+                    this.pitchShifter.disconnect();
+                } catch (e) {
+                    // 忽略断开连接的错误
+                }
+                this.pitchShifter = null;
+            }
+
             this.isPlaying = false;
             this.isPaused = true;
+            this.soundTouchEnabled = false;
 
             // 停止进度更新
             this.stopProgressTimer();
@@ -314,10 +324,21 @@ class WebAudioEngine {
                 this.sourceNode = null;
             }
 
+            // 清理PitchShifter处理节点
+            if (this.pitchShifter) {
+                try {
+                    this.pitchShifter.disconnect();
+                } catch (e) {
+                    // 忽略断开连接的错误
+                }
+                this.pitchShifter = null;
+            }
+
             this.isPlaying = false;
             this.isPaused = false;
             this.startTime = 0;
             this.pauseTime = 0;
+            this.soundTouchEnabled = false;
 
             // 停止进度更新
             this.stopProgressTimer();

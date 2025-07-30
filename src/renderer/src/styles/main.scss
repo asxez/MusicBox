@@ -928,6 +928,84 @@ a {
       width: 84px;
     }
   }
+
+  // 播放速度控制
+  .playback-rate-control {
+    position: relative;
+    margin-left: 4px;
+    display: flex;
+    align-items: center;
+
+    .button-icon {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 60px;
+      justify-content: center;
+
+      .icon {
+        width: 16px;
+        height: 16px;
+      }
+
+      .playback-rate-text {
+        font-size: var(--font-size-xs);
+        font-weight: 500;
+        color: var(--color-text);
+        white-space: nowrap;
+      }
+    }
+
+    // 播放速度菜单
+    .playback-rate-menu {
+      position: absolute;
+      bottom: 100%;
+      right: 0;
+      margin-bottom: 8px;
+      background: var(--color-secondary-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--border-radius-md);
+      box-shadow: var(--shadow-lg);
+      padding: 4px 0;
+      min-width: 80px;
+      z-index: 1000;
+      backdrop-filter: blur(20px);
+
+      .playback-rate-option {
+        padding: 8px 16px;
+        font-size: var(--font-size-sm);
+        color: var(--color-text);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        text-align: center;
+        font-weight: 500;
+
+        &:hover {
+          background: var(--color-secondary-bg-for-transparent);
+          color: var(--color-primary);
+        }
+
+        &.active {
+          background: var(--color-primary);
+          color: white;
+        }
+      }
+    }
+
+    // 菜单显示动画
+    .playback-rate-menu {
+      opacity: 0;
+      transform: translateY(4px);
+      transition: all var(--transition-smooth);
+      pointer-events: none;
+
+      &.show {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+    }
+  }
 }
 
 // Progress bar styles (updated for new structure)
@@ -1077,15 +1155,77 @@ a {
     filter: brightness(0) saturate(100%) invert(1);
   }
 
+  // 播放速度控制深色主题样式
+  .playback-rate-control .button-icon .icon {
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  .playback-rate-control .button-icon:hover .icon {
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  .playback-rate-control .playback-rate-text {
+    color: #ffffff;
+  }
+
+  .playback-rate-menu {
+    background: rgba(40, 40, 40, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+    .playback-rate-option {
+      color: #ffffff;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--color-primary);
+      }
+
+      &.active {
+        background: var(--color-primary);
+        color: white;
+      }
+    }
+  }
+
   // 歌词页面新控件深色主题样式
   .volume-control-section .volume-btn .icon,
-  .playmode-control-section .playmode-btn .icon {
+  .playmode-control-section .playmode-btn .icon,
+  .playback-rate-control-section .playback-rate-btn .icon {
     filter: brightness(0) saturate(100%) invert(1);
   }
 
   .volume-control-section .volume-btn:hover .icon,
-  .playmode-control-section .playmode-btn:hover .icon {
+  .playmode-control-section .playmode-btn:hover .icon,
+  .playback-rate-control-section .playback-rate-btn:hover .icon {
     filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  // 播放速度控制深色主题样式
+  .playback-rate-control-section {
+    .playback-rate-btn .playback-rate-text {
+      color: #ffffff;
+    }
+
+    .playback-rate-menu {
+      background: rgba(40, 40, 40, 0.95);
+      border-color: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+      .playback-rate-option {
+        color: #ffffff;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: var(--color-primary);
+        }
+
+        &.active {
+          background: var(--color-primary);
+          color: white;
+        }
+      }
+    }
   }
 
   .volume-slider::-webkit-slider-thumb {
@@ -3100,6 +3240,103 @@ a {
 
     &.active .icon {
       filter: brightness(0) saturate(100%) invert(0.2) sepia(1) saturate(5) hue-rotate(220deg);
+    }
+  }
+}
+
+// 播放速度控制区域（歌词页面）
+.playback-rate-control-section {
+  position: relative;
+  flex-shrink: 0;
+
+  .playback-rate-btn {
+    position: relative;
+    width: 50px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius-md);
+    transition: all var(--transition-fast);
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      opacity: 0.88;
+      transition: opacity var(--transition-fast);
+    }
+
+    .playback-rate-text {
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      color: var(--color-text);
+      opacity: 0.88;
+      white-space: nowrap;
+      transition: all var(--transition-fast);
+    }
+
+    &:hover {
+      background: var(--color-secondary-bg-for-transparent);
+
+      .icon {
+        opacity: 1;
+      }
+
+      .playback-rate-text {
+        opacity: 1;
+        color: var(--color-primary);
+      }
+    }
+  }
+
+  // 播放速度菜单
+  .playback-rate-menu {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 8px;
+    background: var(--color-secondary-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: 4px 0;
+    min-width: 70px;
+    z-index: 1000;
+    backdrop-filter: blur(20px);
+
+    .playback-rate-option {
+      padding: 8px 16px;
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      color: var(--color-text);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      text-align: center;
+
+      &:hover {
+        background: var(--color-secondary-bg-for-transparent);
+        color: var(--color-primary);
+      }
+
+      &.active {
+        background: var(--color-primary);
+        color: white;
+      }
+    }
+  }
+
+  // 菜单显示动画
+  .playback-rate-menu {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+    transition: all var(--transition-smooth);
+    pointer-events: none;
+
+    &.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
     }
   }
 }

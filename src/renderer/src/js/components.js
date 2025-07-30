@@ -53,6 +53,12 @@ class Player extends Component {
         this.playlistBtn = this.element.querySelector('#playlist-btn');
         this.likeBtn = this.element.querySelector('#like-btn');
 
+        // 播放速度控制元素
+        this.playbackRateBtn = this.element.querySelector('#playback-rate-btn');
+        this.playbackRateMenu = this.element.querySelector('#playback-rate-menu');
+        this.playbackRateText = this.element.querySelector('.playback-rate-text');
+        this.playbackRateOptions = this.element.querySelectorAll('.playback-rate-option');
+
         this.trackCover = this.element.querySelector('#track-cover');
         this.trackTitle = this.element.querySelector('#track-title');
         this.trackArtist = this.element.querySelector('#track-artist');
@@ -173,6 +179,29 @@ class Player extends Component {
             this.emit('togglePlaylist');
         });
 
+        // 播放速度控制事件
+        if (this.playbackRateBtn && this.playbackRateMenu) {
+            this.playbackRateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.togglePlaybackRateMenu();
+            });
+
+            // 播放速度选项点击事件
+            this.playbackRateOptions.forEach(option => {
+                option.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const rate = parseFloat(option.dataset.rate);
+                    await this.setPlaybackRate(rate);
+                    this.hidePlaybackRateMenu();
+                });
+            });
+
+            // 点击其他地方关闭菜单
+            document.addEventListener('click', () => {
+                this.hidePlaybackRateMenu();
+            });
+        }
+
         // API events
         api.on('trackChanged', async (track) => {
             await this.updateTrackInfo(track);
@@ -238,6 +267,12 @@ class Player extends Component {
         api.on('volumeChanged', (volume) => {
             this.volume = volume;
             this.updateVolumeDisplay();
+        });
+
+        // 监听播放速度变化事件（来自歌词页面或其他地方的变化）
+        api.on('playbackRateChanged', (rate) => {
+            console.log('🎵 Player: 收到播放速度变化事件:', rate);
+            this.updatePlaybackRateDisplay(rate);
         });
     }
 
@@ -432,6 +467,74 @@ class Player extends Component {
         } else {
             await api.setVolume(this.previousVolume || 0.7);
         }
+    }
+
+    // 播放速度控制方法
+    togglePlaybackRateMenu() {
+        if (!this.playbackRateMenu) return;
+
+        const isVisible = this.playbackRateMenu.style.display === 'block';
+        if (isVisible) {
+            this.hidePlaybackRateMenu();
+        } else {
+            this.showPlaybackRateMenu();
+        }
+    }
+
+    showPlaybackRateMenu() {
+        if (!this.playbackRateMenu) return;
+
+        this.playbackRateMenu.style.display = 'block';
+        // 使用setTimeout确保display设置后再添加show类
+        setTimeout(() => {
+            this.playbackRateMenu.classList.add('show');
+        }, 10);
+    }
+
+    hidePlaybackRateMenu() {
+        if (!this.playbackRateMenu) return;
+
+        this.playbackRateMenu.classList.remove('show');
+        // 等待动画完成后隐藏元素
+        setTimeout(() => {
+            this.playbackRateMenu.style.display = 'none';
+        }, 200);
+    }
+
+    async setPlaybackRate(rate) {
+        try {
+            // 调用API设置播放速度
+            await api.setPlaybackRate(rate);
+
+            // 更新UI显示
+            this.updatePlaybackRateDisplay(rate);
+
+            console.log(`🎵 播放速度设置为: ${rate}x`);
+        } catch (error) {
+            console.error('❌ 设置播放速度失败:', error);
+        }
+    }
+
+    updatePlaybackRateDisplay(rate) {
+        // 更新按钮文本
+        if (this.playbackRateText) {
+            this.playbackRateText.textContent = `${rate}x`;
+        }
+
+        // 更新菜单选项的激活状态
+        this.playbackRateOptions.forEach(option => {
+            const optionRate = parseFloat(option.dataset.rate);
+            if (optionRate === rate) {
+                option.classList.add('active');
+            } else {
+                option.classList.remove('active');
+            }
+        });
+    }
+
+    // 获取当前播放速度
+    getCurrentPlaybackRate() {
+        return api.getPlaybackRate ? api.getPlaybackRate() : 1.0;
     }
 }
 
@@ -1405,6 +1508,12 @@ class Lyrics extends EventEmitter {
         this.modeShuffleIcon = this.playModeBtn.querySelector('.lyrics-mode-shuffle');
         this.modeRepeatOneIcon = this.playModeBtn.querySelector('.lyrics-mode-repeat-one');
 
+        // 播放速度控制元素
+        this.playbackRateBtn = this.element.querySelector('#lyrics-playback-rate-btn');
+        this.playbackRateMenu = this.element.querySelector('#lyrics-playback-rate-menu');
+        this.playbackRateText = this.element.querySelector('#lyrics-playback-rate-text');
+        this.playbackRateOptions = this.element.querySelectorAll('#lyrics-playback-rate-menu .playback-rate-option');
+
         // 全屏状态
         this.isFullscreen = false;
 
@@ -1471,18 +1580,41 @@ class Lyrics extends EventEmitter {
             this.updatePlayModeDisplay(newMode);
         });
 
+        // 播放速度控制事件
+        if (this.playbackRateBtn && this.playbackRateMenu) {
+            this.playbackRateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.togglePlaybackRateMenu();
+            });
+
+            // 播放速度选项点击事件
+            this.playbackRateOptions.forEach(option => {
+                option.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const rate = parseFloat(option.dataset.rate);
+                    await this.setPlaybackRate(rate);
+                    this.hidePlaybackRateMenu();
+                });
+            });
+
+            // 点击其他地方关闭菜单
+            document.addEventListener('click', () => {
+                this.hidePlaybackRateMenu();
+            });
+        }
+
         // 进度条交互事件
         this.progressBar.addEventListener('click', async (e) => {
             await this.seekToPosition(e);
         });
 
-        this.progressBar.addEventListener('mousedown', (e) => {
-            this.startProgressDrag(e);
+        this.progressBar.addEventListener('mousedown', async (e) => {
+            await this.startProgressDrag(e);
         });
 
-        document.addEventListener('mousemove', (e) => {
+        document.addEventListener('mousemove', async (e) => {
             if (this.isDraggingProgress) {
-                this.updateProgressDrag(e);
+                await this.updateProgressDrag(e);
             }
         });
 
@@ -1554,6 +1686,12 @@ class Lyrics extends EventEmitter {
                 this.durationEl.textContent = this.formatTime(duration);
                 console.log('🎵 Lyrics: 时长更新:', this.formatTime(duration));
             }
+        });
+
+        // 监听播放速度变化事件，同步播放速度显示
+        api.on('playbackRateChanged', (rate) => {
+            console.log('🎵 Lyrics: 收到播放速度变化事件:', rate);
+            this.updatePlaybackRateDisplay(rate);
         });
     }
 
@@ -1650,11 +1788,14 @@ class Lyrics extends EventEmitter {
             this.progressFill.style.width = `${percentage}%`;
             this.progressHandle.style.left = `${percentage}%`;
         }
-        // 更新时间显示
+
+        // 更新当前时间显示
         if (this.currentTimeEl) {
-            this.currentTimeEl.textContent = this.formatTime(currentTime);
+            this.currentTimeEl.textContent = this.formatTime(currentTime || 0);
         }
-        if (this.durationEl) {
+
+        // 只在有效时长时更新总时长显示，避免被错误值覆盖
+        if (this.durationEl && duration > 0) {
             this.durationEl.textContent = this.formatTime(duration);
         }
     }
@@ -1681,13 +1822,57 @@ class Lyrics extends EventEmitter {
 
     async updateTrackInfo(track) {
         if (track) {
+            // 更新当前歌曲引用
+            this.currentTrack = track;
+
             this.trackTitle.textContent = track.title || '未知歌曲';
             this.trackArtist.textContent = track.artist || '未知艺术家';
 
-            // 正确更新总时长显示
-            if (this.durationEl && track.duration) {
-                this.durationEl.textContent = this.formatTime(track.duration);
-                console.log('🎵 Lyrics: 更新总时长显示:', this.formatTime(track.duration));
+            // 重置进度显示
+            if (this.currentTimeEl) {
+                this.currentTimeEl.textContent = '0:00';
+            }
+            if (this.progressFill) {
+                this.progressFill.style.width = '0%';
+            }
+
+            // 获取并缓存总时长
+            try {
+                let duration = track.duration;
+
+                // 如果track没有duration，尝试从API获取
+                if (!duration || duration <= 0) {
+                    duration = await api.getDuration();
+                }
+
+                // 缓存时长，避免频繁异步调用
+                this.cachedDuration = duration;
+
+                if (this.durationEl && duration > 0) {
+                    this.durationEl.textContent = this.formatTime(duration);
+                    console.log('🎵 Lyrics: 更新并缓存总时长:', this.formatTime(duration));
+                } else {
+                    console.warn('⚠️ Lyrics: 无法获取有效的音频时长');
+                    this.cachedDuration = 0;
+                    if (this.durationEl) {
+                        this.durationEl.textContent = '0:00';
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Lyrics: 获取音频时长失败:', error);
+                this.cachedDuration = 0;
+                if (this.durationEl) {
+                    this.durationEl.textContent = '0:00';
+                }
+            }
+
+            // 同步播放速度显示
+            try {
+                const currentRate = api.getPlaybackRate ? api.getPlaybackRate() : 1.0;
+                this.updatePlaybackRateDisplay(currentRate);
+                console.log('🎵 Lyrics: 同步播放速度显示:', currentRate);
+            } catch (error) {
+                console.error('❌ Lyrics: 同步播放速度失败:', error);
             }
 
             // 更新封面和歌词
@@ -1957,6 +2142,10 @@ class Lyrics extends EventEmitter {
 
         const currentMode = api.getPlayMode ? api.getPlayMode() : 'repeat';
         this.updatePlayModeDisplay(currentMode);
+
+        // 初始化播放速度控制
+        await this.initializePlaybackRateControl();
+
         console.log('🎵 Lyrics: 控件状态初始化完成');
     }
 
@@ -2054,22 +2243,45 @@ class Lyrics extends EventEmitter {
         console.log('🎵 Lyrics: 跳转到', this.formatTime(seekTime));
     }
 
-    startProgressDrag(e) {
+    async startProgressDrag(e) {
         this.isDraggingProgress = true;
         this.progressBar.classList.add('dragging');
-        this.updateProgressDrag(e);
+        await this.updateProgressDrag(e);
     }
 
     updateProgressDrag(e) {
-        if (!this.isDraggingProgress || !this.currentTrack || !api.getDuration()) return;
+        if (!this.isDraggingProgress || !this.currentTrack) return;
 
-        const rect = this.progressBar.getBoundingClientRect();
-        const dragX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-        const percentage = dragX / rect.width;
+        try {
+            // 使用缓存的时长，避免频繁的异步调用
+            const duration = this.cachedDuration || this.currentTrack.duration || 0;
+            if (!duration || duration <= 0) {
+                console.warn('⚠️ Lyrics: 无法获取有效的音频时长');
+                return;
+            }
 
-        // 实时更新进度条显示
-        this.progressFill.style.width = `${percentage * 100}%`;
-        this.currentTimeEl.textContent = this.formatTime(percentage * api.getDuration());
+            const rect = this.progressBar.getBoundingClientRect();
+            const dragX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+            const percentage = dragX / rect.width;
+
+            // 实时更新进度条显示
+            this.progressFill.style.width = `${percentage * 100}%`;
+
+            // 只更新当前时间显示，不要更新总时长
+            const currentTime = percentage * duration;
+            if (this.currentTimeEl) {
+                this.currentTimeEl.textContent = this.formatTime(currentTime);
+            }
+
+            // 总时长显示保持不变（避免频繁DOM更新）
+            // 只在必要时更新总时长显示
+            if (this.durationEl && !this.durationEl.textContent.includes(this.formatTime(duration))) {
+                this.durationEl.textContent = this.formatTime(duration);
+            }
+
+        } catch (error) {
+            console.error('❌ Lyrics: 更新进度条拖动失败:', error);
+        }
     }
 
     async endProgressDrag() {
@@ -2082,6 +2294,121 @@ class Lyrics extends EventEmitter {
         const percentage = parseFloat(this.progressFill.style.width) / 100;
         const seekTime = percentage * await api.getDuration();
         await api.seek(seekTime);
+    }
+
+    // ==================== 播放速度控制方法 ====================
+
+    /**
+     * 切换播放速度菜单显示/隐藏
+     */
+    togglePlaybackRateMenu() {
+        if (!this.playbackRateMenu) return;
+
+        const isVisible = this.playbackRateMenu.classList.contains('show');
+        if (isVisible) {
+            this.hidePlaybackRateMenu();
+        } else {
+            this.showPlaybackRateMenu();
+        }
+    }
+
+    /**
+     * 显示播放速度菜单
+     */
+    showPlaybackRateMenu() {
+        if (!this.playbackRateMenu) return;
+
+        this.playbackRateMenu.style.display = 'block';
+        // 使用 requestAnimationFrame 确保样式应用后再添加动画类
+        requestAnimationFrame(() => {
+            this.playbackRateMenu.classList.add('show');
+        });
+
+        console.log('🎵 Lyrics: 显示播放速度菜单');
+    }
+
+    /**
+     * 隐藏播放速度菜单
+     */
+    hidePlaybackRateMenu() {
+        if (!this.playbackRateMenu) return;
+
+        this.playbackRateMenu.classList.remove('show');
+        // 等待动画完成后隐藏元素
+        setTimeout(() => {
+            if (!this.playbackRateMenu.classList.contains('show')) {
+                this.playbackRateMenu.style.display = 'none';
+            }
+        }, 200);
+    }
+
+    /**
+     * 设置播放速度
+     * @param {number} rate - 播放速度 (0.5 - 2.0)
+     */
+    async setPlaybackRate(rate) {
+        try {
+            // 验证速度范围
+            const validRate = Math.max(0.5, Math.min(2.0, rate));
+
+            // 调用API设置播放速度
+            if (api.setPlaybackRate) {
+                await api.setPlaybackRate(validRate);
+
+                // 更新UI显示
+                this.updatePlaybackRateDisplay(validRate);
+
+                console.log(`🎵 Lyrics: 播放速度设置为 ${validRate}x`);
+            } else {
+                console.warn('⚠️ Lyrics: 播放速度功能不可用');
+            }
+        } catch (error) {
+            console.error('❌ Lyrics: 设置播放速度失败:', error);
+        }
+    }
+
+    /**
+     * 更新播放速度显示
+     * @param {number} rate - 当前播放速度
+     */
+    updatePlaybackRateDisplay(rate) {
+        // 更新按钮文本
+        if (this.playbackRateText) {
+            this.playbackRateText.textContent = `${rate}x`;
+        }
+
+        // 更新菜单选项的激活状态
+        if (this.playbackRateOptions) {
+            this.playbackRateOptions.forEach(option => {
+                const optionRate = parseFloat(option.dataset.rate);
+                if (Math.abs(optionRate - rate) < 0.01) {
+                    option.classList.add('active');
+                } else {
+                    option.classList.remove('active');
+                }
+            });
+        }
+    }
+
+    /**
+     * 获取当前播放速度
+     * @returns {number} 当前播放速度
+     */
+    getCurrentPlaybackRate() {
+        return api.getPlaybackRate ? api.getPlaybackRate() : 1.0;
+    }
+
+    /**
+     * 初始化播放速度控制
+     */
+    async initializePlaybackRateControl() {
+        try {
+            const currentRate = this.getCurrentPlaybackRate();
+            this.updatePlaybackRateDisplay(currentRate);
+            console.log(`🎵 Lyrics: 播放速度控制初始化完成，当前速度: ${currentRate}x`);
+        } catch (error) {
+            console.error('❌ Lyrics: 播放速度控制初始化失败:', error);
+        }
     }
 }
 

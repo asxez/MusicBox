@@ -222,6 +222,21 @@
                             <img class="icon mode-shuffle" src="assets/icons/shuffle.svg" alt="随机播放" style="display: none;">
                             <img class="icon mode-repeat-one" src="assets/icons/repeat-one.svg" alt="单曲循环" style="display: none;">
                         </button>
+                        <div class="playback-rate-control">
+                            <button class="button-icon" id="playback-rate-btn" title="播放速度">
+                                <img class="icon" src="assets/icons/speed.svg" alt="变速">
+                                <span class="playback-rate-text">1.0x</span>
+                            </button>
+                            <div class="playback-rate-menu" id="playback-rate-menu" style="display: none;">
+                                <div class="playback-rate-option" data-rate="0.25">0.25x</div>
+                                <div class="playback-rate-option" data-rate="0.5">0.5x</div>
+                                <div class="playback-rate-option" data-rate="0.75">0.75x</div>
+                                <div class="playback-rate-option active" data-rate="1.0">1.0x</div>
+                                <div class="playback-rate-option" data-rate="1.25">1.25x</div>
+                                <div class="playback-rate-option" data-rate="1.5">1.5x</div>
+                                <div class="playback-rate-option" data-rate="2.0">2.0x</div>
+                            </div>
+                        </div>
                         <div class="volume-control">
                             <button class="button-icon" id="volume-btn">
                                 <img class="icon volume-high" src="assets/icons/volume.svg" alt="音量">
@@ -451,7 +466,7 @@
                         <div class="settings-item">
                             <div class="item-info">
                                 <label class="item-label">版本信息</label>
-                                <p class="item-description">MusicBox v1.0.0</p>
+                                <p class="item-description">MusicBox v0.1.0</p>
                             </div>
                             <div class="item-control">
                                 <button class="settings-button secondary" id="check-updates-btn">检查更新</button>
@@ -539,6 +554,24 @@
                                         <img class="icon lyrics-mode-repeat-one" src="assets/icons/repeat-one.svg" alt="单曲循环" style="display: none;">
                                     </button>
                                 </div>
+
+                                <!-- 播放速度控制 -->
+                                <div class="playback-rate-control-section">
+                                    <button class="button-icon playback-rate-btn" id="lyrics-playback-rate-btn" title="播放速度">
+                                        <img class="icon" src="assets/icons/speed.svg" alt="变速" style="display: block;">
+                                        <span class="playback-rate-text" id="lyrics-playback-rate-text">1.0x</span>
+                                    </button>
+
+                                    <!-- 播放速度菜单 -->
+                                    <div class="playback-rate-menu" id="lyrics-playback-rate-menu" style="display: none;">
+                                        <div class="playback-rate-option active" data-rate="0.5">0.5x</div>
+                                        <div class="playback-rate-option" data-rate="0.75">0.75x</div>
+                                        <div class="playback-rate-option active" data-rate="1.0">1.0x</div>
+                                        <div class="playback-rate-option" data-rate="1.25">1.25x</div>
+                                        <div class="playback-rate-option" data-rate="1.5">1.5x</div>
+                                        <div class="playback-rate-option" data-rate="2.0">2.0x</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -603,6 +636,18 @@
     </div>
 
     <!-- Scripts -->
+    <!-- SoundTouchJS for pitch-preserving time stretching -->
+    <script type="module">
+        // Import SoundTouchJS from CDN
+        import { PitchShifter, SoundTouch, SimpleFilter } from 'https://cdn.jsdelivr.net/npm/soundtouchjs@0.1.30/dist/soundtouch.min.js';
+
+        // Make SoundTouchJS classes available globally
+        window.PitchShifter = PitchShifter;
+        window.SoundTouch = SoundTouch;
+        window.SimpleFilter = SimpleFilter;
+
+        console.log('🎵 SoundTouchJS 已加载');
+    </script>
     <script src="js/cache-manager.js"></script>
     <script src="js/local-lyrics-manager.js"></script>
     <script src="js/web-audio-engine.js"></script>

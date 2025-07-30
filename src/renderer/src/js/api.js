@@ -94,6 +94,14 @@ class MusicBoxAPI extends EventEmitter {
                 if (initialized) {
                     console.log('🎵 Web Audio Engine 初始化成功');
                     this.webAudioEngine.setVolume(localStorage.getItem('volume'));
+
+                    // 初始化变速不变调扩展
+                    if (window.WebAudioEngineExtensions) {
+                        this.webAudioEngineExtensions = new window.WebAudioEngineExtensions(this.webAudioEngine);
+                        console.log('🎵 WebAudioEngine 变速不变调扩展初始化成功');
+                    } else {
+                        console.warn('⚠️ WebAudioEngineExtensions 不可用');
+                    }
                 } else {
                     console.warn('⚠️ Web Audio Engine 初始化失败');
                 }
@@ -130,6 +138,11 @@ class MusicBoxAPI extends EventEmitter {
             this.webAudioEngine.onVolumeChanged = (volume) => {
                 this.volume = volume;
                 this.emit('volumeChanged', volume);
+            };
+
+            this.webAudioEngine.onPlaybackRateChanged = (rate) => {
+                console.log('🎵 API: Web Audio Engine 播放速度变化:', rate);
+                this.emit('playbackRateChanged', rate);
             };
 
             this.webAudioEngine.onDurationChanged = (filePath, duration) => {
@@ -384,7 +397,34 @@ class MusicBoxAPI extends EventEmitter {
     async getVolume() {
         return this.volume;
     }
-    
+
+    // 播放速度控制方法
+    async setPlaybackRate(rate) {
+        try {
+            const validRate = Math.max(0.25, Math.min(4.0, rate));
+
+            if (this.webAudioEngine) {
+                this.webAudioEngine.setPlaybackRate(validRate);
+                console.log(`🎵 API: 播放速度设置为 ${validRate}x`);
+                this.emit('playbackRateChanged', validRate);
+                return true;
+            } else {
+                console.warn('⚠️ Web Audio Engine 不可用，无法设置播放速度');
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ 设置播放速度失败:', error);
+            return false;
+        }
+    }
+
+    getPlaybackRate() {
+        if (this.webAudioEngine) {
+            return this.webAudioEngine.getPlaybackRate();
+        }
+        return 1.0;
+    }
+
     async getCurrentPosition() {
         try {
             this.position = await window.electronAPI.audio.getPosition();
@@ -397,11 +437,21 @@ class MusicBoxAPI extends EventEmitter {
     
     async getDuration() {
         try {
+            // 优先使用WebAudioEngine的时长
+            if (this.webAudioEngine) {
+                const duration = this.webAudioEngine.getDuration();
+                if (duration > 0) {
+                    this.duration = duration;
+                    return this.duration;
+                }
+            }
+
+            // 回退到IPC方式
             this.duration = await window.electronAPI.audio.getDuration();
             return this.duration;
         } catch (error) {
             console.error('Failed to get duration:', error);
-            return this.duration;
+            return this.duration || 0;
         }
     }
     
