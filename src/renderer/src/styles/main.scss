@@ -346,6 +346,14 @@ a {
   justify-content: space-between;
   height: 100%;
   padding: 0 var(--spacing-lg);
+
+  // 允许拖拽窗口（除了按钮和输入框）
+  -webkit-app-region: no-drag;
+
+  // 拖拽区域样式
+  &:not(:has(button:hover)):not(:has(input:hover)):not(:has(.search-container:hover)) {
+    cursor: default;
+  }
 }
 
 .navbar-left,
@@ -392,6 +400,23 @@ a {
   &:hover .icon {
     // 悬停时保持纯黑色
     filter: brightness(0) saturate(100%) invert(0);
+  }
+
+  // 窗口控制按钮特殊样式
+  &#minimize-btn:hover {
+    background: rgba(0, 122, 255, 0.1);
+  }
+
+  &#maximize-btn:hover {
+    background: rgba(0, 122, 255, 0.1);
+  }
+
+  &#close-btn:hover {
+    background: rgba(255, 59, 48, 0.1);
+
+    .icon {
+      filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%);
+    }
   }
 }
 
