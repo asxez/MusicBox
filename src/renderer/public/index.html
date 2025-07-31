@@ -57,15 +57,14 @@
                         <img class="icon light-icon" src="assets/icons/light.svg" alt="切换到深色主题">
                         <img class="icon dark-icon" src="assets/icons/dark.svg" alt="切换到浅色主题" style="display: none;">
                     </button>
-
-                    <!-- 这里是全屏收缩按钮 -->
-                    <button class="nav-button" id="fullscreen-btn">
-                        <img class="icon fullscreen-icon" src="assets/icons/fullscreen.svg" alt="全屏">
-                        <img class="icon fullscreen-exit" src="assets/icons/fullscreen-exit.svg" alt="退出全屏" style="display: none;">
+                    <button class="nav-button" id="minimize-btn">
+                        <img class="icon" src="assets/icons/minimize.svg" alt="最小化">
                     </button>
-
-                    <!-- 这里是关闭应用按钮 -->
-                    <button class="nav-button" id="exit-btn">
+                    <button class="nav-button" id="maximize-btn">
+                        <img class="icon maximize-icon" src="assets/icons/maximize.svg" alt="最大化">
+                        <img class="icon restore-icon" src="assets/icons/restore.svg" alt="还原" style="display: none;">
+                    </button>
+                    <button class="nav-button" id="close-btn">
                         <img class="icon" src="assets/icons/x.svg" alt="关闭应用">
                     </button>
                 </div>
@@ -300,7 +299,7 @@
             <div class="settings-container">
                 <div class="settings-content">
                     <!-- 设置页面关闭按钮 -->
-                    <button class="settings-close-btn" id="settings-close-btn" title="关闭设置">
+                    <button class="settings-close-btn" id="settings-close-btn">
                         <img class="icon" src="assets/icons/x.svg" alt="关闭">
                     </button>
 
@@ -598,7 +597,7 @@
                             <div class="top-controls">
                                 <!-- 音量控制 -->
                                 <div class="volume-control-section">
-                                    <button class="button-icon volume-btn" id="lyrics-volume-btn" title="音量">
+                                    <button class="button-icon volume-btn" id="lyrics-volume-btn">
                                         <img class="icon volume-icon" src="assets/icons/volume.svg" alt="音量">
                                         <img class="icon volume-half-icon" src="assets/icons/volume-half.svg" alt="音量" style="display: none;">
                                         <img class="icon volume-mute-icon" src="assets/icons/volume-mute.svg" alt="静音" style="display: none;">
@@ -710,7 +709,7 @@
                         <option value="electronic">电子音乐</option>
                         <option value="custom">自定义</option>
                     </select>
-                    <button class="preset-manage-btn" id="manage-presets-btn" title="管理自定义预设">
+                    <button class="preset-manage-btn" id="manage-presets-btn">
                         <img class="icon" src="assets/icons/settings.svg" alt="管理预设">
                     </button>
                 </div>

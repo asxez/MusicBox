@@ -491,6 +491,9 @@ class Navigation extends Component {
         this.setupElements();
         this.setupEventListeners();
         this.restoreSidebarState();
+        this.initializeWindowState().then(r => {
+            if (!r.status) console.error('❌ Navigation: 初始化窗口状态失败', r.error);
+        });
     }
 
     setupElements() {
@@ -498,12 +501,15 @@ class Navigation extends Component {
         this.forwardBtn = this.element.querySelector('#forward-btn');
         this.settingsBtn = this.element.querySelector('#settings-btn');
         this.themeToggle = this.element.querySelector('#theme-toggle');
-        this.fullscreenBtn = this.element.querySelector('#fullscreen-btn');
-        this.exitBtn = this.element.querySelector('#exit-btn');
         this.lightIcon = this.themeToggle.querySelector('.light-icon');
         this.darkIcon = this.themeToggle.querySelector('.dark-icon');
-        this.fullscreenIcon = this.fullscreenBtn.querySelector('.fullscreen-icon');
-        this.fullscreenExitIcon = this.fullscreenBtn.querySelector('.fullscreen-exit');
+
+        // 窗口控制按钮
+        this.minimizeBtn = this.element.querySelector('#minimize-btn');
+        this.maximizeBtn = this.element.querySelector('#maximize-btn');
+        this.closeBtn = this.element.querySelector('#close-btn');
+        this.maximizeIcon = this.maximizeBtn.querySelector('.maximize-icon');
+        this.restoreIcon = this.maximizeBtn.querySelector('.restore-icon');
 
         // 侧边栏相关元素
         this.sidebar = document.getElementById('sidebar');
@@ -512,6 +518,18 @@ class Navigation extends Component {
 
         // 全屏状态
         this.isFullscreen = false;
+
+        // 窗口最大化状态
+        this.isMaximized = false;
+
+        // 拖拽相关状态
+        this.isKeyDown = false;
+        this.dinatesX = 0;
+        this.dinatesY = 0;
+
+        // 主动尺寸保护机制 - 记录拖拽开始时的窗口尺寸
+        this.originalWindowWidth = 0;
+        this.originalWindowHeight = 0;
     }
 
     setupEventListeners() {
@@ -524,33 +542,40 @@ class Navigation extends Component {
             this.emit('showSettings');
         });
 
-        // Listen for theme changes
         theme.on('change', () => {
             this.updateThemeIcon();
         });
-
-        // Initialize theme icon
         this.updateThemeIcon();
+
+        // 窗口控制按钮事件监听器
+        this.minimizeBtn.addEventListener('click', async () => {
+            await this.minimizeWindow();
+        });
+
+        this.maximizeBtn.addEventListener('click', async () => {
+            await this.toggleMaximizeWindow();
+        });
+
+        this.closeBtn.addEventListener('click', async () => {
+            await this.closeWindow();
+        });
+
+        // 监听窗口最大化状态变化
+        if (window.electronAPI && window.electronAPI.window) {
+            window.electronAPI.window.onMaximizedChanged((isMaximized) => {
+                this.updateMaximizeButton(isMaximized);
+            });
+        }
+
+        // 窗口拖拽事件监听器
+        this.setupWindowDrag();
 
         // 侧边栏切换按钮
         this.sidebarToggleBtn.addEventListener('click', () => {
             this.toggleSidebar();
         });
 
-        // 全屏按钮
-        this.fullscreenBtn.addEventListener('click', () => {
-            this.toggleFullscreen();
-        });
-        document.addEventListener('fullscreenchange', () => {
-            this.updateFullscreenState();
-        });
-
-        // 退出
-        this.exitBtn.addEventListener('click', async () => {
-            await this.exitApp();
-        });
-
-        // Sidebar navigation
+        // 侧边栏导航
         const sidebarLinks = document.querySelectorAll('.sidebar-link');
         sidebarLinks.forEach(link => {
             link.addEventListener('click', (e) => {
@@ -575,16 +600,14 @@ class Navigation extends Component {
     }
 
     navigateToView(view) {
-        // Update active link
+        // 更新为当前页面
         document.querySelectorAll('.sidebar-link').forEach(link => {
             link.classList.remove('active');
         });
-
         const activeLink = document.querySelector(`[data-view="${view}"]`);
         if (activeLink) {
             activeLink.classList.add('active');
         }
-
         this.currentView = view;
         this.emit('viewChanged', view);
     }
@@ -607,6 +630,151 @@ class Navigation extends Component {
         console.log('🎵 Navigation: 侧边栏状态切换', this.sidebarCollapsed ? '收缩' : '展开');
     }
 
+    // 窗口控制方法
+    async minimizeWindow() {
+        try {
+            if (window.electronAPI && window.electronAPI.window) {
+                await window.electronAPI.window.minimize();
+                console.log('🎵 Navigation: 窗口最小化');
+            }
+        } catch (error) {
+            console.error('❌ Navigation: 窗口最小化失败', error);
+        }
+    }
+
+    async toggleMaximizeWindow() {
+        try {
+            if (window.electronAPI && window.electronAPI.window) {
+                await window.electronAPI.window.maximize();
+                console.log('🎵 Navigation: 窗口最大化/还原切换');
+            }
+        } catch (error) {
+            console.error('❌ Navigation: 窗口最大化/还原失败', error);
+        }
+    }
+
+    async closeWindow() {
+        try {
+            if (window.electronAPI && window.electronAPI.window) {
+                await window.electronAPI.window.close();
+                console.log('🎵 Navigation: 窗口关闭');
+            }
+        } catch (error) {
+            console.error('❌ Navigation: 窗口关闭失败', error);
+        }
+    }
+
+    updateMaximizeButton(isMaximized) {
+        this.isMaximized = isMaximized;
+        if (isMaximized) {
+            this.maximizeIcon.style.display = 'none';
+            this.restoreIcon.style.display = 'block';
+        } else {
+            this.maximizeIcon.style.display = 'block';
+            this.restoreIcon.style.display = 'none';
+        }
+        console.log('🎵 Navigation: 窗口状态更新', isMaximized ? '最大化' : '还原');
+    }
+
+    async initializeWindowState() {
+        try {
+            if (window.electronAPI && window.electronAPI.window) {
+                const isMaximized = await window.electronAPI.window.isMaximized();
+                this.updateMaximizeButton(isMaximized);
+                return {
+                    status: true,
+                }
+            }
+        } catch (error) {
+            return {
+                status: false,
+                error: error
+            }
+        }
+    }
+
+    setupWindowDrag() {
+        const navbar = this.element;
+        const navbarContent = navbar.querySelector('.navbar-content');
+
+        // 获取不可拖拽的元素
+        const nonDraggableElements = [
+            ...navbar.querySelectorAll('button'),
+            ...navbar.querySelectorAll('input'),
+            ...navbar.querySelectorAll('.search-container')
+        ];
+
+        const mousedown = (e) => {
+            // 只处理左键点击
+            if (e.button !== 0) return;
+            // 检查是否点击在不可拖拽的元素上
+            const isNonDraggable = nonDraggableElements.some(element =>
+                element.contains(e.target) || element === e.target
+            );
+            if (isNonDraggable || this.isMaximized) {
+                return;
+            }
+
+            this.isKeyDown = true;
+            this.dinatesX = e.x;
+            this.dinatesY = e.y;
+
+            // 主动尺寸保护机制 - 记录拖拽开始时的窗口尺寸
+            try {
+                if (window.electronAPI && window.electronAPI.window) {
+                    window.electronAPI.window.getSize().then(([width, height]) => {
+                        this.originalWindowWidth = width;
+                        this.originalWindowHeight = height;
+                        console.log('🎵 Navigation: 记录原始窗口尺寸', {
+                            width: this.originalWindowWidth,
+                            height: this.originalWindowHeight
+                        });
+                    }).catch(error => {
+                        console.error('❌ Navigation: 获取窗口尺寸失败', error);
+                    });
+                }
+            } catch (error) {
+                console.error('❌ Navigation: 尺寸记录失败', error);
+            }
+
+            console.log('🎵 Navigation: 开始拖拽窗口', { dinatesX: this.dinatesX, dinatesY: this.dinatesY });
+
+            document.onmousemove = async (ev) => {
+                if (this.isKeyDown) {
+                    const x = ev.screenX - this.dinatesX;
+                    const y = ev.screenY - this.dinatesY;
+
+                    // 给主进程传入坐标和原始尺寸信息
+                    let data = {
+                        appX: x,
+                        appY: y,
+                        // 主动尺寸保护机制 - 传递原始窗口尺寸
+                        originalWidth: this.originalWindowWidth,
+                        originalHeight: this.originalWindowHeight
+                    };
+                    if (window.electronAPI && window.electronAPI.window) {
+                        await window.electronAPI.window.sendPosition(data);
+                    }
+                }
+            };
+            document.onmouseup = async (ev) => {
+                this.isKeyDown = false;
+
+                // 主动尺寸保护机制 - 清理缓存的尺寸信息
+                if (window.electronAPI && window.electronAPI.window) {
+                    await window.electronAPI.window.clearSizeCache();
+                }
+
+                // 重置本地尺寸记录
+                this.originalWindowWidth = 0;
+                this.originalWindowHeight = 0;
+
+                console.log('🎵 Navigation: 结束拖拽窗口，已清理尺寸缓存');
+            };
+        };
+        navbarContent.addEventListener('mousedown', mousedown);
+    }
+
     // 恢复侧边栏状态
     restoreSidebarState() {
         const savedState = localStorage.getItem('sidebarCollapsed');
@@ -615,64 +783,6 @@ class Navigation extends Component {
             this.sidebar.classList.add('collapsed');
             this.app.classList.add('sidebar-collapsed');
         }
-    }
-
-    toggleFullscreen() {
-        if (this.isFullscreen) {
-            this.exitFullscreen();
-        } else {
-            this.enterFullscreen();
-        }
-    }
-
-    enterFullscreen() {
-        if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().then(() => {
-                console.log('🎵 Lyrics: 进入全屏模式');
-            }).catch(err => {
-                console.error('❌ Lyrics: 进入全屏失败:', err);
-            });
-        } else if (document.documentElement.webkitRequestFullscreen) {
-            // Safari 支持
-            document.documentElement.webkitRequestFullscreen();
-        } else if (document.documentElement.msRequestFullscreen) {
-            // IE/Edge 支持
-            document.documentElement.msRequestFullscreen();
-        }
-    }
-
-    exitFullscreen() {
-        if (document.exitFullscreen) {
-            document.exitFullscreen().then(() => {
-                console.log('🎵 Lyrics: 退出全屏模式');
-            }).catch(err => {
-                console.error('❌ Lyrics: 退出全屏失败:', err);
-            });
-        } else if (document.webkitExitFullscreen) {
-            // Safari 支持
-            document.webkitExitFullscreen();
-        } else if (document.msExitFullscreen) {
-            // IE/Edge 支持
-            document.msExitFullscreen();
-        }
-    }
-
-    updateFullscreenState() {
-        this.isFullscreen = !!(document.fullscreenElement ||
-            document.webkitFullscreenElement ||
-            document.msFullscreenElement);
-        if (this.isFullscreen) {
-            this.fullscreenIcon.style.display = 'none';
-            this.fullscreenExitIcon.style.display = 'block';
-        } else {
-            this.fullscreenIcon.style.display = 'block';
-            this.fullscreenExitIcon.style.display = 'none';
-        }
-        console.log('🎵 Lyrics: 全屏状态更新:', this.isFullscreen ? '全屏' : '窗口');
-    }
-
-    async exitApp() {
-        await window.api.exit();
     }
 }
 

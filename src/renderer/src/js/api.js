@@ -75,7 +75,16 @@ class MusicBoxAPI extends EventEmitter {
             },
             getVersion: () => Promise.resolve('1.0.0-mock'),
             getPlatform: () => Promise.resolve('browser'),
-            close: () => Promise.resolve(),
+            window: {
+                minimize: () => Promise.resolve(null),
+                maximize: () => Promise.resolve(null),
+                isMaximized: () => Promise.resolve(false),
+                close: () => Promise.resolve(null),
+                getPosition: () => Promise.resolve([0, 0]),
+                getSize: () => Promise.resolve([1440, 900]),
+                sendPosition: (data) => Promise.resolve(null),
+                clearSizeCache: () => Promise.resolve(null),
+            }
         };
 
         console.log('Mock Electron API created for browser testing');
@@ -393,6 +402,16 @@ class MusicBoxAPI extends EventEmitter {
         } catch (error) {
             console.error('Failed to get position:', error);
             return this.position;
+        }
+    }
+
+    async getCurrentTrack() {
+        try {
+            this.currentTrack = await window.electronAPI.audio.getCurrentTrack();
+            return this.currentTrack;
+        } catch (error) {
+            console.error('Failed to get track:', error);
+            return this.currentTrack;
         }
     }
     
@@ -1237,10 +1256,6 @@ class MusicBoxAPI extends EventEmitter {
     destroy() {
         this.stopProgressTracking();
         this.removeAllListeners();
-    }
-
-    async exit() {
-        await window.electronAPI.close();
     }
 }
 

@@ -98,9 +98,9 @@ async function parseMetadata(filePath) {
 }
 
 const isDev = process.env.NODE_ENV === 'development';
-
-// Keep a global reference of the window object
 let mainWindow;
+// 主动尺寸保护机制 - 缓存原始窗口尺寸
+let cachedOriginalSize = null;
 
 async function createWindow() {
     // Create the browser window
@@ -109,7 +109,7 @@ async function createWindow() {
         height: 900,
         minWidth: 1080,
         minHeight: 720,
-        titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+        titleBarStyle: false,
         frame: false,
         show: false,
         webPreferences: {
@@ -170,6 +170,15 @@ async function createWindow() {
         shell.openExternal(url);
         return {action: 'deny'};
     });
+
+    // 监听窗口最大化/还原状态变化
+    mainWindow.on('maximize', () => {
+        mainWindow.webContents.send('window:maximized', true);
+    });
+
+    mainWindow.on('unmaximize', () => {
+        mainWindow.webContents.send('window:maximized', false);
+    });
 }
 
 // App event handlers
@@ -199,6 +208,129 @@ ipcMain.handle('app:getVersion', () => {
 
 ipcMain.handle('app:getPlatform', () => {
     return process.platform;
+});
+
+// 窗口控制 IPC handlers
+ipcMain.handle('window:minimize', () => {
+    if (mainWindow) {
+        mainWindow.minimize();
+    }
+});
+
+ipcMain.handle('window:maximize', () => {
+    if (mainWindow) {
+        if (mainWindow.isMaximized()) {
+            mainWindow.unmaximize();
+        } else {
+            mainWindow.maximize();
+        }
+    }
+});
+
+ipcMain.handle('window:isMaximized', () => {
+    return mainWindow ? mainWindow.isMaximized() : false;
+});
+
+ipcMain.handle('window:close', () => {
+    if (mainWindow) {
+        mainWindow.close();
+    }
+});
+
+// 处理窗口拖拽，electron远古bug原因，自实现拖拽功能时会出现窗口尺寸变大的问题，需要主动尺寸保护机制
+// 说白了就是尺寸变大了再恢复回去😂
+ipcMain.on('custom-adsorption', (event, res) => {
+    if (mainWindow && !mainWindow.isMaximized()) {
+        // 主动尺寸保护机制 - 缓存原始尺寸信息
+        if (res.originalWidth && res.originalHeight) {
+            cachedOriginalSize = {
+                width: res.originalWidth,
+                height: res.originalHeight
+            };
+        }
+
+        // 记录调用前的窗口状态
+        const [beforeX, beforeY] = mainWindow.getPosition();
+        const [beforeWidth, beforeHeight] = mainWindow.getSize();
+
+        console.log('🔍 拖拽前窗口状态:', {
+            position: {x: beforeX, y: beforeY},
+            size: {width: beforeWidth, height: beforeHeight},
+            received: {x: res.appX, y: res.appY},
+            cachedOriginalSize: cachedOriginalSize
+        });
+
+        let x = Math.round(res.appX);
+        let y = Math.round(res.appY);
+
+        // 使用setBounds确保尺寸不变
+        const targetWidth = cachedOriginalSize ? cachedOriginalSize.width : beforeWidth;
+        const targetHeight = cachedOriginalSize ? cachedOriginalSize.height : beforeHeight;
+
+        mainWindow.setBounds({
+            x: x,
+            y: y,
+            width: targetWidth,
+            height: targetHeight
+        });
+
+        // 主动尺寸保护机制 - 立即检查并恢复尺寸
+        setTimeout(() => {
+            const [afterX, afterY] = mainWindow.getPosition();
+            const [afterWidth, afterHeight] = mainWindow.getSize();
+
+            console.log('🔍 拖拽后窗口状态:', {
+                position: {x: afterX, y: afterY},
+                size: {width: afterWidth, height: afterHeight}
+            });
+
+            // 检查尺寸是否与目标尺寸一致
+            if (afterWidth !== targetWidth || afterHeight !== targetHeight) {
+                console.warn('⚠️ 检测到窗口尺寸偏差，正在强制恢复:', {
+                    current: {width: afterWidth, height: afterHeight},
+                    target: {width: targetWidth, height: targetHeight},
+                    delta: {width: afterWidth - targetWidth, height: afterHeight - targetHeight}
+                });
+
+                // 强制恢复到目标尺寸
+                try {
+                    mainWindow.setSize(targetWidth, targetHeight);
+                    console.log('✅ 窗口尺寸已强制恢复');
+
+                    // 再次验证
+                    const [finalWidth, finalHeight] = mainWindow.getSize();
+                    if (finalWidth !== targetWidth || finalHeight !== targetHeight) {
+                        console.error('❌ 尺寸恢复失败:', {
+                            expected: {width: targetWidth, height: targetHeight},
+                            actual: {width: finalWidth, height: finalHeight}
+                        });
+                    }
+                } catch (error) {
+                    console.error('❌ 强制恢复窗口尺寸失败:', error);
+                }
+            }
+        }, 0); // 使用setTimeout确保在下一个事件循环中执行检查
+    }
+});
+
+// 主动尺寸保护机制 - 清理缓存的尺寸信息
+ipcMain.on('clear-size-cache', () => {
+    cachedOriginalSize = null;
+    console.log('🧹 已清理缓存的窗口尺寸信息');
+});
+
+ipcMain.handle('window:getPosition', () => {
+    if (mainWindow) {
+        return mainWindow.getPosition();
+    }
+    return [0, 0];
+});
+
+ipcMain.handle('window:getSize', () => {
+    if (mainWindow) {
+        return mainWindow.getSize();
+    }
+    return [1440, 900]; // 默认尺寸
 });
 
 // 通用目录选择对话框（返回字符串路径，用于音乐目录扫描等）
