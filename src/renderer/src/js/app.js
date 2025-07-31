@@ -67,6 +67,7 @@ class MusicBoxApp extends EventEmitter {
         this.components.contextMenu = new ContextMenu(document.getElementById('context-menu'));
         this.components.settings = new Settings(document.getElementById('settings-page'));
         this.components.lyrics = new Lyrics(document.getElementById('lyrics-page'));
+        this.components.equalizer = new EqualizerComponent();
 
         // 初始化新页面组件
         this.components.homePage = new HomePage('#content-area');
@@ -1229,4 +1230,4 @@ class MusicBoxApp extends EventEmitter {
     }
 }
 
-const app = new MusicBoxApp();
+window.app = new MusicBoxApp();
