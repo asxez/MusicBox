@@ -498,13 +498,20 @@ class Navigation extends Component {
         this.forwardBtn = this.element.querySelector('#forward-btn');
         this.settingsBtn = this.element.querySelector('#settings-btn');
         this.themeToggle = this.element.querySelector('#theme-toggle');
+        this.fullscreenBtn = this.element.querySelector('#fullscreen-btn');
+        this.exitBtn = this.element.querySelector('#exit-btn');
         this.lightIcon = this.themeToggle.querySelector('.light-icon');
         this.darkIcon = this.themeToggle.querySelector('.dark-icon');
+        this.fullscreenIcon = this.fullscreenBtn.querySelector('.fullscreen-icon');
+        this.fullscreenExitIcon = this.fullscreenBtn.querySelector('.fullscreen-exit');
 
         // 侧边栏相关元素
         this.sidebar = document.getElementById('sidebar');
         this.sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
         this.app = document.getElementById('app');
+
+        // 全屏状态
+        this.isFullscreen = false;
     }
 
     setupEventListeners() {
@@ -528,6 +535,19 @@ class Navigation extends Component {
         // 侧边栏切换按钮
         this.sidebarToggleBtn.addEventListener('click', () => {
             this.toggleSidebar();
+        });
+
+        // 全屏按钮
+        this.fullscreenBtn.addEventListener('click', () => {
+            this.toggleFullscreen();
+        });
+        document.addEventListener('fullscreenchange', () => {
+            this.updateFullscreenState();
+        });
+
+        // 退出
+        this.exitBtn.addEventListener('click', async () => {
+            await this.exitApp();
         });
 
         // Sidebar navigation
@@ -595,6 +615,64 @@ class Navigation extends Component {
             this.sidebar.classList.add('collapsed');
             this.app.classList.add('sidebar-collapsed');
         }
+    }
+
+    toggleFullscreen() {
+        if (this.isFullscreen) {
+            this.exitFullscreen();
+        } else {
+            this.enterFullscreen();
+        }
+    }
+
+    enterFullscreen() {
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().then(() => {
+                console.log('🎵 Lyrics: 进入全屏模式');
+            }).catch(err => {
+                console.error('❌ Lyrics: 进入全屏失败:', err);
+            });
+        } else if (document.documentElement.webkitRequestFullscreen) {
+            // Safari 支持
+            document.documentElement.webkitRequestFullscreen();
+        } else if (document.documentElement.msRequestFullscreen) {
+            // IE/Edge 支持
+            document.documentElement.msRequestFullscreen();
+        }
+    }
+
+    exitFullscreen() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen().then(() => {
+                console.log('🎵 Lyrics: 退出全屏模式');
+            }).catch(err => {
+                console.error('❌ Lyrics: 退出全屏失败:', err);
+            });
+        } else if (document.webkitExitFullscreen) {
+            // Safari 支持
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+            // IE/Edge 支持
+            document.msExitFullscreen();
+        }
+    }
+
+    updateFullscreenState() {
+        this.isFullscreen = !!(document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.msFullscreenElement);
+        if (this.isFullscreen) {
+            this.fullscreenIcon.style.display = 'none';
+            this.fullscreenExitIcon.style.display = 'block';
+        } else {
+            this.fullscreenIcon.style.display = 'block';
+            this.fullscreenExitIcon.style.display = 'none';
+        }
+        console.log('🎵 Lyrics: 全屏状态更新:', this.isFullscreen ? '全屏' : '窗口');
+    }
+
+    async exitApp() {
+        await window.api.exit();
     }
 }
 

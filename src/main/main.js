@@ -110,7 +110,7 @@ async function createWindow() {
         minWidth: 1080,
         minHeight: 720,
         titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
-        frame: process.platform !== 'win32',
+        frame: false,
         show: false,
         webPreferences: {
             nodeIntegration: false,
@@ -1107,4 +1107,8 @@ ipcMain.handle('globalShortcuts:isEnabled', async () => {
 app.on('will-quit', () => {
     console.log('🎹 应用退出，清理全局快捷键');
     unregisterAllGlobalShortcuts();
+});
+
+ipcMain.on('window-close', () => {
+    mainWindow.close();
 });

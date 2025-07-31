@@ -124,5 +124,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.on('global-shortcut-triggered', callback);
       return () => ipcRenderer.removeListener('global-shortcut-triggered', callback);
     }
-  }
+  },
+  close: () => ipcRenderer.send('window-close')
 });
