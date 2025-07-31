@@ -74,7 +74,8 @@ class MusicBoxAPI extends EventEmitter {
                 set: (key, value) => Promise.resolve(true)
             },
             getVersion: () => Promise.resolve('1.0.0-mock'),
-            getPlatform: () => Promise.resolve('browser')
+            getPlatform: () => Promise.resolve('browser'),
+            close: () => Promise.resolve(),
         };
 
         console.log('Mock Electron API created for browser testing');
@@ -1236,6 +1237,10 @@ class MusicBoxAPI extends EventEmitter {
     destroy() {
         this.stopProgressTracking();
         this.removeAllListeners();
+    }
+
+    async exit() {
+        await window.electronAPI.close();
     }
 }
 

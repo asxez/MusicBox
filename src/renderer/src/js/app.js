@@ -7,9 +7,9 @@ class MusicBoxApp extends EventEmitter {
         this.filteredLibrary = [];
         this.components = {};
 
-        this.init().then((res, error) => {
-            if (res) console.log('MusicBox initialized successfully')
-            else console.error('Failed to initialize MusicBox:', error);
+        this.init().then((res) => {
+            if (res.status) console.log('MusicBox initialized successfully')
+            else console.error('Failed to initialize MusicBox:', res.error);
         });
     }
 
@@ -37,11 +37,16 @@ class MusicBoxApp extends EventEmitter {
             this.showApp();
 
             this.isInitialized = true;
-            return true;
+            return {
+                status: true
+            };
 
         } catch (error) {
             this.showError('应用初始化失败');
-            return false;
+            return {
+                status: false,
+                error: error
+            };
         }
     }
 
