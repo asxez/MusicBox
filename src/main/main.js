@@ -6,23 +6,57 @@ const chardet = require('chardet');
 const mm = require('music-metadata');
 const LibraryCacheManager = require('./library-cache-manager');
 
+// 字符串编码
+function fixStringEncoding(str) {
+    if (!str || typeof str !== 'string') {
+        return str;
+    }
+
+    try {
+        // 检测字符串是否包含乱码字符
+        const hasGarbledChars = /[\u00C0-\u00FF][\u0080-\u00BF]+/.test(str);
+
+        if (hasGarbledChars) {
+            // 尝试将错误解码的UTF-8字符串重新解码
+            const buffer = Buffer.from(str, 'latin1');
+            const detectedEncoding = chardet.detect(buffer) || 'utf8';
+            console.log(`🔍 检测到字符串编码: ${detectedEncoding} for "${str}"`);
+
+            // 如果检测到的编码不是UTF-8则转换
+            if (detectedEncoding.toLowerCase() !== 'utf8' && detectedEncoding.toLowerCase() !== 'utf-8') {
+                const fixedStr = iconv.decode(buffer, detectedEncoding);
+                console.log(`🔧 编码修复: "${str}" -> "${fixedStr}"`);
+                return fixedStr;
+            }
+        }
+        return str;
+    } catch (error) {
+        console.warn(`⚠️ 字符串编码修复失败: ${error.message}, 返回原字符串`);
+        return str;
+    }
+}
+
 // 全局元数据解析函数
 async function parseMetadata(filePath) {
     try {
         console.log(`🔍 解析音频元数据: ${filePath}`);
-
-        // 使用 music-metadata 库解析音频文件元数据
         const metadata = await mm.parseFile(filePath);
 
-        // 提取基本信息
-        const title = metadata.common.title || path.basename(filePath, path.extname(filePath));
-        const artist = metadata.common.artist || metadata.common.albumartist || '未知艺术家';
-        const album = metadata.common.album || '未知专辑';
+        // 提取基本信息并修复编码
+        const title = fixStringEncoding(metadata.common.title) || path.basename(filePath, path.extname(filePath));
+        const artist = fixStringEncoding(metadata.common.artist || metadata.common.albumartist) || '未知艺术家';
+        const album = fixStringEncoding(metadata.common.album) || '未知专辑';
         const duration = metadata.format.duration || 0;
         const bitrate = metadata.format.bitrate || 0;
         const sampleRate = metadata.format.sampleRate || 0;
         const year = metadata.common.year || metadata.common.date || null;
-        const genre = metadata.common.genre ? metadata.common.genre.join(', ') : null;
+
+        // 处理流派数组并修复编码
+        let genre = null;
+        if (metadata.common.genre && Array.isArray(metadata.common.genre)) {
+            genre = metadata.common.genre.map(g => fixStringEncoding(g)).join(', ');
+        }
+
         const track = metadata.common.track ? metadata.common.track.no : null;
         const disc = metadata.common.disk ? metadata.common.disk.no : null;
 
@@ -55,7 +89,7 @@ async function parseMetadata(filePath) {
         console.warn(`⚠️ 使用music-metadata解析失败，回退到文件名解析: ${error.message}`);
 
         // 回退到文件名解析
-        const fileName = path.basename(filePath, path.extname(filePath));
+        const fileName = fixStringEncoding(path.basename(filePath, path.extname(filePath)));
         let artist = '未知艺术家';
         let title = fileName;
         let album = '未知专辑';
@@ -66,15 +100,15 @@ async function parseMetadata(filePath) {
             if (fileName.includes(sep)) {
                 const parts = fileName.split(sep);
                 if (parts.length >= 2) {
-                    artist = parts[0].trim();
-                    title = parts.slice(1).join(sep).trim();
+                    artist = fixStringEncoding(parts[0].trim());
+                    title = fixStringEncoding(parts.slice(1).join(sep).trim());
                     break;
                 }
             }
         }
 
         // 尝试从目录结构获取专辑信息
-        const dirName = path.basename(path.dirname(filePath));
+        const dirName = fixStringEncoding(path.basename(path.dirname(filePath)));
         if (dirName && dirName !== '.' && !dirName.includes('\\') && !dirName.includes('/')) {
             if (dirName.length > 0 && dirName.length < 100) {
                 album = dirName;
