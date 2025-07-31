@@ -8,8 +8,6 @@ class CacheManager {
         this.memoryCache = new Map();
         this.maxMemorySize = 100; // 最大内存缓存条目数
         this.storagePrefix = 'musicbox_cache_';
-        this.cacheVersion = '1.0';
-        
         console.log('🗄️ CacheManager: 缓存管理器初始化完成');
     }
 
@@ -49,7 +47,6 @@ class CacheManager {
             const cacheData = {
                 data: data,
                 timestamp: Date.now(),
-                version: this.cacheVersion
             };
             
             localStorage.setItem(this.storagePrefix + key, JSON.stringify(cacheData));
@@ -63,15 +60,7 @@ class CacheManager {
         try {
             const cached = localStorage.getItem(this.storagePrefix + key);
             if (!cached) return null;
-            
             const cacheData = JSON.parse(cached);
-            
-            // 检查版本
-            if (cacheData.version !== this.cacheVersion) {
-                this.removeLocalCache(key);
-                return null;
-            }
-
             console.log(`✅ CacheManager: 本地缓存命中 - ${key}`);
             return cacheData.data;
         } catch (error) {
@@ -122,7 +111,6 @@ class CacheManager {
         const key = this.generateKey('lyrics', title, artist, album);
         this.setMemoryCache(key, lyricsData);
 
-        // 缓存成功的歌词到本地存储
         if (lyricsData.success) {
             // 为本地歌词添加额外的元数据
             const cacheData = {
@@ -130,7 +118,6 @@ class CacheManager {
                 cachedAt: Date.now(),
                 cacheSource: 'cache-manager'
             };
-
             this.setLocalCache(key, cacheData);
             console.log(`🗄️ CacheManager: 歌词已缓存 - ${title} (来源: ${lyricsData.source || 'unknown'})`);
         }
@@ -139,7 +126,6 @@ class CacheManager {
     getLyricsCache(title, artist, album) {
         const key = this.generateKey('lyrics', title, artist, album);
 
-        // 先检查内存缓存
         let cached = this.getMemoryCache(key);
         if (cached) {
             // 验证本地歌词缓存的有效性
@@ -150,19 +136,15 @@ class CacheManager {
             return cached;
         }
 
-        // 再检查本地缓存
         cached = this.getLocalCache(key);
         if (cached) {
             // 验证本地歌词缓存
             if (cached.source === 'local' && cached.filePath) {
                 console.log(`✅ CacheManager: 本地缓存命中 - ${title} (本地歌词文件: ${cached.fileName || '未知'})`);
             }
-
-            // 将本地缓存加载到内存缓存
             this.setMemoryCache(key, cached);
             return cached;
         }
-
         return null;
     }
 
@@ -190,7 +172,6 @@ class CacheManager {
                             }
                         }
                     } catch (e) {
-                        // 忽略解析错误的条目
                     }
                 }
             }
@@ -204,10 +185,7 @@ class CacheManager {
 
     // 清空所有缓存
     clearAllCache() {
-        // 清空内存缓存
         this.memoryCache.clear();
-        
-        // 清空本地缓存
         try {
             const keys = Object.keys(localStorage);
             let removedCount = 0;
@@ -218,7 +196,6 @@ class CacheManager {
                     removedCount++;
                 }
             }
-            
             console.log(`🧹 CacheManager: 清空了所有缓存 (${removedCount} 个条目)`);
         } catch (error) {
             console.warn('❌ CacheManager: 清空缓存失败:', error);
@@ -245,5 +222,4 @@ class CacheManager {
     }
 }
 
-const cacheManager = new CacheManager();
-window.cacheManager = cacheManager;
+window.cacheManager = new CacheManager();
