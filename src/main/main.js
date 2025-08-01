@@ -133,6 +133,7 @@ async function parseMetadata(filePath) {
 
 const isDev = process.env.NODE_ENV === 'development';
 let mainWindow;
+let desktopLyricsWindow = null; // 桌面歌词窗口
 // 主动尺寸保护机制 - 缓存原始窗口尺寸
 let cachedOriginalSize = null;
 
@@ -213,6 +214,106 @@ async function createWindow() {
     mainWindow.on('unmaximize', () => {
         mainWindow.webContents.send('window:maximized', false);
     });
+}
+
+// 创建桌面歌词窗口
+async function createDesktopLyricsWindow() {
+    if (desktopLyricsWindow) {
+        desktopLyricsWindow.focus();
+        return;
+    }
+
+    // 获取主窗口位置和尺寸
+    const mainBounds = mainWindow ? mainWindow.getBounds() : { x: 100, y: 100, width: 1440, height: 900 };
+
+    // 计算桌面歌词窗口的初始位置（在主窗口下方）
+    const lyricsX = mainBounds.x + 50;
+    const lyricsY = mainBounds.y + mainBounds.height + 20;
+
+    desktopLyricsWindow = new BrowserWindow({
+        width: 800,
+        height: 120,
+        x: lyricsX,
+        y: lyricsY,
+        frame: false,
+        transparent: true,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        resizable: true,
+        movable: true,
+        focusable: false, // 防止抢夺焦点
+        show: false,
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            enableRemoteModule: false,
+            preload: path.join(__dirname, 'preload.js')
+        }
+    });
+
+    // 加载桌面歌词页面
+    const lyricsHtmlPath = path.join(__dirname, '../renderer/public/desktop-lyrics.html');
+    await desktopLyricsWindow.loadFile(lyricsHtmlPath);
+    console.log('✅ 桌面歌词窗口加载成功');
+
+    // 窗口事件处理
+    desktopLyricsWindow.once('ready-to-show', () => {
+        desktopLyricsWindow.show();
+        console.log('🎵 桌面歌词窗口显示');
+    });
+
+    desktopLyricsWindow.on('closed', () => {
+        desktopLyricsWindow = null;
+        console.log('🎵 桌面歌词窗口已关闭');
+    });
+
+    // 防止窗口失去焦点时隐藏
+    desktopLyricsWindow.on('blur', () => {
+        // 保持窗口可见
+    });
+}
+
+// 显示桌面歌词窗口
+function showDesktopLyrics() {
+    if (desktopLyricsWindow) {
+        desktopLyricsWindow.show();
+        return true;
+    }
+    return false;
+}
+
+// 隐藏桌面歌词窗口
+function hideDesktopLyrics() {
+    if (desktopLyricsWindow) {
+        desktopLyricsWindow.hide();
+        closeDesktopLyrics();
+        return true;
+    }
+    return false;
+}
+
+// 关闭桌面歌词窗口
+function closeDesktopLyrics() {
+    if (desktopLyricsWindow) {
+        desktopLyricsWindow.close();
+        desktopLyricsWindow = null;
+        return true;
+    }
+    return false;
+}
+
+// 检查桌面歌词窗口是否存在且可见
+function isDesktopLyricsVisible() {
+    return desktopLyricsWindow && desktopLyricsWindow.isVisible();
+}
+
+// 向桌面歌词窗口发送数据
+function sendToDesktopLyrics(channel, data) {
+    if (desktopLyricsWindow && !desktopLyricsWindow.isDestroyed()) {
+        desktopLyricsWindow.webContents.send(channel, data);
+        return true;
+    }
+    return false;
 }
 
 // App event handlers
@@ -1277,4 +1378,135 @@ app.on('will-quit', () => {
 
 ipcMain.on('window-close', () => {
     mainWindow.close();
+});
+
+// 桌面歌词IPC
+ipcMain.handle('desktopLyrics:create', async () => {
+    try {
+        await createDesktopLyricsWindow();
+        return { success: true };
+    } catch (error) {
+        console.error('❌ 创建桌面歌词窗口失败:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('desktopLyrics:show', () => {
+    const result = showDesktopLyrics();
+    return { success: result };
+});
+
+ipcMain.handle('desktopLyrics:hide', () => {
+    const result = hideDesktopLyrics();
+    return { success: result };
+});
+
+ipcMain.handle('desktopLyrics:close', () => {
+    const result = closeDesktopLyrics();
+    return { success: result };
+});
+
+ipcMain.handle('desktopLyrics:isVisible', () => {
+    return isDesktopLyricsVisible();
+});
+
+ipcMain.handle('desktopLyrics:toggle', async () => {
+    try {
+        if (!desktopLyricsWindow) {
+            await createDesktopLyricsWindow();
+            return { success: true, visible: true };
+        } else if (desktopLyricsWindow.isVisible()) {
+            hideDesktopLyrics();
+            return { success: true, visible: false };
+        } else {
+            showDesktopLyrics();
+            return { success: true, visible: true };
+        }
+    } catch (error) {
+        console.error('❌ 切换桌面歌词窗口失败:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// 向桌面歌词窗口发送播放状态
+ipcMain.handle('desktopLyrics:updatePlaybackState', (event, state) => {
+    const result = sendToDesktopLyrics('playback:stateChanged', state);
+    return { success: result };
+});
+
+// 向桌面歌词窗口发送歌词数据
+ipcMain.handle('desktopLyrics:updateLyrics', (event, lyricsData) => {
+    const result = sendToDesktopLyrics('lyrics:updated', lyricsData);
+    return { success: result };
+});
+
+// 向桌面歌词窗口发送播放进度
+ipcMain.handle('desktopLyrics:updatePosition', (event, position) => {
+    const result = sendToDesktopLyrics('playback:positionChanged', position);
+    return { success: result };
+});
+
+// 向桌面歌词窗口发送当前歌曲信息
+ipcMain.handle('desktopLyrics:updateTrack', (event, trackInfo) => {
+    const result = sendToDesktopLyrics('track:changed', trackInfo);
+    return { success: result };
+});
+
+// 桌面歌词窗口位置和大小控制
+ipcMain.handle('desktopLyrics:setPosition', (event, x, y) => {
+    if (desktopLyricsWindow && !desktopLyricsWindow.isDestroyed()) {
+        try {
+            const posX = parseInt(x);
+            const posY = parseInt(y);
+            if (isNaN(posX) || isNaN(posY)) {
+                return { success: false, error: '无效的窗口位置参数' };
+            }
+            desktopLyricsWindow.setPosition(posX, posY);
+            return { success: true };
+        } catch (error) {
+            console.error('❌ 设置桌面歌词窗口位置失败:', error);
+            return { success: false, error: error.message };
+        }
+    }
+    return { success: false, error: '桌面歌词窗口不存在' };
+});
+
+ipcMain.handle('desktopLyrics:setSize', (event, width, height) => {
+    if (desktopLyricsWindow && !desktopLyricsWindow.isDestroyed()) {
+        try {
+            const w = parseInt(width);
+            const h = parseInt(height);
+            if (isNaN(w) || isNaN(h) || w < 400 || h < 80) {
+                return { success: false, error: '无效的窗口尺寸参数' };
+            }
+            desktopLyricsWindow.setSize(w, h);
+            return { success: true };
+        } catch (error) {
+            console.error('❌ 设置桌面歌词窗口大小失败:', error);
+            return { success: false, error: error.message };
+        }
+    }
+    return { success: false, error: '桌面歌词窗口不存在' };
+});
+
+ipcMain.handle('desktopLyrics:setOpacity', (event, opacity) => {
+    if (desktopLyricsWindow && !desktopLyricsWindow.isDestroyed()) {
+        desktopLyricsWindow.setOpacity(opacity);
+        return { success: true };
+    }
+    return { success: false };
+});
+
+ipcMain.handle('desktopLyrics:getPosition', () => {
+    if (desktopLyricsWindow && !desktopLyricsWindow.isDestroyed()) {
+        return { success: true, position: desktopLyricsWindow.getPosition() };
+    }
+    return { success: false };
+});
+
+ipcMain.handle('desktopLyrics:getSize', () => {
+    if (desktopLyricsWindow && !desktopLyricsWindow.isDestroyed()) {
+        return { success: true, size: desktopLyricsWindow.getSize() };
+    }
+    return { success: false };
 });

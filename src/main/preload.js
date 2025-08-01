@@ -142,5 +142,47 @@ contextBridge.exposeInMainWorld('electronAPI', {
             ipcRenderer.on('window:maximized', (event, isMaximized) => callback(isMaximized));
             return () => ipcRenderer.removeListener('window:maximized', callback);
         }
+    },
+
+    // 桌面歌词
+    desktopLyrics: {
+        // 窗口控制
+        create: () => ipcRenderer.invoke('desktopLyrics:create'),
+        show: () => ipcRenderer.invoke('desktopLyrics:show'),
+        hide: () => ipcRenderer.invoke('desktopLyrics:hide'),
+        close: () => ipcRenderer.invoke('desktopLyrics:close'),
+        toggle: () => ipcRenderer.invoke('desktopLyrics:toggle'),
+        isVisible: () => ipcRenderer.invoke('desktopLyrics:isVisible'),
+
+        // 数据同步
+        updatePlaybackState: (state) => ipcRenderer.invoke('desktopLyrics:updatePlaybackState', state),
+        updateLyrics: (lyricsData) => ipcRenderer.invoke('desktopLyrics:updateLyrics', lyricsData),
+        updatePosition: (position) => ipcRenderer.invoke('desktopLyrics:updatePosition', position),
+        updateTrack: (trackInfo) => ipcRenderer.invoke('desktopLyrics:updateTrack', trackInfo),
+
+        // 窗口控制
+        setPosition: (x, y) => ipcRenderer.invoke('desktopLyrics:setPosition', x, y),
+        setSize: (width, height) => ipcRenderer.invoke('desktopLyrics:setSize', width, height),
+        setOpacity: (opacity) => ipcRenderer.invoke('desktopLyrics:setOpacity', opacity),
+        getPosition: () => ipcRenderer.invoke('desktopLyrics:getPosition'),
+        getSize: () => ipcRenderer.invoke('desktopLyrics:getSize'),
+
+        // 事件监听（用于桌面歌词窗口）
+        onPlaybackStateChanged: (callback) => {
+            ipcRenderer.on('playback:stateChanged', (event, state) => callback(state));
+            return () => ipcRenderer.removeListener('playback:stateChanged', callback);
+        },
+        onLyricsUpdated: (callback) => {
+            ipcRenderer.on('lyrics:updated', (event, lyricsData) => callback(lyricsData));
+            return () => ipcRenderer.removeListener('lyrics:updated', callback);
+        },
+        onPositionChanged: (callback) => {
+            ipcRenderer.on('playback:positionChanged', (event, position) => callback(position));
+            return () => ipcRenderer.removeListener('playback:positionChanged', callback);
+        },
+        onTrackChanged: (callback) => {
+            ipcRenderer.on('track:changed', (event, trackInfo) => callback(trackInfo));
+            return () => ipcRenderer.removeListener('track:changed', callback);
+        }
     }
 });

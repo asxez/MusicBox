@@ -103,7 +103,7 @@ class MusicBoxAPI extends EventEmitter {
                 const initialized = await this.webAudioEngine.initialize();
                 if (initialized) {
                     console.log('🎵 Web Audio Engine 初始化成功');
-                    this.webAudioEngine.setVolume(localStorage.getItem('volume'));
+                    this.webAudioEngine.setVolume(window.cacheManager.getLocalCache('volume'));
                 } else {
                     console.warn('⚠️ Web Audio Engine 初始化失败');
                 }
@@ -124,17 +124,23 @@ class MusicBoxAPI extends EventEmitter {
                 console.log('🎵 API: Web Audio Engine 曲目变化:', track);
                 this.currentTrack = track;
                 this.emit('trackChanged', track);
+                // 同步到桌面歌词
+                this.syncToDesktopLyrics('track', track);
             };
 
             this.webAudioEngine.onPlaybackStateChanged = (isPlaying) => {
                 console.log('🎵 API: Web Audio Engine 播放状态变化:', isPlaying);
                 this.isPlaying = isPlaying;
                 this.emit('playbackStateChanged', isPlaying ? 'playing' : 'paused');
+                // 同步到桌面歌词
+                this.syncToDesktopLyrics('playbackState', { isPlaying, position: this.position });
             };
 
             this.webAudioEngine.onPositionChanged = (position) => {
                 this.position = position;
                 this.emit('positionChanged', position);
+                // 同步到桌面歌词
+                this.syncToDesktopLyrics('position', position);
             };
 
             this.webAudioEngine.onVolumeChanged = (volume) => {
@@ -861,7 +867,7 @@ class MusicBoxAPI extends EventEmitter {
     // Settings Methods
     async getSetting(key) {
         try {
-            return await window.electronAPI.settings.get(key);
+            return window.cacheManager.getLocalCache(key);
         } catch (error) {
             console.error('Failed to get setting:', error);
             return null;
@@ -870,7 +876,7 @@ class MusicBoxAPI extends EventEmitter {
     
     async setSetting(key, value) {
         try {
-            return await window.electronAPI.settings.set(key, value);
+            window.cacheManager.setLocalCache(key, value);
         } catch (error) {
             console.error('Failed to set setting:', error);
             return false;
@@ -1249,6 +1255,136 @@ class MusicBoxAPI extends EventEmitter {
         const equalizer = this.getEqualizer();
         if (equalizer) {
             equalizer.reset();
+        }
+    }
+
+    // 桌面歌词同步方法
+    async syncToDesktopLyrics(type, data) {
+        if (!window.electronAPI || !window.electronAPI.desktopLyrics) {
+            return;
+        }
+
+        try {
+            switch (type) {
+                case 'track':
+                    await window.electronAPI.desktopLyrics.updateTrack(data);
+                    // 如果歌曲变化，也需要更新歌词
+                    if (data && data.lyrics) {
+                        await window.electronAPI.desktopLyrics.updateLyrics(data.lyrics);
+                    } else if (data && data.title && data.artist) {
+                        // 尝试获取歌词
+                        this.loadLyricsForDesktop(data);
+                    }
+                    break;
+                case 'playbackState':
+                    await window.electronAPI.desktopLyrics.updatePlaybackState(data);
+                    break;
+                case 'position':
+                    await window.electronAPI.desktopLyrics.updatePosition(data);
+                    break;
+                case 'lyrics':
+                    await window.electronAPI.desktopLyrics.updateLyrics(data);
+                    break;
+            }
+        } catch (error) {
+            console.error('❌ 桌面歌词同步失败:', error);
+        }
+    }
+
+    async loadLyricsForDesktop(track) {
+        try {
+            const lyricsResult = await this.getLyrics(track.title, track.artist, track.album);
+            if (lyricsResult.success) {
+                const parsedLyrics = this.parseLRC(lyricsResult.lrc);
+                await this.syncToDesktopLyrics('lyrics', parsedLyrics);
+            }
+        } catch (error) {
+            console.error('❌ 为桌面歌词加载歌词失败:', error);
+        }
+    }
+
+    // 桌面歌词控制方法
+    async toggleDesktopLyrics() {
+        if (!window.electronAPI || !window.electronAPI.desktopLyrics) {
+            console.warn('桌面歌词API不可用');
+            return { success: false, error: '桌面歌词API不可用' };
+        }
+
+        try {
+            const result = await window.electronAPI.desktopLyrics.toggle();
+            if (result.success && result.visible) {
+                // 如果显示了桌面歌词，同步当前状态
+                await this.syncCurrentStateToDesktopLyrics();
+            }
+            return result;
+        } catch (error) {
+            console.error('❌ 切换桌面歌词失败:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async syncCurrentStateToDesktopLyrics() {
+        try {
+            // 同步当前歌曲信息
+            if (this.currentTrack) {
+                await this.syncToDesktopLyrics('track', this.currentTrack);
+            }
+
+            // 同步播放状态
+            await this.syncToDesktopLyrics('playbackState', {
+                isPlaying: this.isPlaying,
+                position: this.position
+            });
+
+            // 同步播放进度
+            await this.syncToDesktopLyrics('position', this.position);
+
+            console.log('✅ 当前状态已同步到桌面歌词');
+        } catch (error) {
+            console.error('❌ 同步当前状态到桌面歌词失败:', error);
+        }
+    }
+
+    async showDesktopLyrics() {
+        if (!window.electronAPI || !window.electronAPI.desktopLyrics) {
+            return { success: false, error: '桌面歌词API不可用' };
+        }
+
+        try {
+            const result = await window.electronAPI.desktopLyrics.show();
+            if (result.success) {
+                await this.syncCurrentStateToDesktopLyrics();
+            }
+            return result;
+        } catch (error) {
+            console.error('❌ 显示桌面歌词失败:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async hideDesktopLyrics() {
+        if (!window.electronAPI || !window.electronAPI.desktopLyrics) {
+            return { success: false, error: '桌面歌词API不可用' };
+        }
+
+        try {
+            return await window.electronAPI.desktopLyrics.hide();
+        } catch (error) {
+            console.error('❌ 隐藏桌面歌词失败:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async isDesktopLyricsVisible() {
+        if (!window.electronAPI || !window.electronAPI.desktopLyrics) {
+            return false;
+        }
+
+        try {
+            return await window.electronAPI.desktopLyrics.isVisible();
+        } catch (error) {
+            console.error('❌ 检查桌面歌词状态失败:', error);
+            return false;
         }
     }
 

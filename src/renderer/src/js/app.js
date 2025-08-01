@@ -74,6 +74,9 @@ class MusicBoxApp extends EventEmitter {
         this.components.lyrics = new Lyrics(document.getElementById('lyrics-page'));
         this.components.equalizer = new EqualizerComponent();
 
+        // 将settings组件暴露到全局，供其他组件访问
+        window.settings = this.components.settings;
+
         // 初始化新页面组件
         this.components.homePage = new HomePage('#content-area');
         this.components.recentPage = new RecentPage('#content-area');
@@ -163,12 +166,15 @@ class MusicBoxApp extends EventEmitter {
             await this.handleRescanLibrary();
         });
 
+        // 监听桌面歌词设置变化
+        this.components.settings.on('desktopLyricsEnabled', async (enabled) => {
+            if (this.components.player) {
+                await this.components.player.updateDesktopLyricsButtonVisibility(enabled);
+            }
+        });
+
         // 新页面组件事件监听
         this.setupPageComponentEvents();
-
-        this.components.settings.on('defaultVolumeChanged', (volume) => {
-            this.handleDefaultVolumeChanged(volume);
-        });
 
         // Lyrics events
         this.components.lyrics.on('togglePlay', () => {
@@ -1218,11 +1224,6 @@ class MusicBoxApp extends EventEmitter {
         } catch (error) {
             console.error('❌ 重新扫描失败:', error);
         }
-    }
-
-    handleDefaultVolumeChanged(volume) {
-        console.log('🔊 默认音量改变:', volume);
-        // TODO: 保存默认音量设置
     }
 
     // Add track to playlist

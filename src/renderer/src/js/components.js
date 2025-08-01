@@ -41,7 +41,10 @@ class Player extends Component {
         this.setupElements();
         this.setupEventListeners();
         this.setupAPIListeners();
-        this.updateUI();
+        this.updateUI().then(r => {
+            if (r.status) console.log('✅ Player UI初始化成功');
+            else console.error('❌ Player UI初始化失败：', r.error);
+        });
     }
 
     setupElements() {
@@ -52,6 +55,7 @@ class Player extends Component {
         this.lyricsBtn = this.element.querySelector('#lyrics-btn');
         this.playlistBtn = this.element.querySelector('#playlist-btn');
         this.likeBtn = this.element.querySelector('#like-btn');
+        this.desktopLyricsBtn = this.element.querySelector('#desktop-lyrics-btn');
 
         this.trackCover = this.element.querySelector('#track-cover');
         this.trackTitle = this.element.querySelector('#track-title');
@@ -173,6 +177,13 @@ class Player extends Component {
             this.emit('togglePlaylist');
         });
 
+        // 桌面歌词按钮事件
+        if (this.desktopLyricsBtn) {
+            this.desktopLyricsBtn.addEventListener('click', async () => {
+                await this.toggleDesktopLyrics();
+            });
+        }
+
         // API events
         api.on('trackChanged', async (track) => {
             await this.updateTrackInfo(track);
@@ -198,7 +209,6 @@ class Player extends Component {
         api.on('trackIndexChanged', (index) => {
             this.emit('trackIndexChanged', index);
         });
-
     }
 
     setupAPIListeners() {
@@ -387,11 +397,23 @@ class Player extends Component {
         console.log('🎵 Player: 播放模式显示更新为:', mode);
     }
 
-    updateUI() {
-        this.updatePlayButton();
-        this.updateProgressDisplay();
-        this.updateVolumeDisplay();
-        this.updatePlayModeDisplay(api.getPlayMode());
+    async updateUI() {
+        try {
+            this.updatePlayButton();
+            this.updateProgressDisplay();
+            this.updateVolumeDisplay();
+            this.updatePlayModeDisplay(api.getPlayMode());
+            await this.initDesktopLyricsButton();
+            return {
+                status: true
+            }
+        } catch (error) {
+            return {
+                status: false,
+                error: error
+            }
+        }
+
     }
 
     async togglePlayPause() {
@@ -434,6 +456,95 @@ class Player extends Component {
             await api.setVolume(0);
         } else {
             await api.setVolume(this.previousVolume || 0.7);
+        }
+    }
+
+    // 桌面歌词控制方法
+    async toggleDesktopLyrics() {
+        try {
+            console.log('🎵 Player: 切换桌面歌词');
+            const result = await api.toggleDesktopLyrics();
+
+            if (result.success) {
+                this.updateDesktopLyricsButton(result.visible);
+
+                if (result.visible) {
+                    showToast('桌面歌词已显示', 'success');
+                } else {
+                    showToast('桌面歌词已隐藏', 'info');
+                }
+            } else {
+                console.error('❌ Player: 切换桌面歌词失败:', result.error);
+                showToast('桌面歌词操作失败', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Player: 桌面歌词操作异常:', error);
+            showToast('桌面歌词操作异常', 'error');
+        }
+    }
+
+    updateDesktopLyricsButton(isVisible) {
+        if (!this.desktopLyricsBtn) return;
+        if (isVisible) {
+            this.desktopLyricsBtn.classList.add('active');
+        } else {
+            this.desktopLyricsBtn.classList.remove('active');
+        }
+    }
+
+    async updateDesktopLyricsButtonVisibility(enabled) {
+        if (!this.desktopLyricsBtn) {
+            console.warn('🎵 Player: 桌面歌词按钮元素不存在');
+            return;
+        }
+
+        console.log(`🎵 Player: 更新桌面歌词按钮显示状态 - ${enabled ? '启用' : '禁用'}`);
+
+        // 根据设置显示或隐藏按钮
+        if (enabled) {
+            this.desktopLyricsBtn.disabled = false;
+
+            // 如果启用，检查当前桌面歌词窗口状态
+            await this.checkDesktopLyricsWindowState();
+        } else {
+            this.desktopLyricsBtn.style.display = 'none';
+            this.desktopLyricsBtn.disabled = true;
+        }
+
+        console.log(`🎵 Player: 桌面歌词按钮${enabled ? '显示' : '隐藏'}完成`);
+    }
+
+    // 检查桌面歌词窗口状态的独立方法
+    async checkDesktopLyricsWindowState() {
+        try {
+            const isVisible = await api.isDesktopLyricsVisible();
+            this.updateDesktopLyricsButton(isVisible);
+        } catch (error) {
+            console.error('❌ Player: 检查桌面歌词窗口状态失败:', error);
+        }
+    }
+
+    // 初始化桌面歌词按钮状态
+    async initDesktopLyricsButton() {
+        if (!this.desktopLyricsBtn) return;
+
+        try {
+            // 检查设置中是否启用了桌面歌词功能
+            const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+            const desktopLyricsEnabled = settings.desktopLyrics !== false; // 默认启用
+
+            console.log('🎵 Player: 初始化桌面歌词按钮，设置状态:', desktopLyricsEnabled);
+
+            // 首先设置按钮的显示/隐藏状态
+            await this.updateDesktopLyricsButtonVisibility(desktopLyricsEnabled);
+
+            // 如果功能启用，检查桌面歌词窗口的当前状态
+            if (desktopLyricsEnabled) {
+                const isVisible = await api.isDesktopLyricsVisible();
+                this.updateDesktopLyricsButton(isVisible);
+            }
+        } catch (error) {
+            console.error('❌ Player: 初始化桌面歌词按钮状态失败:', error);
         }
     }
 }
@@ -625,8 +736,7 @@ class Navigation extends Component {
         }
 
         // 保存状态到本地存储
-        localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed);
-
+        window.cacheManager.setLocalCache('sidebarCollapsed', this.sidebarCollapsed);
         console.log('🎵 Navigation: 侧边栏状态切换', this.sidebarCollapsed ? '收缩' : '展开');
     }
 
@@ -737,7 +847,7 @@ class Navigation extends Component {
                 console.error('❌ Navigation: 尺寸记录失败', error);
             }
 
-            console.log('🎵 Navigation: 开始拖拽窗口', { dinatesX: this.dinatesX, dinatesY: this.dinatesY });
+            console.log('🎵 Navigation: 开始拖拽窗口', {dinatesX: this.dinatesX, dinatesY: this.dinatesY});
 
             document.onmousemove = async (ev) => {
                 if (this.isKeyDown) {
@@ -777,8 +887,8 @@ class Navigation extends Component {
 
     // 恢复侧边栏状态
     restoreSidebarState() {
-        const savedState = localStorage.getItem('sidebarCollapsed');
-        if (savedState === 'true') {
+        const savedState = window.cacheManager.getLocalCache('sidebarCollapsed')
+        if (savedState == 'true') {
             this.sidebarCollapsed = true;
             this.sidebar.classList.add('collapsed');
             this.app.classList.add('sidebar-collapsed');
@@ -1250,10 +1360,9 @@ class Settings extends EventEmitter {
 
         // 设置控件元素
         this.languageSelect = this.element.querySelector('#language-select');
-        this.defaultVolumeSlider = this.element.querySelector('#default-volume');
-        this.volumeValue = this.element.querySelector('.volume-value');
         this.autoplayToggle = this.element.querySelector('#autoplay-toggle');
         this.rememberPositionToggle = this.element.querySelector('#remember-position-toggle');
+        this.desktopLyricsToggle = this.element.querySelector('#desktop-lyrics-toggle');
         this.autoScanToggle = this.element.querySelector('#auto-scan-toggle');
         this.selectFolderBtn = this.element.querySelector('#select-folder-btn');
         this.selectLyricsFolderBtn = this.element.querySelector('#select-lyrics-folder-btn');
@@ -1288,14 +1397,6 @@ class Settings extends EventEmitter {
             this.emit('languageChanged', e.target.value);
         });
 
-        // 默认音量设置
-        this.defaultVolumeSlider.addEventListener('input', (e) => {
-            const volume = parseInt(e.target.value);
-            this.volumeValue.textContent = `${volume}%`;
-            this.updateSetting('defaultVolume', volume);
-            this.emit('defaultVolumeChanged', volume);
-        });
-
         // 各种开关设置
         this.autoplayToggle.addEventListener('change', (e) => {
             this.updateSetting('autoplay', e.target.checked);
@@ -1304,6 +1405,26 @@ class Settings extends EventEmitter {
         this.rememberPositionToggle.addEventListener('change', (e) => {
             this.updateSetting('rememberPosition', e.target.checked);
         });
+
+        // 桌面歌词设置 - 只控制按钮显示/隐藏
+        this.desktopLyricsToggle.addEventListener('change', async (e) => {
+            this.updateSetting('desktopLyrics', e.target.checked);
+
+            // 通知主界面更新按钮显示状态
+            this.emit('desktopLyricsEnabled', e.target.checked);
+
+            // 如果禁用功能，同时隐藏已打开的桌面歌词窗口
+            if (!e.target.checked) {
+                try {
+                    await api.hideDesktopLyrics();
+                } catch (error) {
+                    console.error('❌ Settings: 隐藏桌面歌词失败:', error);
+                }
+            }
+
+            console.log(`🎵 Settings: 桌面歌词功能${e.target.checked ? '启用' : '禁用'}`);
+        });
+
 
         this.autoScanToggle.addEventListener('change', (e) => {
             this.updateSetting('autoScan', e.target.checked);
@@ -1416,10 +1537,9 @@ class Settings extends EventEmitter {
     // 初始化设置值
     initializeSettings() {
         this.languageSelect.value = this.settings.language || 'zh-CN';
-        this.defaultVolumeSlider.value = this.settings.defaultVolume || 50;
-        this.volumeValue.textContent = `${this.settings.defaultVolume || 50}%`;
         this.autoplayToggle.checked = this.settings.autoplay || false;
         this.rememberPositionToggle.checked = this.settings.rememberPosition || false;
+        this.desktopLyricsToggle.checked = this.settings.desktopLyrics !== false;
         this.autoScanToggle.checked = this.settings.autoScan || false;
 
         // 初始化本地歌词目录
@@ -1436,6 +1556,14 @@ class Settings extends EventEmitter {
             this.lyricsFolderPath.textContent = '未选择';
             this.lyricsFolderPath.classList.remove('selected');
         }
+
+        console.log('🎵 Settings: 设置值初始化完成', this.settings);
+
+        // 初始化完成后，发出桌面歌词设置状态事件，确保Player组件同步
+        setTimeout(() => {
+            this.emit('desktopLyricsEnabled', this.desktopLyricsToggle.checked);
+            console.log('🎵 Settings: 发出桌面歌词初始状态事件:', this.desktopLyricsToggle.checked);
+        }, 100);
     }
 
     // 加载设置
@@ -2149,6 +2277,11 @@ class Lyrics extends EventEmitter {
             console.log('🎵 Lyrics: 使用缓存歌词');
             this.lyrics = track.lyrics;
             this.renderLyrics();
+
+            // 同步缓存歌词到桌面歌词窗口
+            if (api && api.syncToDesktopLyrics) {
+                await api.syncToDesktopLyrics('lyrics', this.lyrics);
+            }
             return;
         }
 
@@ -2167,6 +2300,11 @@ class Lyrics extends EventEmitter {
                     track.lrcText = lyricsResult.lrc;
                     this.renderLyrics();
                     console.log('✅ Lyrics: 歌词加载成功');
+
+                    // 同步歌词到桌面歌词窗口
+                    if (api && api.syncToDesktopLyrics) {
+                        await api.syncToDesktopLyrics('lyrics', this.lyrics);
+                    }
                 } else {
                     this.showNoLyrics();
                     console.log('❌ Lyrics: 歌词解析失败');
@@ -2957,15 +3095,15 @@ class HomePage extends Component {
         };
 
         // 保存到本地存储
-        const moodHistory = JSON.parse(localStorage.getItem('musicbox-mood-history') || '[]');
+        const moodHistory = window.cacheManager.getLocalCache('musicbox-mood-history') || [];
         moodHistory.push(moodData);
 
         // 只保留最近100条记录
         if (moodHistory.length > 100) {
             moodHistory.splice(0, moodHistory.length - 100);
         }
-
-        localStorage.setItem('musicbox-mood-history', JSON.stringify(moodHistory));
+        
+        window.cacheManager.setLocalCache('musicbox-mood-history', moodHistory);
         console.log('💭 记录心情:', mood);
     }
 
@@ -2980,10 +3118,9 @@ class HomePage extends Component {
         };
 
         // 保存到本地存储
-        const diaryHistory = JSON.parse(localStorage.getItem('musicbox-diary-history') || '[]');
+        const diaryHistory = window.cacheManager.getLocalCache('musicbox-diary-history') || [];
         diaryHistory.push(diaryEntry);
-
-        localStorage.setItem('musicbox-diary-history', JSON.stringify(diaryHistory));
+        window.cacheManager.setLocalCache('musicbox-diary-history', diaryHistory);
 
         // 清空输入框并显示保存成功提示
         diaryInput.value = '';
@@ -3324,11 +3461,10 @@ class StatisticsPage extends Component {
     }
 
     loadPlayHistory() {
-        const history = localStorage.getItem('musicbox-play-history');
+        const history = window.cacheManager.getLocalCache('musicbox-play-history')
         if (history) {
             try {
-                const historyData = JSON.parse(history);
-                this.recentTracks = historyData.slice(0, 50);
+                this.recentTracks = history.slice(0, 50);
             } catch (error) {
                 console.error('加载播放历史失败:', error);
                 this.recentTracks = [];
@@ -3546,10 +3682,10 @@ class RecentPage extends Component {
     }
 
     loadPlayHistory() {
-        const history = localStorage.getItem('musicbox-play-history');
+        const history = window.cacheManager.getLocalCache('musicbox-play-history');
         if (history) {
             try {
-                this.recentTracks = JSON.parse(history);
+                this.recentTracks = history;
             } catch (error) {
                 console.error('加载播放历史失败:', error);
                 this.recentTracks = [];
@@ -3564,9 +3700,9 @@ class RecentPage extends Component {
 
         let history = [];
         try {
-            const stored = localStorage.getItem('musicbox-play-history');
+            const stored = window.cacheManager.getLocalCache('musicbox-play-history')
             if (stored) {
-                history = JSON.parse(stored);
+                history = stored;
             }
         } catch (error) {
             console.error('读取播放历史失败:', error);
@@ -3585,7 +3721,7 @@ class RecentPage extends Component {
         history = history.slice(0, 100);
 
         try {
-            localStorage.setItem('musicbox-play-history', JSON.stringify(history));
+            window.cacheManager.setLocalCache('musicbox-play-history', history);
             this.recentTracks = history;
         } catch (error) {
             console.error('保存播放历史失败:', error);
@@ -3816,7 +3952,7 @@ class RecentPage extends Component {
 
     clearHistory() {
         this.recentTracks = [];
-        localStorage.removeItem('musicbox-play-history');
+        window.cacheManager.removeLocalCache('musicbox-play-history')
         this.render();
         showToast('播放历史已清空', 'success');
     }
@@ -3827,7 +3963,7 @@ class RecentPage extends Component {
             this.recentTracks.splice(index, 1);
 
             try {
-                localStorage.setItem('musicbox-play-history', JSON.stringify(this.recentTracks));
+                window.cacheManager.setLocalCache('musicbox-play-history', this.recentTracks);
                 this.render();
                 showToast(`已从历史中移除 "${track.title}"`, 'success');
             } catch (error) {
@@ -4750,7 +4886,7 @@ class EqualizerComponent extends Component {
 
             // 恢复自定义预设到localStorage（向后兼容）
             if (Object.keys(customPresets).length > 0) {
-                localStorage.setItem('customEqualizerPresets', JSON.stringify(customPresets));
+                window.cacheManager.setLocalCache('customEqualizerPresets', customPresets);
                 console.log(`✅ 恢复了 ${Object.keys(customPresets).length} 个自定义预设到localStorage`);
             }
 
@@ -4804,9 +4940,9 @@ class EqualizerComponent extends Component {
 
             // 保存自定义预设（从localStorage同步到缓存）
             try {
-                const customPresetsFromStorage = localStorage.getItem('customEqualizerPresets');
+                const customPresetsFromStorage = window.cacheManager.getLocalCache('customEqualizerPresets');
                 if (customPresetsFromStorage) {
-                    const customPresets = JSON.parse(customPresetsFromStorage);
+                    const customPresets = customPresetsFromStorage;
                     window.cacheManager.setLocalCache('musicbox-equalizer-custom-presets', customPresets);
                     console.log(`💾 已同步 ${Object.keys(customPresets).length} 个自定义预设到缓存`);
                 }
@@ -4890,9 +5026,9 @@ class EqualizerComponent extends Component {
                 createdAt: new Date().toISOString()
             };
 
-            // 同时保存到缓存管理器和localStorage
+            // 保存缓存
             window.cacheManager.setLocalCache('musicbox-equalizer-custom-presets', customPresets);
-            localStorage.setItem('customEqualizerPresets', JSON.stringify(customPresets));
+            window.cacheManager.setLocalCache('customEqualizerPresets', customPresets);
 
             // 更新预设选择器
             this.updatePresetSelect();
@@ -4967,9 +5103,9 @@ class EqualizerComponent extends Component {
             const customPresets = this.getCustomPresets();
             delete customPresets[name];
 
-            // 同时更新缓存管理器和localStorage
+            // 更新缓存
             window.cacheManager.setLocalCache('musicbox-equalizer-custom-presets', customPresets);
-            localStorage.setItem('customEqualizerPresets', JSON.stringify(customPresets));
+            window.cacheManager.setLocalCache('customEqualizerPresets', customPresets);
 
             // 更新预设选择器
             this.updatePresetSelect();
