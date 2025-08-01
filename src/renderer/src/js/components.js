@@ -502,11 +502,14 @@ class Player extends Component {
 
         // 根据设置显示或隐藏按钮
         if (enabled) {
+            // 启用时显示按钮并启用功能
+            this.desktopLyricsBtn.style.display = 'block';
             this.desktopLyricsBtn.disabled = false;
 
             // 如果启用，检查当前桌面歌词窗口状态
             await this.checkDesktopLyricsWindowState();
         } else {
+            // 禁用时隐藏按钮并禁用功能
             this.desktopLyricsBtn.style.display = 'none';
             this.desktopLyricsBtn.disabled = true;
         }
@@ -531,9 +534,10 @@ class Player extends Component {
         try {
             // 检查设置中是否启用了桌面歌词功能
             const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
-            const desktopLyricsEnabled = settings.desktopLyrics !== false; // 默认启用
+            // 如果设置中没有明确的值，默认启用；如果有明确的值，使用该值
+            const desktopLyricsEnabled = settings.hasOwnProperty('desktopLyrics') ? settings.desktopLyrics : true;
 
-            console.log('🎵 Player: 初始化桌面歌词按钮，设置状态:', desktopLyricsEnabled);
+            console.log('🎵 Player: 初始化桌面歌词按钮，设置状态:', desktopLyricsEnabled, '(来源: CacheManager)');
 
             // 首先设置按钮的显示/隐藏状态
             await this.updateDesktopLyricsButtonVisibility(desktopLyricsEnabled);
@@ -1539,7 +1543,7 @@ class Settings extends EventEmitter {
         this.languageSelect.value = this.settings.language || 'zh-CN';
         this.autoplayToggle.checked = this.settings.autoplay || false;
         this.rememberPositionToggle.checked = this.settings.rememberPosition || false;
-        this.desktopLyricsToggle.checked = this.settings.desktopLyrics !== false;
+        this.desktopLyricsToggle.checked = this.settings.hasOwnProperty('desktopLyrics') ? this.settings.desktopLyrics : true;
         this.autoScanToggle.checked = this.settings.autoScan || false;
 
         // 初始化本地歌词目录
@@ -3090,7 +3094,6 @@ class HomePage extends Component {
     recordMood(mood) {
         const moodData = {
             mood: mood,
-            timestamp: new Date().toISOString(),
             currentTrack: api.currentTrack?.title || null
         };
 
@@ -3113,7 +3116,6 @@ class HomePage extends Component {
 
         const diaryEntry = {
             content: diaryInput.value.trim(),
-            timestamp: new Date().toISOString(),
             currentTrack: api.currentTrack?.title || null
         };
 

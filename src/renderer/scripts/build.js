@@ -74,7 +74,8 @@ async function bundleJS() {
             !fileOrder.includes(file) &&
             file !== 'web-audio-engine.js' &&
             file !== 'cache-manager.js' &&
-            file !== 'local-lyrics-manager.js'
+            file !== 'local-lyrics-manager.js' &&
+            file !== 'desktop-lyrics.js'
         ) {
             const filePath = path.join(jsDir, file);
             const content = fs.readFileSync(filePath, 'utf8');
@@ -83,7 +84,8 @@ async function bundleJS() {
         } else if (
             file === 'web-audio-engine.js' ||
             file === 'cache-manager.js' ||
-            file === 'local-lyrics-manager.js'
+            file === 'local-lyrics-manager.js' ||
+            file === 'desktop-lyrics.js'
         ) {
             console.log(`⚠ Skipping ${file} (loaded separately)`);
         }

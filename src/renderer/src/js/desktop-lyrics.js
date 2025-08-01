@@ -9,11 +9,11 @@ class DesktopLyricsManager {
         this.currentPosition = 0;
         this.isPlaying = false;
         this.currentTrack = null;
-        
+
         // 状态变量
         this.isLocked = false;
         this.isDragging = false;
-        this.dragOffset = { x: 0, y: 0 };
+        this.dragOffset = {x: 0, y: 0};
 
         // 布局相关状态
         this.currentLayout = 'horizontal'; // 'horizontal' 或 'vertical'
@@ -22,10 +22,9 @@ class DesktopLyricsManager {
         this.isRestoringSize = false; // 标记是否正在恢复尺寸
 
         // 位置和尺寸记忆相关状态
-        this.positionSaveTimer = null;
         this.lastSavedPosition = null;
         this.lastSavedSize = null;
-        
+
         this.elements = {
             container: document.getElementById('lyricsContainer'),
             trackInfo: document.getElementById('trackInfo'),
@@ -150,12 +149,12 @@ class DesktopLyricsManager {
                 title: '测试歌曲',
                 artist: '测试艺术家'
             });
-            
+
             this.handleLyricsUpdated([
-                { time: 0, content: '这是第一行歌词' },
-                { time: 3, content: '这是第二行歌词' },
-                { time: 6, content: '这是第三行歌词' },
-                { time: 9, content: '这是第四行歌词' }
+                {time: 0, content: '这是第一行歌词'},
+                {time: 3, content: '这是第二行歌词'},
+                {time: 6, content: '这是第三行歌词'},
+                {time: 9, content: '这是第四行歌词'}
             ]);
         }, 1000);
     }
@@ -163,7 +162,7 @@ class DesktopLyricsManager {
     handlePlaybackStateChanged(state) {
         this.isPlaying = state.isPlaying;
         console.log('播放状态变化:', state);
-        
+
         // 根据播放状态添加/移除动画类
         if (this.isPlaying) {
             this.elements.container.classList.add('playing');
@@ -176,7 +175,7 @@ class DesktopLyricsManager {
         this.currentLyrics = lyricsData || [];
         this.currentIndex = -1;
         console.log('歌词更新:', this.currentLyrics);
-        
+
         if (this.currentLyrics.length === 0) {
             this.showNoLyrics();
         } else {
@@ -197,7 +196,7 @@ class DesktopLyricsManager {
 
     updateTrackInfo() {
         if (this.currentTrack) {
-            this.elements.trackInfo.textContent = 
+            this.elements.trackInfo.textContent =
                 `${this.currentTrack.title || '未知歌曲'} - ${this.currentTrack.artist || '未知艺术家'}`;
         } else {
             this.elements.trackInfo.textContent = 'MusicBox 桌面歌词';
@@ -229,7 +228,7 @@ class DesktopLyricsManager {
 
     renderCurrentLyrics() {
         const currentLyric = this.currentIndex >= 0 ? this.currentLyrics[this.currentIndex] : null;
-        const nextLyric = this.currentIndex + 1 < this.currentLyrics.length ? 
+        const nextLyric = this.currentIndex + 1 < this.currentLyrics.length ?
             this.currentLyrics[this.currentIndex + 1] : null;
 
         // 更新当前歌词
@@ -238,7 +237,7 @@ class DesktopLyricsManager {
             if (this.elements.currentLyric.textContent !== currentLyric.content) {
                 this.animateLyricChange(this.elements.currentLyric, currentLyric.content);
             }
-            
+
             // 添加高亮效果
             if (this.isPlaying) {
                 this.elements.currentLyric.classList.add('highlight');
@@ -395,7 +394,7 @@ class DesktopLyricsManager {
 
     async setOpacity(opacity) {
         window.cacheManager.setLocalCache('desktopLyrics-opacity', opacity);
-        
+
         if (window.electronAPI && window.electronAPI.desktopLyrics) {
             try {
                 await window.electronAPI.desktopLyrics.setOpacity(opacity);
@@ -482,32 +481,32 @@ class DesktopLyricsManager {
 
     cycleTheme() {
         const themes = [
-            { name: '', displayName: '默认' },
-            { name: 'theme-blue', displayName: '蓝色' },
-            { name: 'theme-green', displayName: '绿色' },
-            { name: 'theme-purple', displayName: '紫色' },
-            { name: 'theme-orange', displayName: '橙色' },
-            { name: 'theme-pink', displayName: '粉色' },
-            { name: 'theme-cyan', displayName: '青色' }
+            {name: '', displayName: '默认'},
+            {name: 'theme-blue', displayName: '蓝色'},
+            {name: 'theme-green', displayName: '绿色'},
+            {name: 'theme-purple', displayName: '紫色'},
+            {name: 'theme-orange', displayName: '橙色'},
+            {name: 'theme-pink', displayName: '粉色'},
+            {name: 'theme-cyan', displayName: '青色'}
         ];
-        
+
         const currentTheme = this.elements.container.className.split(' ').find(cls => cls.startsWith('theme-'));
         const currentIndex = themes.findIndex(theme => theme.name === (currentTheme || ''));
         const nextIndex = (currentIndex + 1) % themes.length;
-        
+
         // 移除所有主题类
         themes.forEach(theme => {
             if (theme.name) this.elements.container.classList.remove(theme.name);
         });
-        
+
         // 添加新主题类
         if (themes[nextIndex].name) {
             this.elements.container.classList.add(themes[nextIndex].name);
         }
-        
+
         // 显示主题名称
         this.showThemeToast(themes[nextIndex].displayName);
-        
+
         // 保存主题设置
         window.cacheManager.setLocalCache('desktopLyrics-theme', themes[nextIndex].name);
     }
@@ -570,7 +569,7 @@ class DesktopLyricsManager {
             this.elements.opacitySlider.value = opacity;
             await this.setOpacity(opacity);
         }
-        
+
         const savedFontSize = window.cacheManager.getLocalCache('desktopLyrics-fontSize');
         if (savedFontSize) {
             const fontSize = parseInt(savedFontSize);
@@ -641,7 +640,14 @@ class DesktopLyricsManager {
         if (window.ResizeObserver) {
             this.resizeObserver = new ResizeObserver((entries) => {
                 for (let entry of entries) {
-                    this.checkAndUpdateLayout(entry.contentRect);
+                    const rect = entry.contentRect;
+
+                    // 检查尺寸是否有效，如果无效则显示提示
+                    if (rect.width > 0 && rect.height > 0 && !this.isSizeValid(rect.width, rect.height)) {
+                        this.showSizeConstraintTooltip(rect.width, rect.height);
+                    }
+
+                    this.checkAndUpdateLayout(rect);
                 }
             });
             this.resizeObserver.observe(this.elements.container);
@@ -696,22 +702,11 @@ class DesktopLyricsManager {
 
         console.log(`🎵 DesktopLyrics: 布局切换 ${oldLayout} -> ${newLayout}`);
 
-        // 移除旧的布局类
         this.elements.container.classList.remove('horizontal-layout', 'vertical-layout');
-
-        // 添加新的布局类
         this.elements.container.classList.add(`${newLayout}-layout`);
-
-        // 触发布局切换动画
         this.animateLayoutTransition(oldLayout, newLayout);
-
-        // 调整字体大小以适应新布局
         this.adjustFontSizeForLayout(newLayout);
-
-        // 保存布局偏好
         window.cacheManager.setLocalCache('desktopLyrics-lastLayout', newLayout);
-
-        // 显示布局切换提示
         this.showLayoutToast(newLayout);
     }
 
@@ -789,7 +784,7 @@ class DesktopLyricsManager {
     startWindowTracking() {
         setInterval(() => {
             this.checkAndSaveWindowState();
-        }, 2000);
+        }, 1500);
     }
 
     // 检查并保存窗口位置和尺寸
@@ -807,7 +802,7 @@ class DesktopLyricsManager {
                 const size = currentSize.size;
                 const positionKey = `${position[0]},${position[1]}`;
                 const sizeKey = `${size[0]},${size[1]}`;
-                
+
                 if (this.lastSavedPosition !== positionKey) {
                     this.saveWindowPosition(position[0], position[1]);
                     this.lastSavedPosition = positionKey;
@@ -839,6 +834,12 @@ class DesktopLyricsManager {
     // 保存窗口尺寸
     saveWindowSize(width, height) {
         try {
+            // 验证尺寸是否有效再保存
+            if (!this.isSizeValid(width, height)) {
+                console.warn(`🎵 DesktopLyrics: 尺寸无效，跳过保存 (${width}x${height})`);
+                return;
+            }
+
             const isVertical = height >= width;
             const sizeData = {
                 width: width,
@@ -887,8 +888,8 @@ class DesktopLyricsManager {
                 console.log('🎵 DesktopLyrics: 没有保存的窗口位置');
                 return;
             }
-            
-            const { x, y} = savedPosition;
+
+            const {x, y} = savedPosition;
             // 验证位置是否在屏幕范围内
             if (this.isPositionValid(x, y)) {
                 await window.electronAPI.desktopLyrics.setPosition(x, y);
@@ -911,9 +912,10 @@ class DesktopLyricsManager {
                 console.log('🎵 DesktopLyrics: 没有保存的窗口尺寸');
                 return;
             }
+
             const { width, height, layout } = savedSize;
             console.log(`🎵 DesktopLyrics: 发现保存的尺寸 (${width}x${height}) [保存时为${layout || '未知'}模式]`);
-            
+
             // 验证尺寸是否合理
             if (this.isSizeValid(width, height)) {
                 console.log(`🎵 DesktopLyrics: 准备恢复窗口尺寸 (${width}x${height})`);
@@ -922,25 +924,31 @@ class DesktopLyricsManager {
                 const isVertical = height >= width;
                 console.log(`🎵 DesktopLyrics: 恢复的尺寸为${isVertical ? '竖屏' : '横屏'}模式`);
 
-                await window.electronAPI.desktopLyrics.setSize(width, height);
-                this.lastSavedSize = `${width},${height}`;
-                console.log(`🎵 DesktopLyrics: 窗口尺寸已恢复 (${width}x${height})`);
+                const result = await window.electronAPI.desktopLyrics.setSize(width, height);
+                if (result.success) {
+                    this.lastSavedSize = `${width},${height}`;
+                    console.log(`🎵 DesktopLyrics: 窗口尺寸已恢复 (${width}x${height})`);
 
-                // 验证设置是否成功
-                setTimeout(async () => {
-                    try {
-                        const currentSize = await window.electronAPI.desktopLyrics.getSize();
-                        if (currentSize.success) {
-                            const [currentWidth, currentHeight] = currentSize.size;
-                            console.log(`🎵 DesktopLyrics: 验证当前尺寸 (${currentWidth}x${currentHeight})`);
+                    // 验证设置是否成功
+                    setTimeout(async () => {
+                        try {
+                            const currentSize = await window.electronAPI.desktopLyrics.getSize();
+                            if (currentSize.success) {
+                                const [currentWidth, currentHeight] = currentSize.size;
+                                console.log(`🎵 DesktopLyrics: 验证当前尺寸 (${currentWidth}x${currentHeight})`);
+                            }
+                        } catch (error) {
+                            console.error('❌ DesktopLyrics: 验证尺寸失败:', error);
                         }
-                    } catch (error) {
-                        console.error('❌ DesktopLyrics: 验证尺寸失败:', error);
-                    }
-                }, 100);
+                    }, 100);
+                } else {
+                    console.error(`❌ DesktopLyrics: 设置窗口尺寸失败: ${result.error}`);
+                    console.log('🎵 DesktopLyrics: 清除无效的保存尺寸');
+                    window.cacheManager.removeLocalCache('desktopLyrics-windowSize');
+                }
             } else {
-                console.log(`🎵 DesktopLyrics: 保存的尺寸无效 (${width}x${height})，使用默认尺寸`);
-                window.cacheManager.removeLocalCache('desktopLyrics-windowSize')
+                console.log(`🎵 DesktopLyrics: 保存的尺寸无效 (${width}x${height})，清除缓存`);
+                window.cacheManager.removeLocalCache('desktopLyrics-windowSize');
             }
         } catch (error) {
             console.error('❌ DesktopLyrics: 恢复窗口尺寸失败:', error);
@@ -965,8 +973,8 @@ class DesktopLyricsManager {
     // 验证尺寸是否有效
     isSizeValid(width, height) {
         // 基本的尺寸检查
-        const minWidth = 200;
-        const minHeight = 80;
+        const minWidth = 10;
+        const minHeight = 10;
         const maxWidth = 2000;
         const maxHeight = 1500;
 
@@ -981,6 +989,76 @@ class DesktopLyricsManager {
         }
 
         return isValid;
+    }
+
+    // 显示尺寸限制提示
+    showSizeConstraintTooltip(width, height) {
+        const minWidth = 10;
+        const minHeight = 10;
+        const maxWidth = 2000;
+        const maxHeight = 1500;
+
+        let message = '';
+        if (width < minWidth) {
+            message = `窗口宽度不能小于 ${minWidth}px`;
+        } else if (width > maxWidth) {
+            message = `窗口宽度不能大于 ${maxWidth}px`;
+        } else if (height < minHeight) {
+            message = `窗口高度不能小于 ${minHeight}px`;
+        } else if (height > maxHeight) {
+            message = `窗口高度不能大于 ${maxHeight}px`;
+        }
+
+        if (message) {
+            this.showTooltip(message, 3000);
+        }
+    }
+
+    // 显示临时提示
+    showTooltip(message, duration = 2000) {
+        // 移除现有的提示
+        const existingTooltip = this.elements.container.querySelector('.size-tooltip');
+        if (existingTooltip) {
+            existingTooltip.remove();
+        }
+
+        // 创建新的提示元素
+        const tooltip = document.createElement('div');
+        tooltip.className = 'size-tooltip';
+        tooltip.textContent = message;
+        tooltip.style.cssText = `
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        `;
+
+        this.elements.container.appendChild(tooltip);
+
+        // 显示动画
+        setTimeout(() => {
+            tooltip.style.opacity = '1';
+        }, 10);
+
+        // 自动隐藏
+        setTimeout(() => {
+            tooltip.style.opacity = '0';
+            setTimeout(() => {
+                if (tooltip.parentNode) {
+                    tooltip.parentNode.removeChild(tooltip);
+                }
+            }, 300);
+        }, duration);
     }
 
     // 手动保存当前窗口状态（在拖拽结束时调用）
@@ -1014,7 +1092,6 @@ class DesktopLyricsManager {
     }
 }
 
-// 初始化桌面歌词管理器
 document.addEventListener('DOMContentLoaded', () => {
     window.desktopLyricsManager = new DesktopLyricsManager();
     console.log('桌面歌词管理器已初始化');

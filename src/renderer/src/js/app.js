@@ -297,9 +297,30 @@ class MusicBoxApp extends EventEmitter {
                 this.filteredLibrary = [...this.library];
                 this.updateTrackList();
             }
+
+            // 确保桌面歌词按钮状态与设置同步
+            await this.syncDesktopLyricsButtonState();
         } catch (error) {
             console.error('Failed to load initial data:', error);
-            this.showError('Failed to load music library');
+            this.showError('加载音乐库失败');
+        }
+    }
+
+    // 同步桌面歌词按钮状态
+    async syncDesktopLyricsButtonState() {
+        try {
+            if (this.components.player && this.components.settings) {
+                // 从设置中获取桌面歌词状态
+                const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+                const desktopLyricsEnabled = settings.hasOwnProperty('desktopLyrics') ? settings.desktopLyrics : true;
+
+                console.log('🎵 App: 同步桌面歌词按钮状态:', desktopLyricsEnabled);
+
+                // 更新Player组件的按钮状态
+                await this.components.player.updateDesktopLyricsButtonVisibility(desktopLyricsEnabled);
+            }
+        } catch (error) {
+            console.error('❌ App: 同步桌面歌词按钮状态失败:', error);
         }
     }
 
