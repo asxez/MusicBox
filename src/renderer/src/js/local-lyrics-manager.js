@@ -144,7 +144,6 @@ class LocalLyricsManager {
 
         this.cache.set(key, {
             ...data,
-            timestamp: Date.now()
         });
     }
 

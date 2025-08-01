@@ -26,7 +26,6 @@ class CacheManager {
         
         this.memoryCache.set(key, {
             data: data,
-            timestamp: Date.now()
         });
         
         console.log(`🗄️ CacheManager: 内存缓存已设置 - ${key}`);

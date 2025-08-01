@@ -228,10 +228,10 @@ async function createDesktopLyricsWindow() {
 
     // 计算桌面歌词窗口的初始位置（在主窗口下方）
     const lyricsX = mainBounds.x + 50;
-    const lyricsY = mainBounds.y + mainBounds.height + 20;
+    const lyricsY = mainBounds.y + 20;
 
     desktopLyricsWindow = new BrowserWindow({
-        width: 800,
+        width: 500,
         height: 120,
         x: lyricsX,
         y: lyricsY,
@@ -254,6 +254,7 @@ async function createDesktopLyricsWindow() {
     // 加载桌面歌词页面
     const lyricsHtmlPath = path.join(__dirname, '../renderer/public/desktop-lyrics.html');
     await desktopLyricsWindow.loadFile(lyricsHtmlPath);
+    // desktopLyricsWindow.openDevTools();
     console.log('✅ 桌面歌词窗口加载成功');
 
     // 窗口事件处理
@@ -1476,10 +1477,20 @@ ipcMain.handle('desktopLyrics:setSize', (event, width, height) => {
         try {
             const w = parseInt(width);
             const h = parseInt(height);
-            if (isNaN(w) || isNaN(h) || w < 400 || h < 80) {
-                return { success: false, error: '无效的窗口尺寸参数' };
+
+            // 统一尺寸限制
+            const minWidth = 10;
+            const minHeight = 10;
+            const maxWidth = 2000;
+            const maxHeight = 1500;
+
+            if (isNaN(w) || isNaN(h) || w < minWidth || h < minHeight || w > maxWidth || h > maxHeight) {
+                console.warn(`❌ 桌面歌词窗口尺寸验证失败: (${w}x${h}), 限制: ${minWidth}-${maxWidth} x ${minHeight}-${maxHeight}`);
+                return { success: false, error: `窗口尺寸超出限制范围 (${minWidth}-${maxWidth} x ${minHeight}-${maxHeight})` };
             }
+
             desktopLyricsWindow.setSize(w, h);
+            console.log(`✅ 桌面歌词窗口尺寸已设置: (${w}x${h})`);
             return { success: true };
         } catch (error) {
             console.error('❌ 设置桌面歌词窗口大小失败:', error);
