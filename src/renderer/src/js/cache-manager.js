@@ -46,7 +46,6 @@ class CacheManager {
         try {
             const cacheData = {
                 data: data,
-                timestamp: Date.now(),
             };
             
             localStorage.setItem(this.storagePrefix + key, JSON.stringify(cacheData));

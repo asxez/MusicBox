@@ -923,6 +923,26 @@ a {
   }
 }
 
+// 桌面歌词按钮特殊样式
+#desktop-lyrics-btn {
+  &.active {
+    background: var(--color-primary-bg);
+
+    .icon {
+      filter: brightness(0) saturate(100%) invert(0.2) sepia(1) saturate(5) hue-rotate(220deg);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+
+    &:hover {
+      background: transparent;
+    }
+  }
+}
+
 // Middle control buttons
 .middle-control-buttons {
   display: flex;
@@ -1109,6 +1129,26 @@ a {
   .button-icon.active .icon {
     // 激活状态保持主题色
     filter: brightness(0) saturate(100%) invert(0.9) sepia(1) saturate(5) hue-rotate(220deg);
+  }
+
+  // 桌面歌词按钮特殊样式
+  #desktop-lyrics-btn {
+    &.active {
+      background: rgba(var(--color-primary-rgb), 0.2);
+
+      .icon {
+        filter: brightness(0) saturate(100%) invert(0.9) sepia(1) saturate(5) hue-rotate(220deg);
+      }
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+
+      &:hover {
+        background: transparent;
+      }
+    }
   }
 
   // 全屏按钮深色主题样式
