@@ -1197,13 +1197,14 @@ ipcMain.handle('lyrics:searchLocalFiles', async (event, lyricsDir, title, artist
 
         const files = fs.readdirSync(lyricsDir);
         const lrcFiles = files.filter(file => path.extname(file).toLowerCase() === '.lrc');
+        console.log(`📁 找到 ${lrcFiles.length} 个歌词文件`);
 
         // 生成可能的文件名匹配模式
         const searchPatterns = generateLyricsSearchPatterns(title, artist, album);
+        console.log(`🔍 生成 ${searchPatterns.length} 个搜索模式:`, searchPatterns);
 
         // 查找匹配的文件
         const matchedFile = findBestLyricsMatch(lrcFiles, searchPatterns);
-
         if (matchedFile) {
             const fullPath = path.join(lyricsDir, matchedFile);
             console.log(`✅ 找到匹配的歌词文件: ${matchedFile}`);
@@ -1320,28 +1321,33 @@ function cleanFileName(str) {
 // 查找最佳匹配的歌词文件
 function findBestLyricsMatch(files, patterns) {
     const matches = [];
+    console.log(`🔍 开始匹配 ${files.length} 个文件与 ${patterns.length} 个模式`);
 
     // 第一轮：精确匹配
+    console.log(`🎯 第一轮：精确匹配`);
     for (const pattern of patterns) {
         const exactMatch = files.find(file => file.toLowerCase() === pattern.toLowerCase());
         if (exactMatch) {
+            console.log(`✅ 精确匹配: ${exactMatch} = ${pattern}`);
             matches.push({file: exactMatch, score: 100, type: 'exact'});
         }
     }
 
     if (matches.length > 0) {
+        console.log(`🎯 找到 ${matches.length} 个精确匹配，返回第一个`);
         return matches[0].file; // 返回第一个精确匹配
     }
 
     // 第二轮：高相似度匹配
+    console.log(`🎯 第二轮：高相似度匹配 (阈值: 80%)`);
     for (const file of files) {
         const fileName = path.basename(file, '.lrc').toLowerCase();
 
         for (const pattern of patterns) {
             const patternName = path.basename(pattern, '.lrc').toLowerCase();
             const similarity = calculateStringSimilarity(fileName, patternName);
-
             if (similarity >= 0.8) { // 80%以上相似度
+                console.log(`📊 高相似度匹配: ${file} vs ${patternName} - 相似度: ${(similarity * 100).toFixed(1)}%`);
                 matches.push({file, score: similarity * 100, type: 'high_similarity'});
             }
         }
@@ -1349,25 +1355,35 @@ function findBestLyricsMatch(files, patterns) {
 
     // 第三轮：包含匹配
     if (matches.length === 0) {
+        console.log(`🎯 第三轮：关键词匹配 (要求: 至少1个精确匹配 + 70%总匹配度)`);
         for (const file of files) {
             const fileName = path.basename(file, '.lrc').toLowerCase();
 
             for (const pattern of patterns) {
                 const patternName = path.basename(pattern, '.lrc').toLowerCase();
 
-                // 检查是否包含主要关键词
-                const patternWords = patternName.split(/[\s\-_]+/).filter(w => w.length > 2);
-                const fileWords = fileName.split(/[\s\-_]+/).filter(w => w.length > 2);
-
-                let matchedWords = 0;
-                for (const word of patternWords) {
-                    if (fileWords.some(fw => fw.includes(word) || word.includes(fw))) {
-                        matchedWords++;
-                    }
+                // 解析模式，提取歌曲标题和艺术家
+                const patternInfo = parseFileNamePattern(patternName);
+                const fileInfo = parseFileNamePattern(fileName);
+                if (!patternInfo.title || !fileInfo.title) {
+                    // console.log(`⚠️ 跳过无法解析的模式: ${patternName}`);
+                    continue;
                 }
 
-                if (matchedWords >= Math.min(2, patternWords.length)) {
-                    const score = (matchedWords / patternWords.length) * 60; // 最高60分
+                // 计算标题匹配度（权重更高）
+                const titleMatch = calculateWordMatch(fileInfo.title, patternInfo.title);
+
+                // 计算艺术家匹配度（权重较低）
+                const artistMatch = patternInfo.artist && fileInfo.artist ?
+                    calculateWordMatch(fileInfo.artist, patternInfo.artist) : 0;
+
+                // 评分机制：
+                // 1. 标题匹配是必须的，权重70%
+                // 2. 艺术家匹配是加分项，权重30%
+                // 3. 标题匹配度必须>=0.6才考虑
+                if (titleMatch >= 0.6) {
+                    const score = (titleMatch * 0.7 + artistMatch * 0.3) * 60;
+                    console.log(`🎯 有效匹配: ${file} - 综合得分: ${score.toFixed(1)} (标题: ${titleMatch.toFixed(2)}, 艺术家: ${artistMatch.toFixed(2)})`);
                     matches.push({file, score, type: 'keyword_match'});
                 }
             }
@@ -1377,11 +1393,83 @@ function findBestLyricsMatch(files, patterns) {
     // 按分数排序，返回最佳匹配
     if (matches.length > 0) {
         matches.sort((a, b) => b.score - a.score);
-        console.log(`🎯 找到匹配文件: ${matches[0].file} (得分: ${matches[0].score.toFixed(1)}, 类型: ${matches[0].type})`);
-        return matches[0].file;
+
+        // 设置更严格的最低匹配分数阈值
+        const bestMatch = matches[0];
+        const minScoreThreshold = {
+            'exact': 100,           // 精确匹配必须100分
+            'high_similarity': 80,  // 高相似度至少80分
+            'keyword_match': 50     // 关键词匹配至少50分
+        };
+
+        const requiredScore = minScoreThreshold[bestMatch.type] || 0;
+        if (bestMatch.score >= requiredScore) {
+            console.log(`🎯 找到匹配文件: ${bestMatch.file} (得分: ${bestMatch.score.toFixed(1)}, 类型: ${bestMatch.type})`);
+            return bestMatch.file;
+        }
+    }
+    return null;
+}
+
+// 解析文件名模式，提取标题和艺术家
+function parseFileNamePattern(fileName) {
+    // 常见的分隔符模式
+    const separators = [' - ', ' – ', ' — ', '-', '_'];
+
+    for (const sep of separators) {
+        if (fileName.includes(sep)) {
+            const parts = fileName.split(sep);
+            if (parts.length >= 2) {
+                // 尝试不同的组合：艺术家-标题 或 标题-艺术家
+                return {
+                    title: parts[1].trim(),
+                    artist: parts[0].trim(),
+                    originalFormat: 'artist-title'
+                };
+            }
+        }
     }
 
-    return null;
+    // 如果没有分隔符，整个文件名作为标题
+    return {
+        title: fileName.trim(),
+        artist: '',
+        originalFormat: 'title-only'
+    };
+}
+
+// 计算词匹配度
+function calculateWordMatch(str1, str2) {
+    if (!str1 || !str2) return 0;
+
+    const words1 = str1.toLowerCase().split(/[\s\-_]+/).filter(w => w.length > 1);
+    const words2 = str2.toLowerCase().split(/[\s\-_]+/).filter(w => w.length > 1);
+
+    if (words1.length === 0 || words2.length === 0) return 0;
+
+    let matchedWords = 0;
+    let totalWords = Math.max(words1.length, words2.length);
+
+    for (const word1 of words1) {
+        for (const word2 of words2) {
+            // 精确匹配
+            if (word1 === word2) {
+                matchedWords += 1;
+                break;
+            }
+            // 包含匹配（权重较低）
+            else if (word1.includes(word2) || word2.includes(word1)) {
+                matchedWords += 0.7;
+                break;
+            }
+            // 相似度匹配（权重更低）
+            else if (calculateStringSimilarity(word1, word2) >= 0.8) {
+                matchedWords += 0.5;
+                break;
+            }
+        }
+    }
+    return matchedWords / totalWords;
 }
 
 // 计算字符串相似度（使用编辑距离算法）
