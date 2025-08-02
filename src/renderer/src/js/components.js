@@ -1538,6 +1538,9 @@ class Settings extends EventEmitter {
         this.clearCacheBtn = this.element.querySelector('#clear-cache-btn');
         this.cacheStatsDescription = this.element.querySelector('#cache-stats-description');
 
+        // 内嵌歌词测试元素
+        this.testEmbeddedLyricsBtn = this.element.querySelector('#test-embedded-lyrics-btn');
+
         // 快捷键配置元素
         this.globalShortcutsToggle = this.element.querySelector('#global-shortcuts-toggle');
         this.shortcutsContainer = this.element.querySelector('#shortcuts-container');
@@ -1658,6 +1661,11 @@ class Settings extends EventEmitter {
 
         this.clearCacheBtn.addEventListener('click', async () => {
             await this.clearCache();
+        });
+
+        // 内嵌歌词测试事件监听器
+        this.testEmbeddedLyricsBtn.addEventListener('click', async () => {
+            await this.testEmbeddedLyrics();
         });
 
         // 快捷键配置事件监听器
@@ -1866,6 +1874,108 @@ class Settings extends EventEmitter {
         }
     }
 
+    // 内嵌歌词测试方法
+    async testEmbeddedLyrics() {
+        try {
+            this.testEmbeddedLyricsBtn.disabled = true;
+            this.testEmbeddedLyricsBtn.textContent = '选择文件...';
+
+            const filePaths = await window.electronAPI.openFiles();
+            if (!filePaths || filePaths.length === 0) {
+                showToast('未选择文件', 'info');
+                return;
+            }
+
+            const filePath = filePaths[0];
+            this.testEmbeddedLyricsBtn.textContent = '检测中...';
+            console.log(`🎵 测试内嵌歌词: ${filePath}`);
+            if (!window.embeddedLyricsManager) {
+                showToast('内嵌歌词管理器不可用', 'error');
+                return;
+            }
+
+            const debugResult = await window.embeddedLyricsManager.debugEmbeddedLyrics(filePath);
+            let reportLines = [
+                `文件: ${filePath}`,
+                `时间: ${new Date().toLocaleString()}`,
+                ``,
+                `=== 检测结果 ===`,
+                `成功: ${debugResult.success ? '是' : '否'}`
+            ];
+
+            if (debugResult.success && debugResult.lyricsAnalysis) {
+                const analysis = debugResult.lyricsAnalysis;
+                reportLines.push(
+                    ``,
+                    `=== 歌词信息 ===`,
+                    `类型: ${analysis.type}`,
+                    `格式: ${analysis.format}`,
+                    `语言: ${analysis.language || '未知'}`,
+                    `描述: ${analysis.description || '无'}`,
+                    `同步歌词: ${analysis.synchronized ? '是' : '否'}`,
+                    `文本长度: ${analysis.textLength} 字符`,
+                    `时间戳数量: ${analysis.timestampCount}`,
+                    ``
+                );
+
+                if (analysis.textSample) {
+                    reportLines.push(`=== 歌词预览 ===`, analysis.textSample, ``);
+                }
+
+                if (debugResult.conversionResult) {
+                    const conv = debugResult.conversionResult;
+                    reportLines.push(
+                        `=== LRC转换 ===`,
+                        `转换成功: ${conv.success ? '是' : '否'}`,
+                        `LRC长度: ${conv.lrcLength} 字符`
+                    );
+
+                    if (conv.error) {
+                        reportLines.push(`转换错误: ${conv.error}`);
+                    }
+                    if (conv.lrcSample) {
+                        reportLines.push(``, `=== LRC预览 ===`, conv.lrcSample);
+                    }
+                }
+                showToast('检测到内嵌歌词！', 'success');
+            } else {
+                reportLines.push(`错误: ${debugResult.error || '未知错误'}`);
+                showToast('未检测到内嵌歌词', 'info');
+            }
+
+            // 显示详细报告
+            const report = reportLines.join('\n');
+            console.log('🔧 内嵌歌词测试报告:\n', report);
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                background: white; border: 1px solid #ccc; border-radius: 8px;
+                padding: 20px; max-width: 80%; max-height: 80%; overflow: auto;
+                z-index: 10000; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                font-family: monospace; font-size: 12px; line-height: 1.4;
+            `;
+
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '关闭';
+            closeBtn.style.cssText = 'float: right; margin-bottom: 10px; padding: 5px 10px; color: red';
+            closeBtn.onclick = () => document.body.removeChild(dialog);
+
+            const content = document.createElement('pre');
+            content.textContent = report;
+            content.style.cssText = 'margin: 0; white-space: pre-wrap; word-wrap: break-word;';
+
+            dialog.appendChild(closeBtn);
+            dialog.appendChild(content);
+            document.body.appendChild(dialog);
+        } catch (error) {
+            console.error('❌ 内嵌歌词测试失败:', error);
+            showToast('内嵌歌词测试失败', 'error');
+        } finally {
+            this.testEmbeddedLyricsBtn.disabled = false;
+            this.testEmbeddedLyricsBtn.textContent = '测试内嵌歌词';
+        }
+    }
+
     // 快捷键配置相关方法
     setupShortcutEventListeners() {
         // 全局快捷键开关
@@ -1966,7 +2076,6 @@ class Settings extends EventEmitter {
 
     formatShortcutKey(key) {
         if (!key) return '未设置';
-
         return key
             .replace(/Ctrl/g, 'Ctrl')
             .replace(/Alt/g, 'Alt')
@@ -2000,7 +2109,6 @@ class Settings extends EventEmitter {
     async handleShortcutRecorded(type, id, shortcutString, element) {
         // 检查冲突
         const conflicts = window.shortcutConfig.checkConflicts(type, id, shortcutString);
-
         if (conflicts.length > 0) {
             this.showShortcutConflict(conflicts, shortcutString, async () => {
                 // 用户确认覆盖
@@ -2014,7 +2122,6 @@ class Settings extends EventEmitter {
     async updateShortcut(type, id, shortcutString, element) {
         try {
             const success = await window.shortcutConfig.updateShortcut(type, id, shortcutString);
-
             if (success) {
                 element.textContent = this.formatShortcutKey(shortcutString);
                 showToast('快捷键已更新', 'success');
@@ -2054,7 +2161,6 @@ class Settings extends EventEmitter {
     async toggleGlobalShortcuts(enabled) {
         try {
             const success = await window.shortcutConfig.setGlobalShortcutsEnabled(enabled);
-
             if (success) {
                 this.updateGlobalShortcutsVisibility(enabled);
                 showToast(enabled ? '全局快捷键已启用' : '全局快捷键已禁用', 'success');
@@ -2488,7 +2594,7 @@ class Lyrics extends EventEmitter {
 
         try {
             console.log('🎵 Lyrics: 从API获取歌词');
-            const lyricsResult = await api.getLyrics(track.title, track.artist, track.album);
+            const lyricsResult = await api.getLyrics(track.title, track.artist, track.album, track.filePath);
 
             if (lyricsResult.success) {
                 this.lyrics = api.parseLRC(lyricsResult.lrc);
@@ -2546,7 +2652,7 @@ class Lyrics extends EventEmitter {
                     console.log('❌ Player: 封面获取失败，使用默认封面');
                 }
             }
-            // Set background image if available
+            // 设置背景图像
             if (track.cover) {
                 this.background.style.backgroundImage = `url(${track.cover})`;
             } else {

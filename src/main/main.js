@@ -36,6 +36,301 @@ function fixStringEncoding(str) {
     }
 }
 
+// 提取内嵌歌词函数
+function extractEmbeddedLyrics(metadata) {
+    if (!metadata || !metadata.native) {
+        console.log('🔍 内嵌歌词提取: 元数据或原生标签为空');
+        return null;
+    }
+
+    console.log('🔍 内嵌歌词提取: 开始分析元数据');
+    console.log(`🔍 可用格式: ${Object.keys(metadata.native).join(', ')}`);
+
+    let embeddedLyrics = null;
+    let allFoundTags = []; // 记录所有找到的相关标签
+
+    // 遍历所有原生标签格式
+    for (const [format, tags] of Object.entries(metadata.native)) {
+        if (!Array.isArray(tags)) continue;
+
+        console.log(`🔍 检查格式: ${format}, 标签数量: ${tags.length}`);
+
+        for (const tag of tags) {
+            const tagId = tag.id ? tag.id.toUpperCase() : '';
+
+            // 记录所有标签用于调试
+            if (tagId) {
+                console.log(`🔍 发现标签: ${format}.${tagId}`, {
+                    value: typeof tag.value === 'string' ? tag.value.substring(0, 100) + '...' : tag.value
+                });
+            }
+
+            // 扩展歌词标签识别范围
+            if (isLyricsTag(tagId, format)) {
+                allFoundTags.push({format, tagId, tag});
+
+                if (tagId === 'USLT' || tagId === 'LYRICS' || tagId === 'UNSYNCED LYRICS' ||
+                    tagId === 'UNSYNCEDLYRICS' || tagId === '©LYR' || tagId === 'LYR') {
+                    // 无同步歌词 (Unsynchronized Lyrics)
+                    const lyricsText = extractLyricsText(tag.value);
+                    if (lyricsText) {
+                        embeddedLyrics = {
+                            type: 'USLT',
+                            format: format,
+                            language: tag.value?.language || 'unknown',
+                            description: tag.value?.description || '',
+                            text: lyricsText,
+                            synchronized: false
+                        };
+                        console.log(`✅ 找到USLT歌词 (${format}.${tagId}): ${lyricsText.substring(0, 50)}...`);
+                        break;
+                    }
+                } else if (tagId === 'SYLT' || tagId === 'SYNCHRONIZED LYRICS' || tagId === 'SYNCEDLYRICS') {
+                    // 同步歌词 (Synchronized Lyrics)
+                    const syncLyrics = extractSynchronizedLyrics(tag.value);
+                    if (syncLyrics) {
+                        embeddedLyrics = {
+                            type: 'SYLT',
+                            format: format,
+                            language: tag.value?.language || 'unknown',
+                            description: tag.value?.description || '',
+                            text: syncLyrics.text,
+                            timestamps: syncLyrics.timestamps,
+                            synchronized: true
+                        };
+                        console.log(`✅ 找到SYLT同步歌词 (${format}.${tagId}): ${syncLyrics.timestamps.length} 个时间戳`);
+                        break;
+                    }
+                } else if (tagId === 'TXXX' && tag.value?.description) {
+                    // 自定义文本标签中的歌词
+                    const desc = tag.value.description.toUpperCase();
+                    if (desc.includes('LYRIC') || desc.includes('歌词') || desc.includes('LYRICS')) {
+                        const lyricsText = tag.value.text;
+                        if (lyricsText && typeof lyricsText === 'string' && lyricsText.trim()) {
+                            embeddedLyrics = {
+                                type: 'TXXX',
+                                format: format,
+                                description: tag.value.description,
+                                text: lyricsText.trim(),
+                                synchronized: false
+                            };
+                            console.log(`✅ 找到TXXX歌词 (${format}.${tagId}): ${tag.value.description}`);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        // 如果已经找到歌词，跳出外层循环
+        if (embeddedLyrics) break;
+    }
+
+    // 显示所有找到的相关标签
+    if (allFoundTags.length > 0) {
+        console.log(`🔍 找到 ${allFoundTags.length} 个歌词相关标签:`,
+            allFoundTags.map(t => `${t.format}.${t.tagId}`).join(', '));
+    } else {
+        console.log('🔍 未找到任何歌词相关标签');
+    }
+
+    return embeddedLyrics;
+}
+
+// 判断是否为歌词标签
+function isLyricsTag(tagId, format) {
+    const lyricsTagIds = [
+        'USLT', 'LYRICS', 'UNSYNCED LYRICS', 'UNSYNCEDLYRICS',
+        'SYLT', 'SYNCHRONIZED LYRICS', 'SYNCEDLYRICS',
+        'TXXX', '©LYR', 'LYR', 'LYRICIST'
+    ];
+
+    // 对于Vorbis Comments格式，还要检查其他可能的标签
+    if (format === 'vorbis') {
+        lyricsTagIds.push('LYRICS', 'UNSYNCEDLYRICS', 'SYNCEDLYRICS');
+    }
+
+    // 对于APE格式
+    if (format === 'APEv2') {
+        lyricsTagIds.push('Lyrics', 'LYRICS');
+    }
+
+    return lyricsTagIds.includes(tagId);
+}
+
+// 提取歌词文本内容
+function extractLyricsText(value) {
+    console.log('🔍 提取歌词文本:', {
+        type: typeof value,
+        isArray: Array.isArray(value),
+        keys: typeof value === 'object' && value ? Object.keys(value) : null
+    });
+
+    if (!value) {
+        console.log('🔍 歌词值为空');
+        return null;
+    }
+
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        console.log(`🔍 字符串歌词: ${trimmed.substring(0, 100)}...`);
+        return trimmed || null;
+    }
+
+    if (typeof value === 'object') {
+        console.log('🔍 对象歌词，检查属性:', Object.keys(value));
+
+        // USLT格式通常有text属性
+        if (value.text && typeof value.text === 'string') {
+            const trimmed = value.text.trim();
+            console.log(`🔍 找到text属性: ${trimmed.substring(0, 100)}...`);
+            return trimmed || null;
+        }
+
+        // 有些格式可能直接是歌词内容
+        if (value.lyrics && typeof value.lyrics === 'string') {
+            const trimmed = value.lyrics.trim();
+            console.log(`🔍 找到lyrics属性: ${trimmed.substring(0, 100)}...`);
+            return trimmed || null;
+        }
+
+        // 检查其他可能的属性名
+        const possibleKeys = ['lyric', 'content', 'data', 'value'];
+        for (const key of possibleKeys) {
+            if (value[key] && typeof value[key] === 'string') {
+                const trimmed = value[key].trim();
+                console.log(`🔍 找到${key}属性: ${trimmed.substring(0, 100)}...`);
+                return trimmed || null;
+            }
+        }
+
+        // 如果是数组，尝试提取第一个字符串元素
+        if (Array.isArray(value) && value.length > 0) {
+            for (const item of value) {
+                if (typeof item === 'string') {
+                    const trimmed = item.trim();
+                    console.log(`🔍 数组中找到字符串: ${trimmed.substring(0, 100)}...`);
+                    return trimmed || null;
+                } else if (typeof item === 'object' && item.text) {
+                    const trimmed = item.text.trim();
+                    console.log(`🔍 数组对象中找到text: ${trimmed.substring(0, 100)}...`);
+                    return trimmed || null;
+                }
+            }
+        }
+
+        console.log('🔍 对象中未找到有效的歌词文本');
+    }
+
+    console.log('🔍 无法提取歌词文本');
+    return null;
+}
+
+// 提取同步歌词
+function extractSynchronizedLyrics(value) {
+    console.log('🔍 提取同步歌词:', {
+        type: typeof value,
+        isArray: Array.isArray(value),
+        keys: typeof value === 'object' && value ? Object.keys(value) : null
+    });
+
+    if (!value || typeof value !== 'object') {
+        console.log('🔍 同步歌词值无效');
+        return null;
+    }
+
+    try {
+        let timestamps = [];
+        let text = '';
+
+        if (Array.isArray(value.synchronizedText)) {
+            // 标准SYLT格式
+            console.log(`🔍 标准SYLT格式，同步文本数量: ${value.synchronizedText.length}`);
+            for (const item of value.synchronizedText) {
+                console.log('🔍 SYLT项目:', {text: item.text, timeStamp: item.timeStamp});
+                if (item.text && typeof item.timeStamp === 'number') {
+                    timestamps.push({
+                        time: item.timeStamp / 1000, // 转换为秒
+                        text: item.text.trim()
+                    });
+                    text += item.text.trim() + '\n';
+                }
+            }
+        } else if (value.text && value.timeStamps) {
+            // 其他可能的格式
+            console.log('🔍 文本+时间戳格式');
+            const textLines = value.text.split('\n');
+            const timeStamps = Array.isArray(value.timeStamps) ? value.timeStamps : [];
+
+            console.log(`🔍 文本行数: ${textLines.length}, 时间戳数: ${timeStamps.length}`);
+
+            for (let i = 0; i < Math.min(textLines.length, timeStamps.length); i++) {
+                if (textLines[i].trim() && typeof timeStamps[i] === 'number') {
+                    timestamps.push({
+                        time: timeStamps[i] / 1000,
+                        text: textLines[i].trim()
+                    });
+                }
+            }
+            text = value.text;
+        } else if (Array.isArray(value)) {
+            // 有些格式可能直接是数组
+            console.log(`🔍 数组格式，长度: ${value.length}`);
+            for (const item of value) {
+                if (item && typeof item === 'object' && item.text && typeof item.time === 'number') {
+                    timestamps.push({
+                        time: item.time / 1000,
+                        text: item.text.trim()
+                    });
+                    text += item.text.trim() + '\n';
+                }
+            }
+        } else {
+            // 尝试其他可能的属性名
+            console.log('🔍 检查其他可能的同步歌词格式');
+            const possibleKeys = ['lyrics', 'lines', 'entries', 'items'];
+            for (const key of possibleKeys) {
+                if (Array.isArray(value[key])) {
+                    console.log(`🔍 找到${key}数组，长度: ${value[key].length}`);
+                    for (const item of value[key]) {
+                        if (item && typeof item === 'object') {
+                            const timeKey = item.time !== undefined ? 'time' :
+                                item.timestamp !== undefined ? 'timestamp' :
+                                    item.timeStamp !== undefined ? 'timeStamp' : null;
+                            const textKey = item.text !== undefined ? 'text' :
+                                item.lyric !== undefined ? 'lyric' :
+                                    item.content !== undefined ? 'content' : null;
+
+                            if (timeKey && textKey && typeof item[timeKey] === 'number' && typeof item[textKey] === 'string') {
+                                timestamps.push({
+                                    time: item[timeKey] / 1000,
+                                    text: item[textKey].trim()
+                                });
+                                text += item[textKey].trim() + '\n';
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        console.log(`🔍 提取到 ${timestamps.length} 个时间戳`);
+        if (timestamps.length > 0) {
+            const sortedTimestamps = timestamps.sort((a, b) => a.time - b.time);
+            console.log(`🔍 同步歌词时间范围: ${sortedTimestamps[0].time}s - ${sortedTimestamps[sortedTimestamps.length - 1].time}s`);
+            return {
+                timestamps: sortedTimestamps,
+                text: text.trim()
+            };
+        }
+    } catch (error) {
+        console.error(`❌ 解析同步歌词失败: ${error.message}`, error);
+    }
+
+    console.log('🔍 未找到有效的同步歌词');
+    return null;
+}
+
 // 全局元数据解析函数
 async function parseMetadata(filePath) {
     try {
@@ -70,8 +365,18 @@ async function parseMetadata(filePath) {
             };
         }
 
-        console.log(`✅ 元数据解析成功: ${title} - ${artist}`);
+        // 提取内嵌歌词
+        let embeddedLyrics = null;
+        try {
+            embeddedLyrics = extractEmbeddedLyrics(metadata);
+            if (embeddedLyrics) {
+                console.log(`🎵 发现内嵌歌词: ${embeddedLyrics.type} 格式`);
+            }
+        } catch (error) {
+            console.warn(`⚠️ 提取内嵌歌词失败: ${error.message}`);
+        }
 
+        console.log(`✅ 元数据解析成功: ${title} - ${artist}`);
         return {
             title,
             artist,
@@ -83,7 +388,8 @@ async function parseMetadata(filePath) {
             genre,
             track,
             disc,
-            cover
+            cover,
+            embeddedLyrics
         };
     } catch (error) {
         console.warn(`⚠️ 使用music-metadata解析失败，回退到文件名解析: ${error.message}`);
@@ -126,7 +432,8 @@ async function parseMetadata(filePath) {
             genre: null,
             track: null,
             disc: null,
-            cover: null
+            cover: null,
+            embeddedLyrics: null
         };
     }
 }
@@ -576,7 +883,8 @@ ipcMain.handle('audio:loadTrack', async (event, filePath) => {
             genre: metadata.genre,
             track: metadata.track,
             disc: metadata.disc,
-            cover: metadata.cover
+            cover: metadata.cover,
+            embeddedLyrics: metadata.embeddedLyrics
         };
 
         console.log(`✅ 音频文件信息已更新: ${audioEngineState.currentTrack.title} (${metadata.duration.toFixed(2)}s)`);
@@ -775,7 +1083,8 @@ ipcMain.handle('library:scanDirectory', async (event, directoryPath) => {
                             genre: metadata.genre,
                             track: metadata.track,
                             disc: metadata.disc,
-                            fileSize: stat.size
+                            fileSize: stat.size,
+                            embeddedLyrics: metadata.embeddedLyrics
                         };
 
                         tracks.push(trackData);
@@ -936,7 +1245,8 @@ ipcMain.handle('library:getTrackMetadata', async (event, filePath) => {
             genre: metadata.genre,
             track: metadata.track,
             disc: metadata.disc,
-            cover: metadata.cover
+            cover: metadata.cover,
+            embeddedLyrics: metadata.embeddedLyrics
         };
     } catch (error) {
         console.error('❌ 获取元数据失败:', error);
@@ -1186,6 +1496,99 @@ ipcMain.handle('lyrics:readLocalFile', async (event, filePath) => {
     }
 });
 
+
+// 内嵌歌词IPC处理器
+ipcMain.handle('lyrics:getEmbedded', async (event, filePath) => {
+    try {
+        // 参数验证
+        if (!filePath || typeof filePath !== 'string') {
+            console.error('❌ 内嵌歌词获取失败: 无效的文件路径参数');
+            return {
+                success: false,
+                error: '无效的文件路径参数'
+            };
+        }
+
+        // 检查文件是否存在
+        if (!fs.existsSync(filePath)) {
+            console.error(`❌ 内嵌歌词获取失败: 文件不存在 - ${filePath}`);
+            return {
+                success: false,
+                error: '指定的音频文件不存在'
+            };
+        }
+
+        console.log(`🎵 获取内嵌歌词: ${filePath}`);
+
+        // 使用music-metadata解析文件
+        const metadata = await mm.parseFile(filePath);
+
+        if (!metadata) {
+            console.error(`❌ 内嵌歌词获取失败: 无法解析音频文件元数据 - ${filePath}`);
+            return {
+                success: false,
+                error: '无法解析音频文件元数据'
+            };
+        }
+
+        // 输出详细的元数据调试信息
+        console.log('🔍 音频文件元数据概览:');
+        console.log(`  - 格式: ${metadata.format?.container || '未知'}`);
+        console.log(`  - 编解码器: ${metadata.format?.codec || '未知'}`);
+        console.log(`  - 标题: ${metadata.common?.title || '未知'}`);
+        console.log(`  - 艺术家: ${metadata.common?.artist || '未知'}`);
+
+        if (metadata.native) {
+            console.log('🔍 原生标签格式:');
+            for (const [format, tags] of Object.entries(metadata.native)) {
+                console.log(`  - ${format}: ${tags.length} 个标签`);
+                // 显示前几个标签的ID
+                const tagIds = tags.slice(0, 5).map(tag => tag.id).filter(id => id);
+                if (tagIds.length > 0) {
+                    console.log(`    标签ID: ${tagIds.join(', ')}${tags.length > 5 ? '...' : ''}`);
+                }
+            }
+        } else {
+            console.log('🔍 未找到原生标签数据');
+        }
+
+        const embeddedLyrics = extractEmbeddedLyrics(metadata);
+
+        if (embeddedLyrics) {
+            console.log(`✅ 成功提取内嵌歌词: ${embeddedLyrics.type} 格式 (语言: ${embeddedLyrics.language || '未知'})`);
+            return {
+                success: true,
+                lyrics: embeddedLyrics,
+                source: 'embedded'
+            };
+        } else {
+            console.log(`ℹ️ 未找到内嵌歌词: ${filePath}`);
+            return {
+                success: false,
+                error: '文件中未包含内嵌歌词'
+            };
+        }
+    } catch (error) {
+        console.error('❌ 获取内嵌歌词失败:', error);
+
+        // 根据错误类型提供更具体的错误信息
+        let errorMessage = error.message;
+        if (error.code === 'ENOENT') {
+            errorMessage = '音频文件不存在或无法访问';
+        } else if (error.code === 'EACCES') {
+            errorMessage = '没有权限访问音频文件';
+        } else if (error.message.includes('unsupported format')) {
+            errorMessage = '不支持的音频文件格式';
+        } else if (error.message.includes('corrupted')) {
+            errorMessage = '音频文件已损坏';
+        }
+
+        return {
+            success: false,
+            error: errorMessage
+        };
+    }
+});
 
 ipcMain.handle('lyrics:searchLocalFiles', async (event, lyricsDir, title, artist, album) => {
     try {
@@ -1555,7 +1958,6 @@ function registerGlobalShortcuts(shortcuts) {
         try {
             // 转换快捷键格式（从我们的格式转换为Electron格式）
             const electronKey = convertToElectronShortcut(shortcut.key);
-
             const success = globalShortcut.register(electronKey, () => {
                 console.log(`🎹 全局快捷键触发: ${shortcut.name} (${electronKey})`);
 
@@ -1575,7 +1977,6 @@ function registerGlobalShortcuts(shortcuts) {
             console.error(`❌ 注册全局快捷键失败: ${shortcut.name}`, error);
         }
     });
-
     console.log(`🎹 已注册 ${registeredShortcuts.size} 个全局快捷键`);
 }
 

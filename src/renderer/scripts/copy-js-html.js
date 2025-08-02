@@ -15,6 +15,7 @@ const files = [
     ['../src/js/local-lyrics-manager.js', '../public/js/local-lyrics-manager.js'],
     ['../src/js/local-cover-manager.js', '../public/js/local-cover-manager.js'],
     ['../src/js/desktop-lyrics.js', '../public/js/desktop-lyrics.js'],
+    ['../src/js/embedded-lyrics-manager.js', '../public/js/embedded-lyrics-manager.js'],
 ]
 for (let file of files) {
     copy(file[0], file[1]);

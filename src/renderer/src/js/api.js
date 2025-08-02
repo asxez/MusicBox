@@ -1083,7 +1083,6 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-
     // 保存封面到本地
     async saveCoverToLocalCache(title, artist, album, imageData) {
         try {
@@ -1123,9 +1122,9 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async getLyrics(title, artist, album) {
+    async getLyrics(title, artist, album, filePath = null) {
         try {
-            console.log(`🎵 获取歌词: ${title} - ${artist}`);
+            console.log(`🎵 获取歌词: ${title} - ${artist}${filePath ? ` (${filePath})` : ''}`);
 
             // 检查localStorage缓存
             if (window.cacheManager) {
@@ -1136,18 +1135,35 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 检查本地歌词文件
+            // 优先级1: 检查内嵌歌词（如果提供了文件路径）
+            if (filePath && window.embeddedLyricsManager) {
+                try {
+                    const embeddedResult = await window.embeddedLyricsManager.getEmbeddedLyrics(filePath);
+                    if (embeddedResult.success) {
+                        console.log(`✅ 内嵌歌词获取成功: ${title} - ${embeddedResult.type} 格式`);
+                        // 将内嵌歌词保存到缓存中
+                        if (window.cacheManager) {
+                            window.cacheManager.setLyricsCache(title, artist, album, embeddedResult);
+                        }
+                        return embeddedResult;
+                    } else {
+                        console.log(`ℹ️ 内嵌歌词未找到: ${title} - ${embeddedResult.error}`);
+                    }
+                } catch (embeddedError) {
+                    console.warn(`⚠️ 内嵌歌词获取异常: ${title} - ${embeddedError.message}`);
+                }
+            }
+
+            // 优先级2: 检查本地歌词文件
             if (window.localLyricsManager) {
                 try {
                     const localResult = await window.localLyricsManager.getLyrics(title, artist, album);
                     if (localResult.success) {
                         console.log(`✅ 本地歌词获取成功: ${title} - ${localResult.fileName}`);
-
                         // 将本地歌词保存到缓存中
                         if (window.cacheManager) {
                             window.cacheManager.setLyricsCache(title, artist, album, localResult);
                         }
-
                         return localResult;
                     } else {
                         console.log(`ℹ️ 本地歌词未找到: ${title} - ${localResult.error}`);
@@ -1157,7 +1173,7 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 通过网络接口获取
+            // 优先级3: 通过网络接口获取
             console.log(`🌐 尝试网络获取歌词: ${title}`);
             const params = new URLSearchParams();
             if (title) params.append('title', title);
@@ -1166,9 +1182,7 @@ class MusicBoxAPI extends EventEmitter {
 
             const url = `https://api.lrc.cx/lyrics?${params.toString()}`;
             const response = await this.fetchWithRetry(url);
-
             const lrcText = await response.text();
-
             if (!lrcText || lrcText.trim() === '') {
                 console.error(`⚠️ 歌词内容为空`);
             }
@@ -1181,26 +1195,16 @@ class MusicBoxAPI extends EventEmitter {
             };
 
             // 缓存网络获取的结果
-            if (window.cacheManager) {
-                window.cacheManager.setLyricsCache(title, artist, album, result);
-            }
-
+            if (window.cacheManager) window.cacheManager.setLyricsCache(title, artist, album, result);
             return result;
 
         } catch (error) {
             console.error(`❌ 歌词获取失败: ${title} - ${error.message}`);
-            const errorResult = {
+            return {
                 success: false,
                 error: error.message,
                 source: 'error'
             };
-
-            // 缓存失败结果（短时间）
-            if (window.cacheManager) {
-                window.cacheManager.setLyricsCache(title, artist, album, errorResult);
-            }
-
-            return errorResult;
         }
     }
 
@@ -1357,7 +1361,7 @@ class MusicBoxAPI extends EventEmitter {
 
     async loadLyricsForDesktop(track) {
         try {
-            const lyricsResult = await this.getLyrics(track.title, track.artist, track.album);
+            const lyricsResult = await this.getLyrics(track.title, track.artist, track.album, track.filePath);
             if (lyricsResult.success) {
                 const parsedLyrics = this.parseLRC(lyricsResult.lrc);
                 await this.syncToDesktopLyrics('lyrics', parsedLyrics);
@@ -1402,7 +1406,6 @@ class MusicBoxAPI extends EventEmitter {
 
             // 同步播放进度
             await this.syncToDesktopLyrics('position', this.position);
-
             console.log('✅ 当前状态已同步到桌面歌词');
         } catch (error) {
             console.error('❌ 同步当前状态到桌面歌词失败:', error);
