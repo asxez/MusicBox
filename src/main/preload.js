@@ -110,11 +110,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
         reset: () => ipcRenderer.invoke('settings:reset')
     },
 
-    // 本地歌词
+    // 歌词管理
     lyrics: {
+        // 本地歌词文件
         readLocalFile: (filePath) => ipcRenderer.invoke('lyrics:readLocalFile', filePath),
         searchLocalFiles: (lyricsDir, title, artist, album) =>
-            ipcRenderer.invoke('lyrics:searchLocalFiles', lyricsDir, title, artist, album)
+            ipcRenderer.invoke('lyrics:searchLocalFiles', lyricsDir, title, artist, album),
+
+        // 内嵌歌词
+        getEmbedded: (filePath) => ipcRenderer.invoke('lyrics:getEmbedded', filePath)
     },
 
     // 本地封面缓存

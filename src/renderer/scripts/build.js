@@ -76,7 +76,8 @@ async function bundleJS() {
             file !== 'cache-manager.js' &&
             file !== 'local-lyrics-manager.js' &&
             file !== 'local-cover-manager.js' &&
-            file !== 'desktop-lyrics.js'
+            file !== 'desktop-lyrics.js' &&
+            file !== 'embedded-lyrics-manager.js'
         ) {
             const filePath = path.join(jsDir, file);
             const content = fs.readFileSync(filePath, 'utf8');
@@ -87,7 +88,8 @@ async function bundleJS() {
             file === 'cache-manager.js' ||
             file === 'local-lyrics-manager.js' ||
             file === 'local-cover-manager.js' ||
-            file === 'desktop-lyrics.js'
+            file === 'desktop-lyrics.js' ||
+            file === 'embedded-lyrics-manager.js'
         ) {
             console.log(`⚠ Skipping ${file} (loaded separately)`);
         }

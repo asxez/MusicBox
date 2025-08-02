@@ -34,7 +34,6 @@ class WebAudioEngine {
 
         // 封面对象URL管理
         this.coverObjectUrls = new Set();
-
         console.log('🎵 Web Audio Engine 初始化');
     }
 
@@ -67,15 +66,12 @@ class WebAudioEngine {
     async loadTrack(filePath) {
         try {
             console.log(`🔄 加载音频文件: ${filePath}`);
-
-            // 停止当前播放
             this.stop();
 
             // 读取文件 - 支持多种方式
             let arrayBuffer;
 
             if (window.electronAPI && window.electronAPI.readAudioFile) {
-                // 使用Electron API读取文件
                 console.log('🔄 使用Electron API读取文件');
                 arrayBuffer = await window.electronAPI.readAudioFile(filePath);
             } else {
@@ -92,10 +88,7 @@ class WebAudioEngine {
             this.audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
             const webAudioDuration = this.audioBuffer.duration;
 
-            // 获取元数据信息
             const metadata = await this.getTrackMetadata(filePath);
-
-            // 优先使用元数据中的时长，如果没有则使用Web Audio API的时长
             this.duration = (metadata.duration && metadata.duration > 0) ? metadata.duration : webAudioDuration;
 
             // 处理封面数据
@@ -107,7 +100,6 @@ class WebAudioEngine {
                     const coverBlob = new Blob([metadata.cover.data], {
                         type: `image/${metadata.cover.format.toLowerCase()}`
                     });
-                    // 创建对象URL
                     coverUrl = URL.createObjectURL(coverBlob);
                     // 记录URL用于后续清理
                     this.coverObjectUrls.add(coverUrl);
@@ -130,12 +122,11 @@ class WebAudioEngine {
                 genre: metadata.genre,
                 track: metadata.track,
                 disc: metadata.disc,
-                cover: coverUrl  // 使用转换后的URL而不是原始对象
+                cover: coverUrl
             };
 
             console.log(`✅ 音频解码成功: Web Audio时长 ${webAudioDuration.toFixed(2)}s, 元数据时长 ${metadata.duration || 0}s`);
             console.log(`✅ 使用时长: ${this.duration.toFixed(2)}s`);
-
             console.log(`✅ 音频文件加载成功: ${this.currentTrack.title}`);
 
             // 触发事件
@@ -144,10 +135,9 @@ class WebAudioEngine {
             }
 
             // 触发时长更新事件
-            if (this.onDurationChanged) {
-                this.onDurationChanged(filePath, this.duration);
-            }
-
+            // if (this.onDurationChanged) {
+            //     this.onDurationChanged(filePath, this.duration);
+            // }
             return true;
         } catch (error) {
             console.error('❌ 音频文件加载失败:', error);
@@ -760,7 +750,7 @@ class WebAudioEngine {
         }
 
         if (this.onEqualizerChanged) {
-            this.onEqualizerChanged({ enabled });
+            this.onEqualizerChanged({enabled});
         }
 
         console.log(`✅ 均衡器${enabled ? '已启用' : '已禁用'}`);
@@ -1017,7 +1007,6 @@ class AudioEqualizer {
         console.log(`🔗 频段数量: ${this.frequencies.length}`);
 
 
-
         let previousNode = this.input;
         console.log(`🔗 起始节点: input (${!!this.input})`);
 
@@ -1061,7 +1050,7 @@ class AudioEqualizer {
             try {
                 // 连接到链中
                 previousNode.connect(filter);
-                console.log(`✅ 滤波器 ${i} 连接成功: ${previousNode === this.input ? 'input' : 'filter' + (i-1)} -> filter${i}`);
+                console.log(`✅ 滤波器 ${i} 连接成功: ${previousNode === this.input ? 'input' : 'filter' + (i - 1)} -> filter${i}`);
                 previousNode = filter;
             } catch (error) {
                 console.error(`❌ 滤波器 ${i} 连接失败:`, error);
