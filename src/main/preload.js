@@ -69,9 +69,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
         updateTrackMetadata: (trackId, metadata) => ipcRenderer.invoke('library:updateTrackMetadata', trackId, metadata),
 
         // Playlists
-        createPlaylist: (name) => ipcRenderer.invoke('library:createPlaylist', name),
+        createPlaylist: (name, description) => ipcRenderer.invoke('library:createPlaylist', name, description),
+        getPlaylists: () => ipcRenderer.invoke('library:getPlaylists'),
+        getPlaylistDetail: (playlistId) => ipcRenderer.invoke('library:getPlaylistDetail', playlistId),
+        deletePlaylist: (playlistId) => ipcRenderer.invoke('library:deletePlaylist', playlistId),
+        renamePlaylist: (playlistId, newName) => ipcRenderer.invoke('library:renamePlaylist', playlistId, newName),
         addToPlaylist: (playlistId, trackIds) => ipcRenderer.invoke('library:addToPlaylist', playlistId, trackIds),
         removeFromPlaylist: (playlistId, trackIds) => ipcRenderer.invoke('library:removeFromPlaylist', playlistId, trackIds),
+        cleanupPlaylists: () => ipcRenderer.invoke('library:cleanupPlaylists'),
 
         // Cache management
         loadCachedTracks: () => ipcRenderer.invoke('library:loadCachedTracks'),
@@ -110,6 +115,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
         readLocalFile: (filePath) => ipcRenderer.invoke('lyrics:readLocalFile', filePath),
         searchLocalFiles: (lyricsDir, title, artist, album) =>
             ipcRenderer.invoke('lyrics:searchLocalFiles', lyricsDir, title, artist, album)
+    },
+
+    // 本地封面缓存
+    covers: {
+        checkLocalCover: (coverDir, title, artist, album) =>
+            ipcRenderer.invoke('covers:checkLocalCover', coverDir, title, artist, album),
+        saveCoverFile: (coverDir, fileName, imageData, dataType) =>
+            ipcRenderer.invoke('covers:saveCoverFile', coverDir, fileName, imageData, dataType)
     },
 
     // 全局快捷键

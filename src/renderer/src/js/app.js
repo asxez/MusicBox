@@ -74,6 +74,15 @@ class MusicBoxApp extends EventEmitter {
         this.components.lyrics = new Lyrics(document.getElementById('lyrics-page'));
         this.components.equalizer = new EqualizerComponent();
 
+        // 初始化歌单对话框组件
+        this.components.createPlaylistDialog = new CreatePlaylistDialog();
+        this.components.addToPlaylistDialog = new AddToPlaylistDialog();
+        this.components.renamePlaylistDialog = new RenamePlaylistDialog();
+        this.components.musicLibrarySelectionDialog = new MusicLibrarySelectionDialog();
+
+        // 初始化歌单详情页面组件
+        this.components.playlistDetailPage = new PlaylistDetailPage('#content-area');
+
         // 将settings组件暴露到全局，供其他组件访问
         window.settings = this.components.settings;
 
@@ -98,6 +107,14 @@ class MusicBoxApp extends EventEmitter {
 
         this.components.navigation.on('showSettings', async () => {
             await this.components.settings.toggle();
+        });
+
+        this.components.navigation.on('playlistSelected', (playlist) => {
+            this.handlePlaylistSelected(playlist);
+        });
+
+        this.components.navigation.on('showRenameDialog', (playlist) => {
+            this.components.renamePlaylistDialog.show(playlist);
         });
 
         // 监听快捷键配置更新
@@ -153,8 +170,52 @@ class MusicBoxApp extends EventEmitter {
             this.addToPlaylist(track);
         });
 
+        this.components.contextMenu.on('addToCustomPlaylist', async ({track, index}) => {
+            await this.handleAddToCustomPlaylist(track, index);
+        });
+
         this.components.contextMenu.on('delete', ({track, index}) => {
             this.handleDeleteTrack(track, index);
+        });
+
+        // 歌单对话框事件监听
+        this.components.createPlaylistDialog.on('playlistCreated', async (playlist) => {
+            await this.handlePlaylistCreated(playlist);
+        });
+
+        this.components.addToPlaylistDialog.on('createNewPlaylist', (track) => {
+            this.components.createPlaylistDialog.show(track);
+        });
+
+        this.components.addToPlaylistDialog.on('trackAdded', async ({playlist, track}) => {
+            await this.handleTrackAddedToPlaylist(playlist, track);
+        });
+
+        // 重命名歌单对话框事件监听
+        this.components.renamePlaylistDialog.on('playlistRenamed', async (playlist) => {
+            await this.handlePlaylistRenamed(playlist);
+        });
+
+        // 音乐库选择对话框事件监听
+        this.components.musicLibrarySelectionDialog.on('tracksAdded', async (data) => {
+            await this.handleTracksAddedToPlaylist(data);
+        });
+
+        // 歌单详情页面事件监听
+        this.components.playlistDetailPage.on('trackPlayed', async (track, index) => {
+            await this.handleTrackPlayed(track, index);
+        });
+
+        this.components.playlistDetailPage.on('playAllTracks', async (tracks) => {
+            await this.handlePlayAllTracks(tracks);
+        });
+
+        this.components.playlistDetailPage.on('playlistUpdated', async (playlist) => {
+            await this.handlePlaylistUpdated(playlist);
+        });
+
+        this.components.playlistDetailPage.on('showAddSongsDialog', async (playlist) => {
+            await this.handleShowAddSongsDialog(playlist);
         });
 
         // Settings events
@@ -578,19 +639,20 @@ class MusicBoxApp extends EventEmitter {
     async handlePlayAllTracks(tracks) {
         if (!tracks || tracks.length === 0) return;
 
-        // todo 清空当前播放列表
-        await api.clearPlaylist();
-
-        // 添加所有歌曲到播放列表
-        for (const track of tracks) {
-            await api.addToPlaylist(track);
+        try {
+            console.log('🎵 播放全部歌曲:', tracks.length, '首');
+            // 设置播放列表
+            await api.setPlaylist(tracks, 0);
+            await this.handleTrackPlayed(tracks[0], 0);
+            if (this.components.playlist && this.components.playlist.setTracks) {
+                this.components.playlist.setTracks(tracks, 0);
+            }
+        } catch (error) {
+            console.error('❌ 播放全部歌曲失败:', error);
+            if (this.showError) {
+                this.showError('播放失败，请重试');
+            }
         }
-
-        // 播放第一首歌曲
-        await this.handleTrackPlayed(tracks[0], 0);
-
-        // 更新播放列表UI
-        this.components.playlist.updatePlaylist();
     }
 
     async handleViewChange(view) {
@@ -618,6 +680,9 @@ class MusicBoxApp extends EventEmitter {
             case 'statistics':
                 await this.components.statisticsPage.show();
                 break;
+            case 'playlist-detail':
+                // 歌单详情页面由handlePlaylistSelected方法处理
+                break;
             default:
                 console.warn('Unknown view:', view);
                 // 默认显示音乐库
@@ -633,6 +698,7 @@ class MusicBoxApp extends EventEmitter {
         if (this.components.recentPage) this.components.recentPage.hide();
         if (this.components.artistsPage) this.components.artistsPage.hide();
         if (this.components.statisticsPage) this.components.statisticsPage.hide();
+        if (this.components.playlistDetailPage) this.components.playlistDetailPage.hide();
         if (this.components.trackList) this.components.trackList.hide();
     }
 
@@ -918,10 +984,85 @@ class MusicBoxApp extends EventEmitter {
 
 
     showCreatePlaylistDialog() {
-        // todo 实现播放列表创建对话框
-        const name = prompt('Enter playlist name:');
-        if (name) {
-            console.log('Creating playlist:', name);
+        if (this.components.createPlaylistDialog) {
+            this.components.createPlaylistDialog.show();
+        }
+    }
+
+    // 处理添加到自定义歌单
+    async handleAddToCustomPlaylist(track, index) {
+        if (this.components.addToPlaylistDialog) {
+            await this.components.addToPlaylistDialog.show(track);
+        }
+    }
+
+    // 处理歌单创建成功
+    async handlePlaylistCreated(playlist) {
+        console.log('🎵 歌单创建成功:', playlist.name);
+        // 刷新侧边栏歌单列表
+        if (this.components.navigation && this.components.navigation.refreshPlaylists) {
+            await this.components.navigation.refreshPlaylists();
+        }
+    }
+
+    // 处理歌曲添加到歌单成功
+    async handleTrackAddedToPlaylist(playlist, track) {
+        console.log('🎵 歌曲已添加到歌单:', track.title, '->', playlist.name);
+        // 刷新侧边栏歌单列表
+        if (this.components.navigation && this.components.navigation.refreshPlaylists) {
+            await this.components.navigation.refreshPlaylists();
+        }
+    }
+
+    // 处理歌单选择
+    handlePlaylistSelected(playlist) {
+        console.log('🎵 选择歌单:', playlist.name);
+
+        // 隐藏所有页面
+        this.hideAllPages();
+
+        // 显示歌单详情页面
+        this.currentView = 'playlist-detail';
+        if (this.components.playlistDetailPage) {
+            this.components.playlistDetailPage.show(playlist);
+        }
+    }
+
+    // 处理歌单更新
+    async handlePlaylistUpdated(playlist) {
+        console.log('🎵 歌单已更新:', playlist.name);
+        // 刷新侧边栏歌单列表
+        if (this.components.navigation && this.components.navigation.refreshPlaylists) {
+            await this.components.navigation.refreshPlaylists();
+        }
+    }
+
+    // 处理歌单重命名成功
+    async handlePlaylistRenamed(playlist) {
+        console.log('🎵 歌单重命名成功:', playlist.name);
+        // 刷新侧边栏歌单列表
+        if (this.components.navigation && this.components.navigation.refreshPlaylists) {
+            await this.components.navigation.refreshPlaylists();
+        }
+    }
+
+    // 处理显示添加歌曲对话框
+    async handleShowAddSongsDialog(playlist) {
+        console.log('🎵 显示添加歌曲对话框:', playlist.name);
+        await this.components.musicLibrarySelectionDialog.show(playlist);
+    }
+
+    // 处理歌曲添加到歌单成功
+    async handleTracksAddedToPlaylist(data) {
+        console.log('🎵 歌曲添加到歌单成功:', data);
+
+        // 刷新歌单详情页面
+        if (this.currentView === 'playlist-detail' && this.components.playlistDetailPage) {
+            await this.components.playlistDetailPage.loadPlaylistTracks();
+        }
+        // 刷新侧边栏歌单列表
+        if (this.components.navigation && this.components.navigation.refreshPlaylists) {
+            await this.components.navigation.refreshPlaylists();
         }
     }
 
