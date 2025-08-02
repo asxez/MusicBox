@@ -75,6 +75,7 @@ async function bundleJS() {
             file !== 'web-audio-engine.js' &&
             file !== 'cache-manager.js' &&
             file !== 'local-lyrics-manager.js' &&
+            file !== 'local-cover-manager.js' &&
             file !== 'desktop-lyrics.js'
         ) {
             const filePath = path.join(jsDir, file);
@@ -85,6 +86,7 @@ async function bundleJS() {
             file === 'web-audio-engine.js' ||
             file === 'cache-manager.js' ||
             file === 'local-lyrics-manager.js' ||
+            file === 'local-cover-manager.js' ||
             file === 'desktop-lyrics.js'
         ) {
             console.log(`⚠ Skipping ${file} (loaded separately)`);

@@ -224,7 +224,7 @@ async function createDesktopLyricsWindow() {
     }
 
     // 获取主窗口位置和尺寸
-    const mainBounds = mainWindow ? mainWindow.getBounds() : { x: 100, y: 100, width: 1440, height: 900 };
+    const mainBounds = mainWindow ? mainWindow.getBounds() : {x: 100, y: 100, width: 1440, height: 900};
 
     // 计算桌面歌词窗口的初始位置（在主窗口下方）
     const lyricsX = mainBounds.x + 50;
@@ -368,9 +368,9 @@ ipcMain.handle('window:isMaximized', () => {
 });
 
 ipcMain.handle('window:close', () => {
-    if (mainWindow && desktopLyricsWindow) {
+    if (mainWindow) {
         mainWindow.close();
-        desktopLyricsWindow.close();
+        if (desktopLyricsWindow) desktopLyricsWindow.close();
     }
 });
 
@@ -968,6 +968,196 @@ ipcMain.handle('library:search', async (event, query) => {
     }
 });
 
+// 歌单管理IPC
+// 创建新歌单
+ipcMain.handle('library:createPlaylist', async (event, name, description = '') => {
+    try {
+        if (!libraryCacheManager) {
+            await initializeCacheManager();
+        }
+
+        const playlist = libraryCacheManager.createPlaylist(name, description);
+        await libraryCacheManager.saveCache();
+        console.log(`✅ 创建歌单成功: ${playlist.name}`);
+        return {success: true, playlist};
+    } catch (error) {
+        console.error('❌ 创建歌单失败:', error);
+        return {success: false, error: error.message};
+    }
+});
+
+// 获取所有歌单
+ipcMain.handle('library:getPlaylists', async () => {
+    try {
+        if (!libraryCacheManager) {
+            await initializeCacheManager();
+        }
+
+        const playlists = libraryCacheManager.getAllPlaylists();
+        console.log(`📋 获取歌单列表: ${playlists.length} 个歌单`);
+        return playlists;
+    } catch (error) {
+        console.error('❌ 获取歌单列表失败:', error);
+        return [];
+    }
+});
+
+// 获取歌单详情（包含歌曲）
+ipcMain.handle('library:getPlaylistDetail', async (event, playlistId) => {
+    try {
+        if (!libraryCacheManager) {
+            await initializeCacheManager();
+        }
+
+        const playlist = libraryCacheManager.getPlaylistById(playlistId);
+        if (!playlist) {
+            return {success: false, error: '歌单不存在'};
+        }
+
+        const tracks = libraryCacheManager.getPlaylistTracks(playlistId);
+        console.log(`📋 获取歌单详情: ${playlist.name} (${tracks.length} 首歌曲)`);
+        return {
+            success: true,
+            playlist: {
+                ...playlist,
+                tracks
+            }
+        };
+    } catch (error) {
+        console.error('❌ 获取歌单详情失败:', error);
+        return {success: false, error: error.message};
+    }
+});
+
+// 删除歌单
+ipcMain.handle('library:deletePlaylist', async (event, playlistId) => {
+    try {
+        if (!libraryCacheManager) {
+            await initializeCacheManager();
+        }
+
+        const playlist = libraryCacheManager.getPlaylistById(playlistId);
+        if (!playlist) {
+            return {success: false, error: '歌单不存在'};
+        }
+
+        const playlistName = playlist.name;
+        libraryCacheManager.deletePlaylist(playlistId);
+        await libraryCacheManager.saveCache();
+
+        console.log(`🗑️ 删除歌单成功: ${playlistName}`);
+        return {success: true};
+    } catch (error) {
+        console.error('❌ 删除歌单失败:', error);
+        return {success: false, error: error.message};
+    }
+});
+
+// 重命名歌单
+ipcMain.handle('library:renamePlaylist', async (event, playlistId, newName) => {
+    try {
+        if (!libraryCacheManager) {
+            await initializeCacheManager();
+        }
+
+        const playlist = libraryCacheManager.renamePlaylist(playlistId, newName);
+        await libraryCacheManager.saveCache();
+
+        console.log(`✏️ 重命名歌单成功: ${playlist.name}`);
+        return {success: true, playlist};
+    } catch (error) {
+        console.error('❌ 重命名歌单失败:', error);
+        return {success: false, error: error.message};
+    }
+});
+
+// 添加歌曲到歌单
+ipcMain.handle('library:addToPlaylist', async (event, playlistId, trackFileIds) => {
+    try {
+        if (!libraryCacheManager) {
+            await initializeCacheManager();
+        }
+
+        // 支持单个歌曲或多个歌曲
+        const trackIds = Array.isArray(trackFileIds) ? trackFileIds : [trackFileIds];
+        const results = [];
+
+        for (const trackId of trackIds) {
+            try {
+                libraryCacheManager.addTrackToPlaylist(playlistId, trackId);
+                results.push({trackId, success: true});
+            } catch (error) {
+                results.push({trackId, success: false, error: error.message});
+                console.warn(`⚠️ 添加歌曲到歌单失败: ${trackId} - ${error.message}`);
+            }
+        }
+
+        await libraryCacheManager.saveCache();
+
+        const successCount = results.filter(r => r.success).length;
+        console.log(`✅ 添加歌曲到歌单: ${successCount}/${trackIds.length} 成功`);
+
+        return {success: true, results};
+    } catch (error) {
+        console.error('❌ 添加歌曲到歌单失败:', error);
+        return {success: false, error: error.message};
+    }
+});
+
+// 从歌单移除歌曲
+ipcMain.handle('library:removeFromPlaylist', async (event, playlistId, trackFileIds) => {
+    try {
+        if (!libraryCacheManager) {
+            await initializeCacheManager();
+        }
+
+        // 支持单个歌曲或多个歌曲
+        const trackIds = Array.isArray(trackFileIds) ? trackFileIds : [trackFileIds];
+        const results = [];
+
+        for (const trackId of trackIds) {
+            try {
+                libraryCacheManager.removeTrackFromPlaylist(playlistId, trackId);
+                results.push({trackId, success: true});
+            } catch (error) {
+                results.push({trackId, success: false, error: error.message});
+                console.warn(`⚠️ 从歌单移除歌曲失败: ${trackId} - ${error.message}`);
+            }
+        }
+
+        await libraryCacheManager.saveCache();
+
+        const successCount = results.filter(r => r.success).length;
+        console.log(`✅ 从歌单移除歌曲: ${successCount}/${trackIds.length} 成功`);
+
+        return {success: true, results};
+    } catch (error) {
+        console.error('❌ 从歌单移除歌曲失败:', error);
+        return {success: false, error: error.message};
+    }
+});
+
+
+// 清理歌单中的无效歌曲引用
+ipcMain.handle('library:cleanupPlaylists', async () => {
+    try {
+        if (!libraryCacheManager) {
+            await initializeCacheManager();
+        }
+
+        const cleanedCount = libraryCacheManager.cleanupPlaylistTracks();
+        if (cleanedCount > 0) {
+            await libraryCacheManager.saveCache();
+        }
+
+        console.log(`🧹 清理歌单完成: 移除了 ${cleanedCount} 个无效引用`);
+        return {success: true, cleanedCount};
+    } catch (error) {
+        console.error('❌ 清理歌单失败:', error);
+        return {success: false, error: error.message};
+    }
+});
+
 // Settings IPC Handlers
 const settings = new Map();
 
@@ -1084,7 +1274,7 @@ function generateTextVariants(text) {
     variants.add(cleaned);
 
     // 移除括号内容 (feat. xxx), [xxx], 等
-    const withoutBrackets = cleaned.replace(/[\(\[\{].*?[\)\]\}]/g, '').trim();
+    const withoutBrackets = cleaned.replace(/[(\[{].*?[)\]}]/g, '').trim();
     if (withoutBrackets && withoutBrackets !== cleaned) {
         variants.add(withoutBrackets);
     }
@@ -1386,26 +1576,26 @@ ipcMain.on('window-close', () => {
 ipcMain.handle('desktopLyrics:create', async () => {
     try {
         await createDesktopLyricsWindow();
-        return { success: true };
+        return {success: true};
     } catch (error) {
         console.error('❌ 创建桌面歌词窗口失败:', error);
-        return { success: false, error: error.message };
+        return {success: false, error: error.message};
     }
 });
 
 ipcMain.handle('desktopLyrics:show', () => {
     const result = showDesktopLyrics();
-    return { success: result };
+    return {success: result};
 });
 
 ipcMain.handle('desktopLyrics:hide', () => {
     const result = hideDesktopLyrics();
-    return { success: result };
+    return {success: result};
 });
 
 ipcMain.handle('desktopLyrics:close', () => {
     const result = closeDesktopLyrics();
-    return { success: result };
+    return {success: result};
 });
 
 ipcMain.handle('desktopLyrics:isVisible', () => {
@@ -1416,42 +1606,42 @@ ipcMain.handle('desktopLyrics:toggle', async () => {
     try {
         if (!desktopLyricsWindow) {
             await createDesktopLyricsWindow();
-            return { success: true, visible: true };
+            return {success: true, visible: true};
         } else if (desktopLyricsWindow.isVisible()) {
             hideDesktopLyrics();
-            return { success: true, visible: false };
+            return {success: true, visible: false};
         } else {
             showDesktopLyrics();
-            return { success: true, visible: true };
+            return {success: true, visible: true};
         }
     } catch (error) {
         console.error('❌ 切换桌面歌词窗口失败:', error);
-        return { success: false, error: error.message };
+        return {success: false, error: error.message};
     }
 });
 
 // 向桌面歌词窗口发送播放状态
 ipcMain.handle('desktopLyrics:updatePlaybackState', (event, state) => {
     const result = sendToDesktopLyrics('playback:stateChanged', state);
-    return { success: result };
+    return {success: result};
 });
 
 // 向桌面歌词窗口发送歌词数据
 ipcMain.handle('desktopLyrics:updateLyrics', (event, lyricsData) => {
     const result = sendToDesktopLyrics('lyrics:updated', lyricsData);
-    return { success: result };
+    return {success: result};
 });
 
 // 向桌面歌词窗口发送播放进度
 ipcMain.handle('desktopLyrics:updatePosition', (event, position) => {
     const result = sendToDesktopLyrics('playback:positionChanged', position);
-    return { success: result };
+    return {success: result};
 });
 
 // 向桌面歌词窗口发送当前歌曲信息
 ipcMain.handle('desktopLyrics:updateTrack', (event, trackInfo) => {
     const result = sendToDesktopLyrics('track:changed', trackInfo);
-    return { success: result };
+    return {success: result};
 });
 
 // 桌面歌词窗口位置和大小控制
@@ -1461,16 +1651,16 @@ ipcMain.handle('desktopLyrics:setPosition', (event, x, y) => {
             const posX = parseInt(x);
             const posY = parseInt(y);
             if (isNaN(posX) || isNaN(posY)) {
-                return { success: false, error: '无效的窗口位置参数' };
+                return {success: false, error: '无效的窗口位置参数'};
             }
             desktopLyricsWindow.setPosition(posX, posY);
-            return { success: true };
+            return {success: true};
         } catch (error) {
             console.error('❌ 设置桌面歌词窗口位置失败:', error);
-            return { success: false, error: error.message };
+            return {success: false, error: error.message};
         }
     }
-    return { success: false, error: '桌面歌词窗口不存在' };
+    return {success: false, error: '桌面歌词窗口不存在'};
 });
 
 ipcMain.handle('desktopLyrics:setSize', (event, width, height) => {
@@ -1487,38 +1677,249 @@ ipcMain.handle('desktopLyrics:setSize', (event, width, height) => {
 
             if (isNaN(w) || isNaN(h) || w < minWidth || h < minHeight || w > maxWidth || h > maxHeight) {
                 console.warn(`❌ 桌面歌词窗口尺寸验证失败: (${w}x${h}), 限制: ${minWidth}-${maxWidth} x ${minHeight}-${maxHeight}`);
-                return { success: false, error: `窗口尺寸超出限制范围 (${minWidth}-${maxWidth} x ${minHeight}-${maxHeight})` };
+                return {
+                    success: false,
+                    error: `窗口尺寸超出限制范围 (${minWidth}-${maxWidth} x ${minHeight}-${maxHeight})`
+                };
             }
 
             desktopLyricsWindow.setSize(w, h);
             console.log(`✅ 桌面歌词窗口尺寸已设置: (${w}x${h})`);
-            return { success: true };
+            return {success: true};
         } catch (error) {
             console.error('❌ 设置桌面歌词窗口大小失败:', error);
-            return { success: false, error: error.message };
+            return {success: false, error: error.message};
         }
     }
-    return { success: false, error: '桌面歌词窗口不存在' };
+    return {success: false, error: '桌面歌词窗口不存在'};
 });
 
 ipcMain.handle('desktopLyrics:setOpacity', (event, opacity) => {
     if (desktopLyricsWindow && !desktopLyricsWindow.isDestroyed()) {
         desktopLyricsWindow.setOpacity(opacity);
-        return { success: true };
+        return {success: true};
     }
-    return { success: false };
+    return {success: false};
 });
 
 ipcMain.handle('desktopLyrics:getPosition', () => {
     if (desktopLyricsWindow && !desktopLyricsWindow.isDestroyed()) {
-        return { success: true, position: desktopLyricsWindow.getPosition() };
+        return {success: true, position: desktopLyricsWindow.getPosition()};
     }
-    return { success: false };
+    return {success: false};
 });
 
 ipcMain.handle('desktopLyrics:getSize', () => {
     if (desktopLyricsWindow && !desktopLyricsWindow.isDestroyed()) {
-        return { success: true, size: desktopLyricsWindow.getSize() };
+        return {success: true, size: desktopLyricsWindow.getSize()};
     }
-    return { success: false };
+    return {success: false};
 });
+
+
+// 封面缓存IPC
+// 检查本地封面缓存是否存在
+ipcMain.handle('covers:checkLocalCover', async (event, coverDir, title, artist, album) => {
+    try {
+        console.log(`🔍 检查本地封面缓存: ${title} - ${artist} 在目录 ${coverDir}`);
+
+        if (!fs.existsSync(coverDir)) {
+            return {success: false, error: '封面缓存目录不存在'};
+        }
+
+        const files = fs.readdirSync(coverDir);
+        const imageFiles = files.filter(file => {
+            const ext = path.extname(file).toLowerCase();
+            return ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext);
+        });
+
+        const searchPatterns = generateCoverSearchPatterns(title, artist, album);
+        const matchedFile = findBestCoverMatch(imageFiles, searchPatterns);
+        if (matchedFile) {
+            const fullPath = path.join(coverDir, matchedFile);
+            console.log(`✅ 找到匹配的封面文件: ${matchedFile}`);
+            return {success: true, filePath: fullPath, fileName: matchedFile};
+        } else {
+            console.log(`❌ 未找到匹配的封面文件`);
+            return {success: false, error: '未找到匹配的封面文件'};
+        }
+    } catch (error) {
+        console.error('❌ 检查本地封面缓存失败:', error);
+        return {success: false, error: error.message};
+    }
+});
+
+// 保存封面文件到本地缓存
+ipcMain.handle('covers:saveCoverFile', async (event, coverDir, fileName, imageData, dataType) => {
+    try {
+        console.log(`💾 保存封面文件: ${fileName} 到目录 ${coverDir} (数据类型: ${dataType})`);
+
+        // 确保封面缓存目录存在
+        if (!fs.existsSync(coverDir)) {
+            fs.mkdirSync(coverDir, {recursive: true});
+            console.log(`📁 创建封面缓存目录: ${coverDir}`);
+        }
+
+        const fullPath = path.join(coverDir, fileName);
+
+        // 根据数据类型处理图片数据
+        if (dataType === 'arrayBuffer') {
+            // ArrayBuffer数据（从Blob转换而来）
+            const buffer = Buffer.from(imageData);
+            fs.writeFileSync(fullPath, buffer);
+            console.log(`✅ 封面文件保存成功 (arrayBuffer): ${fileName}`);
+            return {success: true, filePath: fullPath, fileName: fileName};
+        } else if (dataType === 'string' || typeof imageData === 'string') {
+            // 字符串数据（URL或base64）
+            if (imageData.startsWith('http')) {
+                const downloadResult = await downloadImageFromUrl(imageData, fullPath);
+                if (downloadResult.success) {
+                    console.log(`✅ 封面文件下载并保存成功: ${fileName}`);
+                    return {success: true, filePath: fullPath, fileName: fileName};
+                } else {
+                    return {success: false, error: downloadResult.error};
+                }
+            } else {
+                const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+                fs.writeFileSync(fullPath, base64Data, 'base64');
+                console.log(`✅ 封面文件保存成功 (base64): ${fileName}`);
+                return {success: true, filePath: fullPath, fileName: fileName};
+            }
+        } else if (imageData instanceof Buffer) {
+            // 如果是Buffer数据（向后兼容）
+            fs.writeFileSync(fullPath, imageData);
+            console.log(`✅ 封面文件保存成功 (buffer): ${fileName}`);
+            return {success: true, filePath: fullPath, fileName: fileName};
+        } else {
+            console.error(`❌ 不支持的图片数据格式: ${typeof imageData}, dataType: ${dataType}`);
+            return {success: false, error: `不支持的图片数据格式: ${typeof imageData}`};
+        }
+    } catch (error) {
+        console.error('❌ 保存封面文件失败:', error);
+        return {success: false, error: error.message};
+    }
+});
+
+// 从URL下载图片
+async function downloadImageFromUrl(url, filePath) {
+    try {
+        const https = require('https');
+        const http = require('http');
+
+        return new Promise((resolve) => {
+            const client = url.startsWith('https') ? https : http;
+
+            const request = client.get(url, (response) => {
+                if (response.statusCode === 200) {
+                    const fileStream = fs.createWriteStream(filePath);
+                    response.pipe(fileStream);
+
+                    fileStream.on('finish', () => {
+                        fileStream.close();
+                        resolve({success: true});
+                    });
+
+                    fileStream.on('error', (error) => {
+                        fs.unlink(filePath, () => {
+                        }); // 删除部分下载的文件
+                        resolve({success: false, error: error.message});
+                    });
+                } else {
+                    resolve({success: false, error: `HTTP ${response.statusCode}`});
+                }
+            });
+
+            request.on('error', (error) => {
+                resolve({success: false, error: error.message});
+            });
+
+            request.setTimeout(10000, () => {
+                request.destroy();
+                resolve({success: false, error: '下载超时'});
+            });
+        });
+    } catch (error) {
+        return {success: false, error: error.message};
+    }
+}
+
+// 生成封面文件搜索模式
+function generateCoverSearchPatterns(title, artist, album) {
+    const patterns = [];
+
+    // 清理文件名中的特殊字符
+    const cleanTitle = cleanFileName(title);
+    const cleanArtist = cleanFileName(artist);
+    const cleanAlbum = cleanFileName(album);
+
+    // 生成不同的变体
+    const titleVariants = generateTextVariants(cleanTitle);
+    const artistVariants = generateTextVariants(cleanArtist);
+
+    // 常见的封面文件命名格式（按优先级排序）
+    if (cleanTitle && cleanArtist) {
+        // 标准格式
+        for (const titleVar of titleVariants) {
+            for (const artistVar of artistVariants) {
+                patterns.push(`${artistVar}_${titleVar}_${cleanAlbum}`);
+                patterns.push(`${artistVar}_${titleVar}`);
+                patterns.push(`${artistVar} - ${titleVar}`);
+                patterns.push(`${titleVar} - ${artistVar}`);
+                patterns.push(`${artistVar}-${titleVar}`);
+                patterns.push(`${titleVar}-${artistVar}`);
+            }
+        }
+    }
+
+    // 只有歌曲名的情况
+    if (cleanTitle) {
+        for (const titleVar of titleVariants) {
+            patterns.push(titleVar);
+        }
+    }
+    // 只有艺术家名的情况
+    if (cleanArtist) {
+        for (const artistVar of artistVariants) {
+            patterns.push(artistVar);
+        }
+    }
+    return patterns;
+}
+
+// 查找最佳封面文件匹配
+function findBestCoverMatch(imageFiles, searchPatterns) {
+    let bestMatch = null;
+    let bestScore = 0;
+
+    for (const file of imageFiles) {
+        const fileNameWithoutExt = path.parse(file).name.toLowerCase();
+
+        for (let i = 0; i < searchPatterns.length; i++) {
+            const pattern = searchPatterns[i].toLowerCase();
+            const score = calculateCoverMatchScore(fileNameWithoutExt, pattern, i);
+            if (score > bestScore) {
+                bestScore = score;
+                bestMatch = file;
+            }
+        }
+    }
+    return bestMatch;
+}
+
+// 计算封面文件匹配分数
+function calculateCoverMatchScore(fileName, pattern, patternIndex) {
+    if (!fileName || !pattern) return 0;
+
+    if (fileName === pattern) {
+        return 1000 - patternIndex; // 优先级越高分数越高
+    }
+    if (fileName.includes(pattern)) {
+        return 500 - patternIndex;
+    }
+    // 模糊匹配，计算相似度
+    const similarity = calculateStringSimilarity(fileName, pattern);
+    if (similarity > 0.7) {
+        return Math.floor(similarity * 300) - patternIndex;
+    }
+    return 0;
+}
