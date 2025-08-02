@@ -1,7 +1,34 @@
+appId: com.musicbox.app
+productName: MusicBox
+directories:
+  output: dist
+files:
+  - src/main/**/*
+  - src/renderer/public/**/*
+  - node_modules/**/*
+mac:
+  category: public.app-category.music
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
 nsis:
-  artifactName: ${name}-${version}-setup.${ext}
+  artifactName: ${productName}-setup-${version}-beta2.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
   installerIcon: 'build/icons/icon.ico'
   uninstallerIcon: 'build/icons/icon.ico'
+  allowToChangeInstallationDirectory: true
+  oneClick: false
