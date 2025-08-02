@@ -306,7 +306,7 @@ class Player extends Component {
                     console.log('✅ Player: 封面更新成功');
 
                     // 缓存封面URL到track对象
-                    track.coverUrl = coverResult.imageUrl;
+                    track.cover = coverResult.imageUrl;
                 } else {
                     console.log('❌ Player: 封面获取失败，使用默认封面');
                 }
@@ -2541,14 +2541,14 @@ class Lyrics extends EventEmitter {
                     this.trackCover.src = coverResult.imageUrl;
                     console.log('✅ Player: 封面更新成功');
                     // 缓存封面URL到track对象
-                    track.coverUrl = coverResult.imageUrl;
+                    track.cover = coverResult.imageUrl;
                 } else {
                     console.log('❌ Player: 封面获取失败，使用默认封面');
                 }
             }
             // Set background image if available
-            if (track.coverUrl) {
-                this.background.style.backgroundImage = `url(${track.coverUrl})`;
+            if (track.cover) {
+                this.background.style.backgroundImage = `url(${track.cover})`;
             } else {
                 this.background.style.backgroundImage = 'none';
             }
@@ -4038,7 +4038,7 @@ class RecentPage extends Component {
         return `
             <div class="track-item" data-track-path="${track.filePath}" data-index="${index}">
                 <div class="track-cover">
-                    <img src="${track.coverUrl || 'assets/images/default-cover.svg'}" alt="封面" loading="lazy">
+                    <img src="${track.cover || 'assets/images/default-cover.svg'}" alt="封面" loading="lazy">
                     <div class="track-overlay">
                         <button class="play-btn">
                             <svg viewBox="0 0 24 24">
@@ -4230,7 +4230,7 @@ class ArtistsPage extends Component {
                     tracks: [],
                     albums: new Set(),
                     totalDuration: 0,
-                    coverUrl: null
+                    cover: null
                 });
             }
 
@@ -4243,8 +4243,8 @@ class ArtistsPage extends Component {
             }
 
             // 使用第一个有封面的歌曲作为艺术家封面
-            if (!artist.coverUrl && track.coverUrl) {
-                artist.coverUrl = track.coverUrl;
+            if (!artist.cover && track.cover) {
+                artist.cover = track.cover;
             }
         });
 
@@ -4361,7 +4361,7 @@ class ArtistsPage extends Component {
             return `
                 <div class="artist-card" data-artist="${artist.name}">
                     <div class="artist-cover">
-                        <img src="${artist.coverUrl || 'assets/images/default-cover.svg'}" alt="${artist.name}" loading="lazy">
+                        <img src="${artist.cover || 'assets/images/default-cover.svg'}" alt="${artist.name}" loading="lazy">
                         <div class="artist-overlay">
                             <button class="play-btn" title="播放全部">
                                 <svg viewBox="0 0 24 24">
@@ -4383,7 +4383,7 @@ class ArtistsPage extends Component {
             return `
                 <div class="artist-row" data-artist="${artist.name}">
                     <div class="artist-cover">
-                        <img src="${artist.coverUrl || 'assets/images/default-cover.svg'}" alt="${artist.name}" loading="lazy">
+                        <img src="${artist.cover || 'assets/images/default-cover.svg'}" alt="${artist.name}" loading="lazy">
                     </div>
                     <div class="artist-info">
                         <h3 class="artist-name">${artist.name}</h3>
@@ -4423,7 +4423,7 @@ class ArtistsPage extends Component {
                     </button>
                     <div class="artist-hero">
                         <div class="artist-cover-large">
-                            <img src="${artist.coverUrl || 'assets/images/default-cover.svg'}" alt="${artist.name}">
+                            <img src="${artist.cover || 'assets/images/default-cover.svg'}" alt="${artist.name}">
                         </div>
                         <div class="artist-info">
                             <h1 class="artist-name">${artist.name}</h1>
@@ -4457,7 +4457,7 @@ class ArtistsPage extends Component {
                         <div class="album-section">
                             <div class="album-header">
                                 <div class="album-cover">
-                                    <img src="${tracks[0].coverUrl || 'assets/images/default-cover.svg'}" alt="${albumName}">
+                                    <img src="${tracks[0].cover || 'assets/images/default-cover.svg'}" alt="${albumName}">
                                 </div>
                                 <div class="album-info">
                                     <h3 class="album-title">${albumName}</h3>

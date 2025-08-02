@@ -32,6 +32,9 @@ class WebAudioEngine {
         // 进度更新定时器
         this.progressTimer = null;
 
+        // 封面对象URL管理
+        this.coverObjectUrls = new Set();
+
         console.log('🎵 Web Audio Engine 初始化');
     }
 
@@ -95,6 +98,25 @@ class WebAudioEngine {
             // 优先使用元数据中的时长，如果没有则使用Web Audio API的时长
             this.duration = (metadata.duration && metadata.duration > 0) ? metadata.duration : webAudioDuration;
 
+            // 处理封面数据
+            let coverUrl = null;
+            if (metadata.cover && metadata.cover.data) {
+                try {
+                    console.log(`🖼️ 处理音频文件内嵌封面: ${metadata.cover.format}`);
+                    // 将Buffer数据转换为Blob
+                    const coverBlob = new Blob([metadata.cover.data], {
+                        type: `image/${metadata.cover.format.toLowerCase()}`
+                    });
+                    // 创建对象URL
+                    coverUrl = URL.createObjectURL(coverBlob);
+                    // 记录URL用于后续清理
+                    this.coverObjectUrls.add(coverUrl);
+                    console.log(`✅ 封面URL创建成功: ${coverUrl}`);
+                } catch (error) {
+                    console.error('❌ 封面数据处理失败:', error);
+                }
+            }
+
             // 更新当前曲目信息
             this.currentTrack = {
                 filePath: filePath,
@@ -108,7 +130,7 @@ class WebAudioEngine {
                 genre: metadata.genre,
                 track: metadata.track,
                 disc: metadata.disc,
-                cover: metadata.cover
+                cover: coverUrl  // 使用转换后的URL而不是原始对象
             };
 
             console.log(`✅ 音频解码成功: Web Audio时长 ${webAudioDuration.toFixed(2)}s, 元数据时长 ${metadata.duration || 0}s`);
@@ -349,6 +371,21 @@ class WebAudioEngine {
             console.error('❌ 停止失败:', error);
             return false;
         }
+    }
+
+    /**
+     * 清理封面对象URL
+     */
+    cleanupCoverUrls() {
+        for (const url of this.coverObjectUrls) {
+            try {
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.warn('⚠️ 清理封面URL失败:', error);
+            }
+        }
+        this.coverObjectUrls.clear();
+        console.log('🧹 封面URL清理完成');
     }
 
     /**
@@ -895,6 +932,9 @@ class WebAudioEngine {
     destroy() {
         this.stop();
         this.stopProgressTimer();
+
+        // 清理封面URL
+        this.cleanupCoverUrls();
 
         if (this.equalizer) {
             this.equalizer.destroy();

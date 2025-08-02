@@ -108,7 +108,6 @@ class CacheManager {
     setLyricsCache(title, artist, album, lyricsData) {
         const key = this.generateKey('lyrics', title, artist, album);
         this.setMemoryCache(key, lyricsData);
-
         if (lyricsData.success) {
             // 为本地歌词添加额外的元数据
             const cacheData = {
@@ -123,7 +122,6 @@ class CacheManager {
 
     getLyricsCache(title, artist, album) {
         const key = this.generateKey('lyrics', title, artist, album);
-
         let cached = this.getMemoryCache(key);
         if (cached) {
             // 验证本地歌词缓存的有效性
