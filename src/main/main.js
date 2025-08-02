@@ -368,8 +368,9 @@ ipcMain.handle('window:isMaximized', () => {
 });
 
 ipcMain.handle('window:close', () => {
-    if (mainWindow) {
+    if (mainWindow && desktopLyricsWindow) {
         mainWindow.close();
+        desktopLyricsWindow.close();
     }
 });
 
