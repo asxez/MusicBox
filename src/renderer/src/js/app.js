@@ -835,12 +835,12 @@ class MusicBoxApp extends EventEmitter {
 
             case 'volumeUp':
                 const currentVolume = await api.getVolume();
-                await api.setVolume(Math.min(1, currentVolume + 0.1));
+                await api.setVolume(Math.min(1, currentVolume + 0.01));
                 break;
 
             case 'volumeDown':
                 const volume = await api.getVolume();
-                await api.setVolume(Math.max(0, volume - 0.1));
+                await api.setVolume(Math.max(0, volume - 0.01));
                 break;
 
             case 'search':
