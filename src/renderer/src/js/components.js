@@ -745,7 +745,7 @@ class Navigation extends Component {
             this.app.classList.remove('sidebar-collapsed');
         }
 
-        // 保存状态到本地存储
+        this.renderUserPlaylists();
         window.cacheManager.setLocalCache('sidebarCollapsed', this.sidebarCollapsed);
         console.log('🎵 Navigation: 侧边栏状态切换', this.sidebarCollapsed ? '收缩' : '展开');
     }
@@ -905,8 +905,7 @@ class Navigation extends Component {
         }
     }
 
-    // ==================== 歌单管理方法 ====================
-
+    // 歌单管理方法
     // 加载用户歌单
     async loadUserPlaylists() {
         try {
@@ -933,47 +932,82 @@ class Navigation extends Component {
 
         this.userPlaylistsSection.style.display = 'block';
 
-        this.userPlaylistsList.innerHTML = this.userPlaylists.map(playlist => `
-            <li>
-                <div class="playlist-sidebar-item" data-playlist-id="${playlist.id}">
-                    <svg class="sidebar-icon" viewBox="0 0 24 24">
-                        <path d="M13,2V8H21V2M13,9V15H21V9M13,16V22H21V16M3,2V8H11V2M3,9V15H11V9M3,16V22H11V16Z"/>
-                    </svg>
-                    <span class="playlist-name">${this.escapeHtml(playlist.name)}</span>
-                    <span class="playlist-count">${playlist.trackIds ? playlist.trackIds.length : 0}</span>
-                    <div class="playlist-actions">
-                        <button class="playlist-action-btn" data-action="rename" title="重命名">
-                            <svg class="icon" viewBox="0 0 24 24">
-                                <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/>
-                            </svg>
-                        </button>
-                        <button class="playlist-action-btn" data-action="delete" title="删除">
-                            <svg class="icon" viewBox="0 0 24 24">
-                                <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </li>
-        `).join('');
+        // 根据侧边栏状态渲染不同的内容
+        this.userPlaylistsList.innerHTML = this.userPlaylists.map(playlist =>
+            this.renderPlaylistItem(playlist)
+        ).join('');
 
         // 添加事件监听
+        this.setupPlaylistItemEvents();
+    }
+
+    // 渲染单个歌单项
+    renderPlaylistItem(playlist) {
+        if (this.sidebarCollapsed) {
+            // 收缩状态：只显示封面或图标
+            return `
+                <li>
+                    <div class="playlist-sidebar-item collapsed-item" data-playlist-id="${playlist.id}" title="${this.escapeHtml(playlist.name)} (${playlist.trackIds ? playlist.trackIds.length : 0} 首歌曲)">
+                        ${playlist.coverImage ? `
+                            <img class="sidebar-playlist-cover" src="file://${playlist.coverImage}" alt="歌单封面" />
+                        ` : `
+                            <svg class="sidebar-icon" viewBox="0 0 24 24">
+                                <path d="M13,2V8H21V2M13,9V15H21V9M13,16V22H21V16M3,2V8H11V2M3,9V15H11V9M3,16V22H11V16Z"/>
+                            </svg>
+                        `}
+                    </div>
+                </li>
+            `;
+        } else {
+            // 展开状态：显示完整信息
+            return `
+                <li>
+                    <div class="playlist-sidebar-item" data-playlist-id="${playlist.id}">
+                        ${playlist.coverImage ? `
+                            <img class="sidebar-playlist-cover" src="file://${playlist.coverImage}" alt="歌单封面" />
+                        ` : `
+                            <svg class="sidebar-icon" viewBox="0 0 24 24">
+                                <path d="M13,2V8H21V2M13,9V15H21V9M13,16V22H21V16M3,2V8H11V2M3,9V15H11V9M3,16V22H11V16Z"/>
+                            </svg>
+                        `}
+                        <span class="playlist-name">${this.escapeHtml(playlist.name)}</span>
+                        <span class="playlist-count">${playlist.trackIds ? playlist.trackIds.length : 0}</span>
+                        <div class="sidebar-playlist-actions">
+                            <button class="sidebar-playlist-action-btn" data-action="rename">
+                                <svg class="icon" viewBox="0 0 24 24">
+                                    <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/>
+                                </svg>
+                            </button>
+                            <button class="sidebar-playlist-action-btn" data-action="delete">
+                                <svg class="icon" viewBox="0 0 24 24">
+                                    <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </li>
+            `;
+        }
+    }
+
+    // 设置歌单项事件监听器
+    setupPlaylistItemEvents() {
         this.userPlaylistsList.querySelectorAll('.playlist-sidebar-item').forEach(item => {
             const playlistId = item.dataset.playlistId;
 
-            // 点击歌单名称
+            // 点击歌单项
             item.addEventListener('click', (e) => {
-                if (!e.target.closest('.playlist-action-btn')) {
+                if (!e.target.closest('.sidebar-playlist-action-btn')) {
                     this.openPlaylist(playlistId);
                 }
             });
 
-            // 操作按钮
-            item.querySelectorAll('.playlist-action-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
+            // 操作按钮（仅在展开状态下存在）
+            item.querySelectorAll('.sidebar-playlist-action-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const action = btn.dataset.action;
-                    this.handlePlaylistAction(playlistId, action);
+                    await this.handlePlaylistAction(playlistId, action);
                 });
             });
         });
@@ -1040,6 +1074,16 @@ class Navigation extends Component {
     // 刷新歌单列表
     async refreshPlaylists() {
         await this.loadUserPlaylists();
+    }
+
+    // 更新特定歌单信息（用于封面更新等）
+    updatePlaylistInfo(updatedPlaylist) {
+        const index = this.userPlaylists.findIndex(p => p.id === updatedPlaylist.id);
+        if (index !== -1) {
+            this.userPlaylists[index] = { ...this.userPlaylists[index], ...updatedPlaylist };
+            this.renderUserPlaylists();
+            console.log('✅ Navigation: 歌单信息已更新', updatedPlaylist.name);
+        }
     }
 
     // HTML转义
@@ -4158,7 +4202,7 @@ class RecentPage extends Component {
                             <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
                         </svg>
                     </button>
-                    <button class="action-btn small" title="从历史中移除">
+                    <button class="action-btn small">
                         <svg viewBox="0 0 24 24">
                             <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
                         </svg>
@@ -5814,7 +5858,7 @@ class PlaylistDetailPage extends Component {
             this.element.style.display = 'block';
         }
 
-        // 加载歌单歌曲
+        await this.loadPlaylistCover();
         await this.loadPlaylistTracks();
         this.render();
         console.log('🎵 PlaylistDetailPage: 显示歌单详情', playlist.name);
@@ -5838,101 +5882,156 @@ class PlaylistDetailPage extends Component {
         const totalDuration = this.calculateTotalDuration();
 
         this.container.innerHTML = `
-            <div class="playlist-detail-page">
-                <!-- Hero Section -->
+            <div class="page-content playlist-page">
+                <!-- 现代化Hero区域 -->
                 <div class="playlist-hero">
-                    <div class="playlist-cover">
-                        <div class="cover-image">
-                            <svg class="cover-icon" viewBox="0 0 24 24">
-                                <path d="M15,6H3V8H15V6M15,10H3V12H15V10M3,16H11V14H3V16M17,6V14.18C16.69,14.07 16.35,14 16,14A3,3 0 0,0 13,17A3,3 0 0,0 16,20A3,3 0 0,0 19,17V8H22V6H17Z"/>
-                            </svg>
-                        </div>
+                    <div class="hero-background">
+                        <div class="gradient-overlay"></div>
                     </div>
-                    <div class="playlist-info">
-                        <div class="playlist-badge">歌单</div>
-                        <h1 class="playlist-name">${this.escapeHtml(this.currentPlaylist.name)}</h1>
-                        <p class="playlist-desc">${this.escapeHtml(this.currentPlaylist.description || '暂无描述')}</p>
-                        <div class="playlist-stats">
-                            <span class="stat-item">
-                                <svg class="stat-icon" viewBox="0 0 24 24">
-                                    <path d="M12,3V12.26C11.5,12.09 11,12 10.5,12C8.01,12 6,14.01 6,16.5S8.01,21 10.5,21S15,18.99 15,16.5V6H19V3H12Z"/>
+                    <div class="hero-content">
+                        <div class="playlist-cover-container">
+                            <div class="playlist-cover" id="playlist-cover" data-playlist-id="${this.currentPlaylist.id}">
+                                ${this.renderPlaylistCover()}
+                                <div class="cover-shadow"></div>
+                            </div>
+                        </div>
+                        <div class="playlist-info">
+                            <div class="playlist-type">
+                                <svg class="type-icon" viewBox="0 0 24 24">
+                                    <path d="M15,6H3V8H15V6M15,10H3V12H15V10M3,16H11V14H3V16M17,6V14.18C16.69,14.07 16.35,14 16,14A3,3 0 0,0 13,17A3,3 0 0,0 16,20A3,3 0 0,0 19,17V8H22V6H17Z"/>
                                 </svg>
-                                ${trackCount} 首歌曲
-                            </span>
-                            ${totalDuration ? `<span class="stat-item">
-                                <svg class="stat-icon" viewBox="0 0 24 24">
-                                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M16.2,16.2L11,13V7H12.5V12.2L17,14.9L16.2,16.2Z"/>
-                                </svg>
-                                ${this.formatTotalDuration(totalDuration)}
-                            </span>` : ''}
-                            <span class="stat-item">
-                                <svg class="stat-icon" viewBox="0 0 24 24">
-                                    <path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"/>
-                                </svg>
-                                ${createdDate.toLocaleDateString('zh-CN')}
-                            </span>
+                                <span>歌单</span>
+                            </div>
+                            <h1 class="playlist-title">${this.escapeHtml(this.currentPlaylist.name)}</h1>
+                            ${this.currentPlaylist.description ? `
+                            <p class="playlist-description">${this.escapeHtml(this.currentPlaylist.description)}</p>
+                            ` : ''}
+                            <div class="playlist-meta">
+                                <span class="meta-item">
+                                    <svg class="meta-icon" viewBox="0 0 24 24">
+                                        <path d="M12,3V12.26C11.5,12.09 11,12 10.5,12C8.01,12 6,14.01 6,16.5S8.01,21 10.5,21S15,18.99 15,16.5V6H19V3H12Z"/>
+                                    </svg>
+                                    <span>${trackCount} 首歌曲</span>
+                                </span>
+                                ${totalDuration ? `
+                                <span class="meta-item">
+                                    <svg class="meta-icon" viewBox="0 0 24 24">
+                                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M16.2,16.2L11,13V7H12.5V12.2L17,14.9L16.2,16.2Z"/>
+                                    </svg>
+                                    <span>${this.formatTotalDuration(totalDuration)}</span>
+                                </span>
+                                ` : ''}
+                                <span class="meta-item">
+                                    <svg class="meta-icon" viewBox="0 0 24 24">
+                                        <path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"/>
+                                    </svg>
+                                    <span>创建于 ${createdDate.toLocaleDateString('zh-CN')}</span>
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Action Buttons -->
+                <!-- 现代化操作按钮区域 -->
                 <div class="playlist-actions">
-                    <div class="main-actions">
-                        <button class="action-btn primary" id="playlist-play-all" ${trackCount === 0 ? 'disabled' : ''}>
-                            <svg class="icon" viewBox="0 0 24 24">
-                                <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
-                            </svg>
-                            播放全部
+                    <div class="actions-primary">
+                        <button class="play-btn primary" id="playlist-play-all" ${trackCount === 0 ? 'disabled' : ''}>
+                            <div class="btn-content">
+                                <svg class="play-icon" viewBox="0 0 24 24">
+                                    <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
+                                </svg>
+                                <span class="btn-text">播放全部</span>
+                            </div>
                         </button>
-                        <button class="action-btn secondary" id="playlist-shuffle" ${trackCount === 0 ? 'disabled' : ''}>
-                            <svg class="icon" viewBox="0 0 24 24">
+                        <button class="shuffle-btn secondary" id="playlist-shuffle" ${trackCount === 0 ? 'disabled' : ''}>
+                            <svg class="shuffle-icon" viewBox="0 0 24 24">
                                 <path d="M14.83,13.41L13.42,14.82L16.55,17.95L14.5,20H20V14.5L17.96,16.54L14.83,13.41M14.5,4L16.54,6.04L4,18.59L5.41,20L17.96,7.46L20,9.5V4M10.59,9.17L5.41,4L4,5.41L9.17,10.58L10.59,9.17Z"/>
                             </svg>
                         </button>
                     </div>
-                    <div class="extra-actions">
-                        <button class="action-btn outline" id="playlist-add-songs">
+                    <div class="actions-secondary">
+                        <button class="action-btn add-songs" id="playlist-add-songs">
                             <svg class="icon" viewBox="0 0 24 24">
                                 <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
                             </svg>
-                            添加歌曲
+                            <span>添加歌曲</span>
                         </button>
-                        <button class="action-btn outline" id="playlist-clear" ${trackCount === 0 ? 'disabled' : ''}>
-                            <svg class="icon" viewBox="0 0 24 24">
-                                <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
-                            </svg>
-                            清空歌单
-                        </button>
-                        <button class="action-btn icon-only" id="playlist-more" title="更多操作">
-                            <svg class="icon" viewBox="0 0 24 24">
-                                <path d="M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z"/>
-                            </svg>
-                        </button>
+                        <div class="action-menu">
+                            <button class="action-btn menu-trigger" id="playlist-menu">
+                                <svg class="icon" viewBox="0 0 24 24">
+                                    <path d="M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z"/>
+                                </svg>
+                            </button>
+                            <div class="menu-dropdown" id="playlist-menu-dropdown">
+                                <button class="menu-item" id="playlist-clear" ${trackCount === 0 ? 'disabled' : ''}>
+                                    <svg class="menu-icon" viewBox="0 0 24 24">
+                                        <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                                    </svg>
+                                    <span>清空歌单</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Track List Section -->
-                <div class="track-section">
+                <!-- 现代化歌曲列表区域 -->
+                <div class="tracks-section">
                     ${trackCount > 0 ? `
-                    <div class="track-header">
-                        <div class="track-title">
-                            <h3>歌曲列表</h3>
-                            <span class="track-badge">${trackCount}</span>
+                    <div class="tracks-header">
+                        <div class="header-left">
+                            <h3 class="tracks-title">歌曲列表</h3>
+                            <span class="tracks-count">${trackCount} 首歌曲</span>
                         </div>
-                        <div class="track-controls">
-                            <button class="control-btn" id="select-all-tracks">全选</button>
-                            <button class="control-btn" id="clear-selection" style="display: none;">取消选择</button>
+                        <div class="header-right">
+                            <div class="tracks-controls">
+                                <button class="control-btn" id="select-all-tracks">
+                                    <svg class="icon" viewBox="0 0 24 24">
+                                        <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/>
+                                    </svg>
+                                    <span>全选</span>
+                                </button>
+                                <button class="control-btn" id="clear-selection" style="display: none;">
+                                    <svg class="icon" viewBox="0 0 24 24">
+                                        <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                                    </svg>
+                                    <span>取消选择</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    ` : ''}
-                    <div class="track-list" id="playlist-track-list">
+                    <div class="tracks-container" id="playlist-track-list">
                         ${this.renderTrackList()}
                     </div>
+                    ` : `
+                    <div class="playlist-empty-state">
+                        <div class="empty-content">
+                            <div class="empty-illustration">
+                                <svg class="empty-icon" viewBox="0 0 24 24">
+                                    <path d="M12,3V12.26C11.5,12.09 11,12 10.5,12C8.01,12 6,14.01 6,16.5S8.01,21 10.5,21S15,18.99 15,16.5V6H19V3H12Z"/>
+                                </svg>
+                                <div class="empty-waves">
+                                    <div class="wave wave-1"></div>
+                                    <div class="wave wave-2"></div>
+                                    <div class="wave wave-3"></div>
+                                </div>
+                            </div>
+                            <h3 class="empty-title">歌单还是空的</h3>
+                            <p class="empty-description">添加一些您喜欢的音乐，开始您的音乐之旅</p>
+                            <button class="empty-action-btn" onclick="document.getElementById('playlist-add-songs').click()">
+                                <svg class="icon" viewBox="0 0 24 24">
+                                    <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                                </svg>
+                                <span>添加歌曲</span>
+                            </button>
+                        </div>
+                    </div>
+                    `}
                 </div>
             </div>
         `;
 
         this.setupDynamicEventListeners();
+        this.setupTrackListEvents();
     }
 
     setupDynamicEventListeners() {
@@ -5960,12 +6059,6 @@ class PlaylistDetailPage extends Component {
             clearPlaylistBtn.addEventListener('click', () => this.clearPlaylist());
         }
 
-        // 更多操作按钮
-        const moreBtn = this.container.querySelector('#playlist-more');
-        if (moreBtn) {
-            moreBtn.addEventListener('click', (e) => this.showMoreActions(e));
-        }
-
         // 全选按钮
         const selectAllBtn = this.container.querySelector('#select-all-tracks');
         if (selectAllBtn) {
@@ -5978,8 +6071,48 @@ class PlaylistDetailPage extends Component {
             clearSelectionBtn.addEventListener('click', () => this.clearSelection());
         }
 
-        // 歌曲列表事件
+        // 菜单按钮
+        const menuBtn = this.container.querySelector('#playlist-menu');
+        const menuDropdown = this.container.querySelector('#playlist-menu-dropdown');
+        if (menuBtn && menuDropdown) {
+            menuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menuDropdown.classList.toggle('show');
+            });
+
+            // 点击外部关闭菜单
+            document.addEventListener('click', () => {
+                menuDropdown.classList.remove('show');
+            });
+
+            // 菜单项事件
+            const clearBtn = menuDropdown.querySelector('#playlist-clear');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', async () => {
+                    menuDropdown.classList.remove('show');
+                    await this.clearPlaylist();
+                });
+            }
+        }
+
         this.setupTrackListEvents();
+        this.setupCoverContextMenu();
+    }
+
+    async loadPlaylistCover() {
+        try {
+            const result = await api.getPlaylistCover(this.currentPlaylist.id);
+            if (result.success && result.coverPath) {
+                this.currentPlaylist.coverImage = result.coverPath;
+                console.log('✅ PlaylistDetailPage: 加载歌单封面成功', result.coverPath);
+            } else {
+                this.currentPlaylist.coverImage = null;
+                console.log('📷 PlaylistDetailPage: 歌单无自定义封面');
+            }
+        } catch (error) {
+            console.error('❌ PlaylistDetailPage: 加载歌单封面失败', error);
+            this.currentPlaylist.coverImage = null;
+        }
     }
 
     async loadPlaylistTracks() {
@@ -5987,86 +6120,92 @@ class PlaylistDetailPage extends Component {
             const result = await window.electronAPI.library.getPlaylistDetail(this.currentPlaylist.id);
             if (result.success) {
                 this.tracks = result.playlist.tracks || [];
-                this.renderTrackList();
+                this.render();
             } else {
                 console.error('❌ PlaylistDetailPage: 加载歌单歌曲失败', result.error);
                 this.tracks = [];
-                this.renderTrackList();
+                this.render();
             }
         } catch (error) {
             console.error('❌ PlaylistDetailPage: 加载歌单歌曲失败', error);
             this.tracks = [];
-            this.renderTrackList();
+            this.render();
         }
     }
 
     renderTrackList() {
         if (this.tracks.length === 0) {
             return `
-                <div class="playlist-empty-state">
+                <div class="tracks-empty-state">
                     <div class="empty-content">
-                        <svg class="empty-icon" viewBox="0 0 24 24">
-                            <path d="M12,3V12.26C11.5,12.09 11,12 10.5,12C8.01,12 6,14.01 6,16.5S8.01,21 10.5,21S15,18.99 15,16.5V6H19V3H12Z"/>
-                        </svg>
-                        <h3>歌单为空</h3>
-                        <p>这个歌单还没有添加任何歌曲</p>
-                        <button class="action-btn primary" onclick="document.getElementById('playlist-add-songs').click()">
-                            <svg class="icon" viewBox="0 0 24 24">
-                                <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                        <div class="empty-illustration">
+                            <svg class="empty-icon" viewBox="0 0 24 24">
+                                <path d="M12,3V12.26C11.5,12.09 11,12 10.5,12C8.01,12 6,14.01 6,16.5S8.01,21 10.5,21S15,18.99 15,16.5V6H19V3H12Z"/>
                             </svg>
-                            添加歌曲
-                        </button>
+                        </div>
+                        <h3 class="empty-title">暂无歌曲</h3>
+                        <p class="empty-description">这个歌单还没有添加任何歌曲</p>
                     </div>
                 </div>
             `;
         }
 
         return `
-            <div class="track-list-header-row">
-                <div class="track-header-number">#</div>
-                <div class="track-header-title">标题</div>
-                <div class="track-header-album">专辑</div>
-                <div class="track-header-duration">
-                    <svg class="duration-icon" viewBox="0 0 24 24">
-                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M16.2,16.2L11,13V7H12.5V12.2L17,14.9L16.2,16.2Z"/>
-                    </svg>
+            <div class="modern-tracks-table">
+                <div class="tracks-table-header">
+                    <div class="header-cell cell-number">#</div>
+                    <div class="header-cell cell-title">歌曲</div>
+                    <div class="header-cell cell-album">专辑</div>
+                    <div class="header-cell cell-duration">
+                        <svg class="duration-icon" viewBox="0 0 24 24">
+                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M16.2,16.2L11,13V7H12.5V12.2L17,14.9L16.2,16.2Z"/>
+                        </svg>
+                    </div>
+                    <div class="header-cell cell-actions"></div>
+                </div>
+                <div class="tracks-table-body">
+                    ${this.tracks.map((track, index) => `
+                        <div class="track-row ${this.selectedTracks.has(index) ? 'selected' : ''}" data-track-index="${index}">
+                            <div class="track-cell cell-number">
+                                <div class="track-number-container">
+                                    <span class="track-number">${index + 1}</span>
+                                    <div class="play-indicator">
+                                        <svg class="play-icon" viewBox="0 0 24 24">
+                                            <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="track-cell cell-title">
+                                <div class="track-main-info">
+                                    <div class="track-name">${this.escapeHtml(track.title || track.fileName)}</div>
+                                    <div class="track-artist">${this.escapeHtml(track.artist || '未知艺术家')}</div>
+                                </div>
+                            </div>
+                            <div class="track-cell cell-album">
+                                <span class="album-name">${this.escapeHtml(track.album || '未知专辑')}</span>
+                            </div>
+                            <div class="track-cell cell-duration">
+                                <span class="duration-text">${this.formatDuration(track.duration)}</span>
+                            </div>
+                            <div class="track-cell cell-actions">
+                                <div class="track-actions">
+                                    <button class="track-action-btn like-btn" data-action="like">
+                                        <svg class="icon" viewBox="0 0 24 24">
+                                            <path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5 2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z"/>
+                                        </svg>
+                                    </button>
+                                    <button class="track-action-btn remove-btn" data-action="remove">
+                                        <svg class="icon" viewBox="0 0 24 24">
+                                            <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
                 </div>
             </div>
-            ${this.tracks.map((track, index) => `
-                <div class="playlist-track-item" data-track-index="${index}">
-                    <div class="track-number">
-                        <span class="track-index">${index + 1}</span>
-                        <button class="track-play-btn" title="播放">
-                            <svg class="icon" viewBox="0 0 24 24">
-                                <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="track-main-info">
-                        <div class="track-title">${this.escapeHtml(track.title || track.fileName)}</div>
-                        <div class="track-artist">${this.escapeHtml(track.artist || '未知艺术家')}</div>
-                    </div>
-                    <div class="track-album">${this.escapeHtml(track.album || '未知专辑')}</div>
-                    <div class="track-duration">${this.formatDuration(track.duration)}</div>
-                    <div class="track-actions">
-                        <button class="track-action-btn" data-action="like" title="喜欢">
-                            <svg class="icon" viewBox="0 0 24 24">
-                                <path d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5 2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z"/>
-                            </svg>
-                        </button>
-                        <button class="track-action-btn" data-action="more" title="更多操作">
-                            <svg class="icon" viewBox="0 0 24 24">
-                                <path d="M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z"/>
-                            </svg>
-                        </button>
-                        <button class="track-action-btn track-remove-btn" data-action="remove" title="从歌单中移除">
-                            <svg class="icon" viewBox="0 0 24 24">
-                                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            `).join('')}
         `;
     }
 
@@ -6075,7 +6214,7 @@ class PlaylistDetailPage extends Component {
         if (!trackListContainer) return;
 
         // 添加事件监听
-        trackListContainer.querySelectorAll('.playlist-track-item').forEach(item => {
+        trackListContainer.querySelectorAll('.track-row').forEach(item => {
             const index = parseInt(item.dataset.trackIndex);
             const track = this.tracks[index];
 
@@ -6093,27 +6232,16 @@ class PlaylistDetailPage extends Component {
                     this.selectTrackRange(index);
                 } else if (this.isMultiSelectMode) {
                     this.toggleTrackSelection(index);
-                } else {
-                    // 普通播放
-                    await this.playTrack(track, index);
                 }
             });
 
             // 双击播放
             item.addEventListener('dblclick', async (e) => {
                 if (!e.target.closest('.track-action-btn')) {
-                    await this.playTrack(track, index);
+                    await this.playAllTracks();
+                    // await this.playTrack(track, index);
                 }
             });
-
-            // 播放按钮
-            const playBtn = item.querySelector('.track-play-btn');
-            if (playBtn) {
-                playBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.playTrack(track, index);
-                });
-            }
 
             // 操作按钮
             const likeBtn = item.querySelector('[data-action="like"]');
@@ -6121,14 +6249,6 @@ class PlaylistDetailPage extends Component {
                 likeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.toggleTrackLike(track, index);
-                });
-            }
-
-            const moreBtn = item.querySelector('[data-action="more"]');
-            if (moreBtn) {
-                moreBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.showTrackContextMenu(track, index, e);
                 });
             }
 
@@ -6233,12 +6353,6 @@ class PlaylistDetailPage extends Component {
                 window.app.showError('清空歌单失败，请重试');
             }
         }
-    }
-
-    showMoreActions(event) {
-        // 可以实现更多操作的下拉菜单
-        console.log('🎵 显示更多操作菜单');
-        // TODO: 实现下拉菜单功能
     }
 
     // 多选功能方法
@@ -6386,12 +6500,6 @@ class PlaylistDetailPage extends Component {
         // TODO: 实现喜欢功能
     }
 
-    showTrackContextMenu(track, index, event) {
-        // 可以实现右键菜单功能
-        console.log('🎵 显示歌曲右键菜单:', track.title);
-        // TODO: 实现右键菜单
-    }
-
     async removeTrackFromPlaylist(track, index) {
         if (!confirm(`确定要从歌单中移除 "${track.title}" 吗？`)) {
             return;
@@ -6464,6 +6572,222 @@ class PlaylistDetailPage extends Component {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // 渲染歌单封面
+    renderPlaylistCover() {
+        if (this.currentPlaylist && this.currentPlaylist.coverImage) {
+            // 如果有自定义封面，显示自定义封面
+            return `
+                <img class="cover-image" src="file://${this.currentPlaylist.coverImage}" alt="歌单封面" />
+            `;
+        } else {
+            // 显示默认占位符
+            return `
+                <div class="cover-placeholder">
+                    <svg class="cover-icon" viewBox="0 0 24 24">
+                        <path d="M15,6H3V8H15V6M15,10H3V12H15V10M3,16H11V14H3V16M17,6V14.18C16.69,14.07 16.35,14 16,14A3,3 0 0,0 13,17A3,3 0 0,0 16,20A3,3 0 0,0 19,17V8H22V6H17Z"/>
+                    </svg>
+                </div>
+            `;
+        }
+    }
+
+    // 设置封面右键菜单事件监听器
+    setupCoverContextMenu() {
+        const coverElement = this.container.querySelector('#playlist-cover');
+        if (!coverElement) return;
+
+        coverElement.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            this.showCoverContextMenu(e.clientX, e.clientY);
+        });
+    }
+
+    // 显示封面右键菜单
+    showCoverContextMenu(x, y) {
+        // 移除现有的菜单
+        this.hideCoverContextMenu();
+
+        const hasCustomCover = this.currentPlaylist && this.currentPlaylist.coverImage;
+
+        const menu = document.createElement('div');
+        menu.className = 'cover-context-menu';
+        menu.innerHTML = `
+            <div class="context-menu-item" id="add-cover">
+                <svg class="menu-icon" viewBox="0 0 24 24">
+                    <path d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z"/>
+                </svg>
+                <span>${hasCustomCover ? '更换封面' : '添加封面'}</span>
+            </div>
+            ${hasCustomCover ? `
+            <div class="context-menu-item" id="remove-cover">
+                <svg class="menu-icon" viewBox="0 0 24 24">
+                    <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                </svg>
+                <span>移除封面</span>
+            </div>
+            ` : ''}
+        `;
+
+        // 设置菜单位置
+        menu.style.position = 'fixed';
+        menu.style.left = `${x}px`;
+        menu.style.top = `${y}px`;
+        menu.style.zIndex = '10000';
+
+        document.body.appendChild(menu);
+
+        // 调整菜单位置，确保不超出屏幕
+        const rect = menu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) {
+            menu.style.left = `${window.innerWidth - rect.width - 10}px`;
+        }
+        if (rect.bottom > window.innerHeight) {
+            menu.style.top = `${window.innerHeight - rect.height - 10}px`;
+        }
+
+        // 添加菜单项事件监听器
+        const addCoverItem = menu.querySelector('#add-cover');
+        const removeCoverItem = menu.querySelector('#remove-cover');
+
+        if (addCoverItem) {
+            addCoverItem.addEventListener('click', async () => {
+                this.hideCoverContextMenu();
+                await this.selectAndSetCover();
+            });
+        }
+
+        if (removeCoverItem) {
+            removeCoverItem.addEventListener('click', async() => {
+                this.hideCoverContextMenu();
+                await this.removeCover();
+            });
+        }
+
+        // 点击外部关闭菜单
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target)) {
+                this.hideCoverContextMenu();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+        }, 0);
+    }
+
+    // 隐藏封面右键菜单
+    hideCoverContextMenu() {
+        const existingMenu = document.querySelector('.cover-context-menu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+    }
+
+    // 选择并设置封面
+    async selectAndSetCover() {
+        try {
+            console.log('🖼️ 选择歌单封面图片...');
+            const result = await api.selectImageFile();
+
+            if (result.success && result.path) {
+                console.log('✅ 选择的图片路径:', result.path);
+                await this.setCover(result.path);
+            } else {
+                console.log('❌ 用户取消选择图片');
+            }
+        } catch (error) {
+            console.error('❌ 选择封面图片失败:', error);
+            if (window.app && window.app.showError) {
+                window.app.showError('选择图片失败，请重试');
+            }
+        }
+    }
+
+    // 设置歌单封面
+    async setCover(imagePath) {
+        try {
+            if (!this.isValidImageFile(imagePath)) {
+                throw new Error('不支持的图片格式，请选择 JPG、PNG、GIF、WebP 或 BMP 格式的图片');
+            }
+
+            console.log(`🖼️ 设置歌单封面: ${this.currentPlaylist.id} -> ${imagePath}`);
+            const result = await api.updatePlaylistCover(this.currentPlaylist.id, imagePath);
+
+            if (result.success) {
+                // 更新当前歌单对象
+                this.currentPlaylist.coverImage = imagePath;
+                this.updateCoverDisplay();
+
+                // 触发歌单更新事件
+                this.emit('playlistUpdated', this.currentPlaylist);
+                this.emit('playlistCoverUpdated', this.currentPlaylist);
+                console.log('✅ 歌单封面设置成功');
+                if (window.app && window.app.showInfo) {
+                    window.app.showInfo('歌单封面设置成功');
+                }
+            } else {
+                throw new Error(result.error || '设置封面失败');
+            }
+        } catch (error) {
+            console.error('❌ 设置歌单封面失败:', error);
+            if (window.app && window.app.showError) {
+                window.app.showError(error.message || '设置封面失败，请重试');
+            }
+        }
+    }
+
+    // 移除歌单封面
+    async removeCover() {
+        try {
+            if (!confirm('确定要移除歌单封面吗？')) {
+                return;
+            }
+
+            console.log(`🗑️ 移除歌单封面: ${this.currentPlaylist.id}`);
+            const result = await api.removePlaylistCover(this.currentPlaylist.id);
+
+            if (result.success) {
+                // 更新当前歌单对象
+                this.currentPlaylist.coverImage = null;
+                this.updateCoverDisplay();
+
+                // 触发歌单更新事件
+                this.emit('playlistUpdated', this.currentPlaylist);
+                this.emit('playlistCoverUpdated', this.currentPlaylist);
+                console.log('✅ 歌单封面移除成功');
+                if (window.app && window.app.showInfo) {
+                    window.app.showInfo('歌单封面已移除');
+                }
+            } else {
+                throw new Error(result.error || '移除封面失败');
+            }
+        } catch (error) {
+            console.error('❌ 移除歌单封面失败:', error);
+            if (window.app && window.app.showError) {
+                window.app.showError(error.message || '移除封面失败，请重试');
+            }
+        }
+    }
+
+    // 更新封面显示
+    updateCoverDisplay() {
+        const coverElement = this.container.querySelector('#playlist-cover');
+        if (coverElement) {
+            coverElement.innerHTML = this.renderPlaylistCover() + '<div class="cover-shadow"></div>';
+        }
+    }
+
+    // 验证图片文件
+    isValidImageFile(filePath) {
+        if (!filePath || typeof filePath !== 'string') {
+            return false;
+        }
+
+        const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
+        const extension = filePath.toLowerCase().substring(filePath.lastIndexOf('.'));
+        return validExtensions.includes(extension);
     }
 }
 

@@ -821,6 +821,41 @@ ipcMain.handle('dialog:openFiles', async () => {
     return [];
 });
 
+// 图片文件选择对话框（用于歌单封面）
+ipcMain.handle('dialog:openImageFile', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openFile'],
+        filters: [
+            {
+                name: '图片文件',
+                extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']
+            },
+            {
+                name: 'JPEG 图片',
+                extensions: ['jpg', 'jpeg']
+            },
+            {
+                name: 'PNG 图片',
+                extensions: ['png']
+            },
+            {
+                name: 'GIF 图片',
+                extensions: ['gif']
+            },
+            {
+                name: 'WebP 图片',
+                extensions: ['webp']
+            }
+        ],
+        title: '选择歌单封面图片'
+    });
+
+    if (!result.canceled && result.filePaths.length > 0) {
+        return result.filePaths[0];
+    }
+    return null;
+});
+
 // 音频引擎状态管理
 let audioEngineState = {
     isInitialized: false,
@@ -1409,6 +1444,63 @@ ipcMain.handle('library:addToPlaylist', async (event, playlistId, trackFileIds) 
         return {success: true, results};
     } catch (error) {
         console.error('❌ 添加歌曲到歌单失败:', error);
+        return {success: false, error: error.message};
+    }
+});
+
+// 更新歌单封面
+ipcMain.handle('library:updatePlaylistCover', async (event, playlistId, imagePath) => {
+    try {
+        if (!libraryCacheManager) {
+            await initializeCacheManager();
+        }
+
+        const success = libraryCacheManager.updatePlaylistCover(playlistId, imagePath);
+        if (success) {
+            await libraryCacheManager.saveCache();
+            console.log(`✅ 更新歌单封面成功: ${playlistId} -> ${imagePath}`);
+            return {success: true};
+        } else {
+            return {success: false, error: '更新歌单封面失败'};
+        }
+    } catch (error) {
+        console.error('❌ 更新歌单封面失败:', error);
+        return {success: false, error: error.message};
+    }
+});
+
+// 获取歌单封面
+ipcMain.handle('library:getPlaylistCover', async (event, playlistId) => {
+    try {
+        if (!libraryCacheManager) {
+            await initializeCacheManager();
+        }
+
+        const coverPath = libraryCacheManager.getPlaylistCover(playlistId);
+        return {success: true, coverPath};
+    } catch (error) {
+        console.error('❌ 获取歌单封面失败:', error);
+        return {success: false, error: error.message};
+    }
+});
+
+// 移除歌单封面
+ipcMain.handle('library:removePlaylistCover', async (event, playlistId) => {
+    try {
+        if (!libraryCacheManager) {
+            await initializeCacheManager();
+        }
+
+        const success = libraryCacheManager.removePlaylistCover(playlistId);
+        if (success) {
+            await libraryCacheManager.saveCache();
+            console.log(`✅ 移除歌单封面成功: ${playlistId}`);
+            return {success: true};
+        } else {
+            return {success: false, error: '移除歌单封面失败'};
+        }
+    } catch (error) {
+        console.error('❌ 移除歌单封面失败:', error);
         return {success: false, error: error.message};
     }
 });

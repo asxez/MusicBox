@@ -519,6 +519,10 @@ a {
 
   // 收缩状态
   &.collapsed {
+    // 保持原有的滚动功能，但优化滚动条显示
+    overflow-y: auto;
+    overflow-x: visible;
+
     .sidebar-content {
       padding: var(--spacing-sm);
     }
@@ -541,9 +545,49 @@ a {
       }
     }
 
-    // 隐藏用户歌单区域
+    // 收缩状态下的用户歌单区域样式
     #user-playlists-section {
-      display: none !important;
+      // 防止hover效果导致滚动条出现
+      overflow: visible;
+
+      .sidebar-title {
+        display: none; // 隐藏"我的歌单"标题
+      }
+
+      // 歌单列表容器
+      .user-playlists-list {
+        // 确保列表容器不会因为hover效果产生滚动
+        overflow: visible;
+        padding: 0 var(--spacing-xs);
+      }
+
+      .playlist-sidebar-item {
+        justify-content: center;
+        padding: var(--spacing-xs);
+        margin-bottom: var(--spacing-xs);
+
+        // 隐藏文字内容
+        .playlist-name,
+        .playlist-count,
+        .sidebar-playlist-actions {
+          display: none;
+        }
+
+        // 封面图片样式调整
+        .sidebar-playlist-cover {
+          width: 32px;
+          height: 32px;
+          margin-right: 0;
+          border-radius: var(--border-radius-md);
+        }
+
+        // 默认图标样式调整
+        .sidebar-icon {
+          width: 24px;
+          height: 24px;
+          margin-right: 0;
+        }
+      }
     }
 
     // 收缩状态下按钮居中显示
@@ -634,7 +678,7 @@ a {
   color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm); // 减小标题与内容的间距，改善视觉层次
   transition: all var(--transition-normal);
 }
 
@@ -1516,6 +1560,192 @@ a {
   margin: var(--spacing-xs) 0;
 }
 
+/* 歌单封面右键菜单样式 */
+.cover-context-menu {
+  position: fixed;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-xs);
+  min-width: 160px;
+  z-index: 10000;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  .context-menu-item {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    cursor: pointer;
+    border-radius: var(--border-radius-sm);
+    transition: background var(--transition-fast);
+    user-select: none;
+
+    .menu-icon {
+      width: 16px;
+      height: 16px;
+      margin-right: var(--spacing-sm);
+      fill: currentColor;
+      opacity: 0.7;
+    }
+
+    span {
+      font-size: var(--font-size-sm);
+      color: var(--color-text);
+      font-weight: 500;
+    }
+
+    &:hover {
+      background: var(--color-hover);
+
+      .menu-icon {
+        opacity: 1;
+      }
+    }
+
+    &:active {
+      background: var(--color-active);
+    }
+  }
+}
+
+/* 歌单封面样式增强 */
+.playlist-cover {
+  position: relative;
+  cursor: pointer;
+  transition: transform var(--transition-normal);
+
+  &:hover {
+    transform: scale(1.02);
+  }
+
+  .cover-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+  }
+
+  .cover-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: var(--color-surface-variant);
+    border-radius: var(--border-radius-lg);
+    border: 2px dashed var(--color-border);
+    transition: all var(--transition-normal);
+
+    .cover-icon {
+      width: 48px;
+      height: 48px;
+      fill: var(--color-text-secondary);
+      opacity: 0.5;
+    }
+
+    &:hover {
+      border-color: var(--color-primary);
+      background: var(--color-primary-container);
+
+      .cover-icon {
+        fill: var(--color-primary);
+        opacity: 0.8;
+      }
+    }
+  }
+}
+
+/* 侧边栏歌单封面样式 */
+.sidebar-playlist-cover {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--border-radius-sm);
+  object-fit: cover;
+  margin-right: var(--spacing-sm);
+  flex-shrink: 0;
+  transition: all var(--transition-normal);
+}
+
+/* 收缩状态下的歌单项样式 */
+.playlist-sidebar-item.collapsed-item {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--spacing-xs) auto;
+  border-radius: var(--border-radius-md);
+  position: relative;
+  transition: all var(--transition-normal);
+  // 防止hover时的缩放效果影响容器滚动
+  transform-origin: center;
+  overflow: visible;
+  // 关键：确保元素不会因为hover效果而影响父容器的滚动计算
+  contain: layout;
+
+  &:hover {
+    background: var(--color-hover);
+    // 不使用transform缩放，改用box-shadow来实现视觉反馈
+    box-shadow: 0 0 0 2px var(--color-primary-container);
+
+    // 显示tooltip
+    &::after {
+      content: attr(title);
+      position: absolute;
+      left: calc(100% + var(--spacing-sm));
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--color-surface);
+      color: var(--color-text);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--border-radius-sm);
+      font-size: var(--font-size-xs);
+      white-space: nowrap;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--color-border);
+      z-index: 1000;
+      opacity: 1;
+      pointer-events: none;
+      // 确保tooltip不会影响父容器的滚动计算
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      // 关键：确保tooltip不会影响父容器的尺寸计算
+      width: max-content;
+      max-width: 200px;
+    }
+  }
+
+  .sidebar-playlist-cover {
+    width: 32px;
+    height: 32px;
+    margin-right: 0;
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .sidebar-icon {
+    width: 24px;
+    height: 24px;
+    margin-right: 0;
+    fill: var(--color-text-secondary);
+    transition: fill var(--transition-fast);
+  }
+
+  &:hover .sidebar-icon {
+    fill: var(--color-primary);
+  }
+
+  // 隐藏tooltip的默认状态
+  &::after {
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+  }
+}
+
 // Modal styles
 .modal-overlay {
   position: fixed;
@@ -1914,19 +2144,20 @@ a {
 .playlist-sidebar-item {
   display: flex;
   align-items: center;
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--spacing-xs) var(--spacing-md); // 减小垂直内边距，使歌单列表更紧凑
   color: var(--color-text-secondary);
   text-decoration: none;
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
   cursor: pointer;
   position: relative;
+  margin-bottom: 2px; // 添加小间距分隔歌单项
 
   &:hover {
     background: var(--color-bg-hover);
     color: var(--color-text);
 
-    .playlist-actions {
+    .sidebar-playlist-actions {
       opacity: 1;
     }
   }
@@ -1955,33 +2186,44 @@ a {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0; // 确保flex项目可以正确收缩
   }
 
   .playlist-count {
     font-size: var(--font-size-xs);
     opacity: 0.7;
     margin-left: var(--spacing-sm);
+    flex-shrink: 0; // 防止歌曲数量被压缩
+    min-width: 20px; // 确保数量显示有足够空间
+    text-align: right; // 右对齐数量显示
   }
 
-  .playlist-actions {
+  // 侧边栏歌单操作按钮区域 - 独立样式避免与歌单详情页面冲突
+  .sidebar-playlist-actions {
     opacity: 0;
     display: flex;
     align-items: center;
-    gap: var(--spacing-xs);
-    margin-left: var(--spacing-sm);
+    gap: 2px; // 减小按钮间距，使布局更紧凑
+    margin-left: var(--spacing-xs); // 减小左边距
+    flex-shrink: 0; // 防止操作按钮被压缩
     transition: opacity var(--transition-fast);
   }
 
-  .playlist-action-btn {
+  .sidebar-playlist-action-btn {
     background: none;
     border: none;
     cursor: pointer;
-    padding: var(--spacing-xs);
+    padding: 4px; // 使用固定像素值确保一致的按钮尺寸
     border-radius: var(--radius-sm);
     transition: background-color var(--transition-fast);
+    display: flex; // 确保图标居中对齐
+    align-items: center;
+    justify-content: center;
+    width: 24px; // 固定宽度确保对齐
+    height: 24px; // 固定高度确保对齐
 
     &:hover {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(var(--color-text-rgb), 0.1); // 使用主题色变量
     }
 
     .icon {
@@ -2038,193 +2280,192 @@ a {
   }
 }
 
-// Playlist Detail Page - Modern Design
-.playlist-detail-page {
-  padding: var(--spacing-xl);
-  max-width: 1400px;
-  margin: 0 auto;
-  min-height: 100%;
-}
+// Enhanced Playlist Page Design - Consistent with App Style
+.playlist-page {
+  // Inherits from .page-content styles
 
-// Hero Section - Inspired by YesPlayMusic
-.playlist-hero {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--spacing-xl);
-  margin-bottom: var(--spacing-xl);
-  padding: var(--spacing-xl);
-  background: linear-gradient(135deg,
-    rgba(var(--color-primary-rgb), 0.08) 0%,
-    rgba(var(--color-primary-rgb), 0.03) 100%);
-  border-radius: var(--radius-xl);
-  position: relative;
-  overflow: hidden;
-
-  // Subtle background pattern
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: radial-gradient(circle at 80% 20%, rgba(var(--color-primary-rgb), 0.1) 0%, transparent 50%);
-    pointer-events: none;
-  }
-
-  .playlist-cover {
-    flex-shrink: 0;
-    width: 220px;
-    height: 220px;
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  // Enhanced Hero Section - Matches RecentPage style
+  .hero-section {
+    background: var(--gradient-primary);
+    border-radius: var(--radius-xl);
+    color: white;
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
     position: relative;
-    z-index: 1;
+    overflow: hidden;
 
-    .cover-image {
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(135deg,
-        var(--color-primary) 0%,
-        rgba(var(--color-primary-rgb), 0.8) 100%);
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--gradient-overlay);
+      opacity: 0.1;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+
+      .hero-main {
+        display: flex;
+        align-items: flex-end;
+        gap: var(--spacing-xl);
+      }
+    }
+
+    .playlist-cover {
+      flex-shrink: 0;
+      width: 240px;
+      height: 240px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: var(--radius-lg);
       display: flex;
       align-items: center;
       justify-content: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
 
       .cover-icon {
-        width: 88px;
-        height: 88px;
+        width: 96px;
+        height: 96px;
         fill: rgba(255, 255, 255, 0.9);
         filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.2));
       }
     }
-  }
 
-  .playlist-info {
-    flex: 1;
-    min-width: 0;
-    position: relative;
-    z-index: 1;
+    .playlist-info {
+      flex: 1;
+      min-width: 0;
 
-    .playlist-badge {
-      display: inline-block;
-      font-size: var(--font-size-xs);
-      font-weight: 700;
-      color: var(--color-primary);
-      background: rgba(var(--color-primary-rgb), 0.1);
-      padding: var(--spacing-xs) var(--spacing-sm);
-      border-radius: var(--radius-sm);
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: var(--spacing-sm);
-    }
-
-    .playlist-name {
-      font-size: 3.5rem;
-      font-weight: 900;
-      margin: 0 0 var(--spacing-md) 0;
-      line-height: 1.1;
-      color: var(--color-text);
-      word-break: break-word;
-      background: linear-gradient(135deg, var(--color-text) 0%, rgba(var(--color-text-rgb), 0.8) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .playlist-desc {
-      font-size: var(--font-size-lg);
-      color: var(--color-text-secondary);
-      margin: 0 0 var(--spacing-lg) 0;
-      line-height: 1.6;
-      max-width: 600px;
-      opacity: 0.9;
-    }
-
-    .playlist-stats {
-      display: flex;
-      align-items: center;
-      gap: var(--spacing-lg);
-      flex-wrap: wrap;
-
-      .stat-item {
-        display: flex;
+      .playlist-type {
+        display: inline-flex;
         align-items: center;
         gap: var(--spacing-xs);
         font-size: var(--font-size-sm);
-        font-weight: 500;
-        color: var(--color-text-secondary);
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: var(--spacing-md);
+        background: rgba(255, 255, 255, 0.1);
+        padding: var(--spacing-xs) var(--spacing-md);
+        border-radius: var(--radius-full);
+        backdrop-filter: blur(10px);
 
-        .stat-icon {
+        .type-icon {
           width: 16px;
           height: 16px;
           fill: currentColor;
-          opacity: 0.8;
+        }
+      }
+
+      .playlist-title {
+        font-size: 3.5rem;
+        font-weight: 900;
+        color: white;
+        margin: 0 0 var(--spacing-md) 0;
+        line-height: 1.1;
+        word-break: break-word;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+
+      .playlist-description {
+        font-size: var(--font-size-lg);
+        color: rgba(255, 255, 255, 0.9);
+        line-height: 1.6;
+        margin: 0 0 var(--spacing-lg) 0;
+        max-width: 600px;
+        opacity: 0.95;
+      }
+
+      .playlist-meta {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-lg);
+        flex-wrap: wrap;
+
+        .meta-item {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          font-size: var(--font-size-md);
+          color: rgba(255, 255, 255, 0.9);
+          font-weight: 500;
+          background: rgba(255, 255, 255, 0.1);
+          padding: var(--spacing-sm) var(--spacing-md);
+          border-radius: var(--radius-md);
+          backdrop-filter: blur(10px);
+
+          .meta-icon {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+            opacity: 0.9;
+          }
         }
       }
     }
   }
 }
 
-// Action Buttons - Modern Design with Proper Hover Effects
+// Enhanced Action Buttons - Consistent with App Style
 .playlist-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--spacing-xl);
-  padding: var(--spacing-lg) 0;
+  gap: var(--spacing-lg);
 
-  .main-actions {
+  .actions-main {
     display: flex;
     align-items: center;
     gap: var(--spacing-md);
   }
 
-  .extra-actions {
+  .actions-extra {
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
   }
 
   .action-btn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: var(--spacing-xs);
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md) var(--spacing-lg);
     border: none;
     border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-md);
     font-weight: 600;
     cursor: pointer;
     transition: all var(--transition-fast);
     text-decoration: none;
 
     .icon {
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
       fill: currentColor;
     }
 
     &:disabled {
       opacity: 0.5;
       cursor: not-allowed;
-
-      &:hover {
-        transform: none;
-        box-shadow: none;
-      }
     }
 
-    // Primary button (Play All) - matches RecentPage style
+    // Primary button - matches RecentPage style
     &.primary {
       background: var(--color-primary);
       color: white;
-      padding: var(--spacing-sm) var(--spacing-md);
+      box-shadow: 0 2px 8px rgba(var(--color-primary-rgb), 0.2);
 
       &:hover:not(:disabled) {
-        background: rgba(var(--color-primary-rgb), 0.8);
+        background: rgba(var(--color-primary-rgb), 0.9);
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
+        box-shadow: 0 4px 16px rgba(var(--color-primary-rgb), 0.3);
       }
 
       &:active {
@@ -2232,14 +2473,14 @@ a {
       }
     }
 
-    // Secondary button (Shuffle)
+    // Secondary button - circular design
     &.secondary {
       background: var(--color-secondary-bg);
       color: var(--color-text);
-      padding: var(--spacing-sm);
-      width: 40px;
-      height: 40px;
+      padding: var(--spacing-md);
       border-radius: 50%;
+      width: 48px;
+      height: 48px;
       justify-content: center;
 
       &:hover:not(:disabled) {
@@ -2248,17 +2489,16 @@ a {
       }
 
       .icon {
-        width: 18px;
-        height: 18px;
+        width: 20px;
+        height: 20px;
       }
     }
 
-    // Outline buttons
+    // Outline button
     &.outline {
       background: transparent;
       color: var(--color-text);
       border: 1px solid var(--color-border);
-      padding: var(--spacing-sm) var(--spacing-md);
 
       &:hover:not(:disabled) {
         background: var(--color-secondary-bg);
@@ -2266,27 +2506,23 @@ a {
         color: var(--color-primary);
         transform: translateY(-1px);
       }
+
+      &.danger:hover:not(:disabled) {
+        border-color: var(--color-danger);
+        color: var(--color-danger);
+        background: rgba(var(--color-error-rgb), 0.05);
+      }
     }
 
-    // Icon-only buttons
-    &.icon-only {
+    // Ghost button
+    &.ghost {
       background: transparent;
       color: var(--color-text-secondary);
-      padding: var(--spacing-sm);
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      justify-content: center;
+      border: none;
 
       &:hover:not(:disabled) {
         background: var(--color-hover);
         color: var(--color-text);
-        transform: scale(1.05);
-      }
-
-      .icon {
-        width: 18px;
-        height: 18px;
       }
     }
   }
@@ -2433,99 +2669,261 @@ a {
   }
 }
 
-// Track list items
-.playlist-track-item {
-  display: grid;
-  grid-template-columns: 60px 1fr 200px 80px;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md) var(--spacing-lg);
-  border-bottom: 1px solid var(--color-border);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  align-items: center;
-  position: relative;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &:hover {
-    background: var(--color-bg-hover);
-
-    .track-number .track-index {
-      opacity: 0;
-    }
-
-    .track-number .track-play-btn {
-      opacity: 1;
-    }
-
-    .track-actions {
-      opacity: 1;
-    }
-  }
-
-  &.selected {
-    background: rgba(var(--color-primary-rgb), 0.1);
-
-    .track-title {
-      color: var(--color-primary);
-    }
-  }
-
-  &.playing {
-    background: rgba(var(--color-primary-rgb), 0.1);
-
-    .track-title {
-      color: var(--color-primary);
-      font-weight: 600;
-    }
-
-    .track-number .track-index {
-      color: var(--color-primary);
-      font-weight: 600;
-    }
-  }
-
-  .track-number {
-    position: relative;
+// Simple & Clean Tracks Section
+.tracks-section {
+  .tracks-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-lg);
+
+    .tracks-title {
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+      color: var(--color-text);
+      margin: 0;
+
+      .tracks-count {
+        font-weight: 400;
+        color: var(--color-text-secondary);
+      }
+    }
+
+    .tracks-controls {
+      display: flex;
+      gap: var(--spacing-sm);
+
+      .control-btn {
+        padding: var(--spacing-sm) var(--spacing-md);
+        background: transparent;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-sm);
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+
+        &:hover {
+          background: var(--color-secondary-bg);
+          color: var(--color-text);
+        }
+      }
+    }
+  }
+
+  .tracks-container {
+    background: var(--color-body-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+}
+
+// Clean Table Design for Tracks
+.tracks-table {
+  .table-header {
+    display: grid;
+    grid-template-columns: 60px 1fr 200px 80px 100px;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--color-secondary-bg);
+    border-bottom: 1px solid var(--color-border);
+
+    .th {
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+
+      &.th-number {
+        text-align: center;
+      }
+
+      &.th-duration {
+        text-align: center;
+      }
+    }
+  }
+
+  .table-body {
+    .track-row {
+      display: grid;
+      grid-template-columns: 60px 1fr 200px 80px 100px;
+      gap: var(--spacing-md);
+      padding: var(--spacing-md) var(--spacing-lg);
+      border-bottom: 1px solid var(--color-border);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+      align-items: center;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      &:hover {
+        background: var(--color-hover);
+
+        .td-actions .track-actions {
+          opacity: 1;
+        }
+      }
+
+      &.selected {
+        background: rgba(var(--color-primary-rgb), 0.1);
+
+        .track-name {
+          color: var(--color-primary);
+          font-weight: 600;
+        }
+      }
+
+      &.playing {
+        background: rgba(var(--color-primary-rgb), 0.05);
+
+        .track-name {
+          color: var(--color-primary);
+        }
+
+        .track-number {
+          color: var(--color-primary);
+        }
+      }
+    }
+  }
+}
+
+// Table Cell Styles
+.td {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+
+  &.td-number {
     justify-content: center;
 
-    .track-index {
+    .track-number {
       font-size: var(--font-size-sm);
       color: var(--color-text-secondary);
       font-variant-numeric: tabular-nums;
-      transition: opacity var(--transition-fast);
+      font-weight: 500;
+    }
+  }
+
+  &.td-title {
+    min-width: 0;
+
+    .track-info {
+      min-width: 0;
+      width: 100%;
     }
 
-    .track-play-btn {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: var(--color-primary);
-      border: none;
-      color: white;
-      opacity: 0;
-      transition: all var(--transition-fast);
-      cursor: pointer;
+    .track-name {
+      font-size: var(--font-size-md);
+      font-weight: 500;
+      color: var(--color-text);
+      margin-bottom: var(--spacing-xs);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color var(--transition-fast);
+    }
+
+    .track-artist {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color var(--transition-fast);
 
       &:hover {
-        transform: translate(-50%, -50%) scale(1.1);
+        color: var(--color-text);
+        text-decoration: underline;
+        cursor: pointer;
       }
+    }
+  }
+
+  &.td-album {
+    .album-name {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color var(--transition-fast);
+
+      &:hover {
+        color: var(--color-text);
+        text-decoration: underline;
+        cursor: pointer;
+      }
+    }
+  }
+
+  &.td-duration {
+    justify-content: center;
+
+    .duration {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+    }
+  }
+
+  &.td-actions {
+    justify-content: flex-end;
+
+    .track-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      opacity: 0;
+      transition: opacity var(--transition-fast);
+
+      .action-btn {
+        background: none;
+        border: none;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        padding: var(--spacing-xs);
+        border-radius: 50%;
+        transition: all var(--transition-fast);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+
+        &:hover {
+          background: var(--color-hover);
+          color: var(--color-text);
+        }
+
+        &.action-btn-danger:hover {
+          background: rgba(220, 38, 38, 0.1);
+          color: #dc2626;
+        }
+
+        .icon {
+          width: 16px;
+          height: 16px;
+          fill: currentColor;
+        }
+      }
+    }
+  }
+}
 
       .icon {
         width: 14px;
         height: 14px;
         margin-left: 2px;
       }
-    }
-  }
+
+
 
   .track-main-info {
     min-width: 0;
@@ -2612,21 +3010,1023 @@ a {
       }
     }
   }
+
+
+// 现代化歌单Hero区域样式
+.playlist-hero {
+  position: relative;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: linear-gradient(135deg,
+    rgba(var(--color-primary-rgb), 0.1) 0%,
+    rgba(var(--color-primary-rgb), 0.05) 50%,
+    transparent 100%);
+
+  .hero-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 0;
+
+    .gradient-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg,
+        rgba(var(--color-primary-rgb), 0.08) 0%,
+        rgba(var(--color-primary-rgb), 0.03) 50%,
+        transparent 100%);
+      backdrop-filter: blur(1px);
+    }
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: flex-end;
+    gap: var(--spacing-xl);
+  }
+
+  .playlist-cover-container {
+    flex-shrink: 0;
+
+    .playlist-cover {
+      position: relative;
+      width: 240px;
+      height: 240px;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+      transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+
+      &:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18);
+      }
+
+      .cover-placeholder {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg,
+          var(--color-secondary-bg) 0%,
+          var(--color-border) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .cover-icon {
+          width: 80px;
+          height: 80px;
+          fill: var(--color-text-secondary);
+          opacity: 0.6;
+        }
+      }
+
+      .cover-shadow {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(180deg,
+          transparent 0%,
+          rgba(0, 0, 0, 0.1) 100%);
+        pointer-events: none;
+      }
+    }
+  }
+
+  .playlist-info {
+    flex: 1;
+    min-width: 0;
+
+    .playlist-type {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      margin-bottom: var(--spacing-sm);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+
+      .type-icon {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+      }
+    }
+
+    .playlist-title {
+      font-size: 3.5rem;
+      font-weight: 800;
+      color: var(--color-text);
+      margin: 0 0 var(--spacing-md) 0;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+
+    .playlist-description {
+      font-size: var(--font-size-md);
+      color: var(--color-text-secondary);
+      line-height: 1.6;
+      margin: 0 0 var(--spacing-lg) 0;
+      max-width: 600px;
+    }
+
+    .playlist-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-lg);
+      flex-wrap: wrap;
+
+      .meta-item {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        font-size: var(--font-size-sm);
+        color: var(--color-text-secondary);
+        font-weight: 500;
+
+        .meta-icon {
+          width: 16px;
+          height: 16px;
+          fill: currentColor;
+          opacity: 0.8;
+        }
+      }
+    }
+  }
+}
+
+// 现代化操作按钮区域样式 - 简化视觉层次
+.playlist-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-md) 0; // 减少内边距，移除左右边距
+  // 移除背景色和边框，消除视觉分割感
+
+  .actions-primary {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+
+    .play-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm) var(--spacing-lg); // 减小垂直内边距
+      background: var(--color-primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius-lg); // 使用适度圆角替代完全圆角
+      font-weight: 600;
+      font-size: var(--font-size-sm); // 减小字体大小
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      box-shadow: 0 2px 8px rgba(var(--color-primary-rgb), 0.2);
+
+      &:hover:not(:disabled) {
+        background: rgba(var(--color-primary-rgb), 0.8);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 16px rgba(var(--color-primary-rgb), 0.3);
+        color: white; // 确保悬停时文字保持白色
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .btn-content {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+      }
+
+      .play-icon {
+        width: 20px;
+        height: 20px;
+        fill: currentColor;
+      }
+    }
+
+    .shuffle-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px; // 减小按钮尺寸
+      height: 40px;
+      background: var(--color-secondary-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg); // 与播放按钮保持一致的圆角设计
+      cursor: pointer;
+      transition: all var(--transition-fast);
+
+      &:hover:not(:disabled) {
+        background: var(--color-hover);
+        border-color: var(--color-primary);
+        transform: scale(1.05);
+      }
+
+      &:active {
+        transform: scale(0.95);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .shuffle-icon {
+        width: 18px; // 减小图标尺寸以匹配按钮
+        height: 18px;
+        fill: var(--color-text-secondary);
+        transition: fill var(--transition-fast);
+      }
+
+      &:hover:not(:disabled) .shuffle-icon {
+        fill: var(--color-primary);
+      }
+    }
+  }
+
+  .actions-secondary {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--color-body-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      color: var(--color-text);
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+
+      &:hover {
+        background: var(--color-hover);
+        border-color: var(--color-primary);
+      }
+
+      .icon {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+      }
+    }
+
+    .action-menu {
+      position: relative;
+
+      .menu-trigger {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        justify-content: center;
+        border-radius: var(--radius-full);
+      }
+
+      .menu-dropdown {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: var(--spacing-xs);
+        background: var(--color-body-bg);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+        min-width: 160px;
+        z-index: 100;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-8px);
+        transition: all var(--transition-fast);
+
+        &.show {
+          opacity: 1;
+          visibility: visible;
+          transform: translateY(0);
+        }
+
+        .menu-item {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          width: 100%;
+          padding: var(--spacing-sm) var(--spacing-md);
+          background: none;
+          border: none;
+          color: var(--color-text);
+          font-size: var(--font-size-sm);
+          text-align: left;
+          cursor: pointer;
+          transition: background var(--transition-fast);
+
+          &:hover:not(:disabled) {
+            background: var(--color-hover);
+          }
+
+          &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+
+          .menu-icon {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+          }
+        }
+      }
+    }
+  }
+}
+
+// 现代化歌曲列表样式
+.tracks-section {
+  .tracks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-lg);
+    padding: 0 var(--spacing-sm);
+
+    .header-left {
+      display: flex;
+      align-items: baseline;
+      gap: var(--spacing-md);
+
+      .tracks-title {
+        font-size: var(--font-size-xl);
+        font-weight: 700;
+        color: var(--color-text);
+        margin: 0;
+      }
+
+      .tracks-count {
+        font-size: var(--font-size-sm);
+        color: var(--color-text-secondary);
+        font-weight: 500;
+      }
+    }
+
+    .header-right {
+      .tracks-controls {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+
+        .control-btn {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          padding: var(--spacing-xs) var(--spacing-sm);
+          background: var(--color-body-bg);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-sm);
+          color: var(--color-text-secondary);
+          font-size: var(--font-size-xs);
+          font-weight: 500;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+
+          &:hover {
+            background: var(--color-hover);
+            color: var(--color-text);
+            border-color: var(--color-primary);
+          }
+
+          .icon {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+          }
+        }
+      }
+    }
+  }
+
+  .modern-tracks-table {
+    background: var(--color-body-bg);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+
+    .tracks-table-header {
+      display: grid;
+      grid-template-columns: 60px 1fr 200px 80px 120px;
+      gap: var(--spacing-md);
+      padding: var(--spacing-md) var(--spacing-lg);
+      background: var(--color-secondary-bg);
+      border-bottom: 1px solid var(--color-border);
+
+      .header-cell {
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        color: var(--color-text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+
+        &.cell-number {
+          justify-content: center;
+        }
+
+        &.cell-duration {
+          justify-content: center;
+
+          .duration-icon {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+          }
+        }
+
+        &.cell-actions {
+          justify-content: center;
+        }
+      }
+    }
+
+    .tracks-table-body {
+      .track-row {
+        display: grid;
+        grid-template-columns: 60px 1fr 200px 80px 120px;
+        gap: var(--spacing-md);
+        padding: var(--spacing-md) var(--spacing-lg);
+        border-bottom: 1px solid var(--color-border);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        position: relative;
+
+        &:last-child {
+          border-bottom: none;
+        }
+
+        &:hover {
+          background: var(--color-hover);
+
+          .track-number-container .track-number {
+            opacity: 0;
+          }
+
+          .track-number-container .play-indicator {
+            opacity: 1;
+          }
+
+          .track-actions {
+            opacity: 1;
+          }
+        }
+
+        &.selected {
+          background: rgba(var(--color-primary-rgb), 0.1);
+          border-color: var(--color-primary);
+        }
+
+        &.playing {
+          background: rgba(var(--color-primary-rgb), 0.15);
+
+          .track-name {
+            color: var(--color-primary);
+            font-weight: 600;
+          }
+
+          .track-number-container .track-number {
+            opacity: 0;
+          }
+
+          .track-number-container .play-indicator {
+            opacity: 1;
+
+            .play-icon {
+              fill: var(--color-primary);
+            }
+          }
+        }
+
+        .track-cell {
+          display: flex;
+          align-items: center;
+          min-width: 0;
+
+          &.cell-number {
+            justify-content: center;
+
+            .track-number-container {
+              position: relative;
+              width: 24px;
+              height: 24px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+
+              .track-number {
+                font-size: var(--font-size-sm);
+                color: var(--color-text-secondary);
+                font-weight: 500;
+                transition: opacity var(--transition-fast);
+              }
+
+              .play-indicator {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0;
+                transition: opacity var(--transition-fast);
+
+                .play-icon {
+                  width: 16px;
+                  height: 16px;
+                  fill: var(--color-text);
+                }
+              }
+            }
+          }
+
+          &.cell-title {
+            .track-main-info {
+              min-width: 0;
+              flex: 1;
+
+              .track-name {
+                font-size: var(--font-size-md);
+                font-weight: 500;
+                color: var(--color-text);
+                margin-bottom: 2px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+
+              .track-artist {
+                font-size: var(--font-size-sm);
+                color: var(--color-text-secondary);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+            }
+          }
+
+          &.cell-album {
+            .album-name {
+              font-size: var(--font-size-sm);
+              color: var(--color-text-secondary);
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+          }
+
+          &.cell-duration {
+            justify-content: center;
+
+            .duration-text {
+              font-size: var(--font-size-sm);
+              color: var(--color-text-secondary);
+              font-variant-numeric: tabular-nums;
+            }
+          }
+
+          &.cell-actions {
+            justify-content: center;
+
+            .track-actions {
+              display: flex;
+              align-items: center;
+              gap: var(--spacing-xs);
+              opacity: 0.6; // 正常状态下显示适当透明度，确保可见性
+              transition: opacity var(--transition-fast);
+
+              .track-action-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 32px;
+                height: 32px;
+                background: none;
+                border: none;
+                border-radius: var(--radius-sm);
+                cursor: pointer;
+                transition: all var(--transition-fast);
+
+                .icon {
+                  width: 16px;
+                  height: 16px;
+                  fill: var(--color-text); // 使用主文本颜色，提高可见性
+                  transition: fill var(--transition-fast);
+                }
+
+                &:hover {
+                  background: var(--color-secondary-bg);
+
+                  .icon {
+                    fill: var(--color-text);
+                  }
+                }
+
+                &.like-btn:hover .icon {
+                  fill: #e53e3e;
+                }
+
+                &.remove-btn:hover {
+                  background: rgba(229, 62, 62, 0.1);
+
+                  .icon {
+                    fill: #e53e3e;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 空状态样式
+  .tracks-empty-state {
+    padding: var(--spacing-xl) var(--spacing-lg);
+    text-align: center;
+
+    .empty-content {
+      max-width: 400px;
+      margin: 0 auto;
+
+      .empty-illustration {
+        margin-bottom: var(--spacing-lg);
+
+        .empty-icon {
+          width: 64px;
+          height: 64px;
+          fill: var(--color-text-secondary);
+          opacity: 0.6;
+        }
+      }
+
+      .empty-title {
+        font-size: var(--font-size-lg);
+        font-weight: 600;
+        color: var(--color-text);
+        margin: 0 0 var(--spacing-sm) 0;
+      }
+
+      .empty-description {
+        font-size: var(--font-size-md);
+        color: var(--color-text-secondary);
+        line-height: 1.5;
+        margin: 0;
+      }
+    }
+  }
+}
+
+// 增强的空状态设计
+.playlist-empty-state {
+  padding: var(--spacing-xl) var(--spacing-lg);
+  text-align: center;
+  background: var(--color-secondary-bg);
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--color-border);
+
+  .empty-content {
+    max-width: 500px;
+    margin: 0 auto;
+
+    .empty-illustration {
+      position: relative;
+      margin-bottom: var(--spacing-xl);
+      display: inline-block;
+
+      .empty-icon {
+        width: 80px;
+        height: 80px;
+        fill: var(--color-primary);
+        opacity: 0.8;
+        animation: float 4s ease-in-out infinite; // 延长动画时间减少频率
+        will-change: transform; // 提示浏览器优化此元素
+      }
+
+      .empty-waves {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 80px; // 减小波浪范围
+        height: 80px;
+
+        .wave {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 40px; // 固定初始大小
+          height: 40px;
+          border: 1px solid var(--color-primary); // 减少边框宽度
+          border-radius: 50%;
+          transform: translate(-50%, -50%);
+          opacity: 0;
+          animation: wave 3s ease-out infinite; // 延长动画时间，使用ease-out
+          will-change: transform, opacity; // 优化性能
+
+          &.wave-1 {
+            animation-delay: 0s;
+          }
+
+          &.wave-2 {
+            animation-delay: 1s; // 增加延迟间隔
+          }
+
+          &.wave-3 {
+            animation-delay: 2s;
+          }
+        }
+      }
+    }
+
+    .empty-title {
+      font-size: var(--font-size-xl);
+      font-weight: 700;
+      color: var(--color-text);
+      margin: 0 0 var(--spacing-md) 0;
+    }
+
+    .empty-description {
+      font-size: var(--font-size-md);
+      color: var(--color-text-secondary);
+      line-height: 1.6;
+      margin: 0 0 var(--spacing-xl) 0;
+    }
+
+    .empty-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-md) var(--spacing-xl);
+      background: var(--color-primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius-lg); // 使用更适中的圆角
+      font-weight: 600;
+      font-size: var(--font-size-md);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      box-shadow: 0 2px 8px rgba(var(--color-primary-rgb), 0.2);
+
+      &:hover {
+        background: rgba(var(--color-primary-rgb), 0.8);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 16px rgba(var(--color-primary-rgb), 0.3);
+        color: white; // 确保悬停时文字保持白色
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+
+      .icon {
+        width: 20px;
+        height: 20px;
+        fill: currentColor;
+      }
+    }
+  }
+}
+
+// 优化的动画效果 - 减少性能开销
+@keyframes float {
+  0%, 100% {
+    transform: translate3d(0, 0, 0); // 使用3D变换启用硬件加速
+  }
+  50% {
+    transform: translate3d(0, -8px, 0); // 减少移动距离
+  }
+}
+
+@keyframes wave {
+  0% {
+    transform: scale(0);
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.5); // 使用scale代替width/height变化
+    opacity: 0;
+  }
+}
+
+// 在用户偏好减少动画时禁用动画以提升性能
+@media (prefers-reduced-motion: reduce) {
+  .playlist-empty-state {
+    .empty-illustration {
+      .empty-icon {
+        animation: none;
+      }
+
+      .empty-waves .wave {
+        animation: none;
+        opacity: 0;
+      }
+    }
+  }
+
+  // 禁用所有页面动画
+  .playlist-page,
+  .playlist-hero,
+  .playlist-actions,
+  .tracks-section {
+    animation: none;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+// 页面加载动画
+.playlist-page {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.playlist-hero {
+  animation: fadeInUp 0.8s ease-out;
+
+  .playlist-cover-container {
+    animation: fadeInLeft 1s ease-out 0.2s both;
+  }
+
+  .playlist-info {
+    animation: fadeInRight 1s ease-out 0.4s both;
+  }
+}
+
+.playlist-actions {
+  animation: fadeInUp 0.8s ease-out 0.6s both;
+}
+
+.tracks-section {
+  animation: fadeInUp 0.8s ease-out 0.8s both;
+}
+
+// 加载状态动画
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-secondary-bg) 0%,
+    var(--color-border) 50%,
+    var(--color-secondary-bg) 100%
+  );
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+// 悬停增强效果
+.track-row {
+  &:hover {
+    .track-name {
+      color: var(--color-primary);
+      transition: color var(--transition-fast);
+    }
+
+    .track-number-container {
+      .track-number {
+        transform: scale(0.8);
+        opacity: 0;
+      }
+
+      .play-indicator {
+        transform: scale(1.1);
+        opacity: 1;
+      }
+    }
+  }
+}
+
+// 按钮点击反馈
+.play-btn,
+.action-btn,
+.track-action-btn {
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+// 菜单展开动画
+.menu-dropdown {
+  transform-origin: top right;
+
+  &.show {
+    animation: scaleIn 0.2s ease-out;
+  }
 }
 
 // 响应式设计 - 歌单详情页面
 @media (max-width: 1024px) {
   .playlist-hero {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-
-    .playlist-cover {
-      width: 180px;
-      height: 180px;
+    .hero-content {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: var(--spacing-lg);
     }
 
-    .playlist-info .playlist-name {
+    .playlist-cover-container .playlist-cover {
+      width: 200px;
+      height: 200px;
+    }
+
+    .playlist-info .playlist-title {
       font-size: 2.8rem;
     }
   }
@@ -2636,114 +4036,272 @@ a {
     gap: var(--spacing-md);
     align-items: stretch;
 
-    .main-actions,
-    .extra-actions {
+    .actions-primary,
+    .actions-secondary {
       justify-content: center;
     }
   }
 
-  .track-list-header-row,
-  .playlist-track-item {
-    grid-template-columns: 50px 1fr 60px;
+  .modern-tracks-table {
+    .tracks-table-header,
+    .track-row {
+      grid-template-columns: 50px 1fr 60px;
 
-    .track-header-album,
-    .track-album {
-      display: none;
+      .header-cell.cell-album,
+      .track-cell.cell-album,
+      .header-cell.cell-actions,
+      .track-cell.cell-actions {
+        display: none;
+      }
     }
   }
 }
 
 @media (max-width: 768px) {
-  .playlist-detail-page {
-    padding: var(--spacing-md);
-  }
-
   .playlist-hero {
     padding: var(--spacing-lg);
 
-    .playlist-cover {
-      width: 140px;
-      height: 140px;
-    }
-
-    .playlist-info .playlist-name {
-      font-size: 2.2rem;
-    }
-
-    .playlist-stats {
+    .hero-content {
       flex-direction: column;
-      gap: var(--spacing-sm);
       align-items: center;
+      text-align: center;
+      gap: var(--spacing-lg);
+    }
+
+    .playlist-cover-container .playlist-cover {
+      width: 180px;
+      height: 180px;
+    }
+
+    .playlist-info .playlist-title {
+      font-size: 2.5rem;
+    }
+
+    .playlist-meta {
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: var(--spacing-md);
     }
   }
 
-  .track-header {
+  .playlist-actions {
     flex-direction: column;
     gap: var(--spacing-md);
-    align-items: stretch;
+    padding: var(--spacing-md);
 
-    .track-controls {
+    .actions-primary {
       justify-content: center;
+      flex-wrap: wrap;
+
+      .play-btn {
+        padding: var(--spacing-sm) var(--spacing-lg);
+        font-size: var(--font-size-sm);
+      }
+    }
+
+    .actions-secondary {
+      justify-content: center;
+      flex-wrap: wrap;
+
+      .action-btn {
+        padding: var(--spacing-xs) var(--spacing-sm);
+        font-size: var(--font-size-xs);
+      }
     }
   }
 
-  .track-list-header-row,
-  .playlist-track-item {
-    grid-template-columns: 40px 1fr 50px;
-    padding: var(--spacing-sm) var(--spacing-md);
+  .tracks-section {
+    .tracks-header {
+      flex-direction: column;
+      gap: var(--spacing-md);
+      align-items: stretch;
 
-    .track-header-duration,
-    .track-duration {
-      display: none;
+      .header-left {
+        text-align: center;
+        flex-direction: column;
+        gap: var(--spacing-xs);
+      }
+
+      .header-right .tracks-controls {
+        justify-content: center;
+      }
+    }
+
+    .modern-tracks-table {
+      .tracks-table-header,
+      .track-row {
+        grid-template-columns: 40px 1fr 80px; // 为操作按钮保留空间
+        padding: var(--spacing-sm) var(--spacing-md);
+
+        .header-cell.cell-album,
+        .track-cell.cell-album {
+          display: none;
+        }
+
+        // 在移动端保持操作按钮可见，但简化显示
+        .track-cell.cell-actions {
+          .track-actions {
+            opacity: 1; // 始终显示
+            gap: var(--spacing-xs);
+
+            .track-action-btn {
+              width: 28px; // 减小按钮尺寸适应移动端
+              height: 28px;
+
+              .icon {
+                width: 14px;
+                height: 14px;
+              }
+            }
+          }
+        }
+
+        // 为移动端歌曲行添加触摸友好的交互
+        .track-row {
+          &:active {
+            background: var(--color-hover);
+          }
+        }
+      }
     }
   }
 
-  .playlist-track-item .track-actions {
-    opacity: 1; // 在移动设备上始终显示操作按钮
+  .playlist-empty-state {
+    padding: var(--spacing-lg) var(--spacing-md);
+
+    .empty-content {
+      .empty-illustration .empty-icon {
+        width: 60px;
+        height: 60px;
+      }
+
+      .empty-title {
+        font-size: var(--font-size-lg);
+      }
+
+      .empty-description {
+        font-size: var(--font-size-sm);
+      }
+
+      .empty-action-btn {
+        padding: var(--spacing-sm) var(--spacing-lg);
+        font-size: var(--font-size-sm);
+      }
+    }
+  }
+
+  .tracks-table {
+    .table-header {
+      grid-template-columns: 40px 1fr 60px;
+      padding: var(--spacing-sm) var(--spacing-md);
+
+      .th.th-album,
+      .th.th-duration {
+        display: none;
+      }
+    }
+
+    .track-row {
+      grid-template-columns: 40px 1fr 60px;
+      padding: var(--spacing-sm) var(--spacing-md);
+
+      .td.td-album,
+      .td.td-duration {
+        display: none;
+      }
+
+      .td.td-actions .track-actions {
+        opacity: 1; // 在移动设备上始终显示操作按钮
+      }
+    }
   }
 }
 
 @media (max-width: 480px) {
-  .playlist-actions .main-actions {
-    flex-direction: column;
-    width: 100%;
+  .playlist-page {
+    .hero-section {
+      padding: var(--spacing-md);
 
-    .action-btn.primary {
-      width: 100%;
-      justify-content: center;
-    }
+      .playlist-cover {
+        width: 140px;
+        height: 140px;
+      }
 
-    .action-btn.secondary {
-      align-self: center;
+      .playlist-info {
+        .playlist-title {
+          font-size: 2rem;
+        }
+
+        .playlist-description {
+          font-size: var(--font-size-sm);
+        }
+
+        .playlist-meta {
+          flex-direction: column;
+          gap: var(--spacing-sm);
+        }
+      }
     }
   }
 
-  .playlist-track-item {
-    .track-main-info {
-      .track-title,
-      .track-artist {
-        white-space: normal;
-        overflow: visible;
-        text-overflow: unset;
-        line-height: 1.4;
+  .playlist-actions {
+    .actions-main {
+      flex-direction: column;
+      width: 100%;
+
+      .action-btn.primary {
+        width: 100%;
+        justify-content: center;
       }
 
-      .track-title {
-        margin-bottom: var(--spacing-xs);
+      .action-btn.secondary {
+        align-self: center;
       }
     }
 
-    .track-actions {
+    .actions-extra {
       flex-direction: column;
-      gap: var(--spacing-xs);
+      gap: var(--spacing-sm);
 
-      .track-action-btn {
-        width: 28px;
-        height: 28px;
+      .action-btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  }
 
-        .icon {
-          width: 14px;
-          height: 14px;
+  .tracks-table {
+    .track-row {
+      .td.td-title {
+        .track-info {
+          .track-name,
+          .track-artist {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+            line-height: 1.4;
+          }
+
+          .track-name {
+            margin-bottom: var(--spacing-xs);
+          }
+        }
+      }
+
+      .td.td-actions {
+        .track-actions {
+          flex-direction: column;
+          gap: var(--spacing-xs);
+
+          .action-btn {
+            width: 28px;
+            height: 28px;
+
+            .icon {
+              width: 14px;
+              height: 14px;
+            }
+          }
         }
       }
     }
@@ -7674,5 +9232,32 @@ body.focus-mode {
   &.disabled {
     opacity: 0.5;
     pointer-events: none;
+  }
+}
+
+// Empty state for playlist
+.playlist-empty-state {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--color-text-secondary);
+
+  .empty-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto var(--spacing-lg) auto;
+    fill: currentColor;
+    opacity: 0.5;
+  }
+
+  h3 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--color-text);
+  }
+
+  p {
+    margin: 0 0 var(--spacing-lg) 0;
+    font-size: var(--font-size-md);
   }
 }

@@ -218,6 +218,10 @@ class MusicBoxApp extends EventEmitter {
             await this.handleShowAddSongsDialog(playlist);
         });
 
+        this.components.playlistDetailPage.on('playlistCoverUpdated', async (playlist) => {
+            await this.handlePlaylistCoverUpdated(playlist);
+        });
+
         // Settings events
         this.components.settings.on('selectMusicFolder', async () => {
             await this.handleSelectMusicFolder();
@@ -1051,6 +1055,15 @@ class MusicBoxApp extends EventEmitter {
         // 刷新侧边栏歌单列表
         if (this.components.navigation && this.components.navigation.refreshPlaylists) {
             await this.components.navigation.refreshPlaylists();
+        }
+    }
+
+    // 处理歌单封面更新
+    async handlePlaylistCoverUpdated(playlist) {
+        console.log('🎵 歌单封面已更新:', playlist.name);
+        // 更新侧边栏中的歌单信息
+        if (this.components.navigation && this.components.navigation.updatePlaylistInfo) {
+            this.components.navigation.updatePlaylistInfo(playlist);
         }
     }
 

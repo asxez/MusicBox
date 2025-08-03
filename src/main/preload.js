@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
     selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
     openFiles: () => ipcRenderer.invoke('dialog:openFiles'),
+    openImageFile: () => ipcRenderer.invoke('dialog:openImageFile'),
 
     // 音频引擎
     audio: {
@@ -70,7 +71,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
         // Playlists
         createPlaylist: (name, description) => ipcRenderer.invoke('library:createPlaylist', name, description),
-        getPlaylists: () => ipcRenderer.invoke('library:getPlaylists'),
+        // getPlaylists: () => ipcRenderer.invoke('library:getPlaylists'),
         getPlaylistDetail: (playlistId) => ipcRenderer.invoke('library:getPlaylistDetail', playlistId),
         deletePlaylist: (playlistId) => ipcRenderer.invoke('library:deletePlaylist', playlistId),
         renamePlaylist: (playlistId, newName) => ipcRenderer.invoke('library:renamePlaylist', playlistId, newName),
@@ -78,11 +79,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
         removeFromPlaylist: (playlistId, trackIds) => ipcRenderer.invoke('library:removeFromPlaylist', playlistId, trackIds),
         cleanupPlaylists: () => ipcRenderer.invoke('library:cleanupPlaylists'),
 
-        // Cache management
+        // 缓存管理
         loadCachedTracks: () => ipcRenderer.invoke('library:loadCachedTracks'),
         validateCache: () => ipcRenderer.invoke('library:validateCache'),
         getCacheStatistics: () => ipcRenderer.invoke('library:getCacheStatistics'),
         clearCache: () => ipcRenderer.invoke('library:clearCache'),
+
+        // 歌单封面
+        updatePlaylistCover: (playlistId, imagePath) => ipcRenderer.invoke('library:updatePlaylistCover', playlistId, imagePath),
+        getPlaylistCover: (playlistId) => ipcRenderer.invoke('library:getPlaylistCover', playlistId),
+        removePlaylistCover: (playlistId) => ipcRenderer.invoke('library:removePlaylistCover', playlistId),
 
         // Event listeners
         onLibraryUpdated: (callback) => {
