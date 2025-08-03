@@ -108,31 +108,36 @@ npm run build:all
 ```
 MusicBox/
 ├── src/
-│   ├── main/                   # 主进程代码
-│   │   ├── main.js             # 主进程入口
-│   │   ├── preload.js          # 预加载脚本
-│   │   └── library-cache-manager.js  # 音乐库缓存管理
-│   └── renderer/               # 渲染进程代码
-│       ├── public/             # 静态资源
-│       │   ├── index.html      # 主页面
-│       │   ├── styles/         # 编译后的样式
-│       │   ├── js/             # 编译后的脚本
-│       │   └── assets/         # 图标、图片等资源
-│       ├── src/                # 源代码
-│       │   ├── js/             # JavaScript 源码
-│       │   │   ├── app.js      # 应用主类
-│       │   │   ├── api.js      # API 接口层
-│       │   │   ├── components.js  # UI 组件
-│       │   │   ├── web-audio-engine.js  # 音频引擎
-│       │   │   └── utils.js    # 工具方法
-│       │   ├── styles/         # SCSS 样式源码
-│       │   │   └── main.scss   # 主样式文件
-│       │   └── assets/         # 源资源文件
-│       └── scripts/            # 构建脚本
-├── docs/                       # 文档和图片
-├── dist/                       # 构建输出目录
-├── package.json               # 项目配置
-└── README.md                  # 项目说明
+│   ├── main/                                   # 主进程代码
+│   │   ├── main.js                             # 主进程入口
+│   │   ├── preload.js                          # 预加载脚本
+│   │   └── library-cache-manager.js            # 音乐库缓存管理
+│   └── renderer/                               # 渲染进程代码
+│       ├── src/                                # 源代码
+│       │   ├── js/                             # JavaScript 源码
+│       │   │   ├── api.js                      # API 接口层
+│       │   │   ├── app.js                      # 应用主类
+│       │   │   ├── cache-manager.js            # localStorage缓存管理
+│       │   │   ├── components.js               # UI 组件
+│       │   │   ├── desktop-lyrics.js           # 桌面歌词管理
+│       │   │   ├── embedded-lyrics-manager.js  # 内嵌歌词管理
+│       │   │   ├── local-cover-manager.js      # 本地封面文件管理
+│       │   │   ├── local-lyrics-manager.js     # 本地歌词文件管理
+│       │   │   ├── md5.js                      # md5
+│       │   │   ├── shortcut-config.js          # 快捷键配置
+│       │   │   ├── shortcut-recorder.js        # 快捷键录制器
+│       │   │   ├── utils.js                    # 工具方法
+│       │   │   └── web-audio-engine.js         # 音频引擎
+│       │   ├── styles/                         # SCSS 样式源码
+│       │   │   └── main.scss                   # 主样式文件
+│       │   └── assets/                         # 源资源文件
+│       └── scripts/                            # 构建脚本
+├── build/                                      # 构建的logo
+├── docs/                                       # 文档和图片
+├── dist/                                       # 构建输出目录
+├── electron-builder.yml                        # 构建配置
+├── package.json                                # 项目配置
+└── README.md                                   # 项目说明
 ```
 
 ### 开发环境设置
@@ -154,9 +159,10 @@ cd MusicBox
 # 安装主项目依赖
 npm install
 
-# 安装渲染进程依赖
+# 安装渲染进程依赖并构建渲染进程
 cd src/renderer
 npm install
+npm run build
 cd ../..
 ```
 
