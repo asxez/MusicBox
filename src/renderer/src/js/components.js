@@ -1529,7 +1529,6 @@ class Settings extends EventEmitter {
         this.lyricsFolderPath = this.element.querySelector('#lyrics-folder-path');
         this.selectCoverCacheFolderBtn = this.element.querySelector('#select-cover-cache-folder-btn');
         this.coverCacheFolderPath = this.element.querySelector('#cover-cache-folder-path');
-        this.rescanLibraryBtn = this.element.querySelector('#rescan-library-btn');
         this.checkUpdatesBtn = this.element.querySelector('#check-updates-btn');
 
         // 缓存管理元素
@@ -1590,7 +1589,6 @@ class Settings extends EventEmitter {
             console.log(`🎵 Settings: 桌面歌词功能${e.target.checked ? '启用' : '禁用'}`);
         });
 
-
         this.autoScanToggle.addEventListener('change', (e) => {
             this.updateSetting('autoScan', e.target.checked);
         });
@@ -1640,10 +1638,6 @@ class Settings extends EventEmitter {
             } catch (error) {
                 console.error('❌ Settings: 选择封面缓存目录失败:', error);
             }
-        });
-
-        this.rescanLibraryBtn.addEventListener('click', () => {
-            this.emit('rescanLibrary');
         });
 
         this.checkUpdatesBtn.addEventListener('click', () => {
@@ -1762,7 +1756,6 @@ class Settings extends EventEmitter {
             this.coverCacheFolderPath.textContent = '未选择';
             this.coverCacheFolderPath.classList.remove('selected');
         }
-
         console.log('🎵 Settings: 设置值初始化完成', this.settings);
 
         // 初始化完成后，发出桌面歌词设置状态事件，确保Player组件同步
@@ -1805,7 +1798,6 @@ class Settings extends EventEmitter {
             this.viewCacheStatsBtn.textContent = '获取中...';
 
             const stats = await api.getCacheStatistics();
-
             if (stats) {
                 const totalSizeMB = (stats.totalSize / (1024 * 1024)).toFixed(2);
                 const cacheAgeDays = Math.floor(stats.cacheAge / (1000 * 60 * 60 * 24));
@@ -1831,8 +1823,8 @@ class Settings extends EventEmitter {
             this.validateCacheBtn.disabled = true;
             this.validateCacheBtn.textContent = '验证中...';
             showToast('开始验证缓存，请稍候...', 'info');
-            const result = await api.validateCache();
 
+            const result = await api.validateCache();
             if (result) {
                 const message = `缓存验证完成 - 有效: ${result.valid}, 无效: ${result.invalid}, 已修改: ${result.modified}`;
                 showToast(message, 'success');
@@ -1858,7 +1850,6 @@ class Settings extends EventEmitter {
             this.clearCacheBtn.textContent = '清空中...';
 
             const success = await api.clearCache();
-
             if (success) {
                 showToast('缓存已清空', 'success');
                 this.cacheStatsDescription.textContent = '缓存已清空';
@@ -2012,7 +2003,6 @@ class Settings extends EventEmitter {
         // 渲染快捷键列表
         this.renderShortcutsList('local', config.localShortcuts);
         this.renderShortcutsList('global', config.globalShortcuts);
-
         console.log('🎹 快捷键配置初始化完成');
     }
 
@@ -2191,7 +2181,6 @@ class Settings extends EventEmitter {
     showShortcutConflict(conflicts, newShortcut, onConfirm) {
         const conflictNames = conflicts.map(c => `${c.name} (${c.type === 'local' ? '应用内' : '全局'})`).join('、');
         const message = `快捷键 "${this.formatShortcutKey(newShortcut)}" 与以下快捷键冲突：\n${conflictNames}\n\n是否要覆盖现有快捷键？`;
-
         if (confirm(message)) {
             onConfirm();
         }
@@ -2199,7 +2188,6 @@ class Settings extends EventEmitter {
 
     showResetShortcutsDialog() {
         const message = '确定要将所有快捷键重置为默认设置吗？\n\n此操作将清除您的所有自定义快捷键配置。';
-
         if (confirm(message)) {
             this.resetShortcuts();
         }
@@ -2207,7 +2195,6 @@ class Settings extends EventEmitter {
 
     resetShortcuts() {
         const success = window.shortcutConfig.resetToDefaults();
-
         if (success) {
             // 重新初始化快捷键配置
             this.initializeShortcuts();
@@ -4842,7 +4829,6 @@ class EqualizerComponent extends Component {
     }
 
     setupEventListeners() {
-        // 弹窗控制
         this.openBtn?.addEventListener('click', () => this.show());
         this.closeBtn?.addEventListener('click', () => this.hide());
         this.modal?.addEventListener('click', (e) => {
@@ -4851,7 +4837,6 @@ class EqualizerComponent extends Component {
             }
         });
 
-        // 均衡器开关
         this.equalizerToggle?.addEventListener('change', (e) => {
             this.setEnabled(e.target.checked);
         });
@@ -4897,7 +4882,6 @@ class EqualizerComponent extends Component {
         this.resetBtn?.addEventListener('click', () => this.reset());
         this.applyBtn?.addEventListener('click', () => this.hide());
 
-        // 键盘事件
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.isVisible()) {
                 this.hide();
@@ -4914,9 +4898,7 @@ class EqualizerComponent extends Component {
         if (window.api && window.api.getEqualizer) {
             this.equalizer = window.api.getEqualizer();
             console.log('🎛️ 获取到的均衡器实例:', this.equalizer);
-
             if (this.equalizer) {
-                // 确保配置已正确加载
                 if (window.cacheManager) {
                     this.reloadConfig();
                 } else {
@@ -4979,13 +4961,10 @@ class EqualizerComponent extends Component {
 
         // 立即保存设置到缓存
         this.saveSettingsImmediate();
-
         console.log(`✅ 均衡器${enabled ? '已启用' : '已禁用'}`);
     }
 
-    /**
-     * 更新UI状态，避免触发事件
-     */
+    // 更新UI状态，避免触发事件
     updateUIState(enabled) {
         // 临时移除事件监听器，避免递归调用
         if (this.equalizerToggle) {
@@ -5241,7 +5220,7 @@ class EqualizerComponent extends Component {
             window.cacheManager.setLocalCache('musicbox-equalizer-settings', settings);
             console.log('💾 均衡器主要设置已保存到缓存');
 
-            // 保存自定义预设（从localStorage同步到缓存）
+            // 保存自定义预设
             try {
                 const customPresetsFromStorage = window.cacheManager.getLocalCache('customEqualizerPresets');
                 if (customPresetsFromStorage) {
@@ -5315,7 +5294,6 @@ class EqualizerComponent extends Component {
             }
 
             const customPresets = this.getCustomPresets();
-
             // 检查是否已存在同名预设
             if (customPresets[name]) {
                 if (!confirm(`预设"${name}"已存在，是否覆盖？`)) {
@@ -5340,7 +5318,6 @@ class EqualizerComponent extends Component {
             this.newPresetNameInput.value = '';
             this.loadCustomPresetsList();
             this.updateSaveButtonState();
-
             console.log(`✅ 自定义预设"${name}"保存成功`);
         } catch (error) {
             console.error('❌ 保存自定义预设失败:', error);
@@ -5357,7 +5334,6 @@ class EqualizerComponent extends Component {
                 console.error(`❌ 自定义预设"${name}"不存在`);
                 return;
             }
-
             console.log(`🔄 开始加载自定义预设"${name}"`);
 
             // 应用预设的增益值（不触发保存）
@@ -5382,10 +5358,7 @@ class EqualizerComponent extends Component {
 
             // 设置当前预设为自定义预设的完整标识
             this.currentPreset = customPresetValue;
-
-            // 保存设置
             this.saveSettingsImmediate();
-
             console.log(`✅ 自定义预设"${name}"加载成功`);
         } catch (error) {
             console.error('❌ 加载自定义预设失败:', error);
@@ -5412,10 +5385,7 @@ class EqualizerComponent extends Component {
 
             // 更新预设选择器
             this.updatePresetSelect();
-
-            // 刷新列表
             this.loadCustomPresetsList();
-
             console.log(`✅ 自定义预设"${name}"删除成功`);
         } catch (error) {
             console.error('❌ 删除自定义预设失败:', error);
@@ -5447,7 +5417,7 @@ class EqualizerComponent extends Component {
             return;
         }
 
-        const presetsHtml = presetNames.map(name => {
+        this.customPresetsList.innerHTML = presetNames.map(name => {
             const preset = customPresets[name];
             const createdDate = new Date(preset.createdAt).toLocaleDateString();
 
@@ -5468,8 +5438,6 @@ class EqualizerComponent extends Component {
                 </div>
             `;
         }).join('');
-
-        this.customPresetsList.innerHTML = presetsHtml;
     }
 
     updatePresetSelect() {
@@ -5500,9 +5468,7 @@ class EqualizerComponent extends Component {
         });
     }
 
-    /**
-     * 重新加载配置
-     */
+    // 重新加载配置
     reloadConfig() {
         console.log('🔄 重新加载均衡器配置');
         this.loadSettings();
@@ -5510,9 +5476,7 @@ class EqualizerComponent extends Component {
         return true;
     }
 
-    /**
-     * 立即保存设置
-     */
+    // 立即保存设置
     saveSettingsImmediate() {
         this.saveSettings();
     }

@@ -1232,7 +1232,6 @@ ipcMain.handle('library:getTrackMetadata', async (event, filePath) => {
 
         // 使用统一的元数据解析函数
         const metadata = await parseMetadata(filePath);
-
         return {
             filePath: filePath,
             title: metadata.title,

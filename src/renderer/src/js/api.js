@@ -1263,69 +1263,6 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    /**
-     * 设置频段增益
-     */
-    setEqualizerBandGain(bandIndex, gain) {
-        const equalizer = this.getEqualizer();
-        if (equalizer) {
-            equalizer.setBandGain(bandIndex, gain);
-        }
-    }
-
-    /**
-     * 获取频段增益
-     */
-    getEqualizerBandGain(bandIndex) {
-        const equalizer = this.getEqualizer();
-        if (equalizer) {
-            return equalizer.getBandGain(bandIndex);
-        }
-        return 0;
-    }
-
-    /**
-     * 设置所有频段增益
-     */
-    setEqualizerAllGains(gains) {
-        const equalizer = this.getEqualizer();
-        if (equalizer) {
-            equalizer.setAllGains(gains);
-        }
-    }
-
-    /**
-     * 获取所有频段增益
-     */
-    getEqualizerAllGains() {
-        const equalizer = this.getEqualizer();
-        if (equalizer) {
-            return equalizer.getAllGains();
-        }
-        return [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    }
-
-    /**
-     * 应用均衡器预设
-     */
-    applyEqualizerPreset(presetName) {
-        const equalizer = this.getEqualizer();
-        if (equalizer) {
-            return equalizer.applyPreset(presetName);
-        }
-        return false;
-    }
-
-    /**
-     * 重置均衡器
-     */
-    resetEqualizer() {
-        const equalizer = this.getEqualizer();
-        if (equalizer) {
-            equalizer.reset();
-        }
-    }
-
     // 桌面歌词同步方法
     async syncToDesktopLyrics(type, data) {
         if (!window.electronAPI || !window.electronAPI.desktopLyrics) {
@@ -1455,7 +1392,6 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    // Cleanup method
     destroy() {
         this.stopProgressTracking();
         this.removeAllListeners();

@@ -6,8 +6,8 @@
 class LocalCoverManager {
     constructor() {
         this.coverDirectory = null;
-        this.cache = new Map(); // 缓存已读取的封面文件路径
-        this.maxCacheSize = 10; // 内存最大缓存条目数
+        this.cache = new Map();
+        this.maxCacheSize = 10;
         this.supportedFormats = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
         console.log('🖼️ LocalCoverManager: 本地封面管理器初始化完成');
     }
@@ -102,7 +102,6 @@ class LocalCoverManager {
             if (searchResult.success && searchResult.filePath) {
                 // 添加到内存缓存
                 this.addToCache(cacheKey, searchResult.filePath);
-
                 console.log(`✅ LocalCoverManager: 找到本地封面缓存 - ${searchResult.fileName}`);
                 return {
                     success: true,
@@ -177,7 +176,6 @@ class LocalCoverManager {
                 // 添加到内存缓存
                 const cacheKey = this.generateCacheKey(title, artist, album);
                 this.addToCache(cacheKey, saveResult.filePath);
-
                 console.log(`✅ LocalCoverManager: 封面保存成功 - ${fullFileName}`);
                 return {
                     success: true,

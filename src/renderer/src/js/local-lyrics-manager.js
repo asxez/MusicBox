@@ -6,9 +6,8 @@
 class LocalLyricsManager {
     constructor() {
         this.lyricsDirectory = null;
-        this.cache = new Map(); // 缓存已读取的歌词文件
-        this.maxCacheSize = 50; // 最大缓存条目数
-        
+        this.cache = new Map();
+        this.maxCacheSize = 10;
         console.log('🎵 LocalLyricsManager: 本地歌词管理器初始化完成');
     }
 
@@ -18,7 +17,7 @@ class LocalLyricsManager {
      */
     setLyricsDirectory(directory) {
         this.lyricsDirectory = directory;
-        this.cache.clear(); // 清空缓存
+        this.cache.clear();
         console.log(`📁 LocalLyricsManager: 设置歌词目录为 ${directory}`);
     }
 

@@ -440,7 +440,6 @@ class DesktopLyricsManager {
 
         // 添加拖拽阻尼效果
         if (Math.abs(deltaX) < 3 && Math.abs(deltaY) < 3) return;
-
         if (window.electronAPI && window.electronAPI.desktopLyrics) {
             try {
                 const currentPos = await window.electronAPI.desktopLyrics.getPosition();
@@ -506,13 +505,10 @@ class DesktopLyricsManager {
 
         // 显示主题名称
         this.showThemeToast(themes[nextIndex].displayName);
-
-        // 保存主题设置
         window.cacheManager.setLocalCache('desktopLyrics-theme', themes[nextIndex].name);
     }
 
     showThemeToast(themeName) {
-        // 创建更精美的主题提示
         const toast = document.createElement('div');
         toast.textContent = `主题: ${themeName}`;
         toast.style.cssText = `
@@ -562,7 +558,7 @@ class DesktopLyricsManager {
     }
 
     async loadSettings() {
-        // 加载保存的设置
+        // 加载设置
         const savedOpacity = window.cacheManager.getLocalCache('desktopLyrics-opacity');
         if (savedOpacity) {
             const opacity = parseFloat(savedOpacity);
@@ -570,6 +566,7 @@ class DesktopLyricsManager {
             await this.setOpacity(opacity);
         }
 
+        // 加载字体大小
         const savedFontSize = window.cacheManager.getLocalCache('desktopLyrics-fontSize');
         if (savedFontSize) {
             const fontSize = parseInt(savedFontSize);
@@ -577,13 +574,13 @@ class DesktopLyricsManager {
             this.setFontSize(fontSize);
         }
 
-        // 加载保存的主题
+        // 加载主题
         const savedTheme = window.cacheManager.getLocalCache('desktopLyrics-theme');
         if (savedTheme) {
             this.elements.container.classList.add(savedTheme);
         }
 
-        // 加载保存的布局偏好
+        // 加载布局偏好
         const savedLayout = window.cacheManager.getLocalCache('desktopLyrics-layout');
         if (savedLayout) {
             console.log('🎵 DesktopLyrics: 上次使用的布局:', savedLayout);
@@ -591,7 +588,6 @@ class DesktopLyricsManager {
     }
 
     showStatusToast(message, icon = '') {
-        // 创建状态提示
         const toast = document.createElement('div');
         toast.innerHTML = `${icon} ${message}`;
         toast.style.cssText = `
@@ -699,7 +695,6 @@ class DesktopLyricsManager {
     switchLayout(newLayout) {
         const oldLayout = this.currentLayout;
         this.currentLayout = newLayout;
-
         console.log(`🎵 DesktopLyrics: 布局切换 ${oldLayout} -> ${newLayout}`);
 
         this.elements.container.classList.remove('horizontal-layout', 'vertical-layout');

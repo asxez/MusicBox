@@ -109,8 +109,8 @@ class MusicBoxApp extends EventEmitter {
             await this.components.settings.toggle();
         });
 
-        this.components.navigation.on('playlistSelected', (playlist) => {
-            this.handlePlaylistSelected(playlist);
+        this.components.navigation.on('playlistSelected', async (playlist) => {
+            await this.handlePlaylistSelected(playlist);
         });
 
         this.components.navigation.on('showRenameDialog', (playlist) => {
@@ -223,10 +223,6 @@ class MusicBoxApp extends EventEmitter {
             await this.handleSelectMusicFolder();
         });
 
-        this.components.settings.on('rescanLibrary', async () => {
-            await this.handleRescanLibrary();
-        });
-
         // 监听桌面歌词设置变化
         this.components.settings.on('desktopLyricsEnabled', async (enabled) => {
             if (this.components.player) {
@@ -336,7 +332,6 @@ class MusicBoxApp extends EventEmitter {
 
                 // 从缓存加载音乐库
                 this.library = await api.loadCachedTracks();
-
                 if (this.library.length > 0) {
                     console.log(`✅ 从缓存加载 ${this.library.length} 个音乐文件`);
                     this.filteredLibrary = [...this.library];
@@ -431,7 +426,6 @@ class MusicBoxApp extends EventEmitter {
 
             // 启动验证
             await api.validateCache();
-
         } catch (error) {
             console.warn('⚠️ 后台缓存验证失败:', error);
         }
@@ -752,10 +746,7 @@ class MusicBoxApp extends EventEmitter {
             const currentTime = Date.now();
             const pressedKey = this.generateKeyString(e);
 
-            // 获取当前启用的快捷键配置
             const shortcuts = this.getEnabledShortcuts();
-
-            // 查找匹配的快捷键
             const matchedShortcut = this.findMatchingShortcut(pressedKey, shortcuts);
 
             if (matchedShortcut) {
@@ -770,7 +761,6 @@ class MusicBoxApp extends EventEmitter {
 
                 e.preventDefault();
                 e.stopPropagation(); // 阻止事件冒泡
-
                 console.log(`⌨️ 统一快捷键管理器：处理快捷键 ${matchedShortcut.name} (${pressedKey})`);
 
                 // 执行快捷键对应的操作
@@ -811,7 +801,6 @@ class MusicBoxApp extends EventEmitter {
         // 添加主键
         const mainKey = this.normalizeKey(event);
         if (mainKey) keys.push(mainKey);
-
         return keys.join('+');
     }
 
@@ -850,7 +839,6 @@ class MusicBoxApp extends EventEmitter {
             // 如果配置管理器未加载，返回默认快捷键
             return this.getDefaultShortcuts();
         }
-
         return window.shortcutConfig.getEnabledLocalShortcuts();
     }
 
@@ -1015,7 +1003,7 @@ class MusicBoxApp extends EventEmitter {
     }
 
     // 处理歌单选择
-    handlePlaylistSelected(playlist) {
+    async handlePlaylistSelected(playlist) {
         console.log('🎵 选择歌单:', playlist.name);
 
         // 隐藏所有页面
@@ -1024,7 +1012,7 @@ class MusicBoxApp extends EventEmitter {
         // 显示歌单详情页面
         this.currentView = 'playlist-detail';
         if (this.components.playlistDetailPage) {
-            this.components.playlistDetailPage.show(playlist);
+            await this.components.playlistDetailPage.show(playlist);
         }
     }
 
@@ -1375,16 +1363,6 @@ class MusicBoxApp extends EventEmitter {
             }
         } catch (error) {
             console.error('❌ 选择音乐文件夹失败:', error);
-        }
-    }
-
-    async handleRescanLibrary() {
-        try {
-            console.log('🔄 重新扫描音乐库');
-            await api.scanLibrary();
-            this.showInfo('开始重新扫描音乐库');
-        } catch (error) {
-            console.error('❌ 重新扫描失败:', error);
         }
     }
 
