@@ -272,7 +272,6 @@ class WebAudioEngine {
             // 记录暂停位置
             const currentPosition = this.audioContext.currentTime - this.startTime;
             this.pauseTime = Math.max(0, Math.min(currentPosition, this.duration - 0.1));
-
             console.log(`🔄 暂停位置计算: currentTime=${this.audioContext.currentTime.toFixed(2)}, startTime=${this.startTime.toFixed(2)}, 计算位置=${currentPosition.toFixed(2)}, 最终位置=${this.pauseTime.toFixed(2)}`);
 
             // 如果计算出的位置异常，使用当前进度
@@ -290,7 +289,6 @@ class WebAudioEngine {
                     this.sourceNode.stop();
                     this.sourceNode.disconnect();
                 } catch (e) {
-                    // 忽略已停止的错误
                 }
                 this.sourceNode = null;
             }
@@ -300,7 +298,6 @@ class WebAudioEngine {
 
             // 停止进度更新
             this.stopProgressTimer();
-
             console.log(`⏸️ 暂停播放，位置: ${this.pauseTime.toFixed(2)}s`);
 
             // 触发事件
@@ -310,7 +307,6 @@ class WebAudioEngine {
             } else {
                 console.warn('⚠️ Web Audio Engine: onPlaybackStateChanged 回调未设置');
             }
-
             return true;
         } catch (error) {
             console.error('❌ 暂停失败:', error);
@@ -331,7 +327,6 @@ class WebAudioEngine {
                     this.sourceNode.stop();
                     this.sourceNode.disconnect();
                 } catch (e) {
-                    // 忽略已停止的错误
                 }
                 this.sourceNode = null;
             }
@@ -343,7 +338,6 @@ class WebAudioEngine {
 
             // 停止进度更新
             this.stopProgressTimer();
-
             console.log('⏹️ 停止播放');
 
             // 触发事件
@@ -355,7 +349,6 @@ class WebAudioEngine {
             if (this.onPositionChanged) {
                 this.onPositionChanged(0);
             }
-
             return true;
         } catch (error) {
             console.error('❌ 停止失败:', error);
@@ -398,7 +391,6 @@ class WebAudioEngine {
                     this.sourceNode.stop();
                     this.sourceNode.disconnect();
                 } catch (e) {
-                    // 忽略已停止的错误
                 }
                 this.sourceNode = null;
             }
@@ -410,7 +402,6 @@ class WebAudioEngine {
             this.pauseTime = Math.max(0, Math.min(position, this.duration));
             this.isPaused = true;
             this.isPlaying = false;
-
             console.log(`⏭️ 跳转到: ${position.toFixed(2)}s`);
 
             // 如果之前在播放，继续播放
@@ -422,7 +413,6 @@ class WebAudioEngine {
             if (this.onPositionChanged) {
                 this.onPositionChanged(this.pauseTime);
             }
-
             return true;
         } catch (error) {
             console.error('❌ 跳转失败:', error);
@@ -599,65 +589,26 @@ class WebAudioEngine {
     }
 
     async getTrackMetadata(filePath) {
-        try {
-            // 优先从API获取完整的元数据
-            if (window.electronAPI && window.electronAPI.library) {
-                console.log('🔄 从主进程获取音频元数据...');
-                const metadata = await window.electronAPI.library.getTrackMetadata(filePath);
-                if (metadata) {
-                    console.log(`✅ 成功获取元数据: ${metadata.title} - ${metadata.artist}`);
-                    return {
-                        title: metadata.title || '未知标题',
-                        artist: metadata.artist || '未知艺术家',
-                        album: metadata.album || '未知专辑',
-                        duration: metadata.duration || 0,
-                        bitrate: metadata.bitrate || 0,
-                        sampleRate: metadata.sampleRate || 0,
-                        year: metadata.year,
-                        genre: metadata.genre,
-                        track: metadata.track,
-                        disc: metadata.disc,
-                        cover: metadata.cover
-                    };
-                }
-            }
-        } catch (error) {
-            console.warn('⚠️ 无法从主进程获取元数据，使用文件名解析:', error);
-        }
-
-        // 回退到本地文件名解析
-        console.log('🔄 使用文件名解析元数据...');
-        const fileName = this.extractTitleFromPath(filePath);
-        let artist = '未知艺术家';
-        let title = fileName;
-        let album = '未知专辑';
-
-        // 检查是否包含分隔符
-        const separators = [' - ', ' – ', ' — ', '-'];
-        for (const sep of separators) {
-            if (fileName.includes(sep)) {
-                const parts = fileName.split(sep);
-                if (parts.length >= 2) {
-                    artist = parts[0].trim();
-                    title = parts.slice(1).join(sep).trim();
-                    break;
-                }
+        if (window.electronAPI && window.electronAPI.library) {
+            console.log('🔄 从主进程获取音频元数据...');
+            const metadata = await window.electronAPI.library.getTrackMetadata(filePath);
+            if (metadata) {
+                console.log(`✅ 成功获取元数据: ${metadata.title} - ${metadata.artist}`);
+                return {
+                    title: metadata.title || '未知标题',
+                    artist: metadata.artist || '未知艺术家',
+                    album: metadata.album || '未知专辑',
+                    duration: metadata.duration || 0,
+                    bitrate: metadata.bitrate || 0,
+                    sampleRate: metadata.sampleRate || 0,
+                    year: metadata.year,
+                    genre: metadata.genre,
+                    track: metadata.track,
+                    disc: metadata.disc,
+                    cover: metadata.cover
+                };
             }
         }
-
-        return {
-            title,
-            artist,
-            album,
-            duration: 0,
-            bitrate: 0,
-            sampleRate: 0,
-            year: null,
-            genre: null,
-            track: null,
-            disc: null,
-            cover: null
-        };
     }
 
     /**
@@ -816,7 +767,6 @@ class WebAudioEngine {
                 console.error('❌ 直接音频链连接失败:', error);
             }
         }
-
         console.log('🔗 音频链连接完成');
     }
 
@@ -968,7 +918,6 @@ class AudioEqualizer {
 
         // 当前增益值 (dB)
         this.gains = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
         this.initialize();
     }
 
