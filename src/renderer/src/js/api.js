@@ -1244,9 +1244,7 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    /**
-     * 获取均衡器实例
-     */
+    // 获取均衡器实例
     getEqualizer() {
         if (this.webAudioEngine) {
             return this.webAudioEngine.getEqualizer();
@@ -1254,9 +1252,7 @@ class MusicBoxAPI extends EventEmitter {
         return null;
     }
 
-    /**
-     * 启用/禁用均衡器
-     */
+    // 启用/禁用均衡器
     setEqualizerEnabled(enabled) {
         if (this.webAudioEngine) {
             this.webAudioEngine.setEqualizerEnabled(enabled);
