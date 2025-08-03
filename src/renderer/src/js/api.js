@@ -834,6 +834,55 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
+    // 歌单封面管理方法
+    async updatePlaylistCover(playlistId, imagePath) {
+        try {
+            console.log(`🖼️ 更新歌单封面: ${playlistId} -> ${imagePath}`);
+            const result = await window.electronAPI.library.updatePlaylistCover(playlistId, imagePath);
+            if (result.success) {
+                console.log('✅ 歌单封面更新成功');
+                this.emit('playlistCoverUpdated', {playlistId, imagePath});
+                return {success: true};
+            } else {
+                throw new Error(result.error || '更新歌单封面失败');
+            }
+        } catch (error) {
+            console.error('❌ 更新歌单封面失败:', error);
+            return {success: false, error: error.message};
+        }
+    }
+
+    async getPlaylistCover(playlistId) {
+        try {
+            const result = await window.electronAPI.library.getPlaylistCover(playlistId);
+            if (result.success) {
+                return {success: true, coverPath: result.coverPath};
+            } else {
+                throw new Error(result.error || '获取歌单封面失败');
+            }
+        } catch (error) {
+            console.error('❌ 获取歌单封面失败:', error);
+            return {success: false, error: error.message};
+        }
+    }
+
+    async removePlaylistCover(playlistId) {
+        try {
+            console.log(`🗑️ 移除歌单封面: ${playlistId}`);
+            const result = await window.electronAPI.library.removePlaylistCover(playlistId);
+            if (result.success) {
+                console.log('✅ 歌单封面移除成功');
+                this.emit('playlistCoverRemoved', {playlistId});
+                return {success: true};
+            } else {
+                throw new Error(result.error || '移除歌单封面失败');
+            }
+        } catch (error) {
+            console.error('❌ 移除歌单封面失败:', error);
+            return {success: false, error: error.message};
+        }
+    }
+
     // File Dialog Methods
     async openDirectory() {
         try {
@@ -864,6 +913,20 @@ class MusicBoxAPI extends EventEmitter {
             return {success: false};
         } catch (error) {
             console.error('Failed to select music folder:', error);
+            return {success: false, error: error.message};
+        }
+    }
+
+    // 选择图片文件方法（用于歌单封面）
+    async selectImageFile() {
+        try {
+            const imagePath = await window.electronAPI.openImageFile();
+            if (imagePath) {
+                return {path: imagePath, success: true};
+            }
+            return {success: false};
+        } catch (error) {
+            console.error('Failed to select image file:', error);
             return {success: false, error: error.message};
         }
     }

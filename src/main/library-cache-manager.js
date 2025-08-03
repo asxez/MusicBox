@@ -589,6 +589,54 @@ class LibraryCacheManager {
 
         return cleanedCount;
     }
+
+    // 更新歌单封面
+    updatePlaylistCover(playlistId, coverImagePath) {
+        if (!Array.isArray(this.cache.playlists)) {
+            console.warn('⚠️ LibraryCacheManager: playlists 不是数组，无法更新封面');
+            return false;
+        }
+
+        const playlist = this.cache.playlists.find(p => p.id === playlistId);
+        if (!playlist) {
+            console.error(`❌ LibraryCacheManager: 找不到歌单 ID: ${playlistId}`);
+            return false;
+        }
+
+        playlist.coverImage = coverImagePath;
+        playlist.updatedAt = Date.now();
+        console.log(`✅ LibraryCacheManager: 更新歌单封面 - ${playlist.name} (封面: ${coverImagePath})`);
+        return true;
+    }
+
+    // 获取歌单封面
+    getPlaylistCover(playlistId) {
+        if (!Array.isArray(this.cache.playlists)) {
+            return null;
+        }
+
+        const playlist = this.cache.playlists.find(p => p.id === playlistId);
+        return playlist ? playlist.coverImage : null;
+    }
+
+    // 移除歌单封面
+    removePlaylistCover(playlistId) {
+        if (!Array.isArray(this.cache.playlists)) {
+            console.warn('⚠️ LibraryCacheManager: playlists 不是数组，无法移除封面');
+            return false;
+        }
+
+        const playlist = this.cache.playlists.find(p => p.id === playlistId);
+        if (!playlist) {
+            console.error(`❌ LibraryCacheManager: 找不到歌单 ID: ${playlistId}`);
+            return false;
+        }
+
+        playlist.coverImage = null;
+        playlist.updatedAt = Date.now();
+        console.log(`✅ LibraryCacheManager: 移除歌单封面 - ${playlist.name}`);
+        return true;
+    }
 }
 
 module.exports = LibraryCacheManager;
