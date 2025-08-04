@@ -5855,7 +5855,10 @@ class PlaylistDetailPage extends Component {
         this.currentPlaylist = playlist;
 
         if (this.element) {
+            // 预设样式，减少可见的样式变换
             this.element.style.display = 'block';
+            this.element.style.opacity = '0';
+            this.element.style.transform = 'translateY(10px)';
         }
 
         // 每次显示新歌单时都需要重新绑定事件监听器
@@ -5863,6 +5866,16 @@ class PlaylistDetailPage extends Component {
         await this.loadPlaylistCover();
         await this.loadPlaylistTracks();
         this.render();
+
+        // 平滑显示页面
+        if (this.element) {
+            requestAnimationFrame(() => {
+                this.element.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                this.element.style.opacity = '1';
+                this.element.style.transform = 'translateY(0)';
+            });
+        }
+
         console.log('🎵 PlaylistDetailPage: 显示歌单详情', playlist.name);
     }
 
@@ -6008,38 +6021,18 @@ class PlaylistDetailPage extends Component {
                             </div>
                         </div>
                     </div>
+                    ` : ''}
+                    <!-- 始终渲染tracks-container，确保DOM结构一致 -->
                     <div class="tracks-container" id="playlist-track-list">
                         ${this.renderTrackList()}
                     </div>
-                    ` : `
-                    <div class="playlist-empty-state">
-                        <div class="empty-content">
-                            <div class="empty-illustration">
-                                <svg class="empty-icon" viewBox="0 0 24 24">
-                                    <path d="M12,3V12.26C11.5,12.09 11,12 10.5,12C8.01,12 6,14.01 6,16.5S8.01,21 10.5,21S15,18.99 15,16.5V6H19V3H12Z"/>
-                                </svg>
-                                <div class="empty-waves">
-                                    <div class="wave wave-1"></div>
-                                    <div class="wave wave-2"></div>
-                                    <div class="wave wave-3"></div>
-                                </div>
-                            </div>
-                            <h3 class="empty-title">歌单还是空的</h3>
-                            <p class="empty-description">添加一些您喜欢的音乐，开始您的音乐之旅</p>
-                            <button class="empty-action-btn" onclick="document.getElementById('playlist-add-songs').click()">
-                                <svg class="icon" viewBox="0 0 24 24">
-                                    <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
-                                </svg>
-                                <span>添加歌曲</span>
-                            </button>
-                        </div>
-                    </div>
-                    `}
                 </div>
             </div>
         `;
 
         this.setupDynamicEventListeners();
+
+        // 直接绑定事件，因为DOM结构现在是一致的
         this.setupTrackListEvents();
     }
 
@@ -6092,7 +6085,7 @@ class PlaylistDetailPage extends Component {
             });
             console.log('✅ 绑定菜单按钮事件');
 
-            // 设置document点击监听器
+            // 设置document点击监听器（每次都重新设置，因为DOM已重新生成）
             this.setupDocumentClickHandler(menuDropdown);
 
             // 菜单项事件
@@ -6111,10 +6104,11 @@ class PlaylistDetailPage extends Component {
             console.warn('⚠️ 未找到菜单按钮或下拉菜单元素');
         }
 
+        // setupTrackListEvents() 已在 render() 方法中调用，这里不需要重复调用
         this.setupCoverContextMenu();
     }
 
-    // 设置document点击监听器
+    // 设置document点击监听器，避免重复绑定
     setupDocumentClickHandler(menuDropdown) {
         // 先移除旧的监听器
         if (this.documentClickHandler) {
@@ -6153,6 +6147,10 @@ class PlaylistDetailPage extends Component {
             if (result.success) {
                 this.tracks = result.playlist.tracks || [];
                 this.render();
+                // 确保DOM更新后再绑定事件
+                setTimeout(() => {
+                    this.setupTrackListEvents();
+                }, 50);
             } else {
                 console.error('❌ PlaylistDetailPage: 加载歌单歌曲失败', result.error);
                 this.tracks = [];
@@ -6168,15 +6166,26 @@ class PlaylistDetailPage extends Component {
     renderTrackList() {
         if (this.tracks.length === 0) {
             return `
-                <div class="tracks-empty-state">
+                <div class="playlist-empty-state">
                     <div class="empty-content">
                         <div class="empty-illustration">
                             <svg class="empty-icon" viewBox="0 0 24 24">
                                 <path d="M12,3V12.26C11.5,12.09 11,12 10.5,12C8.01,12 6,14.01 6,16.5S8.01,21 10.5,21S15,18.99 15,16.5V6H19V3H12Z"/>
                             </svg>
+                            <div class="empty-waves">
+                                <div class="wave wave-1"></div>
+                                <div class="wave wave-2"></div>
+                                <div class="wave wave-3"></div>
+                            </div>
                         </div>
-                        <h3 class="empty-title">暂无歌曲</h3>
-                        <p class="empty-description">这个歌单还没有添加任何歌曲</p>
+                        <h3 class="empty-title">歌单还是空的</h3>
+                        <p class="empty-description">添加一些您喜欢的音乐，开始您的音乐之旅</p>
+                        <button class="empty-action-btn" onclick="document.getElementById('playlist-add-songs').click()">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                            </svg>
+                            <span>添加歌曲</span>
+                        </button>
                     </div>
                 </div>
             `;
@@ -6244,7 +6253,13 @@ class PlaylistDetailPage extends Component {
     setupTrackListEvents() {
         const trackListContainer = this.container.querySelector('#playlist-track-list');
         if (!trackListContainer) {
-            console.warn('⚠️ 未找到歌曲列表容器');
+            console.warn('⚠️ PlaylistDetailPage: 未找到歌曲列表容器');
+            return;
+        }
+
+        // 对于空歌单，容器存在但没有歌曲行，这是正常情况
+        if (this.tracks && this.tracks.length === 0) {
+            console.log('📝 PlaylistDetailPage: 歌单为空，跳过歌曲行事件绑定');
             return;
         }
 
