@@ -153,6 +153,11 @@
     filter: brightness(0) saturate(100%) invert(0.9) sepia(1) saturate(5) hue-rotate(220deg) !important;
   }
 
+  // 歌单项激活状态的图标颜色：深色主题下保持一致
+  .playlist-sidebar-item.active .sidebar-icon {
+    filter: brightness(0) saturate(100%) invert(0.9) sepia(1) saturate(5) hue-rotate(220deg) !important;
+  }
+
   // 侧边栏导航链接文字：深色主题下纯白色
   .sidebar-link {
     color: #ffffff;
@@ -163,6 +168,20 @@
 
     &.active {
       // 激活状态保持主题色
+      color: var(--color-primary);
+    }
+  }
+
+  // 歌单项文字：深色主题下保持一致
+  .playlist-sidebar-item {
+    color: #ffffff;
+
+    &:hover {
+      color: #ffffff;
+    }
+
+    &.active {
+      // 激活状态保持主题色，与导航链接一致
       color: var(--color-primary);
     }
   }
@@ -767,6 +786,19 @@ a {
   grid-area: main;
   overflow-y: auto;
   background: var(--color-body-bg);
+
+  // 歌单详情页面特殊处理，避免双滚动条
+  .playlist-page {
+    height: 100%;
+    overflow: hidden; // 禁用内部滚动，使用外层滚动
+
+    .tracks-section {
+      .tracks-container {
+        max-height: none; // 移除高度限制
+        overflow: visible; // 禁用内部滚动
+      }
+    }
+  }
 }
 
 .content-area {
@@ -2172,11 +2204,17 @@ a {
   }
 
   &.active {
-    background: var(--color-primary);
-    color: white;
+    background: var(--color-primary-bg);
+    color: var(--color-primary);
 
     .sidebar-icon {
-      fill: white;
+      fill: var(--color-primary);
+    }
+
+    // 确保封面图片在激活状态下仍然可见，但不显示边框
+    .sidebar-playlist-cover {
+      opacity: 1;
+      // 移除边框以保持简洁的视觉效果
     }
   }
 
@@ -2724,6 +2762,7 @@ a {
     background: var(--color-body-bg);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
+    overflow: visible; // 确保不产生内部滚动条
     overflow: hidden;
   }
 }
@@ -3032,6 +3071,11 @@ a {
     rgba(var(--color-primary-rgb), 0.1) 0%,
     rgba(var(--color-primary-rgb), 0.05) 50%,
     transparent 100%);
+
+  // 预加载优化，减少样式变换
+  opacity: 1;
+  transform: translateZ(0); // 启用硬件加速
+  will-change: auto;
 
   .hero-background {
     position: absolute;
@@ -3443,8 +3487,12 @@ a {
   .modern-tracks-table {
     background: var(--color-body-bg);
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    overflow: visible; // 避免内部滚动条
     border: 1px solid var(--color-border);
+
+    // 样式预加载优化
+    transform: translateZ(0);
+    will-change: auto;
 
     .tracks-table-header {
       display: grid;

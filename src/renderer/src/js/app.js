@@ -339,7 +339,7 @@ class MusicBoxApp extends EventEmitter {
                 if (this.library.length > 0) {
                     console.log(`✅ 从缓存加载 ${this.library.length} 个音乐文件`);
                     this.filteredLibrary = [...this.library];
-                    this.updateTrackList();
+                    this.updateTrackList('cache-load');
                     this.hideCacheLoadingStatus();
 
                     // 在后台验证缓存
@@ -355,7 +355,7 @@ class MusicBoxApp extends EventEmitter {
             } else {
                 // 加载库视图
                 this.filteredLibrary = [...this.library];
-                this.updateTrackList();
+                this.updateTrackList('initial-load');
             }
 
             // 确保桌面歌词按钮状态与设置同步
@@ -567,13 +567,21 @@ class MusicBoxApp extends EventEmitter {
         try {
             this.library = await api.getTracks();
             this.filteredLibrary = [...this.library];
-            this.updateTrackList();
+            this.updateTrackList('refresh');
         } catch (error) {
             console.error('Failed to refresh library:', error);
         }
     }
 
-    updateTrackList() {
+    updateTrackList(source = 'unknown') {
+        console.log('🔄 updateTrackList 被调用，来源:', source, '当前视图:', this.currentView);
+
+        // 如果是播放时长更新触发的调用，且当前不在音乐库页面，则跳过更新
+        if (source === 'duration-update' && this.currentView !== 'library') {
+            console.log('📝 跳过播放时长更新触发的音乐列表更新，当前视图:', this.currentView);
+            return;
+        }
+
         if (this.components.trackList) {
             this.components.trackList.setTracks(this.filteredLibrary);
         }
@@ -581,12 +589,12 @@ class MusicBoxApp extends EventEmitter {
 
     handleSearchResults(results) {
         this.filteredLibrary = results;
-        this.updateTrackList();
+        this.updateTrackList('search-results');
     }
 
     handleSearchCleared() {
         this.filteredLibrary = [...this.library];
-        this.updateTrackList();
+        this.updateTrackList('search-cleared');
     }
 
     setupPageComponentEvents() {
@@ -638,13 +646,14 @@ class MusicBoxApp extends EventEmitter {
         if (!tracks || tracks.length === 0) return;
 
         try {
-            console.log('🎵 播放全部歌曲:', tracks.length, '首');
+            console.log('🎵 播放全部歌曲:', tracks.length, '首，当前视图:', this.currentView);
             // 设置播放列表
             await api.setPlaylist(tracks, 0);
-            await this.handleTrackPlayed(tracks[0], 0);
+            // 直接播放第一首，不调用handleTrackPlayed避免页面跳转
             if (this.components.playlist && this.components.playlist.setTracks) {
                 this.components.playlist.setTracks(tracks, 0);
             }
+            await this.playTrackFromPlaylist(tracks[0], 0);
         } catch (error) {
             console.error('❌ 播放全部歌曲失败:', error);
             if (this.showError) {
@@ -654,20 +663,27 @@ class MusicBoxApp extends EventEmitter {
     }
 
     async handleViewChange(view) {
-        console.log('View changed to:', view);
+        console.log('🔄 View changed to:', view, '当前视图:', this.currentView);
 
         // 隐藏所有页面
         this.hideAllPages();
 
         // 显示对应页面
         this.currentView = view;
+
+        // 更新侧边栏选中状态（除了歌单详情页面，因为它有特殊处理）
+        if (view !== 'playlist-detail') {
+            this.updateSidebarSelection(view);
+        }
+
         switch (view) {
             case 'home-page':
                 await this.components.homePage.show();
                 break;
             case 'library':
+                console.log('📚 显示音乐库页面');
                 this.components.trackList.show();
-                this.updateTrackList();
+                this.updateTrackList('navigation');
                 break;
             case 'recent':
                 await this.components.recentPage.show();
@@ -683,9 +699,11 @@ class MusicBoxApp extends EventEmitter {
                 break;
             default:
                 console.warn('Unknown view:', view);
-                // 默认显示音乐库
-                this.components.trackList.show();
-                this.updateTrackList();
+                // 只有在当前不是歌单详情页面时才跳转到音乐库
+                if (this.currentView !== 'playlist-detail') {
+                    this.components.trackList.show();
+                    this.updateTrackList('default-fallback');
+                }
                 break;
         }
     }
@@ -701,14 +719,18 @@ class MusicBoxApp extends EventEmitter {
     }
 
     async handleTrackPlayed(track, index) {
-        console.log('🎵 从音乐库播放歌曲:', track.title);
+        console.log('🎵 从音乐库播放歌曲:', track.title, '当前视图:', this.currentView);
+        console.log('🔍 播放前调用栈:');
+        console.trace();
 
         if (this.components.playlist) {
-            // 如果播放列表为空，将整个音乐库添加到播放列表
+            // 如果播放列表为空，只添加当前歌曲，避免页面跳转
             if (this.components.playlist.tracks.length === 0) {
-                console.log('🎵 播放列表为空，添加整个音乐库');
-                this.components.playlist.setTracks(this.filteredLibrary, index);
-                await this.playTrackFromPlaylist(track, index);
+                console.log('🎵 播放列表为空，添加当前歌曲，当前视图:', this.currentView);
+                // 只添加当前歌曲，而不是整个音乐库，避免触发页面跳转
+                this.components.playlist.setTracks([track], 0);
+                console.log('🔍 setTracks 完成，当前视图:', this.currentView);
+                await this.playTrackFromPlaylist(track, 0);
             } else {
                 // 播放列表不为空，检查歌曲是否已在播放列表中
                 const existingIndex = this.components.playlist.tracks.findIndex(t =>
@@ -1013,10 +1035,37 @@ class MusicBoxApp extends EventEmitter {
         // 隐藏所有页面
         this.hideAllPages();
 
+        // 更新侧边栏选中状态
+        this.updateSidebarSelection('playlist', playlist.id);
+
         // 显示歌单详情页面
         this.currentView = 'playlist-detail';
         if (this.components.playlistDetailPage) {
             await this.components.playlistDetailPage.show(playlist);
+        }
+    }
+
+    // 更新侧边栏选中状态
+    updateSidebarSelection(type, id = null) {
+        // 清除所有侧边栏项目的选中状态
+        document.querySelectorAll('.sidebar-link, .playlist-sidebar-item').forEach(item => {
+            item.classList.remove('active');
+        });
+
+        if (type === 'playlist' && id) {
+            // 高亮选中的歌单
+            const playlistItem = document.querySelector(`[data-playlist-id="${id}"]`);
+            if (playlistItem) {
+                playlistItem.classList.add('active');
+                console.log('✅ 更新侧边栏歌单选中状态:', id);
+            }
+        } else {
+            // 高亮选中的导航项
+            const navItem = document.querySelector(`[data-view="${type}"]`);
+            if (navItem) {
+                navItem.classList.add('active');
+                console.log('✅ 更新侧边栏导航选中状态:', type);
+            }
         }
     }
 
@@ -1050,6 +1099,8 @@ class MusicBoxApp extends EventEmitter {
 
         // 刷新歌单详情页面
         if (this.currentView === 'playlist-detail' && this.components.playlistDetailPage) {
+            console.log('🔄 重新加载歌单详情页面');
+            // loadPlaylistTracks() 方法内部已经调用了 render()，不需要重复调用
             await this.components.playlistDetailPage.loadPlaylistTracks();
         }
         // 刷新侧边栏歌单列表
@@ -1353,8 +1404,8 @@ class MusicBoxApp extends EventEmitter {
             }
         }
 
-        // 更新音乐列表显示
-        this.updateTrackList();
+        // 更新音乐列表显示 - 使用特殊标识表明这是播放时长更新
+        this.updateTrackList('duration-update');
     }
 
     // Context menu event handlers
