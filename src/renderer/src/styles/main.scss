@@ -514,8 +514,17 @@ a {
   background: var(--color-sidebar-bg);
   border-right: 1px solid var(--color-border);
   overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
   transition: all var(--transition-normal);
+
+  // 隐藏滚动条但保持滚动功能
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
 
   // 收缩状态
   &.collapsed {
