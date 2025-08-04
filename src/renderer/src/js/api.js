@@ -1070,27 +1070,13 @@ class MusicBoxAPI extends EventEmitter {
                 const localCoverResult = await window.localCoverManager.checkLocalCover(title, artist, album);
                 if (localCoverResult.success) {
                     console.log(`✅ 本地封面缓存命中: ${title} - ${localCoverResult.fileName}`);
-                    const result = {
+                    return {
                         success: true,
                         imageUrl: `file://${localCoverResult.filePath}`,
                         type: 'local-file',
                         source: 'local-cache',
                         filePath: localCoverResult.filePath
                     };
-                    // 同时缓存到内存缓存
-                    if (window.cacheManager) {
-                        window.cacheManager.setCoverCache(title, artist, album, result);
-                    }
-                    return result;
-                }
-            }
-
-            // 检查内存缓存
-            if (window.cacheManager) {
-                const cached = window.cacheManager.getCoverCache(title, artist, album);
-                if (cached) {
-                    console.log(`✅ 内存封面缓存命中: ${title}`);
-                    return cached;
                 }
             }
 
@@ -1129,20 +1115,10 @@ class MusicBoxAPI extends EventEmitter {
                     throw new Error('无效的封面响应格式');
                 }
             }
-
-            if (window.cacheManager && result.success) {
-                window.cacheManager.setCoverCache(title, artist, album, result);
-            }
             return result;
         } catch (error) {
             console.error(`❌ 封面获取失败: ${title} - ${error.message}`);
-            const errorResult = {success: false, error: error.message};
-
-            // 缓存失败结果（短时间）
-            if (window.cacheManager) {
-                window.cacheManager.setCoverCache(title, artist, album, errorResult);
-            }
-            return errorResult;
+            return {success: false, error: error.message};
         }
     }
 
@@ -1189,25 +1165,12 @@ class MusicBoxAPI extends EventEmitter {
         try {
             console.log(`🎵 获取歌词: ${title} - ${artist}${filePath ? ` (${filePath})` : ''}`);
 
-            // 检查localStorage缓存
-            if (window.cacheManager) {
-                const cached = window.cacheManager.getLyricsCache(title, artist, album);
-                if (cached) {
-                    console.log(`✅ 歌词缓存命中: ${title}`);
-                    return cached;
-                }
-            }
-
             // 优先级1: 检查内嵌歌词（如果提供了文件路径）
             if (filePath && window.embeddedLyricsManager) {
                 try {
                     const embeddedResult = await window.embeddedLyricsManager.getEmbeddedLyrics(filePath);
                     if (embeddedResult.success) {
                         console.log(`✅ 内嵌歌词获取成功: ${title} - ${embeddedResult.type} 格式`);
-                        // 将内嵌歌词保存到缓存中
-                        if (window.cacheManager) {
-                            window.cacheManager.setLyricsCache(title, artist, album, embeddedResult);
-                        }
                         return embeddedResult;
                     } else {
                         console.log(`ℹ️ 内嵌歌词未找到: ${title} - ${embeddedResult.error}`);
@@ -1223,10 +1186,6 @@ class MusicBoxAPI extends EventEmitter {
                     const localResult = await window.localLyricsManager.getLyrics(title, artist, album);
                     if (localResult.success) {
                         console.log(`✅ 本地歌词获取成功: ${title} - ${localResult.fileName}`);
-                        // 将本地歌词保存到缓存中
-                        if (window.cacheManager) {
-                            window.cacheManager.setLyricsCache(title, artist, album, localResult);
-                        }
                         return localResult;
                     } else {
                         console.log(`ℹ️ 本地歌词未找到: ${title} - ${localResult.error}`);
@@ -1236,7 +1195,16 @@ class MusicBoxAPI extends EventEmitter {
                 }
             }
 
-            // 优先级3: 通过网络接口获取
+            // 优先级3: 检查localStorage缓存
+            if (window.cacheManager) {
+                const cached = window.cacheManager.getLyricsCache(title, artist, album);
+                if (cached) {
+                    console.log(`✅ 歌词缓存命中: ${title}`);
+                    return cached;
+                }
+            }
+
+            // 优先级4: 通过网络接口获取
             console.log(`🌐 尝试网络获取歌词: ${title}`);
             const params = new URLSearchParams();
             if (title) params.append('title', title);
@@ -1256,11 +1224,8 @@ class MusicBoxAPI extends EventEmitter {
                 lrc: lrcText.trim(),
                 source: 'network'
             };
-
-            // 缓存网络获取的结果
             if (window.cacheManager) window.cacheManager.setLyricsCache(title, artist, album, result);
             return result;
-
         } catch (error) {
             console.error(`❌ 歌词获取失败: ${title} - ${error.message}`);
             return {
