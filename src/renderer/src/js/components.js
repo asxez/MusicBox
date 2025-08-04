@@ -5858,6 +5858,8 @@ class PlaylistDetailPage extends Component {
             this.element.style.display = 'block';
         }
 
+        // 每次显示新歌单时都需要重新绑定事件监听器
+
         await this.loadPlaylistCover();
         await this.loadPlaylistTracks();
         this.render();
@@ -5868,6 +5870,13 @@ class PlaylistDetailPage extends Component {
         this.isVisible = false;
         this.currentPlaylist = null;
         this.tracks = [];
+
+        // 清理事件监听器
+        if (this.documentClickHandler) {
+            document.removeEventListener('click', this.documentClickHandler);
+            this.documentClickHandler = null;
+        }
+
         if (this.container) {
             this.container.innerHTML = '';
         }
@@ -6035,28 +6044,29 @@ class PlaylistDetailPage extends Component {
     }
 
     setupDynamicEventListeners() {
+        console.log('🔧 PlaylistDetailPage: 设置动态事件监听器');
+
         // 播放全部按钮
         const playAllBtn = this.container.querySelector('#playlist-play-all');
         if (playAllBtn) {
             playAllBtn.addEventListener('click', () => this.playAllTracks());
+            console.log('✅ 绑定播放全部按钮事件');
         }
 
         // 随机播放按钮
         const shuffleBtn = this.container.querySelector('#playlist-shuffle');
         if (shuffleBtn) {
             shuffleBtn.addEventListener('click', () => this.shufflePlayTracks());
+            console.log('✅ 绑定随机播放按钮事件');
         }
 
         // 添加歌曲按钮
         const addSongsBtn = this.container.querySelector('#playlist-add-songs');
         if (addSongsBtn) {
             addSongsBtn.addEventListener('click', () => this.showAddSongsDialog());
-        }
-
-        // 清空歌单按钮
-        const clearPlaylistBtn = this.container.querySelector('#playlist-clear');
-        if (clearPlaylistBtn) {
-            clearPlaylistBtn.addEventListener('click', () => this.clearPlaylist());
+            console.log('✅ 绑定添加歌曲按钮事件');
+        } else {
+            console.warn('⚠️ 未找到添加歌曲按钮元素');
         }
 
         // 全选按钮
@@ -6078,25 +6088,47 @@ class PlaylistDetailPage extends Component {
             menuBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 menuDropdown.classList.toggle('show');
+                console.log('🔧 菜单按钮点击，切换显示状态');
             });
+            console.log('✅ 绑定菜单按钮事件');
 
-            // 点击外部关闭菜单
-            document.addEventListener('click', () => {
-                menuDropdown.classList.remove('show');
-            });
+            // 设置document点击监听器
+            this.setupDocumentClickHandler(menuDropdown);
 
             // 菜单项事件
             const clearBtn = menuDropdown.querySelector('#playlist-clear');
             if (clearBtn) {
                 clearBtn.addEventListener('click', async () => {
                     menuDropdown.classList.remove('show');
+                    console.log('🔧 清空歌单按钮点击');
                     await this.clearPlaylist();
                 });
+                console.log('✅ 绑定清空歌单按钮事件');
+            } else {
+                console.warn('⚠️ 未找到清空歌单按钮元素');
             }
+        } else {
+            console.warn('⚠️ 未找到菜单按钮或下拉菜单元素');
         }
 
-        this.setupTrackListEvents();
         this.setupCoverContextMenu();
+    }
+
+    // 设置document点击监听器
+    setupDocumentClickHandler(menuDropdown) {
+        // 先移除旧的监听器
+        if (this.documentClickHandler) {
+            document.removeEventListener('click', this.documentClickHandler);
+        }
+
+        // 创建新的监听器
+        this.documentClickHandler = () => {
+            menuDropdown.classList.remove('show');
+        };
+
+        // 添加新的监听器
+        document.addEventListener('click', this.documentClickHandler);
+        console.log('✅ 设置document点击监听器');
     }
 
     async loadPlaylistCover() {
@@ -6211,10 +6243,16 @@ class PlaylistDetailPage extends Component {
 
     setupTrackListEvents() {
         const trackListContainer = this.container.querySelector('#playlist-track-list');
-        if (!trackListContainer) return;
+        if (!trackListContainer) {
+            console.warn('⚠️ 未找到歌曲列表容器');
+            return;
+        }
+
+        const trackRows = trackListContainer.querySelectorAll('.track-row');
+        console.log(`🔧 PlaylistDetailPage: 设置歌曲列表事件监听器，共 ${trackRows.length} 首歌曲`);
 
         // 添加事件监听
-        trackListContainer.querySelectorAll('.track-row').forEach(item => {
+        trackRows.forEach(item => {
             const index = parseInt(item.dataset.trackIndex);
             const track = this.tracks[index];
 
@@ -6256,12 +6294,16 @@ class PlaylistDetailPage extends Component {
             if (removeBtn) {
                 removeBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
+                    console.log(`🔧 删除按钮点击: ${track.title} (索引: ${index})`);
                     if (this.selectedTracks.size > 1 && this.selectedTracks.has(index)) {
+                        console.log('🔧 执行批量删除');
                         await this.removeSelectedTracks();
                     } else {
+                        console.log('🔧 执行单首歌曲删除');
                         await this.removeTrackFromPlaylist(track, index);
                     }
                 });
+                console.log(`✅ 绑定删除按钮事件: ${track.title}`);
             }
         });
     }

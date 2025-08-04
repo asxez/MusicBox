@@ -146,7 +146,6 @@ class LibraryCacheManager {
             console.log('✅ LibraryCacheManager缓存路径：', this.cacheFilePath);
             console.log(`✅ LibraryCacheManager: 缓存保存成功，包含 ${this.cache.tracks.length} 个音乐文件和 ${this.cache.playlists.length} 个歌单`);
             return true;
-
         } catch (error) {
             console.error('❌ LibraryCacheManager: 缓存保存失败:', error);
             return false;
@@ -166,9 +165,7 @@ class LibraryCacheManager {
             if (currentId !== track.fileId) {
                 return {valid: false, reason: 'file_modified', stats};
             }
-
             return {valid: true};
-
         } catch (error) {
             return {valid: false, reason: 'access_error', error: error.message};
         }
@@ -209,7 +206,6 @@ class LibraryCacheManager {
         }
 
         console.log(`✅ LibraryCacheManager: 验证完成 - 有效: ${validTracks.length}, 无效: ${invalidTracks.length}, 已修改: ${modifiedTracks.length}`);
-
         return {
             valid: validTracks,
             invalid: invalidTracks,
