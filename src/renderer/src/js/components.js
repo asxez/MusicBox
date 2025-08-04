@@ -2736,13 +2736,13 @@ class Lyrics extends EventEmitter {
             return;
         }
 
-        // 检查是否已有缓存的歌词
+        // 检查是否已有内嵌的歌词
         if (track.lyrics) {
-            console.log('🎵 Lyrics: 使用缓存歌词');
+            console.log('🎵 Lyrics: 使用内嵌歌词');
             this.lyrics = track.lyrics;
             this.renderLyrics();
 
-            // 同步缓存歌词到桌面歌词窗口
+            // 同步歌词到桌面歌词窗口
             if (api && api.syncToDesktopLyrics) {
                 await api.syncToDesktopLyrics('lyrics', this.lyrics);
             }
@@ -2753,9 +2753,8 @@ class Lyrics extends EventEmitter {
         this.showLoading();
 
         try {
-            console.log('🎵 Lyrics: 从API获取歌词');
+            console.log('🎵 Lyrics: 从window.api获取歌词');
             const lyricsResult = await api.getLyrics(track.title, track.artist, track.album, track.filePath);
-
             if (lyricsResult.success) {
                 this.lyrics = api.parseLRC(lyricsResult.lrc);
                 if (this.lyrics.length > 0) {
@@ -2922,17 +2921,7 @@ class Lyrics extends EventEmitter {
                     }
                 }
             }
-
             this.currentLyricIndex = newIndex;
-        }
-    }
-
-    updateLyrics(lyrics) {
-        // 兼容旧的接口，现在使用loadLyrics方法
-        if (this.currentTrack) {
-            this.currentTrack.lyrics = lyrics;
-            this.lyrics = lyrics;
-            this.renderLyrics();
         }
     }
 

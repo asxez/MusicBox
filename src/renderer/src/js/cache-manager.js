@@ -6,7 +6,7 @@
 class CacheManager {
     constructor() {
         this.memoryCache = new Map();
-        this.maxMemorySize = 100; // 最大内存缓存条目数
+        this.maxMemorySize = 15;
         this.storagePrefix = 'musicbox_cache_';
         console.log('🗄️ CacheManager: 缓存管理器初始化完成');
     }
@@ -74,34 +74,6 @@ class CacheManager {
         } catch (error) {
             console.warn('❌ CacheManager: 本地缓存删除失败:', error);
         }
-    }
-
-    // 封面缓存方法
-    setCoverCache(title, artist, album, coverData) {
-        const key = this.generateKey('cover', title, artist, album);
-        this.setMemoryCache(key, coverData);
-        
-        // 只缓存成功的封面URL，不缓存blob数据到本地存储
-        if (coverData.success && coverData.type === 'url') {
-            this.setLocalCache(key, coverData);
-        }
-    }
-
-    getCoverCache(title, artist, album) {
-        const key = this.generateKey('cover', title, artist, album);
-        
-        // 先检查内存缓存
-        let cached = this.getMemoryCache(key);
-        if (cached) return cached;
-        
-        // 再检查本地缓存
-        cached = this.getLocalCache(key);
-        if (cached) {
-            // 将本地缓存加载到内存缓存
-            this.setMemoryCache(key, cached);
-            return cached;
-        }
-        return null;
     }
 
     // 歌词缓存方法
