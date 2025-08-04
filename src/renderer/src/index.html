@@ -423,8 +423,6 @@
             </div>
         </div>
 
-
-
         <!-- Settings Page -->
         <div id="settings-page" class="settings-page" style="display: none;">
             <div class="settings-container">
@@ -441,7 +439,7 @@
 
                     <!-- 外观设置 -->
                     <div class="settings-section">
-                        <h2 class="section-title">外观</h2>
+                        <h2 class="section-title">外观与显示</h2>
                         <div class="settings-item">
                             <div class="item-info">
                                 <label class="item-label">语言</label>
@@ -453,6 +451,58 @@
                                     <option value="zh-TW">繁體中文</option>
                                     <option value="en">English</option>
                                 </select>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">启用桌面歌词</label>
+                                <p class="item-description">控制主界面桌面歌词按钮的显示，开启后可在播放器中使用桌面歌词功能</p>
+                            </div>
+                            <div class="item-control">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="desktop-lyrics-toggle" class="toggle-input">
+                                    <label for="desktop-lyrics-toggle" class="toggle-label"></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">启用统计信息</label>
+                                <p class="item-description">控制侧边栏统计按钮的显示，开启后可查看统计信息</p>
+                            </div>
+                            <div class="item-control">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="statistics-toggle" class="toggle-input">
+                                    <label for="statistics-toggle" class="toggle-label"></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">启用最近播放</label>
+                                <p class="item-description">控制侧边栏最近播放按钮的显示，开启后可查看最近播放的音乐</p>
+                            </div>
+                            <div class="item-control">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="recent-play-toggle" class="toggle-input">
+                                    <label for="recent-play-toggle" class="toggle-label"></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">启用艺术家页面</label>
+                                <p class="item-description">控制侧边栏艺术家按钮的显示，开启后可查看艺术家列表和详情</p>
+                            </div>
+                            <div class="item-control">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="artists-page-toggle" class="toggle-input">
+                                    <label for="artists-page-toggle" class="toggle-label"></label>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -513,21 +563,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <div class="settings-item">
-                            <div class="item-info">
-                                <label class="item-label">启用桌面歌词</label>
-                                <p class="item-description">控制主界面桌面歌词按钮的显示，开启后可在播放器中使用桌面歌词功能</p>
-                            </div>
-                            <div class="item-control">
-                                <div class="toggle-switch">
-                                    <input type="checkbox" id="desktop-lyrics-toggle" class="toggle-input">
-                                    <label for="desktop-lyrics-toggle" class="toggle-label"></label>
-                                </div>
-                            </div>
-                        </div>
-
-
                     </div>
 
                     <!-- 库设置 -->

@@ -234,6 +234,27 @@ class MusicBoxApp extends EventEmitter {
             }
         });
 
+        // 监听统计信息设置变化
+        this.components.settings.on('statisticsEnabled', (enabled) => {
+            if (this.components.navigation) {
+                this.components.navigation.updateStatisticsButtonVisibility(enabled);
+            }
+        });
+
+        // 监听最近播放设置变化
+        this.components.settings.on('recentPlayEnabled', (enabled) => {
+            if (this.components.navigation) {
+                this.components.navigation.updateRecentPlayButtonVisibility(enabled);
+            }
+        });
+
+        // 监听艺术家页面设置变化
+        this.components.settings.on('artistsPageEnabled', (enabled) => {
+            if (this.components.navigation) {
+                this.components.navigation.updateArtistsPageButtonVisibility(enabled);
+            }
+        });
+
         // 新页面组件事件监听
         this.setupPageComponentEvents();
 
