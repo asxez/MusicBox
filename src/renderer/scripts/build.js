@@ -29,69 +29,177 @@ function updateHTML() {
         let content = fs.readFileSync(htmlPath, 'utf8');
 
         // Update script tags to use bundled file
+        // 匹配旧的组件结构
         content = content.replace(
             /<script src="js\/utils\.js"><\/script>\s*<script src="js\/api\.js"><\/script>\s*<script src="js\/components\.js"><\/script>\s*<script src="js\/app\.js"><\/script>/,
             '<script src="js/bundle.js"></script>'
         );
 
+        // 匹配新的组件结构
+        const newComponentScriptPattern = /<script src="js\/utils\.js"><\/script>\s*<script src="js\/api\.js"><\/script>\s*<script src="js\/components\/base\/Component\.js"><\/script>[\s\S]*?<script src="js\/app\.js"><\/script>/;
+        if (newComponentScriptPattern.test(content)) {
+            content = content.replace(
+                newComponentScriptPattern,
+                '<script src="js/bundle.js"></script>'
+            );
+        }
+
         fs.writeFileSync(htmlPath, content);
         console.log('✓ Updated index.html for production');
     } else {
-        console.error('✗ index.html not found');
+        console.log('ℹ index.html not found - will be created by main build process');
     }
+}
+
+// Recursively collect all JavaScript files from a directory
+function collectJSFiles(dir, basePath = '') {
+    const files = [];
+
+    if (!fs.existsSync(dir)) {
+        return files;
+    }
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        const relativePath = path.join(basePath, entry.name);
+
+        if (entry.isDirectory()) {
+            // Recursively collect files from subdirectories
+            files.push(...collectJSFiles(fullPath, relativePath));
+        } else if (entry.name.endsWith('.js')) {
+            files.push({
+                name: entry.name,
+                path: fullPath,
+                relativePath: relativePath
+            });
+        }
+    }
+
+    return files;
 }
 
 // Bundle and minify JavaScript
 async function bundleJS() {
     const jsDir = path.join(srcDir, 'js');
-    
+
     if (!fs.existsSync(jsDir)) {
         console.error('✗ JavaScript source directory not found');
         return;
     }
-    
-    const files = fs.readdirSync(jsDir).filter(file => file.endsWith('.js'));
-    
+
     let bundledCode = '';
-    
-    // Read files in specific order (exclude web-audio-engine.js as it's loaded separately)
-    const fileOrder = ['utils.js', 'api.js', 'components.js', 'app.js'];
-    
-    for (const file of fileOrder) {
-        if (files.includes(file)) {
-            const filePath = path.join(jsDir, file);
-            const content = fs.readFileSync(filePath, 'utf8');
-            console.log(`✓ Adding ${file} (${content.length} chars)`);
-            bundledCode += `// === ${file} ===\n${content}\n\n`;
+
+    // Define the loading order for components
+    const componentLoadOrder = [
+        'md5.js',
+        'shortcut-config.js',
+        'shortcut-recorder.js',
+
+        // 1. 基础组件
+        'components/base/Component.js',
+
+        // 2. 页面组件
+        'components/component/ArtistsPage.js',
+        'components/component/ContextMenu.js',
+        'components/component/EqualizerComponent.js',
+        'components/component/HomePage.js',
+        'components/component/Lyrics.js',
+        'components/component/Navigation.js',
+        'components/component/Player.js',
+        'components/component/Playlist.js',
+        'components/component/PlaylistDetailPage.js',
+        'components/component/RecentPage.js',
+        'components/component/Search.js',
+        'components/component/Settings.js',
+        'components/component/StatisticsPage.js',
+        'components/component/TrackList.js',
+
+        // 3. 对话框组件
+        'components/dialogs/AddToPlaylistDialog.js',
+        'components/dialogs/CreatePlaylistDialog.js',
+        'components/dialogs/MusicLibrarySelectionDialog.js',
+        'components/dialogs/RenamePlaylistDialog.js',
+
+        // 4. 组件索引
+        'components/index.js'
+    ];
+
+    // Main files in specific order
+    const mainFileOrder = ['utils.js', 'api.js'];
+
+    // Files to exclude from bundling (loaded separately)
+    const excludeFiles = [
+        'web-audio-engine.js',
+        'cache-manager.js',
+        'local-lyrics-manager.js',
+        'local-cover-manager.js',
+        'desktop-lyrics.js',
+        'embedded-lyrics-manager.js',
+    ];
+
+    // Collect all JavaScript files
+    const allFiles = collectJSFiles(jsDir);
+
+    // Add main files first
+    for (const fileName of mainFileOrder) {
+        const file = allFiles.find(f => f.relativePath === fileName);
+        if (file) {
+            const content = fs.readFileSync(file.path, 'utf8');
+            console.log(`✓ Adding ${file.relativePath} (${content.length} chars)`);
+            bundledCode += `// === ${file.relativePath} ===\n${content}\n\n`;
         } else {
-            console.log(`⚠ File ${file} not found`);
+            console.log(`⚠ File ${fileName} not found`);
         }
     }
-    
-    // Add any remaining files (exclude web-audio-engine.js)
-    for (const file of files) {
+
+    // Add component files in specific order
+    for (const componentPath of componentLoadOrder) {
+        const file = allFiles.find(f => f.relativePath === componentPath);
+        if (file) {
+            const content = fs.readFileSync(file.path, 'utf8');
+            console.log(`✓ Adding ${file.relativePath} (${content.length} chars)`);
+            bundledCode += `// === ${file.relativePath} ===\n${content}\n\n`;
+        } else {
+            console.log(`⚠ Component ${componentPath} not found`);
+        }
+    }
+
+    // Add app.js last
+    const appFile = allFiles.find(f => f.relativePath === 'app.js');
+    if (appFile) {
+        const content = fs.readFileSync(appFile.path, 'utf8');
+        console.log(`✓ Adding ${appFile.relativePath} (${content.length} chars)`);
+        bundledCode += `// === ${appFile.relativePath} ===\n${content}\n\n`;
+    } else {
+        console.log(`⚠ File app.js not found`);
+    }
+
+    // Add any remaining files (excluding specified files)
+    const processedFiles = new Set([
+        ...mainFileOrder,
+        ...componentLoadOrder,
+        'app.js'
+    ]);
+
+    for (const file of allFiles) {
         if (
-            !fileOrder.includes(file) &&
-            file !== 'web-audio-engine.js' &&
-            file !== 'cache-manager.js' &&
-            file !== 'local-lyrics-manager.js' &&
-            file !== 'local-cover-manager.js' &&
-            file !== 'desktop-lyrics.js' &&
-            file !== 'embedded-lyrics-manager.js'
+            !processedFiles.has(file.relativePath) &&
+            !excludeFiles.includes(file.name) &&
+            !excludeFiles.includes(file.relativePath)
         ) {
-            const filePath = path.join(jsDir, file);
-            const content = fs.readFileSync(filePath, 'utf8');
-            console.log(`✓ Adding ${file} (${content.length} chars)`);
-            bundledCode += `// === ${file} ===\n${content}\n\n`;
-        } else if (
-            file === 'web-audio-engine.js' ||
-            file === 'cache-manager.js' ||
-            file === 'local-lyrics-manager.js' ||
-            file === 'local-cover-manager.js' ||
-            file === 'desktop-lyrics.js' ||
-            file === 'embedded-lyrics-manager.js'
-        ) {
-            console.log(`⚠ Skipping ${file} (loaded separately)`);
+            const content = fs.readFileSync(file.path, 'utf8');
+            console.log(`✓ Adding ${file.relativePath} (${content.length} chars)`);
+            bundledCode += `// === ${file.relativePath} ===\n${content}\n\n`;
+        }
+    }
+
+    // Log excluded files
+    for (const excludeFile of excludeFiles) {
+        const found = allFiles.some(f => f.name === excludeFile || f.relativePath === excludeFile);
+        if (found) {
+            console.log(`⚠ Skipping ${excludeFile} (loaded separately)`);
         }
     }
     
