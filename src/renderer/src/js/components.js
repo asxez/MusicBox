@@ -608,6 +608,7 @@ class Navigation extends Component {
         this.setupEventListeners();
         this.restoreSidebarState();
         this.loadUserPlaylists();
+        this.initializeSidebarButtonsState();
         this.initializeWindowState().then(r => {
             if (!r.status) console.error('❌ Navigation: 初始化窗口状态失败', r.error);
         });
@@ -651,6 +652,11 @@ class Navigation extends Component {
         // 歌单相关元素
         this.userPlaylistsSection = document.getElementById('user-playlists-section');
         this.userPlaylistsList = document.getElementById('user-playlists-list');
+
+        // 侧边栏功能按钮
+        this.statisticsLink = document.querySelector('[data-view="statistics"]');
+        this.recentLink = document.querySelector('[data-view="recent"]');
+        this.artistsLink = document.querySelector('[data-view="artists"]');
     }
 
     setupEventListeners() {
@@ -898,10 +904,84 @@ class Navigation extends Component {
     // 恢复侧边栏状态
     restoreSidebarState() {
         const savedState = window.cacheManager.getLocalCache('sidebarCollapsed')
-        if (savedState == 'true') {
+        if (savedState === 'true') {
             this.sidebarCollapsed = true;
             this.sidebar.classList.add('collapsed');
             this.app.classList.add('sidebar-collapsed');
+        }
+    }
+
+    // 控制统计信息按钮显示/隐藏
+    updateStatisticsButtonVisibility(enabled) {
+        if (!this.statisticsLink) {
+            console.warn('🎵 Navigation: 统计信息按钮元素不存在');
+            return;
+        }
+
+        const listItem = this.statisticsLink.parentElement;
+        if (enabled) {
+            listItem.style.display = 'block';
+            console.log('📊 Navigation: 统计信息按钮已显示');
+        } else {
+            listItem.style.display = 'none';
+            console.log('📊 Navigation: 统计信息按钮已隐藏');
+        }
+    }
+
+    // 控制最近播放按钮显示/隐藏
+    updateRecentPlayButtonVisibility(enabled) {
+        if (!this.recentLink) {
+            console.warn('🎵 Navigation: 最近播放按钮元素不存在');
+            return;
+        }
+
+        const listItem = this.recentLink.parentElement;
+        if (enabled) {
+            listItem.style.display = 'block';
+            console.log('🕒 Navigation: 最近播放按钮已显示');
+        } else {
+            listItem.style.display = 'none';
+            console.log('🕒 Navigation: 最近播放按钮已隐藏');
+        }
+    }
+
+    // 控制艺术家页面按钮显示/隐藏
+    updateArtistsPageButtonVisibility(enabled) {
+        if (!this.artistsLink) {
+            console.warn('🎵 Navigation: 艺术家页面按钮元素不存在');
+            return;
+        }
+
+        const listItem = this.artistsLink.parentElement;
+        if (enabled) {
+            listItem.style.display = 'block';
+            console.log('🎨 Navigation: 艺术家页面按钮已显示');
+        } else {
+            listItem.style.display = 'none';
+            console.log('🎨 Navigation: 艺术家页面按钮已隐藏');
+        }
+    }
+
+    // 初始化侧边栏按钮状态
+    initializeSidebarButtonsState() {
+        try {
+            const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+
+            // 统计信息按钮状态
+            const statisticsEnabled = settings.hasOwnProperty('statistics') ? settings.statistics : true;
+            this.updateStatisticsButtonVisibility(statisticsEnabled);
+
+            // 最近播放按钮状态
+            const recentPlayEnabled = settings.hasOwnProperty('recentPlay') ? settings.recentPlay : true;
+            this.updateRecentPlayButtonVisibility(recentPlayEnabled);
+
+            // 艺术家页面按钮状态
+            const artistsPageEnabled = settings.hasOwnProperty('artistsPage') ? settings.artistsPage : true;
+            this.updateArtistsPageButtonVisibility(artistsPageEnabled);
+
+            console.log('🎵 Navigation: 侧边栏按钮状态初始化完成 - 统计信息:', statisticsEnabled, '最近播放:', recentPlayEnabled, '艺术家页面:', artistsPageEnabled);
+        } catch (error) {
+            console.error('❌ Navigation: 初始化侧边栏按钮状态失败:', error);
         }
     }
 
@@ -1567,6 +1647,9 @@ class Settings extends EventEmitter {
         this.autoplayToggle = this.element.querySelector('#autoplay-toggle');
         this.rememberPositionToggle = this.element.querySelector('#remember-position-toggle');
         this.desktopLyricsToggle = this.element.querySelector('#desktop-lyrics-toggle');
+        this.statisticsToggle = this.element.querySelector('#statistics-toggle');
+        this.recentPlayToggle = this.element.querySelector('#recent-play-toggle');
+        this.artistsPageToggle = this.element.querySelector('#artists-page-toggle');
         this.autoScanToggle = this.element.querySelector('#auto-scan-toggle');
         this.selectFolderBtn = this.element.querySelector('#select-folder-btn');
         this.selectLyricsFolderBtn = this.element.querySelector('#select-lyrics-folder-btn');
@@ -1614,7 +1697,7 @@ class Settings extends EventEmitter {
             this.updateSetting('rememberPosition', e.target.checked);
         });
 
-        // 桌面歌词设置 - 只控制按钮显示/隐藏
+        // 桌面歌词设置 - 控制按钮显示/隐藏
         this.desktopLyricsToggle.addEventListener('change', async (e) => {
             this.updateSetting('desktopLyrics', e.target.checked);
 
@@ -1629,8 +1712,43 @@ class Settings extends EventEmitter {
                     console.error('❌ Settings: 隐藏桌面歌词失败:', error);
                 }
             }
-
             console.log(`🎵 Settings: 桌面歌词功能${e.target.checked ? '启用' : '禁用'}`);
+        });
+
+        // 艺术家页设置 - 控制侧边栏艺术家按钮显示/隐藏
+        this.statisticsToggle.addEventListener('change', (e) => {
+            this.updateSetting('statistics', e.target.checked);
+
+            // 通知主界面更新侧边栏按钮显示状态
+            this.emit('statisticsEnabled', e.target.checked);
+            console.log(`📊 Settings: 统计信息功能${e.target.checked ? '启用' : '禁用'}`);
+        });
+
+        // 统计信息设置 - 控制侧边栏统计按钮显示/隐藏
+        this.statisticsToggle.addEventListener('change', (e) => {
+            this.updateSetting('statistics', e.target.checked);
+
+            // 通知主界面更新侧边栏按钮显示状态
+            this.emit('statisticsEnabled', e.target.checked);
+            console.log(`📊 Settings: 统计信息功能${e.target.checked ? '启用' : '禁用'}`);
+        });
+
+        // 最近播放设置 - 控制侧边栏最近播放按钮显示/隐藏
+        this.recentPlayToggle.addEventListener('change', (e) => {
+            this.updateSetting('recentPlay', e.target.checked);
+
+            // 通知主界面更新侧边栏按钮显示状态
+            this.emit('recentPlayEnabled', e.target.checked);
+            console.log(`🕒 Settings: 最近播放功能${e.target.checked ? '启用' : '禁用'}`);
+        });
+
+        // 艺术家页面设置 - 控制侧边栏艺术家按钮显示/隐藏
+        this.artistsPageToggle.addEventListener('change', (e) => {
+            this.updateSetting('artistsPage', e.target.checked);
+
+            // 通知主界面更新侧边栏按钮显示状态
+            this.emit('artistsPageEnabled', e.target.checked);
+            console.log(`🎨 Settings: 艺术家页面功能${e.target.checked ? '启用' : '禁用'}`);
         });
 
         this.autoScanToggle.addEventListener('change', (e) => {
@@ -1769,6 +1887,9 @@ class Settings extends EventEmitter {
         this.autoplayToggle.checked = this.settings.autoplay || false;
         this.rememberPositionToggle.checked = this.settings.rememberPosition || false;
         this.desktopLyricsToggle.checked = this.settings.hasOwnProperty('desktopLyrics') ? this.settings.desktopLyrics : true;
+        this.statisticsToggle.checked = this.settings.hasOwnProperty('statistics') ? this.settings.statistics : true;
+        this.recentPlayToggle.checked = this.settings.hasOwnProperty('recentPlay') ? this.settings.recentPlay : true;
+        this.artistsPageToggle.checked = this.settings.hasOwnProperty('artistsPage') ? this.settings.artistsPage : true;
         this.autoScanToggle.checked = this.settings.autoScan || false;
 
         // 初始化本地歌词目录
@@ -1802,10 +1923,18 @@ class Settings extends EventEmitter {
         }
         console.log('🎵 Settings: 设置值初始化完成', this.settings);
 
-        // 初始化完成后，发出桌面歌词设置状态事件，确保Player组件同步
+        // 初始化完成后，发出设置状态事件，确保相关组件同步
         setTimeout(() => {
             this.emit('desktopLyricsEnabled', this.desktopLyricsToggle.checked);
-            console.log('🎵 Settings: 发出桌面歌词初始状态事件:', this.desktopLyricsToggle.checked);
+            this.emit('statisticsEnabled', this.statisticsToggle.checked);
+            this.emit('recentPlayEnabled', this.recentPlayToggle.checked);
+            this.emit('artistsPageEnabled', this.artistsPageToggle.checked);
+            console.log(
+                '🎵 Settings: 发出初始状态事件 - 桌面歌词:', this.desktopLyricsToggle.checked,
+                '统计信息:', this.statisticsToggle.checked,
+                '最近播放:', this.recentPlayToggle.checked,
+                '艺术家页面:', this.artistsPageToggle.checked
+            );
         }, 100);
     }
 
@@ -3808,10 +3937,67 @@ class StatisticsPage extends Component {
     updatePlayHistory(track) {
         if (!track || !track.filePath) return;
         this.loadPlayHistory();
+        this.updatePlayCount(track);
         this.calculatePlayStats();
     }
 
+    // 更新播放次数统计
+    updatePlayCount(track) {
+        if (!track || !track.filePath) return;
+
+        try {
+            let playCountStats = this.loadPlayCountStats();
+            const trackKey = this.getTrackKey(track);
+
+            // 增加播放次数
+            playCountStats[trackKey] = (playCountStats[trackKey] || 0) + 1;
+
+            // 保存统计数据
+            window.cacheManager.setLocalCache('musicbox-play-count-stats', playCountStats);
+
+            console.log(`📊 StatisticsPage: 更新播放次数 - ${track.title}: ${playCountStats[trackKey]} 次`);
+        } catch (error) {
+            console.error('❌ StatisticsPage: 更新播放次数失败:', error);
+        }
+    }
+
+    // 加载播放次数统计
+    loadPlayCountStats() {
+        try {
+            return window.cacheManager.getLocalCache('musicbox-play-count-stats') || {};
+        } catch (error) {
+            console.error('❌ StatisticsPage: 加载播放次数统计失败:', error);
+            return {};
+        }
+    }
+
+    // 生成歌曲唯一标识
+    getTrackKey(track) {
+        return `${track.title || 'Unknown'}_${track.artist || 'Unknown'}_${track.album || 'Unknown'}`;
+    }
+
+    // 获取最常播放的歌曲
+    getMostPlayedTracks(playCountStats, limit = 10) {
+        const sortedTracks = Object.entries(playCountStats)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, limit)
+            .map(([trackKey, playCount]) => {
+                const [title, artist, album] = trackKey.split('_');
+                return {
+                    title: title || 'Unknown',
+                    artist: artist || 'Unknown',
+                    album: album || 'Unknown',
+                    playCount
+                };
+            });
+
+        return sortedTracks;
+    }
+
     calculatePlayStats() {
+        // 加载播放统计数据
+        const playCountStats = this.loadPlayCountStats();
+
         // 计算累计听歌数量（播放历史记录）
         const totalPlayedSongs = this.recentTracks.length;
 
@@ -3819,6 +4005,12 @@ class StatisticsPage extends Component {
         const totalPlayedDuration = this.recentTracks.reduce((sum, track) => {
             return sum + (track.duration || 0);
         }, 0);
+
+        // 计算最常播放的歌曲
+        const mostPlayedTracks = this.getMostPlayedTracks(playCountStats);
+
+        // 计算播放次数统计
+        const totalPlayCount = Object.values(playCountStats).reduce((sum, count) => sum + count, 0);
 
         this.playStats = {
             totalTracks: this.tracks.length,
@@ -3831,7 +4023,10 @@ class StatisticsPage extends Component {
             averageDuration: this.tracks.length > 0 ?
                 this.tracks.reduce((sum, track) => sum + (track.duration || 0), 0) / this.tracks.length : 0,
             totalPlayedSongs: totalPlayedSongs,
-            totalPlayedDuration: totalPlayedDuration
+            totalPlayedDuration: totalPlayedDuration,
+            totalPlayCount: totalPlayCount,
+            mostPlayedTracks: mostPlayedTracks,
+            averagePlayCount: totalPlayCount > 0 ? totalPlayCount / Object.keys(playCountStats).length : 0
         };
     }
 
@@ -4059,6 +4254,49 @@ class RecentPage extends Component {
         } catch (error) {
             console.error('保存播放历史失败:', error);
         }
+    }
+
+    // 清空播放历史
+    clearHistory() {
+        try {
+            window.cacheManager.removeLocalCache('musicbox-play-history');
+            this.recentTracks = [];
+            this.render();
+            console.log('🕒 RecentPage: 播放历史已清空');
+        } catch (error) {
+            console.error('❌ RecentPage: 清空播放历史失败:', error);
+        }
+    }
+
+    // 移除单个历史记录
+    removeHistoryItem(trackPath) {
+        try {
+            let history = window.cacheManager.getLocalCache('musicbox-play-history') || [];
+            history = history.filter(item => item.filePath !== trackPath);
+
+            window.cacheManager.setLocalCache('musicbox-play-history', history);
+            this.recentTracks = history;
+            this.render();
+
+            console.log('🕒 RecentPage: 已移除历史记录:', trackPath);
+        } catch (error) {
+            console.error('❌ RecentPage: 移除历史记录失败:', error);
+        }
+    }
+
+    // 获取播放历史统计
+    getHistoryStats() {
+        const stats = {
+            totalTracks: this.recentTracks.length,
+            uniqueTracks: new Set(this.recentTracks.map(t => t.filePath)).size,
+            totalDuration: this.recentTracks.reduce((sum, track) => sum + (track.duration || 0), 0),
+            oldestPlay: this.recentTracks.length > 0 ?
+                Math.min(...this.recentTracks.map(t => t.playTime || Date.now())) : null,
+            newestPlay: this.recentTracks.length > 0 ?
+                Math.max(...this.recentTracks.map(t => t.playTime || Date.now())) : null
+        };
+
+        return stats;
     }
 
     render() {
