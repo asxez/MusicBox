@@ -8,6 +8,7 @@
     "email": "2973918177@qq.com"
   },
   "license": "MIT",
+  "homepage": "https://github.com/asxez/MusicBox",
   "private": true,
   "scripts": {
     "dev:main": "chcp 65001 && electron src/main/main.js",
