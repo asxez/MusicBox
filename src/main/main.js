@@ -1995,7 +1995,6 @@ ipcMain.handle('network-drive:testConnection', async (event, config) => {
             await networkDriveManager.testWebDAVConnection(webdavClient);
             return true;
         }
-
         return false;
     } catch (error) {
         console.error('❌ 测试网络连接失败:', error);
