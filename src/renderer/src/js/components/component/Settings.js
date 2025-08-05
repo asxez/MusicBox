@@ -30,6 +30,7 @@ class Settings extends EventEmitter {
         this.statisticsToggle = this.element.querySelector('#statistics-toggle');
         this.recentPlayToggle = this.element.querySelector('#recent-play-toggle');
         this.artistsPageToggle = this.element.querySelector('#artists-page-toggle');
+        this.showTrackCoversToggle = this.element.querySelector('#show-track-covers-toggle');
         this.autoScanToggle = this.element.querySelector('#auto-scan-toggle');
         this.selectFolderBtn = this.element.querySelector('#select-folder-btn');
         this.selectLyricsFolderBtn = this.element.querySelector('#select-lyrics-folder-btn');
@@ -184,6 +185,15 @@ class Settings extends EventEmitter {
             // 通知主界面更新侧边栏按钮显示状态
             this.emit('artistsPageEnabled', e.target.checked);
             console.log(`🎨 Settings: 艺术家页面功能${e.target.checked ? '启用' : '禁用'}`);
+        });
+
+        // 歌曲封面显示设置 - 控制歌曲列表中封面的显示/隐藏
+        this.showTrackCoversToggle.addEventListener('change', (e) => {
+            this.updateSetting('showTrackCovers', e.target.checked);
+
+            // 通知主界面更新歌曲列表封面显示状态
+            this.emit('showTrackCoversEnabled', e.target.checked);
+            console.log(`🖼️ Settings: 歌曲封面显示功能${e.target.checked ? '启用' : '禁用'}`);
         });
 
         this.autoScanToggle.addEventListener('change', (e) => {
@@ -443,6 +453,7 @@ class Settings extends EventEmitter {
         this.statisticsToggle.checked = this.settings.hasOwnProperty('statistics') ? this.settings.statistics : true;
         this.recentPlayToggle.checked = this.settings.hasOwnProperty('recentPlay') ? this.settings.recentPlay : true;
         this.artistsPageToggle.checked = this.settings.hasOwnProperty('artistsPage') ? this.settings.artistsPage : true;
+        this.showTrackCoversToggle.checked = this.settings.hasOwnProperty('showTrackCovers') ? this.settings.showTrackCovers : true;
         this.autoScanToggle.checked = this.settings.autoScan || false;
 
         // 初始化本地歌词目录

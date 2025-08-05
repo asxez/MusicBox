@@ -11,5 +11,7 @@ RUN apt-get install rpm
 WORKDIR /project
 COPY . .
 RUN npm install
+RUN npm run postinstall
+RUN npm run build
 RUN npm run build:linux
 RUN ls -la /project/dist && echo "build done"

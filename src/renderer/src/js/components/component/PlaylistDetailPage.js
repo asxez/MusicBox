@@ -11,14 +11,43 @@ class PlaylistDetailPage extends Component {
         this.selectedTracks = new Set();
         this.isMultiSelectMode = false;
 
+        // 获取封面显示设置
+        this.showCovers = this.getShowCoversSettings();
+
         this.setupElements();
         this.setupEventListeners();
+        this.setupSettingsListener();
 
         console.log('🎵 PlaylistDetailPage: 组件初始化完成');
     }
 
     setupElements() {
         this.container = this.element;
+    }
+
+    getShowCoversSettings() {
+        const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+        return settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
+    }
+
+    setupSettingsListener() {
+        // 延迟设置监听器，确保app.components.settings已初始化
+        const setupListener = () => {
+            if (window.app && window.app.components && window.app.components.settings) {
+                window.app.components.settings.on('showTrackCoversEnabled', (enabled) => {
+                    this.showCovers = enabled;
+                    if (this.isVisible) {
+                        this.render(); // 重新渲染列表
+                    }
+                    console.log(`🖼️ PlaylistDetailPage: 封面显示设置已更新为 ${enabled ? '启用' : '禁用'}`);
+                });
+                console.log('🖼️ PlaylistDetailPage: 设置监听器已设置');
+            } else {
+                // 如果还没有初始化，延迟重试
+                setTimeout(setupListener, 100);
+            }
+        };
+        setupListener();
     }
 
     setupEventListeners() {
@@ -367,9 +396,10 @@ class PlaylistDetailPage extends Component {
         }
 
         return `
-            <div class="modern-tracks-table">
+            <div class="modern-tracks-table ${this.showCovers ? 'with-covers' : ''}">
                 <div class="tracks-table-header">
                     <div class="header-cell cell-number">#</div>
+                    ${this.showCovers ? '<div class="header-cell cell-cover">封面</div>' : ''}
                     <div class="header-cell cell-title">歌曲</div>
                     <div class="header-cell cell-album">专辑</div>
                     <div class="header-cell cell-duration">
@@ -392,6 +422,11 @@ class PlaylistDetailPage extends Component {
                                     </div>
                                 </div>
                             </div>
+                            ${this.showCovers ? `
+                            <div class="track-cell cell-cover">
+                                <img class="track-cover" src="${this.getTrackCover(track)}" alt="封面" loading="lazy" onerror="this.src='assets/images/default-cover.svg'">
+                            </div>
+                            ` : ''}
                             <div class="track-cell cell-title">
                                 <div class="track-main-info">
                                     <div class="track-name">${this.escapeHtml(track.title || track.fileName)}</div>
@@ -804,6 +839,75 @@ class PlaylistDetailPage extends Component {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    getTrackCover(track) {
+        // 优先使用已缓存的封面
+        if (track.cover && typeof track.cover === 'string') {
+            return track.cover;
+        }
+
+        // 异步获取封面，先返回默认封面
+        this.loadTrackCoverAsync(track);
+        return 'assets/images/default-cover.svg';
+    }
+
+    async loadTrackCoverAsync(track) {
+        try {
+            if (!window.localCoverManager) return;
+
+            // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
+            const loadCover = async () => {
+                const coverResult = await window.api.getCover(
+                    track.title, track.artist, track.album
+                );
+
+                if (coverResult.success && coverResult.filePath) {
+                    // 确保路径格式正确，处理路径
+                    let coverPath = coverResult.filePath;
+
+                    // 如果路径不是以file://开头，添加协议前缀
+                    if (!coverPath.startsWith('file://')) {
+                        // 处理路径中的反斜杠
+                        coverPath = coverPath.replace(/\\/g, '/');
+                        // 确保路径以/开头（对于绝对路径）
+                        if (!coverPath.startsWith('/')) {
+                            coverPath = '/' + coverPath;
+                        }
+                        coverPath = `file://${coverPath}`;
+                    }
+
+                    // 更新track对象的封面信息
+                    track.cover = coverPath;
+                    console.log(`✅ PlaylistDetailPage: 封面加载成功 - ${track.title}, 路径: ${track.cover}`);
+
+                    // 使用requestAnimationFrame确保DOM更新在下一帧进行
+                    requestAnimationFrame(() => {
+                        const trackRows = this.container.querySelectorAll('.track-row');
+                        trackRows.forEach((row, index) => {
+                            if (parseInt(row.dataset.trackIndex) === index && this.tracks[index] === track) {
+                                const coverImg = row.querySelector('.track-cover');
+                                if (coverImg) {
+                                    coverImg.src = track.cover;
+                                    console.log(`🖼️ PlaylistDetailPage: 更新封面图片 - ${track.title}`);
+                                }
+                            }
+                        });
+                    });
+                } else {
+                    console.warn(`⚠️ PlaylistDetailPage: 封面加载失败 - ${track.title}:`, coverResult.error || '未知错误');
+                }
+            };
+
+            // 如果支持requestIdleCallback，使用它；否则使用setTimeout
+            if (window.requestIdleCallback) {
+                window.requestIdleCallback(loadCover);
+            } else {
+                setTimeout(loadCover, 0);
+            }
+        } catch (error) {
+            console.warn('PlaylistDetailPage: 加载封面失败:', error);
+        }
     }
 
     // 渲染歌单封面

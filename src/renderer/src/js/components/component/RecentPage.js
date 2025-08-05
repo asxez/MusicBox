@@ -201,6 +201,9 @@ class RecentPage extends Component {
         `;
 
         this.setupPageEventListeners();
+
+        // 预加载当前显示的歌曲封面
+        this.preloadVisibleCovers();
     }
 
     groupTracksByDate() {
@@ -247,7 +250,7 @@ class RecentPage extends Component {
         return `
             <div class="track-item" data-track-path="${track.filePath}" data-index="${index}">
                 <div class="track-cover">
-                    <img src="${track.cover || 'assets/images/default-cover.svg'}" alt="封面" loading="lazy">
+                    <img src="${this.getTrackCover(track)}" alt="封面" loading="lazy" onerror="this.src='assets/images/default-cover.svg'">
                     <div class="track-overlay">
                         <button class="play-btn">
                             <svg viewBox="0 0 24 24">
@@ -282,6 +285,90 @@ class RecentPage extends Component {
                 </div>
             </div>
         `;
+    }
+
+    getTrackCover(track) {
+        // 优先使用已缓存的封面
+        if (track.cover && typeof track.cover === 'string') {
+            return track.cover;
+        }
+
+        // 异步获取封面，先返回默认封面
+        this.loadTrackCoverAsync(track);
+        return 'assets/images/default-cover.svg';
+    }
+
+    async loadTrackCoverAsync(track) {
+        try {
+            if (!window.localCoverManager) return;
+
+            // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
+            const loadCover = async () => {
+                const coverResult = await window.api.getCover(
+                    track.title, track.artist, track.album
+                );
+
+                if (coverResult.success && coverResult.filePath) {
+                    // 确保路径格式正确，处理路径
+                    let coverPath = coverResult.filePath;
+
+                    // 如果路径不是以file://开头，添加协议前缀
+                    if (!coverPath.startsWith('file://')) {
+                        // 处理路径中的反斜杠
+                        coverPath = coverPath.replace(/\\/g, '/');
+                        // 确保路径以/开头（对于绝对路径）
+                        if (!coverPath.startsWith('/')) {
+                            coverPath = '/' + coverPath;
+                        }
+                        coverPath = `file://${coverPath}`;
+                    }
+
+                    // 更新track对象的封面信息
+                    track.cover = coverPath;
+                    console.log(`✅ RecentPage: 封面加载成功 - ${track.title}, 路径: ${track.cover}`);
+
+                    // 使用requestAnimationFrame确保DOM更新在下一帧进行
+                    requestAnimationFrame(() => {
+                        const trackItems = this.container.querySelectorAll('.track-item');
+                        trackItems.forEach((item, index) => {
+                            const itemIndex = parseInt(item.dataset.index);
+                            if (this.recentTracks[itemIndex] === track) {
+                                const coverImg = item.querySelector('.track-cover img');
+                                if (coverImg) {
+                                    coverImg.src = track.cover;
+                                    console.log(`🖼️ RecentPage: 更新封面图片 - ${track.title}`);
+                                }
+                            }
+                        });
+                    });
+                } else {
+                    console.warn(`⚠️ RecentPage: 封面加载失败 - ${track.title}:`, coverResult.error || '未知错误');
+                }
+            };
+
+            // 如果支持requestIdleCallback，使用它；否则使用setTimeout
+            if (window.requestIdleCallback) {
+                window.requestIdleCallback(loadCover);
+            } else {
+                setTimeout(loadCover, 0);
+            }
+        } catch (error) {
+            console.warn('RecentPage: 加载封面失败:', error);
+        }
+    }
+
+    preloadVisibleCovers() {
+        // 预加载当前页面显示的所有歌曲封面
+        if (this.recentTracks.length > 0 && window.localCoverManager) {
+            console.log(`🖼️ RecentPage: 开始预加载 ${this.recentTracks.length} 首最近播放歌曲的封面`);
+
+            // 为每首歌曲触发封面加载
+            this.recentTracks.forEach(track => {
+                if (!track.cover) {
+                    this.loadTrackCoverAsync(track);
+                }
+            });
+        }
     }
 
     setupPageEventListeners() {
@@ -349,32 +436,12 @@ class RecentPage extends Component {
             if (removeBtn) {
                 removeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    this.removeFromHistory(index);
+                    const track = this.recentTracks[index];
+                    if (track && confirm(`确定要从历史中移除 "${track.title}" 吗？`)) {
+                        this.removeHistoryItem(track.filePath);
+                    }
                 });
             }
         });
-    }
-
-    clearHistory() {
-        this.recentTracks = [];
-        window.cacheManager.removeLocalCache('musicbox-play-history')
-        this.render();
-        showToast('播放历史已清空', 'success');
-    }
-
-    removeFromHistory(index) {
-        if (index >= 0 && index < this.recentTracks.length) {
-            const track = this.recentTracks[index];
-            this.recentTracks.splice(index, 1);
-
-            try {
-                window.cacheManager.setLocalCache('musicbox-play-history', this.recentTracks);
-                this.render();
-                showToast(`已从历史中移除 "${track.title}"`, 'success');
-            } catch (error) {
-                console.error('移除历史记录失败:', error);
-                showToast('移除失败', 'error');
-            }
-        }
     }
 }
