@@ -310,11 +310,66 @@ class NetworkDriveManager extends EventEmitter {
      * @returns {Promise<void>}
      */
     async testWebDAVConnection(webdavClient) {
+        console.log('🔍 NetworkDriveManager: 开始WebDAV连接测试');
+
+        // 方案1: 使用OPTIONS方法测试连接（最兼容的方法）
         try {
-            await webdavClient.getDirectoryContents('/');
+            console.log('🔍 NetworkDriveManager: 尝试使用OPTIONS方法测试连接');
+            const response = await webdavClient.customRequest('/', {
+                method: 'OPTIONS'
+            });
+
+            if (response.ok) {
+                console.log('✅ NetworkDriveManager: OPTIONS方法测试成功');
+                return;
+            }
+            console.log('⚠️ NetworkDriveManager: OPTIONS方法返回非成功状态:', response.status);
         } catch (error) {
-            throw new Error(`WebDAV连接测试失败: ${error.message}`);
+            console.log('⚠️ NetworkDriveManager: OPTIONS方法测试失败:', error.message);
         }
+
+        // 方案2: 使用HEAD方法测试根路径
+        try {
+            console.log('🔍 NetworkDriveManager: 尝试使用HEAD方法测试连接');
+            const response = await webdavClient.customRequest('/', {
+                method: 'HEAD'
+            });
+
+            if (response.ok) {
+                console.log('✅ NetworkDriveManager: HEAD方法测试成功');
+                return;
+            }
+            console.log('⚠️ NetworkDriveManager: HEAD方法返回非成功状态:', response.status);
+        } catch (error) {
+            console.log('⚠️ NetworkDriveManager: HEAD方法测试失败:', error.message);
+        }
+
+        // 方案3: 使用exists方法测试根路径（内部使用PROPFIND但更轻量）
+        try {
+            console.log('🔍 NetworkDriveManager: 尝试使用exists方法测试连接');
+            const exists = await webdavClient.exists('/');
+            console.log('✅ NetworkDriveManager: exists方法测试成功，根路径存在:', exists);
+            return;
+        } catch (error) {
+            console.log('⚠️ NetworkDriveManager: exists方法测试失败:', error.message);
+        }
+
+        // 方案4: 最后尝试getDirectoryContents（原始方法，作为最后的备选方案）
+        try {
+            console.log('🔍 NetworkDriveManager: 尝试使用getDirectoryContents方法测试连接（备选方案）');
+            await webdavClient.getDirectoryContents('/');
+            console.log('✅ NetworkDriveManager: getDirectoryContents方法测试成功');
+            return;
+        } catch (error) {
+            console.log('❌ NetworkDriveManager: getDirectoryContents方法测试失败:', error.message);
+            // 如果是405错误，提供更友好的错误信息
+            if (error.message && error.message.includes('405')) {
+                throw new Error(`WebDAV连接测试失败: 服务器不支持PROPFIND方法，这可能是NAS WebDAV服务器的兼容性问题。请检查服务器配置或尝试其他WebDAV客户端。原始错误: ${error.message}`);
+            }
+        }
+
+        // 所有方法都失败了
+        throw new Error('WebDAV连接测试失败: 所有测试方法都无法连接到服务器，请检查URL、用户名、密码和网络连接');
     }
 
     /**
