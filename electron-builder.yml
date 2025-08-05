@@ -1,34 +1,116 @@
 appId: com.musicbox.app
 productName: MusicBox
+copyright: Copyright © 2025 asxez MusicBox
 directories:
   output: dist
+  buildResources: build
 files:
   - src/main/**/*
   - src/renderer/public/**/*
   - node_modules/**/*
+  - "!node_modules/**/{CHANGELOG.md,README.md,readme.md,readme.txt,author,authors,contributors,copying,copyright,*license*,licence*,notice,Notice}"
+  - "!node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!node_modules/**/*.d.ts"
+  - "!node_modules/.bin"
+  - "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}"
+  - "!.editorconfig"
+  - "!**/._*"
+  - "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}"
+  - "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}"
+  - "!**/{appveyor.yml,.travis.yml,circle.yml}"
+  - "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+
+# macOS 配置
 mac:
   category: public.app-category.music
+  icon: build/icons/icon.icns
   target:
     - target: dmg
       arch:
         - x64
         - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  # 代码签名配置（需要开发者证书）
+  # identity: "Developer ID Application: Your Name (TEAM_ID)"
+  # hardenedRuntime: true
+  # gatekeeperAssess: false
+  # entitlements: build/entitlements.mac.plist
+  # entitlementsInherit: build/entitlements.mac.plist
+
+# Windows 配置
 win:
+  icon: build/icons/icon.ico
   target:
     - target: nsis
       arch:
         - x64
+        - arm64
+    - target: portable
+      arch:
+        - x64
+        - arm64
+  # 代码签名配置（需要证书）
+  # certificateFile: path/to/certificate.p12
+  # certificatePassword: ${env.WIN_CSC_KEY_PASSWORD}
+  # signingHashAlgorithms: ['sha256']
+  # signAndEditExecutable: true
+
+# Linux 配置
 linux:
+  icon: build/icons/
   target:
     - target: AppImage
       arch:
         - x64
+    - target: deb
+      arch:
+        - x64
+    - target: rpm
+      arch:
+        - x64
+    - target: tar.gz
+      arch:
+        - x64
+  category: AudioVideo
+  synopsis: "本地音乐播放器"
+  description: "一款高颜值的本地音乐播放器"
+  # 添加桌面文件配置
+  desktop:
+    Name: MusicBox
+    Comment: 本地音乐播放器
+    Categories: AudioVideo;Audio;Player;
+
+# NSIS Windows 安装程序配置
 nsis:
-  artifactName: ${productName}-setup-${version}-beta2.${ext}
+  artifactName: ${productName}-setup-${version}.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
-  installerIcon: 'build/icons/icon.ico'
-  uninstallerIcon: 'build/icons/icon.ico'
+  installerIcon: build/icons/icon.ico
+  uninstallerIcon: build/icons/icon.ico
   allowToChangeInstallationDirectory: true
   oneClick: false
+
+# DMG macOS 安装程序配置
+dmg:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  background: build/icons/icon.icns
+  iconSize: 100
+  iconTextSize: 12
+  window:
+    width: 540
+    height: 380
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+# AppImage Linux 配置
+appImage:
+  artifactName: ${productName}-${version}-${arch}.${ext}

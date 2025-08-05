@@ -1,9 +1,12 @@
 {
   "name": "musicbox",
-  "version": "0.1.0",
+  "version": "0.1.0-beta3",
   "description": "A local music player with a high level of appearance.",
   "main": "src/main/main.js",
-  "author": "2973918177@qq.com",
+  "author": {
+    "name": "asxez",
+    "email": "2973918177@qq.com"
+  },
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -12,12 +15,18 @@
     "build": "npm run build:renderer && npm run build:main",
     "build:renderer": "cd src/renderer && npm run build",
     "build:main": "electron-builder",
-    "build:all": "electron-builder -mwl",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:cross-platform": "node scripts/build-cross-platform.js --all",
     "build:icons": "electron-icon-builder --input=./docs/images/logo.png --output=build --flatten",
-    "postinstall": "cd src/renderer && npm install"
+    "postinstall": "cd src/renderer && npm install",
+    "clean": "rimraf dist",
+    "clean:all": "rimraf dist && cd src/renderer && npm run clean"
   },
   "devDependencies": {
     "concurrently": "^7.6.0",
+    "cross-env": "^10.0.0",
     "electron": "31.0.0-beta.1",
     "electron-builder": "^24.0.0",
     "electron-rebuild": "^3.2.9",
@@ -29,9 +38,9 @@
   "dependencies": {
     "chardet": "^2.1.0",
     "electron-icon-builder": "^2.0.1",
+    "fuse.js": "^6.6.2",
     "iconv-lite": "^0.6.3",
     "music-metadata": "^7.14.0",
-    "fuse.js": "^6.6.2",
     "node-smb2": "^1.3.3",
     "webdav": "^5.8.0"
   }
