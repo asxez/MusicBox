@@ -35,6 +35,7 @@
 - 💻 支持桌面显示歌词
 - 📔 支持识别内嵌封面和内嵌歌词
 - 👁️ 支持自由的页面显示开关
+- 💾 支持挂载 SMB/WebDAV 等网络磁盘
 - 🛠️ 更多特性开发中
 
 ## 📔 TODOS
@@ -49,7 +50,10 @@
 - ✅ 窗口管理
 - ❌ 歌词逐字
 - ❌ MusicBox 实时状态接口
-- ❓ SMB/WebDAV 等网络磁盘（文件夹）挂载
+- ✅ SMB/WebDAV 等网络磁盘的挂载
+- ❌ 更多快捷键支持（快进回退...）
+- ❌ 修复播放列表存在的问题
+- ❌ 歌词样式调整
 - ✅ 桌面歌词显示
 - ✅ 内嵌歌词识别
 - ❌ 自定义音乐库歌曲信息
@@ -116,10 +120,11 @@ MusicBox/
 │   └── renderer/                               # 渲染进程代码
 │       ├── src/                                # 源代码
 │       │   ├── js/                             # JavaScript 源码
+│       │   │   ├── components/                 # UI 组件
+│       │   │   │   └── ...                     
 │       │   │   ├── api.js                      # API 接口层
 │       │   │   ├── app.js                      # 应用主类
 │       │   │   ├── cache-manager.js            # localStorage缓存管理
-│       │   │   ├── components.js               # UI 组件
 │       │   │   ├── desktop-lyrics.js           # 桌面歌词管理
 │       │   │   ├── embedded-lyrics-manager.js  # 内嵌歌词管理
 │       │   │   ├── local-cover-manager.js      # 本地封面文件管理
