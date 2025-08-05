@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 允许JIT编译 (Electron需要) -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    
+    <!-- 允许未签名的可执行内存 (Electron需要) -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    
+    <!-- 禁用库验证 (允许加载第三方库) -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+    
+    <!-- 允许DYLD环境变量 -->
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+    
+    <!-- 网络访问权限 (如果应用需要网络功能) -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+    
+    <!-- 文件系统访问权限 -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+    
+    <!-- 音频输入权限 (如果需要麦克风) -->
+    <!-- <key>com.apple.security.device.audio-input</key>
+    <true/> -->
+    
+    <!-- 摄像头权限 (如果需要摄像头) -->
+    <!-- <key>com.apple.security.device.camera</key>
+    <true/> -->
+    
+    <!-- 位置服务权限 (如果需要位置信息) -->
+    <!-- <key>com.apple.security.personal-information.location</key>
+    <true/> -->
+</dict>
+</plist>
