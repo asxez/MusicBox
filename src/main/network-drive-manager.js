@@ -312,7 +312,7 @@ class NetworkDriveManager extends EventEmitter {
     async testWebDAVConnection(webdavClient) {
         console.log('🔍 NetworkDriveManager: 开始WebDAV连接测试');
 
-        // 方案1: 使用OPTIONS方法测试连接（最兼容的方法）
+        // 方案1: 使用OPTIONS方法测试连接
         try {
             console.log('🔍 NetworkDriveManager: 尝试使用OPTIONS方法测试连接');
             const response = await webdavClient.customRequest('/', {
@@ -354,7 +354,7 @@ class NetworkDriveManager extends EventEmitter {
             console.log('⚠️ NetworkDriveManager: exists方法测试失败:', error.message);
         }
 
-        // 方案4: 最后尝试getDirectoryContents（原始方法，作为最后的备选方案）
+        // 方案4: 最后尝试getDirectoryContents
         try {
             console.log('🔍 NetworkDriveManager: 尝试使用getDirectoryContents方法测试连接（备选方案）');
             await webdavClient.getDirectoryContents('/');
@@ -450,11 +450,9 @@ class NetworkDriveManager extends EventEmitter {
     startConnectionMonitoring(driveId) {
         // 清除现有定时器
         this.stopConnectionMonitoring(driveId);
-
         const timer = setInterval(async () => {
             await this.checkConnection(driveId);
-        }, 30000); // 30秒检查一次连接
-
+        }, 60000); // 一分钟检查一次连接
         this.reconnectTimers.set(driveId, timer);
         console.log(`🔍 NetworkDriveManager: 开始监控磁盘连接 ${driveId}`);
     }

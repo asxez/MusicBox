@@ -240,7 +240,7 @@ class LocalCoverManager {
         console.log(`🔄 LocalCoverManager: 开始预加载 ${trackList.length} 首歌曲的封面`);
 
         let loadedCount = 0;
-        for (const track of trackList.slice(0, 10)) { // 限制预加载数量
+        for (const track of trackList.slice(0, 12)) { // 限制预加载数量
             try {
                 await this.checkLocalCover(track.title, track.artist, track.album);
                 loadedCount++;

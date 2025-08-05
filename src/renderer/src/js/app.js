@@ -255,6 +255,14 @@ class MusicBoxApp extends EventEmitter {
             }
         });
 
+        // 监听歌曲封面显示设置变化
+        this.components.settings.on('showTrackCoversEnabled', async (enabled) => {
+            console.log(`🖼️ App: 歌曲封面显示设置已更新为 ${enabled ? '启用' : '禁用'}`);
+            if (enabled) {
+                await this.preloadTrackCovers();
+            }
+        });
+
         // 新页面组件事件监听
         this.setupPageComponentEvents();
 
@@ -363,6 +371,9 @@ class MusicBoxApp extends EventEmitter {
                     this.updateTrackList('cache-load');
                     this.hideCacheLoadingStatus();
 
+                    // 预加载封面数据
+                    await this.preloadTrackCovers();
+
                     // 在后台验证缓存
                     await this.validateCacheInBackground();
                     return;
@@ -377,6 +388,9 @@ class MusicBoxApp extends EventEmitter {
                 // 加载库视图
                 this.filteredLibrary = [...this.library];
                 this.updateTrackList('initial-load');
+
+                // 预加载封面数据
+                await this.preloadTrackCovers();
             }
 
             // 确保桌面歌词按钮状态与设置同步
@@ -387,6 +401,30 @@ class MusicBoxApp extends EventEmitter {
         }
     }
 
+    // 预加载歌曲封面
+    async preloadTrackCovers() {
+        try {
+            // 检查是否启用了封面显示
+            const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+            const showTrackCovers = settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
+
+            if (!showTrackCovers || !window.localCoverManager) {
+                console.log('🖼️ App: 封面显示已禁用或封面管理器不可用，跳过预加载');
+                return;
+            }
+
+            console.log(`🖼️ App: 开始预加载 ${this.library.length} 首歌曲的封面`);
+
+            // 预加载前12首歌曲的封面，避免阻塞UI
+            // 为啥是12首？因为全屏状态下，一页最多显示12首歌😋
+            const tracksToPreload = this.library.slice(0, 12);
+            await window.localCoverManager.preloadCovers(tracksToPreload);
+            console.log('✅ App: 封面预加载完成');
+        } catch (error) {
+            console.warn('⚠️ App: 封面预加载失败:', error);
+        }
+    }
+
     // 同步桌面歌词按钮状态
     async syncDesktopLyricsButtonState() {
         try {
@@ -394,7 +432,6 @@ class MusicBoxApp extends EventEmitter {
                 // 从设置中获取桌面歌词状态
                 const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
                 const desktopLyricsEnabled = settings.hasOwnProperty('desktopLyrics') ? settings.desktopLyrics : true;
-
                 console.log('🎵 App: 同步桌面歌词按钮状态:', desktopLyricsEnabled);
 
                 // 更新Player组件的按钮状态
