@@ -5,6 +5,8 @@ const iconv = require('iconv-lite');
 const chardet = require('chardet');
 const mm = require('music-metadata');
 const LibraryCacheManager = require('./library-cache-manager');
+const NetworkDriveManager = require('./network-drive-manager');
+const NetworkFileAdapter = require('./network-file-adapter');
 
 // 字符串编码
 function fixStringEncoding(str) {
@@ -626,9 +628,22 @@ function sendToDesktopLyrics(channel, data) {
 
 // App event handlers
 app.whenReady().then(async () => {
-    // 初始化缓存管理器
+    console.log('🚀 应用启动，开始初始化...');
+
+    // 初始化全局驱动器注册表
+    console.log('🔧 步骤1: 初始化全局驱动器注册表');
+    const {initializeGlobalDriveRegistry} = require('./drive-registry');
+    await initializeGlobalDriveRegistry();
+
+    // 初始化网络磁盘管理器
+    console.log('🔧 步骤2: 初始化网络磁盘管理器');
+    await initializeNetworkDriveManager();
+
+    // 初始化缓存管理器（会复用网络磁盘管理器）
+    console.log('🔧 步骤3: 初始化缓存管理器');
     await initializeCacheManager();
 
+    console.log('🔧 步骤4: 创建主窗口');
     createWindow();
 
     app.on('activate', () => {
@@ -641,6 +656,14 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();
+    }
+});
+
+app.on('before-quit', () => {
+    // 清理网络磁盘连接
+    if (networkDriveManager) {
+        console.log('🧹 应用退出，清理网络磁盘连接');
+        networkDriveManager.cleanup();
     }
 });
 
@@ -871,15 +894,89 @@ let audioEngineState = {
 // 初始化音乐库缓存管理器
 let libraryCacheManager = null;
 
+// 初始化网络磁盘管理器
+let networkDriveManager = null;
+let networkFileAdapter = null;
+
 // 初始化缓存管理器
 async function initializeCacheManager() {
     try {
-        libraryCacheManager = new LibraryCacheManager();
+        // 确保网络磁盘管理器已初始化
+        if (!networkDriveManager) {
+            console.log('🔧 LibraryCacheManager: 网络磁盘管理器未初始化，先初始化...');
+            await initializeNetworkDriveManager();
+        } else {
+            console.log('🔧 LibraryCacheManager: 复用现有的网络磁盘管理器实例');
+            // 调试：显示当前已挂载的驱动器
+            const mountedDrives = Array.from(networkDriveManager.mountedDrives.keys());
+            console.log(`🔍 当前已挂载的驱动器: [${mountedDrives.join(', ')}]`);
+        }
+
+        // 确保网络文件适配器已初始化
+        if (!networkFileAdapter) {
+            console.log('🔧 LibraryCacheManager: 网络文件适配器未初始化，创建新实例');
+            networkFileAdapter = new NetworkFileAdapter(networkDriveManager);
+        } else {
+            console.log('🔧 LibraryCacheManager: 复用现有的网络文件适配器实例');
+        }
+
+        libraryCacheManager = new LibraryCacheManager(networkFileAdapter);
         await libraryCacheManager.loadCache();
         console.log('✅ 音乐库缓存管理器初始化成功');
         return true;
     } catch (error) {
         console.error('❌ 音乐库缓存管理器初始化失败:', error);
+        return false;
+    }
+}
+
+// 初始化网络磁盘管理器
+async function initializeNetworkDriveManager() {
+    try {
+        if (networkDriveManager) {
+            console.log('🔧 NetworkDriveManager已存在，跳过重复初始化');
+            return true;
+        }
+
+        console.log('🔧 创建新的NetworkDriveManager实例');
+        networkDriveManager = new NetworkDriveManager();
+
+        // 初始化WebDAV模块
+        console.log('🔧 初始化WebDAV模块并加载状态');
+        await networkDriveManager.initialize();
+
+        console.log('🔧 创建NetworkFileAdapter实例');
+        networkFileAdapter = new NetworkFileAdapter(networkDriveManager);
+
+        // 监听网络磁盘事件
+        networkDriveManager.on('driveConnected', (driveId, config) => {
+            console.log(`🔗 网络磁盘已连接: ${config.displayName}`);
+            // 通知渲染进程
+            if (mainWindow) {
+                mainWindow.webContents.send('network-drive:connected', driveId, config);
+            }
+        });
+
+        networkDriveManager.on('driveDisconnected', (driveId, config) => {
+            console.log(`🔌 网络磁盘已断开: ${config.displayName}`);
+            // 通知渲染进程
+            if (mainWindow) {
+                mainWindow.webContents.send('network-drive:disconnected', driveId, config);
+            }
+        });
+
+        networkDriveManager.on('driveError', (driveId, error) => {
+            console.error(`❌ 网络磁盘错误: ${driveId} - ${error}`);
+            // 通知渲染进程
+            if (mainWindow) {
+                mainWindow.webContents.send('network-drive:error', driveId, error);
+            }
+        });
+
+        console.log('✅ 网络磁盘管理器初始化完成');
+        return true;
+    } catch (error) {
+        console.error('❌ 网络磁盘管理器初始化失败:', error);
         return false;
     }
 }
@@ -1070,8 +1167,17 @@ ipcMain.handle('audio:previousTrack', async () => {
 ipcMain.handle('file:readAudio', async (event, filePath) => {
     try {
         console.log(`📖 读取音频文件: ${filePath}`);
-        const buffer = fs.readFileSync(filePath);
-        return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+
+        // 检查是否为网络路径
+        if (networkFileAdapter && networkFileAdapter.isNetworkPath(filePath)) {
+            console.log(`🌐 读取网络音频文件: ${filePath}`);
+            const buffer = await networkFileAdapter.readFile(filePath);
+            return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+        } else {
+            // 本地文件读取
+            const buffer = fs.readFileSync(filePath);
+            return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+        }
     } catch (error) {
         console.error('❌ 读取音频文件失败:', error);
         throw error;
@@ -1089,22 +1195,123 @@ ipcMain.handle('library:scanDirectory', async (event, directoryPath) => {
             await initializeCacheManager();
         }
 
-        // 使用Node.js文件系统扫描音频文件
-        const audioExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac'];
-        const tracks = [];
-        const tracksToCache = [];
+        // 确保网络磁盘管理器已初始化
+        if (!networkDriveManager) {
+            await initializeNetworkDriveManager();
+        }
 
-        async function scanDir(dir) {
-            try {
-                const items = require('fs').readdirSync(dir);
-                for (const item of items) {
-                    const fullPath = require('path').join(dir, item);
-                    const stat = require('fs').statSync(fullPath);
+        // 检查是否为网络路径
+        const isNetworkPath = networkFileAdapter && networkFileAdapter.isNetworkPath(directoryPath);
+
+        if (isNetworkPath) {
+            console.log(`🌐 扫描网络目录: ${directoryPath}`);
+            return await scanNetworkDirectory(directoryPath, scanStartTime);
+        } else {
+            console.log(`💾 扫描本地目录: ${directoryPath}`);
+            return await scanLocalDirectory(directoryPath, scanStartTime);
+        }
+    } catch (error) {
+        console.error('❌ 目录扫描失败:', error);
+        return false;
+    }
+});
+
+// 扫描本地目录
+async function scanLocalDirectory(directoryPath, scanStartTime) {
+    // 使用Node.js文件系统扫描音频文件
+    const audioExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac'];
+    const tracks = [];
+    const tracksToCache = [];
+
+    async function scanDir(dir) {
+        try {
+            const items = require('fs').readdirSync(dir);
+            for (const item of items) {
+                const fullPath = require('path').join(dir, item);
+                const stat = require('fs').statSync(fullPath);
+
+                if (stat.isDirectory()) {
+                    await scanDir(fullPath); // 递归扫描子目录
+                } else if (audioExtensions.includes(require('path').extname(item).toLowerCase())) {
+                    const metadata = await parseMetadata(fullPath);
+                    const trackData = {
+                        filePath: fullPath,
+                        fileName: item,
+                        title: metadata.title,
+                        artist: metadata.artist,
+                        album: metadata.album,
+                        duration: metadata.duration,
+                        bitrate: metadata.bitrate,
+                        sampleRate: metadata.sampleRate,
+                        year: metadata.year,
+                        genre: metadata.genre,
+                        track: metadata.track,
+                        disc: metadata.disc,
+                        fileSize: stat.size,
+                        embeddedLyrics: metadata.embeddedLyrics
+                    };
+
+                    tracks.push(trackData);
+
+                    // 准备缓存数据
+                    tracksToCache.push({
+                        trackData,
+                        filePath: fullPath,
+                        stats: stat
+                    });
+                }
+            }
+        } catch (error) {
+            console.error(`扫描目录错误 ${dir}:`, error.message);
+        }
+    }
+
+    await scanDir(directoryPath);
+
+    // 添加到缓存
+    if (libraryCacheManager && tracksToCache.length > 0) {
+        libraryCacheManager.addTracks(tracksToCache);
+        libraryCacheManager.addScannedDirectory(directoryPath);
+
+        // 更新扫描统计
+        const scanDuration = Date.now() - scanStartTime;
+        libraryCacheManager.cache.statistics.lastScanTime = scanStartTime;
+        libraryCacheManager.cache.statistics.scanDuration = scanDuration;
+        await libraryCacheManager.saveCache();
+    }
+
+    // 存储扫描结果到内存
+    audioEngineState.scannedTracks = tracks;
+    console.log(`✅ 本地扫描完成，找到 ${tracks.length} 个音频文件`);
+    return true;
+}
+
+// 扫描网络目录
+async function scanNetworkDirectory(networkPath, scanStartTime) {
+    const audioExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac'];
+    const tracks = [];
+    const tracksToCache = [];
+
+    async function scanNetworkDir(dirPath) {
+        try {
+            console.log(`🌐 扫描网络目录: ${dirPath}`);
+            const items = await networkFileAdapter.readdir(dirPath);
+
+            for (const item of items) {
+                // 使用安全的网络路径连接方法
+                const fullPath = networkFileAdapter.joinNetworkPath(dirPath, item);
+                console.log(`🔍 构建网络文件路径: ${fullPath}`);
+
+                try {
+                    const stat = await networkFileAdapter.stat(fullPath);
 
                     if (stat.isDirectory()) {
-                        await scanDir(fullPath); // 递归扫描子目录
+                        await scanNetworkDir(fullPath); // 递归扫描子目录
                     } else if (audioExtensions.includes(require('path').extname(item).toLowerCase())) {
-                        const metadata = await parseMetadata(fullPath);
+                        console.log(`🎵 发现网络音频文件: ${fullPath}`);
+
+                        // 网络文件需要特殊处理元数据解析
+                        const metadata = await parseNetworkMetadata(fullPath);
                         const trackData = {
                             filePath: fullPath,
                             fileName: item,
@@ -1119,7 +1326,8 @@ ipcMain.handle('library:scanDirectory', async (event, directoryPath) => {
                             track: metadata.track,
                             disc: metadata.disc,
                             fileSize: stat.size,
-                            embeddedLyrics: metadata.embeddedLyrics
+                            embeddedLyrics: metadata.embeddedLyrics,
+                            isNetworkFile: true // 标记为网络文件
                         };
 
                         tracks.push(trackData);
@@ -1131,40 +1339,141 @@ ipcMain.handle('library:scanDirectory', async (event, directoryPath) => {
                             stats: stat
                         });
                     }
+                } catch (fileError) {
+                    console.warn(`⚠️ 处理网络文件失败 ${fullPath}:`, fileError.message);
                 }
-            } catch (error) {
-                console.error(`扫描目录错误 ${dir}:`, error.message);
             }
+        } catch (error) {
+            console.error(`❌ 扫描网络目录错误 ${dirPath}:`, error.message);
         }
-
-        await scanDir(directoryPath);
-
-        // 添加到缓存
-        if (libraryCacheManager && tracksToCache.length > 0) {
-            libraryCacheManager.addTracks(tracksToCache);
-            libraryCacheManager.addScannedDirectory(directoryPath);
-
-            // 更新扫描统计
-            const scanDuration = Date.now() - scanStartTime;
-            libraryCacheManager.cache.statistics.lastScanTime = scanStartTime;
-            libraryCacheManager.cache.statistics.scanDuration = scanDuration;
-
-            await libraryCacheManager.saveCache();
-        }
-
-        // 存储扫描结果到内存
-        audioEngineState.scannedTracks = tracks;
-
-        console.log(`✅ 扫描完成，找到 ${tracks.length} 个音频文件`);
-        return true;
-    } catch (error) {
-        console.error('❌ 目录扫描失败:', error);
-        return false;
     }
-});
+
+    await scanNetworkDir(networkPath);
+
+    // 添加到缓存
+    if (libraryCacheManager && tracksToCache.length > 0) {
+        libraryCacheManager.addTracks(tracksToCache);
+        libraryCacheManager.addScannedDirectory(networkPath);
+
+        // 更新扫描统计
+        const scanDuration = Date.now() - scanStartTime;
+        libraryCacheManager.cache.statistics.lastScanTime = scanStartTime;
+        libraryCacheManager.cache.statistics.scanDuration = scanDuration;
+        await libraryCacheManager.saveCache();
+    }
+
+    // 存储扫描结果到内存
+    audioEngineState.scannedTracks = tracks;
+    console.log(`✅ 网络扫描完成，找到 ${tracks.length} 个音频文件`);
+    return true;
+}
+
+// 解析网络文件元数据
+async function parseNetworkMetadata(networkPath) {
+    try {
+        console.log(`🔍 解析网络文件元数据: ${networkPath}`);
+
+        // 读取网络文件内容并解析
+        const buffer = await networkFileAdapter.readFile(networkPath);
+        const metadata = await mm.parseBuffer(buffer, {
+            mimeType: getMimeTypeFromExtension(networkPath),
+            size: buffer.length
+        });
+
+        // 提取并修复字符串编码
+        const title = fixStringEncoding(metadata.common.title || path.basename(networkPath, path.extname(networkPath)));
+        const artist = fixStringEncoding(metadata.common.artist || '未知艺术家');
+        const album = fixStringEncoding(metadata.common.album || '未知专辑');
+        const genre = fixStringEncoding(metadata.common.genre ? metadata.common.genre.join(', ') : '');
+
+        // 提取内嵌歌词
+        const embeddedLyrics = extractEmbeddedLyrics(metadata);
+
+        return {
+            title: title,
+            artist: artist,
+            album: album,
+            duration: metadata.format.duration || 0,
+            bitrate: metadata.format.bitrate || 0,
+            sampleRate: metadata.format.sampleRate || 0,
+            year: metadata.common.year || null,
+            genre: genre,
+            track: metadata.common.track ? metadata.common.track.no : null,
+            disc: metadata.common.disk ? metadata.common.disk.no : null,
+            embeddedLyrics: embeddedLyrics
+        };
+    } catch (error) {
+        console.error(`❌ 解析网络文件元数据失败 ${networkPath}:`, error);
+
+        const fileName = path.basename(networkPath);
+        return {
+            title: path.basename(fileName, path.extname(fileName)),
+            artist: '未知艺术家',
+            album: '未知专辑',
+            duration: 0,
+            bitrate: 0,
+            sampleRate: 0,
+            year: null,
+            genre: '',
+            track: null,
+            disc: null,
+            embeddedLyrics: null
+        };
+    }
+}
+
+// 根据文件扩展名获取MIME类型
+function getMimeTypeFromExtension(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeTypes = {
+        '.mp3': 'audio/mpeg',
+        '.flac': 'audio/flac',
+        '.wav': 'audio/wav',
+        '.ogg': 'audio/ogg',
+        '.m4a': 'audio/mp4',
+        '.aac': 'audio/aac'
+    };
+    return mimeTypes[ext] || 'audio/mpeg';
+}
 
 ipcMain.handle('library:getTracks', async () => {
     return audioEngineState.scannedTracks || [];
+});
+
+// 扫描网络磁盘
+ipcMain.handle('library:scanNetworkDrive', async (event, driveId, relativePath = '/') => {
+    try {
+        if (!networkDriveManager || !networkFileAdapter) {
+            throw new Error('网络磁盘管理器未初始化');
+        }
+
+        // 确保缓存管理器已初始化
+        if (!libraryCacheManager) {
+            console.log('🔧 初始化缓存管理器...');
+            await initializeCacheManager();
+        }
+
+        const driveInfo = networkDriveManager.getDriveInfo(driveId);
+        if (!driveInfo) {
+            throw new Error(`网络磁盘 ${driveId} 未找到`);
+        }
+
+        const status = networkDriveManager.getDriveStatus(driveId);
+        if (!status || !status.connected) {
+            throw new Error(`网络磁盘 ${driveId} 未连接`);
+        }
+
+        // 构建网络路径
+        const networkPath = networkFileAdapter.buildNetworkPath(driveId, relativePath);
+        console.log(`🌐 扫描网络磁盘: ${driveInfo.config.displayName} - ${networkPath}`);
+
+        // 使用现有的扫描逻辑
+        const scanStartTime = Date.now();
+        return await scanNetworkDirectory(networkPath, scanStartTime);
+    } catch (error) {
+        console.error('❌ 网络磁盘扫描失败:', error);
+        return false;
+    }
 });
 
 // 音乐库缓存相关IPC处理程序
@@ -1190,8 +1499,23 @@ ipcMain.handle('library:loadCachedTracks', async () => {
 
 ipcMain.handle('library:validateCache', async (event) => {
     try {
+        // 调试：检查NetworkDriveManager状态
+        if (networkDriveManager) {
+            const mountedDrives = Array.from(networkDriveManager.mountedDrives.keys());
+            console.log(`🔍 缓存验证前，已挂载的驱动器: [${mountedDrives.join(', ')}]`);
+        } else {
+            console.log(`⚠️ 缓存验证前，NetworkDriveManager未初始化`);
+        }
+
         if (!libraryCacheManager) {
+            console.log('🔧 缓存管理器未初始化，开始初始化...');
             await initializeCacheManager();
+
+            // 调试：检查初始化后的状态
+            if (networkDriveManager) {
+                const mountedDrives = Array.from(networkDriveManager.mountedDrives.keys());
+                console.log(`🔍 缓存管理器初始化后，已挂载的驱动器: [${mountedDrives.join(', ')}]`);
+            }
         }
 
         console.log('🔍 开始验证音乐库缓存...');
@@ -1212,7 +1536,6 @@ ipcMain.handle('library:validateCache', async (event) => {
         // 更新内存中的音乐库
         const validTracks = libraryCacheManager.getAllTracks();
         audioEngineState.scannedTracks = validTracks;
-
         console.log(`✅ 缓存验证完成 - 有效: ${validation.valid.length}, 无效: ${validation.invalid.length}, 已修改: ${validation.modified.length}`);
 
         return {
@@ -1569,6 +1892,143 @@ ipcMain.handle('settings:get', async (event, key) => {
 ipcMain.handle('settings:set', async (event, key, value) => {
     settings.set(key, value);
     return true;
+});
+
+// Network Drive IPC
+// 挂载SMB网络磁盘
+ipcMain.handle('network-drive:mountSMB', async (event, config) => {
+    try {
+        if (!networkDriveManager) {
+            await initializeNetworkDriveManager();
+        }
+        return await networkDriveManager.mountSMB(config);
+    } catch (error) {
+        console.error('❌ 挂载SMB磁盘失败:', error);
+        return false;
+    }
+});
+
+// 挂载WebDAV网络磁盘
+ipcMain.handle('network-drive:mountWebDAV', async (event, config) => {
+    try {
+        if (!networkDriveManager) {
+            await initializeNetworkDriveManager();
+        }
+        return await networkDriveManager.mountWebDAV(config);
+    } catch (error) {
+        console.error('❌ 挂载WebDAV磁盘失败:', error);
+        return false;
+    }
+});
+
+// 卸载网络磁盘
+ipcMain.handle('network-drive:unmount', async (event, driveId) => {
+    try {
+        if (!networkDriveManager) {
+            return false;
+        }
+        return await networkDriveManager.unmountDrive(driveId);
+    } catch (error) {
+        console.error('❌ 卸载网络磁盘失败:', error);
+        return false;
+    }
+});
+
+// 获取已挂载的磁盘列表
+ipcMain.handle('network-drive:getMountedDrives', async () => {
+    try {
+        if (!networkDriveManager) {
+            return [];
+        }
+        return networkDriveManager.getMountedDrives();
+    } catch (error) {
+        console.error('❌ 获取挂载磁盘列表失败:', error);
+        return [];
+    }
+});
+
+// 检查磁盘连接状态
+ipcMain.handle('network-drive:getStatus', async (event, driveId) => {
+    try {
+        if (!networkDriveManager) {
+            return null;
+        }
+        return networkDriveManager.getDriveStatus(driveId);
+    } catch (error) {
+        console.error('❌ 获取磁盘状态失败:', error);
+        return null;
+    }
+});
+
+// 测试网络连接
+ipcMain.handle('network-drive:testConnection', async (event, config) => {
+    try {
+        if (!networkDriveManager) {
+            await initializeNetworkDriveManager();
+        }
+
+        if (config.type === 'smb') {
+            const SMB2 = require('node-smb2');
+            const smbConfig = {
+                share: `\\\\${config.host}\\${config.share}`,
+                domain: config.domain || 'WORKGROUP',
+                username: config.username,
+                password: config.password,
+                autoCloseTimeout: 0
+            };
+            const smbClient = new SMB2(smbConfig);
+            await networkDriveManager.testSMBConnection(smbClient);
+            return true;
+        } else if (config.type === 'webdav') {
+            // 确保网络磁盘管理器已初始化WebDAV模块
+            const loaded = await networkDriveManager.ensureWebDAVLoaded();
+            if (!loaded) {
+                throw new Error('WebDAV模块加载失败');
+            }
+
+            // 使用网络磁盘管理器的WebDAV模块
+            const webdavModule = await import('webdav');
+            const webdavClient = webdavModule.createClient(config.url, {
+                username: config.username,
+                password: config.password
+            });
+            await networkDriveManager.testWebDAVConnection(webdavClient);
+            return true;
+        }
+
+        return false;
+    } catch (error) {
+        console.error('❌ 测试网络连接失败:', error);
+        throw error;
+    }
+});
+
+// 刷新网络磁盘连接状态
+ipcMain.handle('network-drive:refreshConnections', async () => {
+    try {
+        if (!networkDriveManager) {
+            return false;
+        }
+        await networkDriveManager.refreshAllConnections();
+        return true;
+    } catch (error) {
+        console.error('❌ 刷新网络磁盘连接状态失败:', error);
+        return false;
+    }
+});
+
+// 刷新指定网络磁盘连接状态
+ipcMain.handle('network-drive:refreshConnection', async (event, driveId) => {
+    try {
+        if (!networkDriveManager) {
+            return false;
+        }
+        await networkDriveManager.refreshConnection(driveId);
+        return true;
+    } catch (error) {
+        console.error('❌ 刷新网络磁盘连接状态失败:', error);
+        return false;
+    }
 });
 
 // 本地歌词文件IPC处理器

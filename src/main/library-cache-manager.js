@@ -8,9 +8,10 @@ const path = require('path');
 const crypto = require('crypto');
 
 class LibraryCacheManager {
-    constructor() {
+    constructor(networkFileAdapter = null) {
         this.cacheFileName = 'music-library-cache.json';
         this.cacheFilePath = null;
+        this.networkFileAdapter = networkFileAdapter; // 网络文件适配器，用于验证网络文件
         this.cache = {
             lastUpdated: Date.now(),
             scannedDirectories: [], // 已扫描的目录列表
@@ -47,6 +48,11 @@ class LibraryCacheManager {
     generateFileId(filePath, stats) {
         const data = `${filePath}_${stats.size}_${stats.mtime.getTime()}`;
         return crypto.createHash('md5').update(data).digest('hex');
+    }
+
+    // 检查路径是否为网络路径
+    isNetworkPath(filePath) {
+        return filePath && typeof filePath === 'string' && filePath.startsWith('network://');
     }
 
     // 加载缓存数据
@@ -155,7 +161,25 @@ class LibraryCacheManager {
     // 验证音乐文件是否仍然有效
     async validateTrack(track) {
         try {
+            console.log(`🔍 LibraryCacheManager: 验证文件 "${track.fileName}" (${track.filePath})`);
+
+            // 检查是否为网络路径
+            if (this.isNetworkPath(track.filePath)) {
+                return await this.validateNetworkTrack(track);
+            } else {
+                return await this.validateLocalTrack(track);
+            }
+        } catch (error) {
+            console.error(`❌ LibraryCacheManager: 验证文件失败 "${track.filePath}":`, error.message);
+            return {valid: false, reason: 'access_error', error: error.message};
+        }
+    }
+
+    // 验证本地文件
+    async validateLocalTrack(track) {
+        try {
             if (!fs.existsSync(track.filePath)) {
+                console.log(`❌ LibraryCacheManager: 本地文件不存在 "${track.filePath}"`);
                 return {valid: false, reason: 'file_not_found'};
             }
 
@@ -163,11 +187,59 @@ class LibraryCacheManager {
             const currentId = this.generateFileId(track.filePath, stats);
 
             if (currentId !== track.fileId) {
+                console.log(`⚠️ LibraryCacheManager: 本地文件已修改 "${track.filePath}"`);
                 return {valid: false, reason: 'file_modified', stats};
             }
+
+            console.log(`✅ LibraryCacheManager: 本地文件验证通过 "${track.fileName}"`);
             return {valid: true};
         } catch (error) {
+            console.error(`❌ LibraryCacheManager: 本地文件验证失败 "${track.filePath}":`, error.message);
             return {valid: false, reason: 'access_error', error: error.message};
+        }
+    }
+
+    // 验证网络文件
+    async validateNetworkTrack(track) {
+        try {
+            // 检查是否有网络文件适配器
+            if (!this.networkFileAdapter) {
+                console.warn(`⚠️ LibraryCacheManager: 缺少网络文件适配器，跳过网络文件验证 "${track.filePath}"`);
+                // 对于网络文件，如果没有适配器，假设它们仍然有效
+                // 避免在没有网络连接时删除所有网络文件
+                return {valid: true, reason: 'network_adapter_unavailable'};
+            }
+
+            console.log(`🌐 LibraryCacheManager: 验证网络文件 "${track.filePath}"`);
+
+            // 使用网络文件适配器检查文件是否存在
+            const exists = await this.networkFileAdapter.exists(track.filePath);
+            if (!exists) {
+                console.log(`❌ LibraryCacheManager: 网络文件不存在 "${track.filePath}"`);
+                return {valid: false, reason: 'network_file_not_found'};
+            }
+
+            // 获取网络文件的统计信息
+            const stats = await this.networkFileAdapter.stat(track.filePath);
+            const currentId = this.generateFileId(track.filePath, stats);
+
+            if (currentId !== track.fileId) {
+                console.log(`⚠️ LibraryCacheManager: 网络文件已修改 "${track.filePath}"`);
+                return {valid: false, reason: 'network_file_modified', stats};
+            }
+
+            console.log(`✅ LibraryCacheManager: 网络文件验证通过 "${track.fileName}"`);
+            return {valid: true};
+        } catch (error) {
+            console.error(`❌ LibraryCacheManager: 网络文件验证失败 "${track.filePath}":`, error.message);
+
+            // 对于网络文件，若验证失败则可能是网络原因，不立即删除
+            // 较宽松的策略
+            if (error.message.includes('网络磁盘') && error.message.includes('未连接')) {
+                console.log(`🔌 LibraryCacheManager: 网络磁盘未连接，保留文件 "${track.filePath}"`);
+                return {valid: true, reason: 'network_disconnected'};
+            }
+            return {valid: false, reason: 'network_access_error', error: error.message};
         }
     }
 

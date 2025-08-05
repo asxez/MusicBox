@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     library: {
         // Scan for music files
         scanDirectory: (path) => ipcRenderer.invoke('library:scanDirectory', path),
+        scanNetworkDrive: (driveId, relativePath) => ipcRenderer.invoke('library:scanNetworkDrive', driveId, relativePath),
 
         // Get library data
         getTracks: (options) => ipcRenderer.invoke('library:getTracks', options),
@@ -114,6 +115,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
         set: (key, value) => ipcRenderer.invoke('settings:set', key, value),
         getAll: () => ipcRenderer.invoke('settings:getAll'),
         reset: () => ipcRenderer.invoke('settings:reset')
+    },
+
+    // 网络磁盘
+    networkDrive: {
+        mountSMB: (config) => ipcRenderer.invoke('network-drive:mountSMB', config),
+        mountWebDAV: (config) => ipcRenderer.invoke('network-drive:mountWebDAV', config),
+        unmount: (driveId) => ipcRenderer.invoke('network-drive:unmount', driveId),
+        getMountedDrives: () => ipcRenderer.invoke('network-drive:getMountedDrives'),
+        getStatus: (driveId) => ipcRenderer.invoke('network-drive:getStatus', driveId),
+        testConnection: (config) => ipcRenderer.invoke('network-drive:testConnection', config),
+        refreshConnections: () => ipcRenderer.invoke('network-drive:refreshConnections'),
+        refreshConnection: (driveId) => ipcRenderer.invoke('network-drive:refreshConnection', driveId),
+
+        // 监听网络磁盘事件
+        onConnected: (callback) => ipcRenderer.on('network-drive:connected', callback),
+        onDisconnected: (callback) => ipcRenderer.on('network-drive:disconnected', callback),
+        onError: (callback) => ipcRenderer.on('network-drive:error', callback),
+
+        removeListener: (event, callback) => ipcRenderer.removeListener(`network-drive:${event}`, callback)
     },
 
     // 歌词管理

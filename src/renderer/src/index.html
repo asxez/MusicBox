@@ -658,6 +658,55 @@
                         </div>
                     </div>
 
+                    <!-- 网络磁盘设置 -->
+                    <div class="settings-section">
+                        <h2 class="section-title">网络磁盘</h2>
+
+                        <!-- 网络磁盘功能开关 -->
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">启用网络磁盘</label>
+                                <p class="item-description">允许挂载SMB、WebDAV等网络磁盘，扫描网络音乐文件</p>
+                            </div>
+                            <div class="item-control">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="network-drive-toggle" class="toggle-input">
+                                    <label for="network-drive-toggle" class="toggle-label"></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 网络磁盘配置容器 -->
+                        <div id="network-drive-config" class="network-drive-config" style="display: none;">
+                            <!-- 添加网络磁盘 -->
+                            <div class="settings-item">
+                                <div class="item-info">
+                                    <label class="item-label">添加网络磁盘</label>
+                                    <p class="item-description">配置新的网络磁盘连接</p>
+                                </div>
+                                <div class="item-control">
+                                    <button class="settings-button" id="add-network-drive-btn">添加磁盘</button>
+                                </div>
+                            </div>
+
+                            <!-- 已挂载的网络磁盘列表 -->
+                            <div class="settings-item">
+                                <div class="item-info">
+                                    <label class="item-label">已挂载的磁盘</label>
+                                    <p class="item-description">管理已连接的网络磁盘</p>
+                                </div>
+                                <div class="item-control">
+                                    <div class="drives-header">
+                                        <button class="settings-button secondary" id="refresh-drives-btn">刷新状态</button>
+                                    </div>
+                                    <div class="mounted-drives-list" id="mounted-drives-list">
+                                        <div class="no-drives-message">暂无已挂载的网络磁盘</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 快捷键配置 -->
                     <div class="settings-section">
                         <h2 class="section-title">快捷键</h2>
@@ -713,7 +762,7 @@
                         <div class="settings-item">
                             <div class="item-info">
                                 <label class="item-label">版本信息</label>
-                                <p class="item-description">MusicBox v0.1.0-beta2</p>
+                                <p class="item-description">MusicBox v0.1.0-beta3</p>
                             </div>
                             <div class="item-control">
                                 <button class="settings-button secondary" id="check-updates-btn">检查更新</button>
@@ -729,6 +778,84 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Network Drive Configuration Modal -->
+        <div id="network-drive-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3 class="modal-title">配置网络磁盘</h3>
+                    <button class="modal-close-btn" id="network-drive-modal-close">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="network-drive-form">
+                        <!-- 磁盘名称 -->
+                        <div class="form-group">
+                            <label for="drive-name">磁盘名称</label>
+                            <input type="text" id="drive-name" class="form-input" placeholder="例如：我的音乐服务器" required>
+                        </div>
+
+                        <!-- 协议类型 -->
+                        <div class="form-group">
+                            <label for="drive-protocol">协议类型</label>
+                            <select id="drive-protocol" class="form-select" required>
+                                <option value="">请选择协议</option>
+                                <option value="smb">SMB/CIFS</option>
+                                <option value="webdav">WebDAV</option>
+                            </select>
+                        </div>
+
+                        <!-- SMB配置 -->
+                        <div id="smb-config" class="protocol-config" style="display: none;">
+                            <div class="form-group">
+                                <label for="smb-host">服务器地址</label>
+                                <input type="text" id="smb-host" class="form-input" placeholder="例如：192.168.1.100">
+                            </div>
+                            <div class="form-group">
+                                <label for="smb-share">共享名称</label>
+                                <input type="text" id="smb-share" class="form-input" placeholder="例如：music">
+                            </div>
+                            <div class="form-group">
+                                <label for="smb-domain">域名（可选）</label>
+                                <input type="text" id="smb-domain" class="form-input" placeholder="例如：WORKGROUP">
+                            </div>
+                        </div>
+
+                        <!-- WebDAV配置 -->
+                        <div id="webdav-config" class="protocol-config" style="display: none;">
+                            <div class="form-group">
+                                <label for="webdav-url">WebDAV URL</label>
+                                <input type="url" id="webdav-url" class="form-input" placeholder="例如：https://example.com/webdav">
+                            </div>
+                        </div>
+
+                        <!-- 认证信息 -->
+                        <div class="form-group">
+                            <label for="drive-username">用户名</label>
+                            <input type="text" id="drive-username" class="form-input" placeholder="用户名">
+                        </div>
+                        <div class="form-group">
+                            <label for="drive-password">密码</label>
+                            <input type="password" id="drive-password" class="form-input" placeholder="密码">
+                        </div>
+
+                        <!-- 测试连接状态 -->
+                        <div id="connection-test-result" class="connection-test-result" style="display: none;">
+                            <div class="test-status"></div>
+                            <div class="test-message"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="test-connection-btn">测试连接</button>
+                    <button type="button" class="btn btn-secondary" id="network-drive-cancel">取消</button>
+                    <button type="submit" class="btn btn-primary" id="network-drive-confirm" form="network-drive-form">添加磁盘</button>
                 </div>
             </div>
         </div>

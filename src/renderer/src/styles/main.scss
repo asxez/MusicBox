@@ -5434,6 +5434,197 @@ a {
   }
 }
 
+// 网络磁盘配置样式
+.network-drive-config {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-secondary-bg);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--color-border);
+}
+
+.mounted-drives-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  background: var(--color-body-bg);
+}
+
+.no-drives-message {
+  padding: var(--spacing-lg);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.mounted-drive-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: var(--color-hover);
+  }
+}
+
+.drive-info {
+  flex: 1;
+}
+
+.drive-name {
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: var(--spacing-xs);
+}
+
+.drive-details {
+  display: flex;
+  gap: var(--spacing-md);
+  font-size: var(--font-size-sm);
+}
+
+.drive-protocol {
+  color: var(--color-text-secondary);
+  background: var(--color-secondary-bg);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.drive-status {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+
+  &.connected {
+    color: var(--color-success);
+    background: rgba(16, 185, 129, 0.1);
+  }
+
+  &.disconnected {
+    color: var(--color-danger);
+    background: rgba(239, 68, 68, 0.1);
+  }
+}
+
+.drive-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.drives-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--spacing-sm);
+}
+
+// 网络磁盘模态框样式
+#network-drive-modal {
+  .modal-dialog {
+    max-width: 600px;
+    width: 90vw;
+  }
+}
+
+.protocol-config {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-secondary-bg);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--color-border);
+}
+
+.form-group {
+  margin-bottom: var(--spacing-md);
+
+  label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-weight: 600;
+    color: var(--color-text);
+  }
+}
+
+.form-input, .form-select {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  background: var(--color-body-bg);
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+  transition: border-color var(--transition-fast);
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.1);
+  }
+
+  &::placeholder {
+    color: var(--color-text-secondary);
+  }
+}
+
+.form-select {
+  cursor: pointer;
+}
+
+.connection-test-result {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+
+  .test-status {
+    font-size: 18px;
+
+    &.testing {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+  }
+
+  .test-message {
+    flex: 1;
+    font-size: var(--font-size-sm);
+  }
+
+  &:has(.test-status.success) {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: var(--color-success);
+  }
+
+  &:has(.test-status.error) {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: var(--color-danger);
+  }
+
+  &:has(.test-status.testing) {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: var(--color-info);
+  }
+}
+
+.btn-small {
+  padding: 4px 12px;
+  font-size: var(--font-size-sm);
+  min-height: auto;
+}
+
 // Responsive design
 @media (max-width: 1024px) {
   .app {

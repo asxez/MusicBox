@@ -54,6 +54,61 @@ class Settings extends EventEmitter {
         this.globalShortcutsList = this.element.querySelector('#global-shortcuts-list');
         this.globalShortcutsGroup = this.element.querySelector('#global-shortcuts-group');
         this.resetShortcutsBtn = this.element.querySelector('#reset-shortcuts-btn');
+
+        // 网络磁盘配置元素
+        this.networkDriveToggle = this.element.querySelector('#network-drive-toggle');
+        this.networkDriveConfig = this.element.querySelector('#network-drive-config');
+        this.addNetworkDriveBtn = this.element.querySelector('#add-network-drive-btn');
+        this.refreshDrivesBtn = this.element.querySelector('#refresh-drives-btn');
+        this.mountedDrivesList = this.element.querySelector('#mounted-drives-list');
+
+        // 调试：检查网络磁盘元素是否正确找到
+        console.log('🔍 Settings: 网络磁盘元素检查:', {
+            networkDriveToggle: !!this.networkDriveToggle,
+            networkDriveConfig: !!this.networkDriveConfig,
+            addNetworkDriveBtn: !!this.addNetworkDriveBtn,
+            refreshDrivesBtn: !!this.refreshDrivesBtn,
+            mountedDrivesList: !!this.mountedDrivesList
+        });
+
+        // 网络磁盘模态框元素
+        this.networkDriveModal = document.querySelector('#network-drive-modal');
+        this.networkDriveForm = document.querySelector('#network-drive-form');
+        this.networkDriveModalClose = document.querySelector('#network-drive-modal-close');
+        this.networkDriveCancel = document.querySelector('#network-drive-cancel');
+        this.networkDriveConfirm = document.querySelector('#network-drive-confirm');
+        this.testConnectionBtn = document.querySelector('#test-connection-btn');
+
+        // 表单元素
+        this.driveNameInput = document.querySelector('#drive-name');
+        this.driveProtocolSelect = document.querySelector('#drive-protocol');
+        this.driveUsernameInput = document.querySelector('#drive-username');
+        this.drivePasswordInput = document.querySelector('#drive-password');
+
+        // SMB配置元素
+        this.smbConfig = document.querySelector('#smb-config');
+        this.smbHostInput = document.querySelector('#smb-host');
+        this.smbShareInput = document.querySelector('#smb-share');
+        this.smbDomainInput = document.querySelector('#smb-domain');
+
+        // WebDAV配置元素
+        this.webdavConfig = document.querySelector('#webdav-config');
+        this.webdavUrlInput = document.querySelector('#webdav-url');
+
+        // 连接测试结果
+        this.connectionTestResult = document.querySelector('#connection-test-result');
+
+        // 调试：检查模态框元素是否正确找到
+        console.log('🔍 Settings: 模态框元素检查:', {
+            networkDriveModal: !!this.networkDriveModal,
+            networkDriveForm: !!this.networkDriveForm,
+            networkDriveModalClose: !!this.networkDriveModalClose,
+            networkDriveCancel: !!this.networkDriveCancel,
+            networkDriveConfirm: !!this.networkDriveConfirm,
+            testConnectionBtn: !!this.testConnectionBtn,
+            driveNameInput: !!this.driveNameInput,
+            driveProtocolSelect: !!this.driveProtocolSelect
+        });
     }
 
     setupEventListeners() {
@@ -207,12 +262,130 @@ class Settings extends EventEmitter {
         // 快捷键配置事件监听器
         this.setupShortcutEventListeners();
 
-        // 关闭设置页面 (ESC键)
+        // 网络磁盘事件监听器
+        this.setupNetworkDriveEventListeners();
+
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
         });
+    }
+
+    // 设置网络磁盘事件监听器
+    setupNetworkDriveEventListeners() {
+        // 网络磁盘功能开关
+        this.networkDriveToggle.addEventListener('change', (e) => {
+            this.updateSetting('networkDriveEnabled', e.target.checked);
+            this.toggleNetworkDriveConfig(e.target.checked);
+            console.log(`🌐 Settings: 网络磁盘功能${e.target.checked ? '启用' : '禁用'}`);
+        });
+
+        // 添加网络磁盘按钮
+        if (this.addNetworkDriveBtn) {
+            this.addNetworkDriveBtn.addEventListener('click', () => {
+                console.log('🖱️ Settings: 点击添加网络磁盘按钮');
+                this.showNetworkDriveModal();
+            });
+            console.log('✅ Settings: 添加网络磁盘按钮事件监听器已绑定');
+        } else {
+            console.error('❌ Settings: 找不到添加网络磁盘按钮元素');
+        }
+
+        // 刷新磁盘状态按钮
+        this.refreshDrivesBtn.addEventListener('click', async () => {
+            await this.refreshNetworkDrivesStatus();
+        });
+
+        // 模态框关闭事件
+        if (this.networkDriveModalClose) {
+            this.networkDriveModalClose.addEventListener('click', () => {
+                console.log('🖱️ Settings: 点击关闭模态框按钮');
+                this.hideNetworkDriveModal();
+            });
+            console.log('✅ Settings: 模态框关闭按钮事件监听器已绑定');
+        } else {
+            console.error('❌ Settings: 找不到模态框关闭按钮元素');
+        }
+
+        if (this.networkDriveCancel) {
+            this.networkDriveCancel.addEventListener('click', () => {
+                console.log('🖱️ Settings: 点击取消按钮');
+                this.hideNetworkDriveModal();
+            });
+            console.log('✅ Settings: 取消按钮事件监听器已绑定');
+        } else {
+            console.error('❌ Settings: 找不到取消按钮元素');
+        }
+
+        // 点击模态框背景关闭
+        if (this.networkDriveModal) {
+            this.networkDriveModal.addEventListener('click', (e) => {
+                if (e.target === this.networkDriveModal) {
+                    console.log('🖱️ Settings: 点击模态框背景');
+                    this.hideNetworkDriveModal();
+                }
+            });
+            console.log('✅ Settings: 模态框背景点击事件监听器已绑定');
+        }
+
+        // 协议选择事件
+        if (this.driveProtocolSelect) {
+            this.driveProtocolSelect.addEventListener('change', (e) => {
+                console.log('🖱️ Settings: 协议选择改变:', e.target.value);
+                this.toggleProtocolConfig(e.target.value);
+            });
+            console.log('✅ Settings: 协议选择事件监听器已绑定');
+        } else {
+            console.error('❌ Settings: 找不到协议选择元素');
+        }
+
+        // 测试连接按钮
+        if (this.testConnectionBtn) {
+            this.testConnectionBtn.addEventListener('click', async () => {
+                console.log('🖱️ Settings: 点击测试连接按钮');
+                await this.testNetworkConnection();
+            });
+            console.log('✅ Settings: 测试连接按钮事件监听器已绑定');
+        } else {
+            console.error('❌ Settings: 找不到测试连接按钮元素');
+        }
+
+        // 表单提交事件
+        if (this.networkDriveForm) {
+            this.networkDriveForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                console.log('📝 Settings: 提交网络磁盘表单');
+                await this.addNetworkDrive();
+            });
+            console.log('✅ Settings: 表单提交事件监听器已绑定');
+        } else {
+            console.error('❌ Settings: 找不到网络磁盘表单元素');
+        }
+
+        // 监听网络磁盘事件
+        if (window.electronAPI && window.electronAPI.networkDrive) {
+            window.electronAPI.networkDrive.onConnected(async (event, driveId, config) => {
+                console.log(`🔗 网络磁盘已连接: ${config.displayName}`);
+                await this.refreshMountedDrivesList();
+            });
+
+            window.electronAPI.networkDrive.onDisconnected(async (event, driveId, config) => {
+                console.log(`🔌 网络磁盘已断开: ${config.displayName}`);
+                await this.refreshMountedDrivesList();
+            });
+
+            window.electronAPI.networkDrive.onError((event, driveId, error) => {
+                console.error(`❌ 网络磁盘错误: ${driveId} - ${error}`);
+                this.showNotification(`网络磁盘错误: ${error}`, 'error');
+            });
+            console.log('✅ Settings: 网络磁盘事件监听器已设置');
+        } else {
+            console.warn('⚠️ Settings: 网络磁盘API不可用');
+        }
+
+        // 检查网络磁盘功能是否完全可用
+        this.checkNetworkDriveAvailability();
     }
 
     async show() {
@@ -301,6 +474,14 @@ class Settings extends EventEmitter {
             this.coverCacheFolderPath.textContent = '未选择';
             this.coverCacheFolderPath.classList.remove('selected');
         }
+
+        // 初始化网络磁盘设置
+        this.networkDriveToggle.checked = this.settings.hasOwnProperty('networkDriveEnabled') ? this.settings.networkDriveEnabled : false;
+        this.toggleNetworkDriveConfig(this.networkDriveToggle.checked);
+
+        // 加载已挂载的网络磁盘列表
+        this.refreshMountedDrivesList();
+
         console.log('🎵 Settings: 设置值初始化完成', this.settings);
 
         // 初始化完成后，发出设置状态事件，确保相关组件同步
@@ -756,5 +937,341 @@ class Settings extends EventEmitter {
         } else {
             showToast('重置快捷键失败', 'error');
         }
+    }
+
+    // 网络磁盘相关方法
+    // 检查网络磁盘功能可用性
+    checkNetworkDriveAvailability() {
+        const requiredElements = [
+            'networkDriveToggle',
+            'networkDriveConfig',
+            'addNetworkDriveBtn',
+            'networkDriveModal',
+            'networkDriveForm'
+        ];
+
+        const missingElements = requiredElements.filter(elementName => !this[elementName]);
+
+        if (missingElements.length > 0) {
+            console.error('❌ Settings: 网络磁盘功能不完整，缺少元素:', missingElements);
+            // 禁用网络磁盘功能
+            if (this.networkDriveToggle) {
+                this.networkDriveToggle.disabled = true;
+                this.networkDriveToggle.title = '网络磁盘功能不可用：缺少必要元素';
+            }
+            return false;
+        } else {
+            console.log('✅ Settings: 网络磁盘功能完全可用');
+            return true;
+        }
+    }
+
+    // 切换网络磁盘配置区域显示
+    toggleNetworkDriveConfig(enabled) {
+        if (enabled) {
+            this.networkDriveConfig.style.display = 'block';
+        } else {
+            this.networkDriveConfig.style.display = 'none';
+        }
+    }
+
+    // 显示网络磁盘配置模态框
+    showNetworkDriveModal() {
+        console.log('🔧 Settings: 显示网络磁盘配置模态框');
+
+        if (!this.networkDriveModal) {
+            console.error('❌ Settings: 网络磁盘模态框元素不存在');
+            return;
+        }
+
+        console.log('🔧 Settings: 重置表单');
+        this.resetNetworkDriveForm();
+
+        console.log('🔧 Settings: 显示模态框');
+        this.networkDriveModal.style.display = 'flex';
+
+        if (this.driveNameInput) {
+            console.log('🔧 Settings: 聚焦到名称输入框');
+            this.driveNameInput.focus();
+        } else {
+            console.warn('⚠️ Settings: 名称输入框元素不存在');
+        }
+        console.log('✅ Settings: 网络磁盘模态框已显示');
+    }
+
+    // 隐藏网络磁盘配置模态框
+    hideNetworkDriveModal() {
+        this.networkDriveModal.style.display = 'none';
+        this.resetNetworkDriveForm();
+    }
+
+    // 重置网络磁盘表单
+    resetNetworkDriveForm() {
+        this.networkDriveForm.reset();
+        this.toggleProtocolConfig('');
+        this.hideConnectionTestResult();
+    }
+
+    // 切换协议配置显示
+    toggleProtocolConfig(protocol) {
+        this.smbConfig.style.display = protocol === 'smb' ? 'block' : 'none';
+        this.webdavConfig.style.display = protocol === 'webdav' ? 'block' : 'none';
+    }
+
+    // 测试网络连接
+    async testNetworkConnection() {
+        const config = this.getNetworkDriveConfig();
+        if (!config) {
+            this.showConnectionTestResult(false, '请填写完整的配置信息');
+            return;
+        }
+
+        this.showConnectionTestResult(null, '正在测试连接...');
+        this.testConnectionBtn.disabled = true;
+
+        try {
+            await window.electronAPI.networkDrive.testConnection(config);
+            this.showConnectionTestResult(true, '连接测试成功！');
+        } catch (error) {
+            this.showConnectionTestResult(false, `连接测试失败: ${error.message}`);
+        } finally {
+            this.testConnectionBtn.disabled = false;
+        }
+    }
+
+    // 获取网络磁盘配置
+    getNetworkDriveConfig() {
+        const protocol = this.driveProtocolSelect.value;
+        const name = this.driveNameInput.value.trim();
+        const username = this.driveUsernameInput.value.trim();
+        const password = this.drivePasswordInput.value;
+
+        if (!protocol || !name || !username || !password) {
+            return null;
+        }
+
+        const config = {
+            id: `drive_${Date.now()}`,
+            type: protocol,
+            displayName: name,
+            username: username,
+            password: password
+        };
+
+        if (protocol === 'smb') {
+            const host = this.smbHostInput.value.trim();
+            const share = this.smbShareInput.value.trim();
+            const domain = this.smbDomainInput.value.trim();
+
+            if (!host || !share) {
+                return null;
+            }
+
+            config.host = host;
+            config.share = share;
+            config.domain = domain || 'WORKGROUP';
+        } else if (protocol === 'webdav') {
+            const url = this.webdavUrlInput.value.trim();
+            if (!url) {
+                return null;
+            }
+            config.url = url;
+        }
+        return config;
+    }
+
+    // 显示连接测试结果
+    showConnectionTestResult(success, message) {
+        const resultElement = this.connectionTestResult;
+        const statusElement = resultElement.querySelector('.test-status');
+        const messageElement = resultElement.querySelector('.test-message');
+
+        resultElement.style.display = 'block';
+        messageElement.textContent = message;
+
+        if (success === null) {
+            // 测试中
+            statusElement.className = 'test-status testing';
+            statusElement.textContent = '⏳';
+        } else if (success) {
+            // 成功
+            statusElement.className = 'test-status success';
+            statusElement.textContent = '✅';
+        } else {
+            // 失败
+            statusElement.className = 'test-status error';
+            statusElement.textContent = '❌';
+        }
+    }
+
+    // 隐藏连接测试结果
+    hideConnectionTestResult() {
+        this.connectionTestResult.style.display = 'none';
+    }
+
+    // 添加网络磁盘
+    async addNetworkDrive() {
+        const config = this.getNetworkDriveConfig();
+        if (!config) {
+            this.showConnectionTestResult(false, '请填写完整的配置信息');
+            return;
+        }
+
+        this.networkDriveConfirm.disabled = true;
+        this.networkDriveConfirm.textContent = '添加中...';
+
+        try {
+            let success = false;
+            if (config.type === 'smb') {
+                success = await window.electronAPI.networkDrive.mountSMB(config);
+            } else if (config.type === 'webdav') {
+                success = await window.electronAPI.networkDrive.mountWebDAV(config);
+            }
+
+            if (success) {
+                console.log(`✅ 网络磁盘添加成功: ${config.displayName}`);
+                this.hideNetworkDriveModal();
+                await this.refreshMountedDrivesList();
+                this.showNotification(`网络磁盘 "${config.displayName}" 添加成功`, 'success');
+            } else {
+                this.showConnectionTestResult(false, '网络磁盘添加失败');
+            }
+        } catch (error) {
+            console.error('❌ 添加网络磁盘失败:', error);
+            this.showConnectionTestResult(false, `添加失败: ${error.message}`);
+        } finally {
+            this.networkDriveConfirm.disabled = false;
+            this.networkDriveConfirm.textContent = '添加磁盘';
+        }
+    }
+
+    // 刷新已挂载的磁盘列表
+    async refreshMountedDrivesList() {
+        try {
+            const mountedDrives = await window.electronAPI.networkDrive.getMountedDrives();
+            this.renderMountedDrivesList(mountedDrives);
+        } catch (error) {
+            console.error('❌ 获取挂载磁盘列表失败:', error);
+        }
+    }
+
+    // 渲染已挂载的磁盘列表
+    renderMountedDrivesList(drives) {
+        const listElement = this.mountedDrivesList;
+
+        if (!drives || drives.length === 0) {
+            listElement.innerHTML = '<div class="no-drives-message">暂无已挂载的网络磁盘</div>';
+            return;
+        }
+
+        listElement.innerHTML = drives.map(drive => {
+            const statusClass = drive.connected ? 'connected' : 'disconnected';
+            const statusText = drive.connected ? '已连接' : '已断开';
+            const protocolText = drive.type === 'smb' ? 'SMB' : 'WebDAV';
+
+            return `
+                <div class="mounted-drive-item" data-drive-id="${drive.id}">
+                    <div class="drive-info">
+                        <div class="drive-name">${drive.config.displayName}</div>
+                        <div class="drive-details">
+                            <span class="drive-protocol">${protocolText}</span>
+                            <span class="drive-status ${statusClass}">${statusText}</span>
+                        </div>
+                    </div>
+                    <div class="drive-actions">
+                        <button class="btn btn-small btn-primary scan-drive-btn" data-drive-id="${drive.id}" ${!drive.connected ? 'disabled' : ''}>
+                            扫描
+                        </button>
+                        <button class="btn btn-small btn-secondary unmount-drive-btn" data-drive-id="${drive.id}">
+                            卸载
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // 添加扫描按钮事件监听器
+        listElement.querySelectorAll('.scan-drive-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const driveId = e.target.getAttribute('data-drive-id');
+                await this.scanNetworkDrive(driveId);
+            });
+        });
+
+        // 添加卸载按钮事件监听器
+        listElement.querySelectorAll('.unmount-drive-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const driveId = e.target.getAttribute('data-drive-id');
+                await this.unmountNetworkDrive(driveId);
+            });
+        });
+    }
+
+    // 扫描网络磁盘
+    async scanNetworkDrive(driveId) {
+        try {
+            console.log(`🌐 开始扫描网络磁盘: ${driveId}`);
+            this.showNotification('正在扫描网络磁盘...', 'info');
+
+            const success = await window.electronAPI.library.scanNetworkDrive(driveId, '/');
+            if (success) {
+                console.log(`✅ 网络磁盘扫描成功: ${driveId}`);
+                this.showNotification('网络磁盘扫描完成', 'success');
+
+                // 通知其他组件刷新音乐库
+                this.emit('libraryUpdated');
+            } else {
+                this.showNotification('网络磁盘扫描失败', 'error');
+            }
+        } catch (error) {
+            console.error('❌ 扫描网络磁盘失败:', error);
+            this.showNotification(`扫描失败: ${error.message}`, 'error');
+        }
+    }
+
+    // 卸载网络磁盘
+    async unmountNetworkDrive(driveId) {
+        try {
+            const success = await window.electronAPI.networkDrive.unmount(driveId);
+            if (success) {
+                console.log(`✅ 网络磁盘卸载成功: ${driveId}`);
+                await this.refreshMountedDrivesList();
+                this.showNotification('网络磁盘卸载成功', 'success');
+            } else {
+                this.showNotification('网络磁盘卸载失败', 'error');
+            }
+        } catch (error) {
+            console.error('❌ 卸载网络磁盘失败:', error);
+            this.showNotification(`卸载失败: ${error.message}`, 'error');
+        }
+    }
+
+    // 刷新网络磁盘状态
+    async refreshNetworkDrivesStatus() {
+        try {
+            console.log('🔄 刷新网络磁盘连接状态');
+            this.refreshDrivesBtn.disabled = true;
+            this.refreshDrivesBtn.textContent = '刷新中...';
+
+            const success = await window.electronAPI.networkDrive.refreshConnections();
+            if (success) {
+                this.showNotification('网络磁盘状态刷新完成', 'success');
+                // 刷新显示列表
+                await this.refreshMountedDrivesList();
+            } else {
+                this.showNotification('刷新网络磁盘状态失败', 'error');
+            }
+        } catch (error) {
+            console.error('❌ 刷新网络磁盘状态失败:', error);
+            this.showNotification(`刷新失败: ${error.message}`, 'error');
+        } finally {
+            this.refreshDrivesBtn.disabled = false;
+            this.refreshDrivesBtn.textContent = '刷新状态';
+        }
+    }
+
+    // 显示通知消息
+    showNotification(message, type = 'info') {
+        showToast(message, type);
     }
 }
