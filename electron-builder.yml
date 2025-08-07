@@ -19,6 +19,23 @@ files:
   - "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}"
   - "!**/{appveyor.yml,.travis.yml,circle.yml}"
   - "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+  - "!**/requirements.txt"
+  - "!**/pyinstaller.spec"
+  - "!**/nuitka.config"
+  - "!**/build/pyinstaller/**/*"
+  - "!**/dist/python-modules/**/*"
+  - "!src/main/metadata_editor*"
+
+asarUnpack:
+  - "src/main/metadata_editor*"
+
+extraResources:
+  - from: "src/main/metadata_editor.exe"
+    to: "metadata_editor.exe"
+    filter: ["**/*"]
+  - from: "src/main/metadata_editor"
+    to: "metadata_editor"
+    filter: ["**/*"]
 
 # macOS 配置
 mac:

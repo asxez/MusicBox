@@ -6,6 +6,9 @@ src/renderer/public/
 # Build outputs
 dist/
 src/renderer/dist/
+src/main/metadata_editor.exe
+build/pyinstaller/
+test-files/
 
 # dotenv environment variables file
 .env
