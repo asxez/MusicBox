@@ -1,6 +1,4 @@
-/**
- * 控制台组件
- */
+// 播放器组件
 
 class Player extends Component {
     constructor() {
@@ -17,8 +15,7 @@ class Player extends Component {
         this.setupEventListeners();
         this.setupAPIListeners();
         this.updateUI().then(r => {
-            if (r.status) console.log('✅ Player UI初始化成功');
-            else console.error('❌ Player UI初始化失败：', r.error);
+            if (!r.status) console.error('Player UI初始化失败：', r.error);
         });
     }
 
@@ -36,7 +33,7 @@ class Player extends Component {
         this.trackTitle = this.element.querySelector('#track-title');
         this.trackArtist = this.element.querySelector('#track-artist');
 
-        // Updated selectors for new structure
+
         this.progressBarContainer = this.element.querySelector('.progress-bar-container');
         this.progressTrack = this.element.querySelector('.progress-track');
         this.progressFill = this.element.querySelector('#progress-fill');

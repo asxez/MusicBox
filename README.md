@@ -27,15 +27,17 @@
 - 项目灵感来源于 [YesPlayMusic](https://github.com/qier222/YesPlayMusic) 的设计美学。
 
 ## ✨ 特性
+- 💻️ 支持 Windows / macOS / Linux
 - ✅ 支持flac, mp3, wav, ogg, m4a, aac, wma等多种音乐格式
 - 📔 支持在线获取歌曲封面和歌词
 - ⌨️ 支持自定义局内/全局快捷键
 - 🎈 浅色/深色主题切换
 - 🎼 支持均衡器
-- 💻 支持桌面显示歌词
+- 📃 支持桌面显示歌词
 - 📔 支持识别内嵌封面和内嵌歌词
 - 👁️ 支持自由的页面显示开关
 - 💾 支持挂载 SMB/WebDAV 等网络磁盘
+- 🖋️ 支持编辑歌曲元数据
 - 🛠️ 更多特性开发中
 
 ## 📔 TODOS

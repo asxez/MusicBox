@@ -1224,13 +1224,11 @@ class Settings extends EventEmitter {
             console.log(`🌐 开始扫描网络磁盘: ${driveId}`);
             this.showNotification('正在扫描网络磁盘...', 'info');
 
-            const success = await window.electronAPI.library.scanNetworkDrive(driveId, '/');
+            // 使用API层的统一方法
+            const success = await window.api.scanNetworkDrive(driveId, '/');
             if (success) {
                 console.log(`✅ 网络磁盘扫描成功: ${driveId}`);
                 this.showNotification('网络磁盘扫描完成', 'success');
-
-                // 通知其他组件刷新音乐库
-                this.emit('libraryUpdated');
             } else {
                 this.showNotification('网络磁盘扫描失败', 'error');
             }

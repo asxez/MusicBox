@@ -34,48 +34,31 @@ class WebAudioEngine {
 
         // 封面对象URL管理
         this.coverObjectUrls = new Set();
-        console.log('🎵 Web Audio Engine 初始化');
     }
 
-    /**
-     * 初始化音频上下文
-     */
     async initialize() {
         try {
-            // 创建音频上下文
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-            // 创建增益节点用于音量控制
             this.gainNode = this.audioContext.createGain();
             this.gainNode.connect(this.audioContext.destination);
             this.gainNode.gain.value = this.volume;
-
             this.initializeEqualizer();
-
-            console.log('✅ Web Audio Engine 初始化成功');
             return true;
         } catch (error) {
-            console.error('❌ Web Audio Engine 初始化失败:', error);
+            console.error('Web Audio Engine 初始化失败:', error);
             return false;
         }
     }
 
-    /**
-     * 加载音频文件
-     */
     async loadTrack(filePath) {
         try {
-            console.log(`🔄 加载音频文件: ${filePath}`);
             this.stop();
 
-            // 读取文件 - 支持多种方式
             let arrayBuffer;
 
             if (window.electronAPI && window.electronAPI.readAudioFile) {
-                console.log('🔄 使用Electron API读取文件');
                 arrayBuffer = await window.electronAPI.readAudioFile(filePath);
             } else {
-                // 回退到fetch方式
                 const fileUrl = filePath.startsWith('file://') ? filePath : `file:///${filePath.replace(/\\/g, '/')}`;
                 const response = await fetch(fileUrl);
                 if (!response.ok) {
@@ -135,9 +118,6 @@ class WebAudioEngine {
                 cover: coverUrl
             };
 
-            console.log(`✅ 音频解码成功: Web Audio时长 ${webAudioDuration.toFixed(2)}s, 元数据时长 ${metadata.duration || 0}s`);
-            console.log(`✅ 使用时长: ${this.duration.toFixed(2)}s`);
-            console.log(`✅ 音频文件加载成功: ${this.currentTrack.title}`);
 
             // 触发事件
             if (this.onTrackChanged) {
@@ -155,9 +135,7 @@ class WebAudioEngine {
         }
     }
 
-    /**
-     * 播放音频
-     */
+    // 播放音频
     async play() {
         try {
             if (!this.audioBuffer) {
@@ -176,7 +154,6 @@ class WebAudioEngine {
                 return true;
             }
 
-            console.log(`🔄 准备播放，当前状态: isPlaying=${this.isPlaying}, isPaused=${this.isPaused}, pauseTime=${this.pauseTime}`);
 
             // 停止当前播放
             if (this.sourceNode) {
@@ -218,11 +195,11 @@ class WebAudioEngine {
                 // 如果偏移量被调整了，更新pauseTime
                 if (validOffset !== offset) {
                     this.pauseTime = validOffset;
-                    console.log(`🔄 偏移量已调整为: ${validOffset.toFixed(2)}s`);
+
                 }
             } catch (startError) {
                 console.error('❌ 音频源启动失败:', startError);
-                console.log('🔄 尝试从头开始播放');
+
 
                 // 重新创建音频源并从头开始
                 this.sourceNode = this.audioContext.createBufferSource();
@@ -248,14 +225,8 @@ class WebAudioEngine {
             // 开始进度更新
             this.startProgressTimer();
 
-            console.log('✅ 播放成功启动');
-
-            // 触发事件
             if (this.onPlaybackStateChanged) {
-                console.log('🔄 Web Audio Engine: 触发播放状态变化事件');
                 this.onPlaybackStateChanged(true);
-            } else {
-                console.warn('⚠️ Web Audio Engine: onPlaybackStateChanged 回调未设置');
             }
 
             return true;
@@ -265,9 +236,7 @@ class WebAudioEngine {
         }
     }
 
-    /**
-     * 暂停播放
-     */
+    // 暂停播放
     pause() {
         try {
             if (!this.isPlaying && !this.sourceNode) {
@@ -324,9 +293,7 @@ class WebAudioEngine {
         }
     }
 
-    /**
-     * 停止播放
-     */
+    // 停止播放
     stop() {
         try {
             // 停止音频源（不触发onended事件）
@@ -366,9 +333,7 @@ class WebAudioEngine {
         }
     }
 
-    /**
-     * 清理封面对象URL
-     */
+    // 清理封面对象URL
     cleanupCoverUrls() {
         for (const url of this.coverObjectUrls) {
             try {
@@ -381,9 +346,7 @@ class WebAudioEngine {
         console.log('🧹 封面URL清理完成');
     }
 
-    /**
-     * 跳转到指定位置
-     */
+    // 跳转到指定位置
     async seek(position) {
         try {
             if (!this.audioBuffer) {
@@ -430,9 +393,7 @@ class WebAudioEngine {
         }
     }
 
-    /**
-     * 设置音量
-     */
+    // 设置音量
     setVolume(volume) {
         try {
             this.volume = Math.max(0, Math.min(1, volume));
@@ -456,16 +417,12 @@ class WebAudioEngine {
         }
     }
 
-    /**
-     * 获取当前音量
-     */
+    // 获取当前音量
     getVolume() {
         return this.volume;
     }
 
-    /**
-     * 获取当前播放位置
-     */
+    // 获取当前播放位置
     getPosition() {
         if (!this.isPlaying && !this.isPaused) {
             return 0;
@@ -478,23 +435,17 @@ class WebAudioEngine {
         return this.audioContext.currentTime - this.startTime;
     }
 
-    /**
-     * 获取音频时长
-     */
+    // 获取音频时长
     getDuration() {
         return this.duration;
     }
 
-    /**
-     * 获取当前曲目信息
-     */
+    // 获取当前歌曲信息
     getCurrentTrack() {
         return this.currentTrack;
     }
 
-    /**
-     * 设置播放列表
-     */
+    // 设置播放列表
     setPlaylist(tracks, startIndex = -1) {
         this.playlist = tracks;
         this.currentIndex = startIndex; // 设置起始索引
@@ -516,9 +467,7 @@ class WebAudioEngine {
         return true;
     }
 
-    /**
-     * 播放下一首
-     */
+    // 播放下一首
     async nextTrack() {
         if (this.playlist.length === 0) {
             console.log('⚠️ 播放列表为空');
@@ -553,9 +502,7 @@ class WebAudioEngine {
         return false;
     }
 
-    /**
-     * 播放上一首
-     */
+    // 播放上一首
     async previousTrack() {
         if (this.playlist.length === 0) {
             console.log('⚠️ 播放列表为空');
@@ -590,9 +537,7 @@ class WebAudioEngine {
         return false;
     }
 
-    /**
-     * 从文件路径提取标题
-     */
+    // 从文件路径提取标题
     extractTitleFromPath(filePath) {
         const fileName = filePath.split(/[/\\]/).pop();
         return fileName.replace(/\.[^/.]+$/, ''); // 移除扩展名
@@ -621,11 +566,9 @@ class WebAudioEngine {
         }
     }
 
-    /**
-     * 曲目播放结束处理
-     */
+    // 歌曲播放结束处理
     onTrackEnded() {
-        console.log('🔚 曲目播放结束');
+        console.log('🔚 歌曲播放结束');
         this.isPlaying = false;
         this.isPaused = false;
 
@@ -637,12 +580,9 @@ class WebAudioEngine {
         }
     }
 
-    /**
-     * 开始进度更新定时器
-     */
+    // 开始进度更新定时器
     startProgressTimer() {
         this.stopProgressTimer();
-
         this.progressTimer = setInterval(() => {
             if (this.isPlaying && this.onPositionChanged) {
                 this.onPositionChanged(this.getPosition());
@@ -650,9 +590,7 @@ class WebAudioEngine {
         }, 1000);
     }
 
-    /**
-     * 停止进度更新定时器
-     */
+    // 停止进度更新定时器
     stopProgressTimer() {
         if (this.progressTimer) {
             clearInterval(this.progressTimer);
@@ -660,18 +598,14 @@ class WebAudioEngine {
         }
     }
 
-    /**
-     * 初始化均衡器
-     */
+    // 初始化均衡器
     initializeEqualizer() {
-        console.log('🎛️ 开始初始化均衡器...');
         if (!this.audioContext) {
             console.error('❌ 音频上下文未初始化，无法创建均衡器');
             return;
         }
 
         try {
-            console.log('🎛️ 创建AudioEqualizer实例...');
             this.equalizer = new AudioEqualizer(this.audioContext);
             console.log('✅ 均衡器初始化成功');
             console.log(`🎛️ 均衡器滤波器数量: ${this.equalizer.filters.length}`);
@@ -681,19 +615,13 @@ class WebAudioEngine {
         }
     }
 
-    /**
-     * 获取均衡器实例
-     */
+    // 获取均衡器实例
     getEqualizer() {
         return this.equalizer;
     }
 
-    /**
-     * 启用/禁用均衡器
-     */
+    // 启用/禁用均衡器
     setEqualizerEnabled(enabled) {
-        console.log(`🎛️ 设置均衡器状态: ${enabled} (当前: ${this.equalizerEnabled})`);
-
         // 如果状态没有变化，直接返回
         if (this.equalizerEnabled === enabled) {
             console.log(`ℹ️ 均衡器状态已经是 ${enabled}，无需更改`);
@@ -713,20 +641,11 @@ class WebAudioEngine {
         if (this.onEqualizerChanged) {
             this.onEqualizerChanged({enabled});
         }
-
-        console.log(`✅ 均衡器${enabled ? '已启用' : '已禁用'}`);
     }
 
-    /**
-     * 连接音频源到音频链
-     */
+    // 连接音频源到音频链
     connectSourceToChain() {
         console.log('🔗 开始连接音频源到音频链...');
-        console.log(`🔗 sourceNode存在: ${!!this.sourceNode}`);
-        console.log(`🔗 equalizer存在: ${!!this.equalizer}`);
-        console.log(`🔗 equalizerEnabled: ${this.equalizerEnabled}`);
-        console.log(`🔗 gainNode存在: ${!!this.gainNode}`);
-
         if (!this.sourceNode) {
             console.warn('⚠️ sourceNode不存在，无法连接音频链');
             return;
@@ -744,8 +663,6 @@ class WebAudioEngine {
 
         if (this.equalizer && this.equalizerEnabled) {
             console.log('🔗 使用均衡器路径: sourceNode -> equalizer.input -> [滤波器链] -> equalizer.output -> gainNode -> destination');
-            console.log(`🔗 equalizer.input存在: ${!!this.equalizer.input}`);
-            console.log(`🔗 equalizer.output存在: ${!!this.equalizer.output}`);
 
             try {
                 // 确保均衡器输出连接到gainNode
@@ -777,20 +694,11 @@ class WebAudioEngine {
                 console.error('❌ 直接音频链连接失败:', error);
             }
         }
-        console.log('🔗 音频链连接完成');
     }
 
-    /**
-     * 重新连接音频链 - 支持实时切换
-     */
+    // 重新连接音频链 - 支持实时切换
     reconnectAudioChain() {
         console.log('🔄 开始重新连接音频链（实时切换模式）...');
-        console.log(`🔄 audioContext存在: ${!!this.audioContext}`);
-        console.log(`🔄 gainNode存在: ${!!this.gainNode}`);
-        console.log(`🔄 sourceNode存在: ${!!this.sourceNode}`);
-        console.log(`🔄 equalizer存在: ${!!this.equalizer}`);
-        console.log(`🔄 equalizerEnabled: ${this.equalizerEnabled}`);
-        console.log(`🔄 isPlaying: ${this.isPlaying}`);
 
         if (!this.audioContext || !this.gainNode) {
             console.warn('⚠️ audioContext或gainNode不存在，无法重新连接音频链');
@@ -833,8 +741,6 @@ class WebAudioEngine {
             console.warn('⚠️ gainNode重连失败:', error);
         }
 
-        console.log('🔄 开始重新连接...');
-
         // 重新连接音频路径
         try {
             if (this.equalizer && this.equalizerEnabled) {
@@ -855,8 +761,6 @@ class WebAudioEngine {
                 this.sourceNode.connect(this.gainNode);
                 console.log('✅ sourceNode -> gainNode 直接重新连接成功');
             }
-
-            console.log('✅ 音频链实时重新连接完成');
             return true;
 
         } catch (error) {
@@ -864,10 +768,8 @@ class WebAudioEngine {
 
             // 尝试恢复基本连接
             try {
-                console.log('🔄 尝试恢复基本音频连接...');
                 this.sourceNode.disconnect();
                 this.sourceNode.connect(this.gainNode);
-                console.log('✅ 已恢复基本音频连接');
                 return true;
             } catch (recoveryError) {
                 console.error('❌ 恢复基本连接也失败:', recoveryError);
@@ -876,9 +778,6 @@ class WebAudioEngine {
         }
     }
 
-    /**
-     * 销毁音频引擎
-     */
     destroy() {
         this.stop();
         this.stopProgressTimer();
@@ -894,15 +793,10 @@ class WebAudioEngine {
         if (this.audioContext) {
             this.audioContext.close();
         }
-
-        console.log('🗑️ Web Audio Engine 已销毁');
     }
 }
 
-/**
- * 音频均衡器类
- * 10频段均衡器功能
- */
+// 音频均衡器类
 class AudioEqualizer {
     constructor(audioContext) {
         this.audioContext = audioContext;
@@ -910,10 +804,7 @@ class AudioEqualizer {
         this.input = null;
         this.output = null;
 
-        // 10频段配置 (Hz)
         this.frequencies = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
-
-        // 预设配置
         this.presets = {
             'flat': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             'pop': [1, 2, 3, 1, -1, -1, 1, 2, 3, 2],
@@ -931,40 +822,24 @@ class AudioEqualizer {
         this.initialize();
     }
 
-    /**
-     * 初始化均衡器
-     */
+    // 初始化均衡器
     initialize() {
         try {
-            console.log('🎛️ 开始初始化音频均衡器...');
-            console.log(`🎛️ audioContext存在: ${!!this.audioContext}`);
-            console.log(`🎛️ audioContext状态: ${this.audioContext.state}`);
-
             // 创建输入和输出节点
             this.input = this.audioContext.createGain();
             this.output = this.audioContext.createGain();
-            console.log('✅ 均衡器输入输出节点创建成功');
-            console.log(`🎛️ input节点: ${!!this.input}`);
-            console.log(`🎛️ output节点: ${!!this.output}`);
 
             // 创建滤波器链
             this.createFilterChain();
-
-            console.log('✅ 音频均衡器初始化成功');
-            console.log(`🎛️ 滤波器数量: ${this.filters.length}`);
         } catch (error) {
             console.error('❌ 音频均衡器初始化失败:', error);
             throw error;
         }
     }
 
-    /**
-     * 创建滤波器链
-     */
+    // 创建滤波器链
     createFilterChain() {
-        console.log('🔗 开始创建滤波器链...');
         console.log(`🔗 频段数量: ${this.frequencies.length}`);
-
 
         let previousNode = this.input;
         console.log(`🔗 起始节点: input (${!!this.input})`);
@@ -973,33 +848,26 @@ class AudioEqualizer {
             console.log(`🔗 创建第 ${i + 1} 个滤波器 (${this.frequencies[i]}Hz)...`);
 
             const filter = this.audioContext.createBiquadFilter();
-
             // 设置滤波器类型
             if (i === 0) {
                 // 第一个频段使用低频搁架滤波器
                 filter.type = 'lowshelf';
-                console.log(`🔗 滤波器 ${i}: lowshelf`);
             } else if (i === this.frequencies.length - 1) {
                 // 最后一个频段使用高频搁架滤波器
                 filter.type = 'highshelf';
-                console.log(`🔗 滤波器 ${i}: highshelf`);
             } else {
                 // 中间频段使用峰值滤波器
                 filter.type = 'peaking';
-                console.log(`🔗 滤波器 ${i}: peaking`);
             }
 
             // 设置频率
             filter.frequency.value = this.frequencies[i];
-            console.log(`🔗 滤波器 ${i} 频率设置: ${this.frequencies[i]}Hz`);
 
             // 设置Q值
             if (filter.type === 'peaking') {
                 filter.Q.value = 1.0; // 峰值滤波器的Q值
-                console.log(`🔗 滤波器 ${i} Q值: 1.0 (peaking)`);
             } else {
                 filter.Q.value = 0.7; // 搁架滤波器的Q值
-                console.log(`🔗 滤波器 ${i} Q值: 0.7 (shelf)`);
             }
 
             // 初始增益为0
@@ -1028,19 +896,11 @@ class AudioEqualizer {
             throw error;
         }
 
-        console.log('✅ 滤波器链创建完成');
         console.log(`🔗 滤波器链路径: input -> ${this.filters.length}个滤波器 -> output`);
     }
 
-    /**
-     * 设置频段增益
-     * @param {number} bandIndex - 频段索引 (0-9)
-     * @param {number} gain - 增益值 (dB, -12 到 +12)
-     */
+    // 设置频段增益
     setBandGain(bandIndex, gain) {
-        console.log(`🎛️ 尝试设置频段 ${bandIndex} 增益为 ${gain}dB`);
-        console.log(`🎛️ 滤波器数组长度: ${this.filters.length}`);
-
         if (bandIndex < 0 || bandIndex >= this.frequencies.length) {
             console.error('❌ 无效的频段索引:', bandIndex, '有效范围: 0-' + (this.frequencies.length - 1));
             return;
@@ -1048,24 +908,15 @@ class AudioEqualizer {
 
         // 限制增益范围
         gain = Math.max(-12, Math.min(12, gain));
-
-        // 更新增益值记录
         this.gains[bandIndex] = gain;
-
-        // 如果滤波器存在，更新滤波器增益
         if (this.filters.length > 0 && this.filters[bandIndex]) {
             this.filters[bandIndex].gain.setValueAtTime(gain, this.audioContext.currentTime);
-            console.log(`✅ 频段 ${this.frequencies[bandIndex]}Hz 滤波器增益设置为 ${gain}dB`);
         } else {
             console.log(`⚠️ 频段 ${bandIndex} 滤波器不存在（可能处于绕过模式），仅更新增益记录`);
         }
     }
 
-    /**
-     * 获取频段增益
-     * @param {number} bandIndex - 频段索引
-     * @returns {number} 增益值 (dB)
-     */
+    // 获取频段增益
     getBandGain(bandIndex) {
         if (bandIndex < 0 || bandIndex >= this.gains.length) {
             return 0;
@@ -1073,10 +924,7 @@ class AudioEqualizer {
         return this.gains[bandIndex];
     }
 
-    /**
-     * 设置所有频段增益
-     * @param {number[]} gains - 增益数组
-     */
+    // 设置所有频段增益
     setAllGains(gains) {
         if (!Array.isArray(gains) || gains.length !== this.frequencies.length) {
             console.error('❌ 无效的增益数组');
@@ -1088,55 +936,36 @@ class AudioEqualizer {
         }
     }
 
-    /**
-     * 获取所有频段增益
-     * @returns {number[]} 增益数组
-     */
+    // 获取所有频段增益
     getAllGains() {
         return [...this.gains];
     }
 
-    /**
-     * 应用预设
-     * @param {string} presetName - 预设名称
-     */
+    // 应用预设
     applyPreset(presetName) {
         if (!this.presets[presetName]) {
             console.error('❌ 未知的预设:', presetName);
             return false;
         }
-
         this.setAllGains(this.presets[presetName]);
-        console.log(`🎵 已应用预设: ${presetName}`);
         return true;
     }
 
-    /**
-     * 获取可用预设列表
-     * @returns {string[]} 预设名称数组
-     */
+    // 获取可用预设列表
     getPresetNames() {
         return Object.keys(this.presets);
     }
 
-    /**
-     * 重置所有频段为平坦响应
-     */
+    // 重置所有频段为平坦响应
     reset() {
         this.setAllGains([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        console.log('🔄 均衡器已重置');
     }
 
-    /**
-     * 断开所有连接
-     */
+    // 断开所有连接
     disconnect() {
-        console.log('🔌 开始断开均衡器所有连接...');
-
         try {
             if (this.input) {
                 this.input.disconnect();
-                console.log('✅ 均衡器input节点已断开');
             }
         } catch (error) {
             console.warn('⚠️ 均衡器input节点断开失败:', error);
@@ -1145,7 +974,6 @@ class AudioEqualizer {
         try {
             if (this.output) {
                 this.output.disconnect();
-                console.log('✅ 均衡器output节点已断开');
             }
         } catch (error) {
             console.warn('⚠️ 均衡器output节点断开失败:', error);
@@ -1154,18 +982,13 @@ class AudioEqualizer {
         this.filters.forEach((filter, index) => {
             try {
                 filter.disconnect();
-                console.log(`✅ 滤波器 ${index} 已断开`);
             } catch (error) {
                 console.warn(`⚠️ 滤波器 ${index} 断开失败:`, error);
             }
         });
-
         console.log('🔌 均衡器所有连接断开完成');
     }
 
-    /**
-     * 销毁均衡器
-     */
     destroy() {
         this.disconnect();
         this.filters = [];
@@ -1175,6 +998,5 @@ class AudioEqualizer {
     }
 }
 
-// 导出音频引擎和均衡器
 window.WebAudioEngine = WebAudioEngine;
 window.AudioEqualizer = AudioEqualizer;

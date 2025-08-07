@@ -8,8 +8,7 @@ class MusicBoxApp extends EventEmitter {
         this.components = {};
 
         this.init().then((res) => {
-            if (res.status) console.log('MusicBox initialized successfully')
-            else console.error('Failed to initialize MusicBox:', res.error);
+            if (!res.status) console.error('Failed to initialize MusicBox:', res.error);
         });
     }
 
@@ -21,19 +20,10 @@ class MusicBoxApp extends EventEmitter {
                 });
             }
 
-            // Initialize API
             await this.initializeAPI();
-
-            // Initialize components
             this.initializeComponents();
-
-            // Setup event listeners
             await this.setupEventListeners();
-
-            // Load initial data
             await this.loadInitialData();
-
-            // Hide loading screen and show app
             this.showApp();
 
             this.isInitialized = true;
@@ -364,19 +354,15 @@ class MusicBoxApp extends EventEmitter {
 
     async loadInitialData() {
         try {
-            console.log('📚 开始加载初始数据...');
-
             // 首先尝试从缓存加载音乐库
             const hasCachedLibrary = await api.hasCachedLibrary();
 
             if (hasCachedLibrary) {
-                console.log('📚 发现缓存的音乐库，优先加载...');
                 this.showCacheLoadingStatus();
 
                 // 从缓存加载音乐库
                 this.library = await api.loadCachedTracks();
                 if (this.library.length > 0) {
-                    console.log(`✅ 从缓存加载 ${this.library.length} 个音乐文件`);
                     this.filteredLibrary = [...this.library];
                     this.updateTrackList('cache-load');
                     this.hideCacheLoadingStatus();
@@ -419,17 +405,12 @@ class MusicBoxApp extends EventEmitter {
             const showTrackCovers = settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
 
             if (!showTrackCovers || !window.localCoverManager) {
-                console.log('🖼️ App: 封面显示已禁用或封面管理器不可用，跳过预加载');
                 return;
             }
-
-            console.log(`🖼️ App: 开始预加载 ${this.library.length} 首歌曲的封面`);
-
             // 预加载前12首歌曲的封面，避免阻塞UI
             // 为啥是12首？因为全屏状态下，一页最多显示12首歌😋
             const tracksToPreload = this.library.slice(0, 12);
             await window.localCoverManager.preloadCovers(tracksToPreload);
-            console.log('✅ App: 封面预加载完成');
         } catch (error) {
             console.warn('⚠️ App: 封面预加载失败:', error);
         }
@@ -469,16 +450,12 @@ class MusicBoxApp extends EventEmitter {
 
     async validateCacheInBackground() {
         try {
-            console.log('🔍 在后台验证缓存...');
-
             // 设置验证进度监听器
             api.on('cacheValidationProgress', (progress) => {
                 console.log(`🔍 缓存验证进度: ${progress.current}/${progress.total}`);
             });
 
             api.on('cacheValidationCompleted', (result) => {
-                console.log('✅ 后台缓存验证完成:', result);
-
                 // 如果有无效文件被清理，更新UI
                 if (result.invalid > 0) {
                     this.showInfo(`已清理 ${result.invalid} 个无效的音乐文件`);
@@ -568,7 +545,7 @@ class MusicBoxApp extends EventEmitter {
                 const success = await api.scanDirectory(folderPath);
                 if (success) {
                     showToast('音乐目录扫描成功', 'success');
-                    await this.refreshLibrary();
+                    // API层会自动触发音乐库更新事件，无需手动刷新
                 } else {
                     showToast('音乐目录扫描失败', 'error');
                 }
@@ -714,8 +691,6 @@ class MusicBoxApp extends EventEmitter {
         if (!tracks || tracks.length === 0) return;
 
         try {
-            console.log('🎵 播放全部歌曲:', tracks.length, '首，当前视图:', this.currentView);
-            // 设置播放列表
             await api.setPlaylist(tracks, 0);
             // 直接播放第一首，不调用handleTrackPlayed避免页面跳转
             if (this.components.playlist && this.components.playlist.setTracks) {
@@ -731,12 +706,7 @@ class MusicBoxApp extends EventEmitter {
     }
 
     async handleViewChange(view) {
-        console.log('🔄 View changed to:', view, '当前视图:', this.currentView);
-
-        // 隐藏所有页面
         this.hideAllPages();
-
-        // 显示对应页面
         this.currentView = view;
 
         // 更新侧边栏选中状态（除了歌单详情页面，因为它有特殊处理）
@@ -788,9 +758,6 @@ class MusicBoxApp extends EventEmitter {
 
     async handleTrackPlayed(track, index) {
         console.log('🎵 从音乐库播放歌曲:', track.title, '当前视图:', this.currentView);
-        console.log('🔍 播放前调用栈:');
-        console.trace();
-
         if (this.components.playlist) {
             // 如果播放列表为空，只添加当前歌曲，避免页面跳转
             if (this.components.playlist.tracks.length === 0) {
@@ -930,7 +897,6 @@ class MusicBoxApp extends EventEmitter {
     // 获取当前启用的快捷键
     getEnabledShortcuts() {
         if (!window.shortcutConfig) {
-            // 如果配置管理器未加载，返回默认快捷键
             return this.getDefaultShortcuts();
         }
         return window.shortcutConfig.getEnabledLocalShortcuts();
@@ -1047,7 +1013,6 @@ class MusicBoxApp extends EventEmitter {
 
     // 初始化全局快捷键
     async initGlobalShortcuts() {
-        // 等待快捷键配置管理器加载完成
         if (window.shortcutConfig) {
             await window.shortcutConfig.initializeGlobalShortcuts();
         }
@@ -1055,13 +1020,10 @@ class MusicBoxApp extends EventEmitter {
         // 监听全局快捷键触发事件
         window.addEventListener('globalShortcutTriggered', (event) => {
             const {shortcutId} = event.detail;
-            console.log(`🎹 处理全局快捷键: ${shortcutId}`);
-
             // 执行对应的快捷键操作
             this.executeShortcutAction(shortcutId);
         });
 
-        console.log('🎹 全局快捷键监听器已设置');
     }
 
 
@@ -1080,8 +1042,6 @@ class MusicBoxApp extends EventEmitter {
 
     // 处理歌单创建成功
     async handlePlaylistCreated(playlist) {
-        console.log('🎵 歌单创建成功:', playlist.name);
-        // 刷新侧边栏歌单列表
         if (this.components.navigation && this.components.navigation.refreshPlaylists) {
             await this.components.navigation.refreshPlaylists();
         }
@@ -1089,8 +1049,6 @@ class MusicBoxApp extends EventEmitter {
 
     // 处理歌曲添加到歌单成功
     async handleTrackAddedToPlaylist(playlist, track) {
-        console.log('🎵 歌曲已添加到歌单:', track.title, '->', playlist.name);
-        // 刷新侧边栏歌单列表
         if (this.components.navigation && this.components.navigation.refreshPlaylists) {
             await this.components.navigation.refreshPlaylists();
         }
@@ -1098,15 +1056,8 @@ class MusicBoxApp extends EventEmitter {
 
     // 处理歌单选择
     async handlePlaylistSelected(playlist) {
-        console.log('🎵 选择歌单:', playlist.name);
-
-        // 隐藏所有页面
         this.hideAllPages();
-
-        // 更新侧边栏选中状态
         this.updateSidebarSelection('playlist', playlist.id);
-
-        // 显示歌单详情页面
         this.currentView = 'playlist-detail';
         if (this.components.playlistDetailPage) {
             await this.components.playlistDetailPage.show(playlist);
@@ -1125,22 +1076,18 @@ class MusicBoxApp extends EventEmitter {
             const playlistItem = document.querySelector(`[data-playlist-id="${id}"]`);
             if (playlistItem) {
                 playlistItem.classList.add('active');
-                console.log('✅ 更新侧边栏歌单选中状态:', id);
             }
         } else {
             // 高亮选中的导航项
             const navItem = document.querySelector(`[data-view="${type}"]`);
             if (navItem) {
                 navItem.classList.add('active');
-                console.log('✅ 更新侧边栏导航选中状态:', type);
             }
         }
     }
 
     // 处理歌单更新
     async handlePlaylistUpdated(playlist) {
-        console.log('🎵 歌单已更新:', playlist.name);
-        // 刷新侧边栏歌单列表
         if (this.components.navigation && this.components.navigation.refreshPlaylists) {
             await this.components.navigation.refreshPlaylists();
         }
@@ -1148,8 +1095,6 @@ class MusicBoxApp extends EventEmitter {
 
     // 处理歌单重命名成功
     async handlePlaylistRenamed(playlist) {
-        console.log('🎵 歌单重命名成功:', playlist.name);
-        // 刷新侧边栏歌单列表
         if (this.components.navigation && this.components.navigation.refreshPlaylists) {
             await this.components.navigation.refreshPlaylists();
         }
@@ -1157,17 +1102,12 @@ class MusicBoxApp extends EventEmitter {
 
     // 处理显示添加歌曲对话框
     async handleShowAddSongsDialog(playlist) {
-        console.log('🎵 显示添加歌曲对话框:', playlist.name);
         await this.components.musicLibrarySelectionDialog.show(playlist);
     }
 
     // 处理歌曲添加到歌单成功
     async handleTracksAddedToPlaylist(data) {
-        console.log('🎵 歌曲添加到歌单成功:', data);
-
-        // 刷新歌单详情页面
         if (this.currentView === 'playlist-detail' && this.components.playlistDetailPage) {
-            console.log('🔄 重新加载歌单详情页面');
             // loadPlaylistTracks() 方法内部已经调用了 render()，不需要重复调用
             await this.components.playlistDetailPage.loadPlaylistTracks();
         }
@@ -1179,8 +1119,6 @@ class MusicBoxApp extends EventEmitter {
 
     // 处理歌单封面更新
     async handlePlaylistCoverUpdated(playlist) {
-        console.log('🎵 歌单封面已更新:', playlist.name);
-        // 更新侧边栏中的歌单信息
         if (this.components.navigation && this.components.navigation.updatePlaylistInfo) {
             this.components.navigation.updatePlaylistInfo(playlist);
         }
@@ -1197,9 +1135,9 @@ class MusicBoxApp extends EventEmitter {
         });
     }
 
-    // File Loading Methods
+    // 文件加载方法
     setupFileLoading() {
-        // Add drag and drop support
+        // 添加拖放支持
         document.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'copy';
@@ -1210,7 +1148,6 @@ class MusicBoxApp extends EventEmitter {
             await this.handleFileDrop(e);
         });
 
-        // Add menu items for file operations (if running in Electron)
         if (window.electronAPI) {
             this.addFileMenuItems();
         }
@@ -1224,13 +1161,11 @@ class MusicBoxApp extends EventEmitter {
         );
 
         if (audioFiles.length > 0) {
-            console.log(`Dropped ${audioFiles.length} audio files`);
-
             if (audioFiles.length === 1) {
-                // Single file - load and play
+                // 单个文件 - 加载和播放
                 await this.loadAndPlayFile(audioFiles[0].path);
             } else {
-                // Multiple files - add to playlist
+                // 多个文件 - 添加到播放列表
                 await this.addFilesToPlaylist(audioFiles);
             }
         }
@@ -1240,8 +1175,6 @@ class MusicBoxApp extends EventEmitter {
         try {
             const files = await api.openFileDialog();
             if (files && files.length > 0) {
-                console.log(`Selected ${files.length} files`);
-
                 if (files.length === 1) {
                     await this.loadAndPlayFile(files[0]);
                 } else {
@@ -1258,7 +1191,6 @@ class MusicBoxApp extends EventEmitter {
         try {
             const directory = await api.openDirectoryDialog();
             if (directory) {
-                console.log(`Selected directory: ${directory}`);
                 await this.scanDirectory(directory);
             }
         } catch (error) {
@@ -1269,7 +1201,6 @@ class MusicBoxApp extends EventEmitter {
 
     async loadAndPlayFile(filePath) {
         try {
-            console.log(`Loading and playing file: ${filePath}`);
             const success = await api.loadTrack(filePath);
             if (success) {
                 await api.play();
@@ -1285,8 +1216,7 @@ class MusicBoxApp extends EventEmitter {
 
     async addFilesToPlaylist(files) {
         try {
-            console.log(`Adding ${files.length} files to playlist`);
-            // For now, just load the first file
+            // 只需加载第一个文件
             if (files.length > 0) {
                 await this.loadAndPlayFile(files[0].path || files[0]);
             }
@@ -1299,13 +1229,11 @@ class MusicBoxApp extends EventEmitter {
 
     async scanDirectory(directoryPath) {
         try {
-            console.log(`Scanning directory: ${directoryPath}`);
             this.showInfo('扫描音乐文件...');
-
             const success = await api.scanDirectory(directoryPath);
             if (success) {
                 this.showSuccess('音乐目录扫描完成');
-                await this.refreshLibrary();
+                // API层会自动触发音乐库更新事件，无需手动刷新
             } else {
                 this.showError('扫描失败');
             }
@@ -1325,7 +1253,6 @@ class MusicBoxApp extends EventEmitter {
     }
 
     showSuccess(message) {
-        console.log(`✅ ${message}`);
         // TODO: Add toast notification system
         showToast(message, 'success');
     }
@@ -1345,7 +1272,6 @@ class MusicBoxApp extends EventEmitter {
     }
 
     showInfo(message) {
-        console.log(`ℹ️ ${message}`);
         showToast(message, 'info');
     }
 
@@ -1356,15 +1282,11 @@ class MusicBoxApp extends EventEmitter {
     }
 
     async handlePlaylistTrackPlayed(track, index) {
-        console.log('🎵 播放列表双击播放歌曲:', track.title, '索引:', index);
-
         // 直接播放播放列表中的指定歌曲
         await this.playTrackFromPlaylist(track, index);
     }
 
     async handlePlaylistTrackRemoved(track, index) {
-        console.log('🎵 从播放列表移除歌曲:', track.title, '索引:', index);
-
         // 同步更新API播放列表
         if (this.components.playlist && this.components.playlist.tracks.length >= 0) {
             console.log('🔄 同步删除操作到API，剩余歌曲:', this.components.playlist.tracks.length);
@@ -1384,19 +1306,14 @@ class MusicBoxApp extends EventEmitter {
     }
 
     async handlePlaylistCleared() {
-        console.log('🎵 播放列表已清空');
-
         // 同步清空API播放列表
         await api.setPlaylist([], -1);
         await api.pause();
-        console.log('🔄 API播放列表已清空');
     }
 
-    // Play track from playlist
+    // 播放播放列表中的歌曲
     async playTrackFromPlaylist(track, index) {
         try {
-            console.log('🎵 从播放列表播放歌曲:', track.title, '索引:', index);
-
             // 确保API的播放列表与组件播放列表同步
             if (this.components.playlist && this.components.playlist.tracks.length > 0) {
                 console.log('🔄 同步播放列表到API:', this.components.playlist.tracks.length, '首歌曲');
@@ -1415,34 +1332,21 @@ class MusicBoxApp extends EventEmitter {
                         const playResult = await api.play();
                         if (playResult) {
                             console.log('✅ 播放列表播放成功');
-                        } else {
-                            console.log('❌ 播放列表播放失败');
                         }
-                    } else {
-                        console.log('❌ 播放列表加载文件失败');
                     }
-                } else {
-                    console.log('❌ 设置播放列表失败');
                 }
-            } else {
-                console.warn('播放列表为空或不存在');
             }
         } catch (error) {
             console.error('❌ 播放列表播放错误:', error);
         }
     }
 
-    // Handle track index change (for prev/next buttons)
+    // 处理歌曲索引更改（用于 prev/next 按钮）
     handleTrackIndexChanged(index) {
-        console.log('🎵 播放索引改变:', index);
-        console.log('🎵 当前播放列表长度:', this.components.playlist?.tracks?.length || 0);
-        console.log('🎵 API播放列表长度:', api.playlist?.length || 0);
-
         // 更新播放列表组件的当前歌曲
         if (this.components.playlist) {
             if (index >= 0 && index < this.components.playlist.tracks.length) {
                 this.components.playlist.setCurrentTrack(index);
-                console.log('✅ 播放列表组件已更新到索引:', index);
             } else {
                 console.warn('⚠️ 索引超出播放列表范围:', index, '/', this.components.playlist.tracks.length);
             }
@@ -1454,7 +1358,6 @@ class MusicBoxApp extends EventEmitter {
         const libraryTrack = this.library.find(track => track.filePath === filePath);
         if (libraryTrack) {
             libraryTrack.duration = duration;
-            console.log('✅ 更新音乐库歌曲时长:', libraryTrack.title, duration.toFixed(2) + 's');
         }
 
         // 更新过滤后的音乐库
@@ -1479,7 +1382,6 @@ class MusicBoxApp extends EventEmitter {
     // Context menu event handlers
     handleDeleteTrack(track, index) {
         if (confirm(`确定要删除歌曲 "${track.title}" 吗？`)) {
-            console.log('🗑️ 删除歌曲:', track.title);
             // TODO: 实现删除歌曲的逻辑
             this.showInfo('删除功能将在后续版本中实现');
         }
@@ -1502,21 +1404,18 @@ class MusicBoxApp extends EventEmitter {
     addToPlaylist(track) {
         if (this.components.playlist) {
             this.components.playlist.addTrack(track);
-            console.log('🎵 添加歌曲到播放列表:', track.title);
             this.showInfo(`已添加 "${track.title}" 到播放列表`);
         }
     }
 
     // 处理编辑歌曲信息
     async handleEditTrackInfo(track, index) {
-        console.log('📝 编辑歌曲信息:', track.title);
         await this.components.editTrackInfoDialog.show(track);
     }
 
     // 处理歌曲信息更新
     async handleTrackInfoUpdated(data) {
         const { track, updatedData } = data;
-        console.log('✅ 歌曲信息已更新:', updatedData.title);
 
         // 确保cover字段是URL字符串
         if (updatedData.cover && typeof updatedData.cover !== 'string') {

@@ -4,7 +4,7 @@ const fs = require('fs');
 const iconv = require('iconv-lite');
 const chardet = require('chardet');
 const mm = require('music-metadata');
-const { spawn } = require('child_process');
+const {spawn} = require('child_process');
 const LibraryCacheManager = require('./library-cache-manager');
 const NetworkDriveManager = require('./network-drive-manager');
 const NetworkFileAdapter = require('./network-file-adapter');
@@ -21,21 +21,16 @@ function fixStringEncoding(str) {
         const hasGarbledChars = /[\u00C0-\u00FF][\u0080-\u00BF]+/.test(str);
 
         if (hasGarbledChars) {
-            // 尝试将错误解码的UTF-8字符串重新解码
             const buffer = Buffer.from(str, 'latin1');
             const detectedEncoding = chardet.detect(buffer) || 'utf8';
-            console.log(`🔍 检测到字符串编码: ${detectedEncoding} for "${str}"`);
 
-            // 如果检测到的编码不是UTF-8则转换
             if (detectedEncoding.toLowerCase() !== 'utf8' && detectedEncoding.toLowerCase() !== 'utf-8') {
                 const fixedStr = iconv.decode(buffer, detectedEncoding);
-                console.log(`🔧 编码修复: "${str}" -> "${fixedStr}"`);
                 return fixedStr;
             }
         }
         return str;
     } catch (error) {
-        console.warn(`⚠️ 字符串编码修复失败: ${error.message}, 返回原字符串`);
         return str;
     }
 }
@@ -43,39 +38,23 @@ function fixStringEncoding(str) {
 // 提取内嵌歌词函数
 function extractEmbeddedLyrics(metadata) {
     if (!metadata || !metadata.native) {
-        console.log('🔍 内嵌歌词提取: 元数据或原生标签为空');
         return null;
     }
 
-    console.log('🔍 内嵌歌词提取: 开始分析元数据');
-    console.log(`🔍 可用格式: ${Object.keys(metadata.native).join(', ')}`);
-
     let embeddedLyrics = null;
-    let allFoundTags = []; // 记录所有找到的相关标签
+    let allFoundTags = [];
 
-    // 遍历所有原生标签格式
     for (const [format, tags] of Object.entries(metadata.native)) {
         if (!Array.isArray(tags)) continue;
-
-        console.log(`🔍 检查格式: ${format}, 标签数量: ${tags.length}`);
 
         for (const tag of tags) {
             const tagId = tag.id ? tag.id.toUpperCase() : '';
 
-            // 记录所有标签用于调试
-            if (tagId) {
-                console.log(`🔍 发现标签: ${format}.${tagId}`, {
-                    value: typeof tag.value === 'string' ? tag.value.substring(0, 100) + '...' : tag.value
-                });
-            }
-
-            // 扩展歌词标签识别范围
             if (isLyricsTag(tagId, format)) {
                 allFoundTags.push({format, tagId, tag});
 
                 if (tagId === 'USLT' || tagId === 'LYRICS' || tagId === 'UNSYNCED LYRICS' ||
                     tagId === 'UNSYNCEDLYRICS' || tagId === '©LYR' || tagId === 'LYR') {
-                    // 无同步歌词 (Unsynchronized Lyrics)
                     const lyricsText = extractLyricsText(tag.value);
                     if (lyricsText) {
                         embeddedLyrics = {
@@ -86,11 +65,9 @@ function extractEmbeddedLyrics(metadata) {
                             text: lyricsText,
                             synchronized: false
                         };
-                        console.log(`✅ 找到USLT歌词 (${format}.${tagId}): ${lyricsText.substring(0, 50)}...`);
                         break;
                     }
                 } else if (tagId === 'SYLT' || tagId === 'SYNCHRONIZED LYRICS' || tagId === 'SYNCEDLYRICS') {
-                    // 同步歌词 (Synchronized Lyrics)
                     const syncLyrics = extractSynchronizedLyrics(tag.value);
                     if (syncLyrics) {
                         embeddedLyrics = {
@@ -102,11 +79,9 @@ function extractEmbeddedLyrics(metadata) {
                             timestamps: syncLyrics.timestamps,
                             synchronized: true
                         };
-                        console.log(`✅ 找到SYLT同步歌词 (${format}.${tagId}): ${syncLyrics.timestamps.length} 个时间戳`);
                         break;
                     }
                 } else if (tagId === 'TXXX' && tag.value?.description) {
-                    // 自定义文本标签中的歌词
                     const desc = tag.value.description.toUpperCase();
                     if (desc.includes('LYRIC') || desc.includes('歌词') || desc.includes('LYRICS')) {
                         const lyricsText = tag.value.text;
@@ -118,23 +93,13 @@ function extractEmbeddedLyrics(metadata) {
                                 text: lyricsText.trim(),
                                 synchronized: false
                             };
-                            console.log(`✅ 找到TXXX歌词 (${format}.${tagId}): ${tag.value.description}`);
                             break;
                         }
                     }
                 }
             }
         }
-        // 如果已经找到歌词，跳出外层循环
         if (embeddedLyrics) break;
-    }
-
-    // 显示所有找到的相关标签
-    if (allFoundTags.length > 0) {
-        console.log(`🔍 找到 ${allFoundTags.length} 个歌词相关标签:`,
-            allFoundTags.map(t => `${t.format}.${t.tagId}`).join(', '));
-    } else {
-        console.log('🔍 未找到任何歌词相关标签');
     }
 
     return embeddedLyrics;
@@ -163,69 +128,47 @@ function isLyricsTag(tagId, format) {
 
 // 提取歌词文本内容
 function extractLyricsText(value) {
-    console.log('🔍 提取歌词文本:', {
-        type: typeof value,
-        isArray: Array.isArray(value),
-        keys: typeof value === 'object' && value ? Object.keys(value) : null
-    });
-
     if (!value) {
-        console.log('🔍 歌词值为空');
         return null;
     }
 
     if (typeof value === 'string') {
         const trimmed = value.trim();
-        console.log(`🔍 字符串歌词: ${trimmed.substring(0, 100)}...`);
         return trimmed || null;
     }
 
     if (typeof value === 'object') {
-        console.log('🔍 对象歌词，检查属性:', Object.keys(value));
-
-        // USLT格式通常有text属性
         if (value.text && typeof value.text === 'string') {
             const trimmed = value.text.trim();
-            console.log(`🔍 找到text属性: ${trimmed.substring(0, 100)}...`);
             return trimmed || null;
         }
 
-        // 有些格式可能直接是歌词内容
         if (value.lyrics && typeof value.lyrics === 'string') {
             const trimmed = value.lyrics.trim();
-            console.log(`🔍 找到lyrics属性: ${trimmed.substring(0, 100)}...`);
             return trimmed || null;
         }
 
-        // 检查其他可能的属性名
         const possibleKeys = ['lyric', 'content', 'data', 'value'];
         for (const key of possibleKeys) {
             if (value[key] && typeof value[key] === 'string') {
                 const trimmed = value[key].trim();
-                console.log(`🔍 找到${key}属性: ${trimmed.substring(0, 100)}...`);
                 return trimmed || null;
             }
         }
 
-        // 如果是数组，尝试提取第一个字符串元素
         if (Array.isArray(value) && value.length > 0) {
             for (const item of value) {
                 if (typeof item === 'string') {
                     const trimmed = item.trim();
-                    console.log(`🔍 数组中找到字符串: ${trimmed.substring(0, 100)}...`);
                     return trimmed || null;
                 } else if (typeof item === 'object' && item.text) {
                     const trimmed = item.text.trim();
-                    console.log(`🔍 数组对象中找到text: ${trimmed.substring(0, 100)}...`);
                     return trimmed || null;
                 }
             }
         }
-
-        console.log('🔍 对象中未找到有效的歌词文本');
     }
 
-    console.log('🔍 无法提取歌词文本');
     return null;
 }
 
@@ -339,9 +282,20 @@ function extractSynchronizedLyrics(value) {
 async function parseMetadata(filePath) {
     try {
         console.log(`🔍 解析音频元数据: ${filePath}`);
-        const metadata = await mm.parseFile(filePath);
 
-        // 提取基本信息并修复编码
+        let metadata;
+        if (networkFileAdapter && networkFileAdapter.isNetworkPath(filePath)) {
+            console.log(`🌐 检测到网络路径，使用网络文件解析: ${filePath}`);
+            const buffer = await networkFileAdapter.readFile(filePath);
+            metadata = await mm.parseBuffer(buffer, {
+                mimeType: getMimeTypeFromExtension(filePath),
+                size: buffer.length
+            });
+        } else {
+            metadata = await mm.parseFile(filePath);
+        }
+
+        // 提取基本信息
         const title = fixStringEncoding(metadata.common.title) || path.basename(filePath, path.extname(filePath));
         const artist = fixStringEncoding(metadata.common.artist || metadata.common.albumartist) || '未知艺术家';
         const album = fixStringEncoding(metadata.common.album) || '未知专辑';
@@ -350,7 +304,6 @@ async function parseMetadata(filePath) {
         const sampleRate = metadata.format.sampleRate || 0;
         const year = metadata.common.year || metadata.common.date || null;
 
-        // 处理流派数组并修复编码
         let genre = null;
         if (metadata.common.genre && Array.isArray(metadata.common.genre)) {
             genre = metadata.common.genre.map(g => fixStringEncoding(g)).join(', ');
@@ -380,7 +333,7 @@ async function parseMetadata(filePath) {
             console.warn(`⚠️ 提取内嵌歌词失败: ${error.message}`);
         }
 
-        console.log(`✅ 元数据解析成功: ${title} - ${artist}`);
+
         return {
             title,
             artist,
@@ -417,11 +370,13 @@ async function parseMetadata(filePath) {
             }
         }
 
-        // 尝试从目录结构获取专辑信息
-        const dirName = fixStringEncoding(path.basename(path.dirname(filePath)));
-        if (dirName && dirName !== '.' && !dirName.includes('\\') && !dirName.includes('/')) {
-            if (dirName.length > 0 && dirName.length < 100) {
-                album = dirName;
+        // 尝试从目录结构获取专辑信息（仅对本地文件）
+        if (!networkFileAdapter || !networkFileAdapter.isNetworkPath(filePath)) {
+            const dirName = fixStringEncoding(path.basename(path.dirname(filePath)));
+            if (dirName && dirName !== '.' && !dirName.includes('\\') && !dirName.includes('/')) {
+                if (dirName.length > 0 && dirName.length < 100) {
+                    album = dirName;
+                }
             }
         }
 
@@ -445,11 +400,9 @@ async function parseMetadata(filePath) {
 const isDev = process.env.NODE_ENV === 'development';
 let mainWindow;
 let desktopLyricsWindow = null; // 桌面歌词窗口
-// 主动尺寸保护机制 - 缓存原始窗口尺寸
 let cachedOriginalSize = null;
 
 async function createWindow() {
-    // Create the browser window
     mainWindow = new BrowserWindow({
         width: 1440,
         height: 900,
@@ -466,9 +419,7 @@ async function createWindow() {
         }
     });
 
-    // Load the app
     let htmlPath;
-
     if (isDev) {
         // 开发环境：从源码目录加载
         htmlPath = path.join(__dirname, '../renderer/public/index.html');
@@ -485,7 +436,7 @@ async function createWindow() {
 
     try {
         await mainWindow.loadFile(htmlPath);
-        console.log(`✅ HTML文件加载成功: ${htmlPath}`);
+
     } catch (error) {
         console.error(`❌ HTML文件加载失败: ${error.message}`);
         console.error(`❌ 尝试的路径: ${htmlPath}`);
@@ -495,23 +446,18 @@ async function createWindow() {
         console.log(`🔄 尝试备用路径: ${fallbackPath}`);
         try {
             await mainWindow.loadFile(fallbackPath);
-            console.log(`✅ 备用路径加载成功: ${fallbackPath}`);
+
         } catch (fallbackError) {
             console.error(`❌ 备用路径也失败: ${fallbackError.message}`);
         }
     }
 
-    // Show window when ready
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
     });
-
-    // Handle window closed
     mainWindow.on('closed', () => {
         mainWindow = null;
     });
-
-    // Handle external links
     mainWindow.webContents.setWindowOpenHandler(({url}) => {
         shell.openExternal(url);
         return {action: 'deny'};
@@ -521,7 +467,6 @@ async function createWindow() {
     mainWindow.on('maximize', () => {
         mainWindow.webContents.send('window:maximized', true);
     });
-
     mainWindow.on('unmaximize', () => {
         mainWindow.webContents.send('window:maximized', false);
     });
@@ -566,17 +511,17 @@ async function createDesktopLyricsWindow() {
     const lyricsHtmlPath = path.join(__dirname, '../renderer/public/desktop-lyrics.html');
     await desktopLyricsWindow.loadFile(lyricsHtmlPath);
     // desktopLyricsWindow.openDevTools();
-    console.log('✅ 桌面歌词窗口加载成功');
+
 
     // 窗口事件处理
     desktopLyricsWindow.once('ready-to-show', () => {
         desktopLyricsWindow.show();
-        console.log('🎵 桌面歌词窗口显示');
+
     });
 
     desktopLyricsWindow.on('closed', () => {
         desktopLyricsWindow = null;
-        console.log('🎵 桌面歌词窗口已关闭');
+
     });
 
     // 防止窗口失去焦点时隐藏
@@ -630,26 +575,14 @@ function sendToDesktopLyrics(channel, data) {
 
 // App event handlers
 app.whenReady().then(async () => {
-    console.log('🚀 应用启动，开始初始化...');
+    console.log('应用启动中...');
 
-    // 初始化全局驱动器注册表
-    console.log('🔧 步骤1: 初始化全局驱动器注册表');
     const {initializeGlobalDriveRegistry} = require('./drive-registry');
     await initializeGlobalDriveRegistry();
-
-    // 初始化网络磁盘管理器
-    console.log('🔧 步骤2: 初始化网络磁盘管理器');
     await initializeNetworkDriveManager();
-
-    // 初始化缓存管理器（会复用网络磁盘管理器）
-    console.log('🔧 步骤3: 初始化缓存管理器');
     await initializeCacheManager();
-
-    // 初始化元数据处理器
-    console.log('🔧 步骤4: 初始化元数据处理器');
     await metadataHandler.initialize();
 
-    console.log('🔧 步骤5: 创建主窗口');
     createWindow();
 
     app.on('activate', () => {
@@ -666,9 +599,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-    // 清理网络磁盘连接
     if (networkDriveManager) {
-        console.log('🧹 应用退出，清理网络磁盘连接');
         networkDriveManager.cleanup();
     }
 });
@@ -958,7 +889,7 @@ async function initializeCacheManager() {
 
         libraryCacheManager = new LibraryCacheManager(networkFileAdapter);
         await libraryCacheManager.loadCache();
-        console.log('✅ 音乐库缓存管理器初始化成功');
+
         return true;
     } catch (error) {
         console.error('❌ 音乐库缓存管理器初始化失败:', error);
@@ -1009,7 +940,7 @@ async function initializeNetworkDriveManager() {
             }
         });
 
-        console.log('✅ 网络磁盘管理器初始化完成');
+
         return true;
     } catch (error) {
         console.error('❌ 网络磁盘管理器初始化失败:', error);
@@ -1017,13 +948,12 @@ async function initializeNetworkDriveManager() {
     }
 }
 
-console.log('🎵 使用JavaScript音频引擎');
 
 // 音频引擎IPC处理程序
 ipcMain.handle('audio:init', async () => {
     try {
         audioEngineState.isInitialized = true;
-        console.log('🎵 JavaScript音频引擎初始化成功');
+
         return true;
     } catch (error) {
         console.error('❌ 音频引擎初始化失败:', error);
@@ -1238,31 +1168,25 @@ ipcMain.handle('file:readAudio', async (event, filePath) => {
 // 音乐库IPC处理程序
 ipcMain.handle('library:scanDirectory', async (event, directoryPath) => {
     try {
-        console.log(`📁 扫描目录: ${directoryPath}`);
         const scanStartTime = Date.now();
 
-        // 确保缓存管理器已初始化
         if (!libraryCacheManager) {
             await initializeCacheManager();
         }
 
-        // 确保网络磁盘管理器已初始化
         if (!networkDriveManager) {
             await initializeNetworkDriveManager();
         }
 
-        // 检查是否为网络路径
         const isNetworkPath = networkFileAdapter && networkFileAdapter.isNetworkPath(directoryPath);
 
         if (isNetworkPath) {
-            console.log(`🌐 扫描网络目录: ${directoryPath}`);
             return await scanNetworkDirectory(directoryPath, scanStartTime);
         } else {
-            console.log(`💾 扫描本地目录: ${directoryPath}`);
             return await scanLocalDirectory(directoryPath, scanStartTime);
         }
     } catch (error) {
-        console.error('❌ 目录扫描失败:', error);
+        console.error('目录扫描失败:', error);
         return false;
     }
 });
@@ -1331,9 +1255,12 @@ async function scanLocalDirectory(directoryPath, scanStartTime) {
         await libraryCacheManager.saveCache();
     }
 
-    // 存储扫描结果到内存
     audioEngineState.scannedTracks = tracks;
-    console.log(`✅ 本地扫描完成，找到 ${tracks.length} 个音频文件`);
+
+    if (mainWindow) {
+        mainWindow.webContents.send('library:updated', tracks);
+    }
+
     return true;
 }
 
@@ -1345,24 +1272,20 @@ async function scanNetworkDirectory(networkPath, scanStartTime) {
 
     async function scanNetworkDir(dirPath) {
         try {
-            console.log(`🌐 扫描网络目录: ${dirPath}`);
             const items = await networkFileAdapter.readdir(dirPath);
 
             for (const item of items) {
-                // 使用安全的网络路径连接方法
                 const fullPath = networkFileAdapter.joinNetworkPath(dirPath, item);
-                console.log(`🔍 构建网络文件路径: ${fullPath}`);
 
                 try {
                     const stat = await networkFileAdapter.stat(fullPath);
 
                     if (stat.isDirectory()) {
-                        await scanNetworkDir(fullPath); // 递归扫描子目录
+                        await scanNetworkDir(fullPath);
                     } else if (audioExtensions.includes(require('path').extname(item).toLowerCase())) {
-                        console.log(`🎵 发现网络音频文件: ${fullPath}`);
 
-                        // 网络文件需要特殊处理元数据解析
-                        const metadata = await parseNetworkMetadata(fullPath);
+                        // 使用统一的元数据解析函数
+                        const metadata = await parseMetadata(fullPath);
                         const trackData = {
                             filePath: fullPath,
                             fileName: item,
@@ -1416,61 +1339,13 @@ async function scanNetworkDirectory(networkPath, scanStartTime) {
     // 存储扫描结果到内存
     audioEngineState.scannedTracks = tracks;
     console.log(`✅ 网络扫描完成，找到 ${tracks.length} 个音频文件`);
-    return true;
-}
 
-// 解析网络文件元数据
-async function parseNetworkMetadata(networkPath) {
-    try {
-        console.log(`🔍 解析网络文件元数据: ${networkPath}`);
-
-        // 读取网络文件内容并解析
-        const buffer = await networkFileAdapter.readFile(networkPath);
-        const metadata = await mm.parseBuffer(buffer, {
-            mimeType: getMimeTypeFromExtension(networkPath),
-            size: buffer.length
-        });
-
-        // 提取并修复字符串编码
-        const title = fixStringEncoding(metadata.common.title || path.basename(networkPath, path.extname(networkPath)));
-        const artist = fixStringEncoding(metadata.common.artist || '未知艺术家');
-        const album = fixStringEncoding(metadata.common.album || '未知专辑');
-        const genre = fixStringEncoding(metadata.common.genre ? metadata.common.genre.join(', ') : '');
-
-        // 提取内嵌歌词
-        const embeddedLyrics = extractEmbeddedLyrics(metadata);
-
-        return {
-            title: title,
-            artist: artist,
-            album: album,
-            duration: metadata.format.duration || 0,
-            bitrate: metadata.format.bitrate || 0,
-            sampleRate: metadata.format.sampleRate || 0,
-            year: metadata.common.year || null,
-            genre: genre,
-            track: metadata.common.track ? metadata.common.track.no : null,
-            disc: metadata.common.disk ? metadata.common.disk.no : null,
-            embeddedLyrics: embeddedLyrics
-        };
-    } catch (error) {
-        console.error(`❌ 解析网络文件元数据失败 ${networkPath}:`, error);
-
-        const fileName = path.basename(networkPath);
-        return {
-            title: path.basename(fileName, path.extname(fileName)),
-            artist: '未知艺术家',
-            album: '未知专辑',
-            duration: 0,
-            bitrate: 0,
-            sampleRate: 0,
-            year: null,
-            genre: '',
-            track: null,
-            disc: null,
-            embeddedLyrics: null
-        };
+    // 通知渲染进程音乐库已更新
+    if (mainWindow) {
+        mainWindow.webContents.send('library:updated', tracks);
     }
+
+    return true;
 }
 
 // 根据文件扩展名获取MIME类型
@@ -1492,7 +1367,7 @@ ipcMain.handle('library:getTracks', async () => {
 
     // 确保返回的tracks中的cover字段不是对象
     const cleanedTracks = tracks.map(track => {
-        const cleanedTrack = { ...track };
+        const cleanedTrack = {...track};
 
         // 如果cover是对象，设置为null，让渲染进程的封面管理器处理
         if (cleanedTrack.cover && typeof cleanedTrack.cover === 'object') {
@@ -1558,7 +1433,7 @@ ipcMain.handle('library:loadCachedTracks', async () => {
 
         // 清理返回给渲染进程的tracks中的cover对象
         const cleanedTracks = cachedTracks.map(track => {
-            const cleanedTrack = { ...track };
+            const cleanedTrack = {...track};
 
             // 如果cover是对象，设置为null，让渲染进程的封面管理器处理
             if (cleanedTrack.cover && typeof cleanedTrack.cover === 'object') {
@@ -1702,19 +1577,32 @@ ipcMain.handle('library:updateTrackMetadata', async (event, updatedData) => {
             console.log(`🔍 调试信息 - 更新数据:`, updatedData);
         }
 
-        const { filePath, title, artist, album, year, genre, cover } = updatedData;
+        const {filePath, title, artist, album, year, genre, cover} = updatedData;
 
-        // 验证文件是否存在
-        if (!fs.existsSync(filePath)) {
-            throw new Error('文件不存在');
-        }
+        // 验证文件是否存在（区分网络文件和本地文件）
+        const isNetworkFile = networkFileAdapter && networkFileAdapter.isNetworkPath(filePath);
 
-        // 检查文件权限
-        try {
-            fs.accessSync(filePath, fs.constants.W_OK);
-            console.log(`✅ 文件写入权限验证通过: ${filePath}`);
-        } catch (permissionError) {
-            throw new Error(`文件没有写入权限: ${permissionError.message}`);
+        if (isNetworkFile) {
+            console.log(`🌐 检测到网络文件: ${filePath}`);
+            // 验证网络文件是否存在
+            const networkFileExists = await networkFileAdapter.exists(filePath);
+            if (!networkFileExists) {
+                throw new Error('网络文件不存在');
+            }
+            console.log(`✅ 网络文件存在性验证通过: ${filePath}`);
+        } else {
+            // 本地文件检查
+            if (!fs.existsSync(filePath)) {
+                throw new Error('文件不存在');
+            }
+
+            // 检查文件权限
+            try {
+                fs.accessSync(filePath, fs.constants.W_OK);
+                console.log(`✅ 文件写入权限验证通过: ${filePath}`);
+            } catch (permissionError) {
+                throw new Error(`文件没有写入权限: ${permissionError.message}`);
+            }
         }
 
         // 获取文件扩展名以确定处理方式
@@ -1722,8 +1610,15 @@ ipcMain.handle('library:updateTrackMetadata', async (event, updatedData) => {
         console.log(`🔍 文件格式: ${fileExtension}`);
 
         // 备份原始文件修改时间，用于后续缓存同步
-        const originalStats = fs.statSync(filePath);
-        console.log(`📊 原始文件修改时间: ${originalStats.mtime}`);
+        let originalStats;
+        if (isNetworkFile) {
+            // 网络文件获取统计信息
+            originalStats = await networkFileAdapter.stat(filePath);
+            console.log(`📊 网络文件修改时间: ${originalStats.mtime}`);
+        } else {
+            originalStats = fs.statSync(filePath);
+            console.log(`📊 原始文件修改时间: ${originalStats.mtime}`);
+        }
 
         // 检查格式是否支持
         if (!metadataHandler.isFormatSupported(filePath)) {
@@ -1745,17 +1640,27 @@ ipcMain.handle('library:updateTrackMetadata', async (event, updatedData) => {
             cover: metadata.cover ? `[封面数据: ${metadata.cover.length} 字节]` : null
         });
 
-        // 使用新的元数据处理器
-        const result = await metadataHandler.updateMetadata(filePath, metadata);
+        let result;
 
-        if (!result.success) {
-            throw new Error(result.error || '元数据更新失败');
+        if (isNetworkFile) {
+            // 网络文件：使用临时文件方案进行元数据编辑
+            console.log(`🌐 网络文件元数据更新：使用临时文件方案`);
+            result = await updateNetworkFileMetadata(filePath, metadata);
+        } else {
+            // 本地文件：使用元数据处理器
+            result = await metadataHandler.updateMetadata(filePath, metadata);
+
+            if (!result.success) {
+                throw new Error(result.error || '元数据更新失败');
+            }
         }
 
         console.log(`✅ 元数据更新成功 (使用方法: ${result.method})`);
 
-        // 等待一小段时间确保文件系统同步
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // 等待文件系统同步
+        if (!isNetworkFile) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
 
         // 重新解析元数据以验证写入是否成功
         console.log(`🔄 重新读取文件以验证元数据更新...`);
@@ -1798,8 +1703,23 @@ ipcMain.handle('library:updateTrackMetadata', async (event, updatedData) => {
         }
 
         // 获取更新后的文件状态
-        const updatedStats = fs.statSync(filePath);
-        console.log(`📊 更新后文件修改时间: ${updatedStats.mtime}`);
+        let updatedStats;
+        if (isNetworkFile) {
+            // 网络文件：重新获取实际的文件统计信息
+            try {
+                updatedStats = await networkFileAdapter.stat(filePath);
+                console.log(`📊 网络文件实际更新时间: ${updatedStats.mtime}`);
+            } catch (statError) {
+                console.warn(`⚠️ 获取网络文件更新后状态失败，使用当前时间: ${statError.message}`);
+                updatedStats = {
+                    mtime: new Date(),
+                    size: originalStats.size // 使用原始大小作为备用
+                };
+            }
+        } else {
+            updatedStats = fs.statSync(filePath);
+            console.log(`📊 更新后文件修改时间: ${updatedStats.mtime}`);
+        }
 
         // 更新内存中的歌曲数据
         if (audioEngineState.scannedTracks) {
@@ -2358,7 +2278,6 @@ ipcMain.handle('lyrics:readLocalFile', async (event, filePath) => {
 // 内嵌歌词IPC处理器
 ipcMain.handle('lyrics:getEmbedded', async (event, filePath) => {
     try {
-        // 参数验证
         if (!filePath || typeof filePath !== 'string') {
             console.error('❌ 内嵌歌词获取失败: 无效的文件路径参数');
             return {
@@ -2368,18 +2287,26 @@ ipcMain.handle('lyrics:getEmbedded', async (event, filePath) => {
         }
 
         // 检查文件是否存在
-        if (!fs.existsSync(filePath)) {
+        if ((!networkFileAdapter || !networkFileAdapter.isNetworkPath(filePath)) && !fs.existsSync(filePath)) {
             console.error(`❌ 内嵌歌词获取失败: 文件不存在 - ${filePath}`);
             return {
                 success: false,
                 error: '指定的音频文件不存在'
             };
         }
-
         console.log(`🎵 获取内嵌歌词: ${filePath}`);
 
-        // 使用music-metadata解析文件
-        const metadata = await mm.parseFile(filePath);
+        let metadata;
+        if (networkFileAdapter && networkFileAdapter.isNetworkPath(filePath)) {
+            console.log(`🌐 检测到网络路径，使用网络文件解析: ${filePath}`);
+            const buffer = await networkFileAdapter.readFile(filePath);
+            metadata = await mm.parseBuffer(buffer, {
+                mimeType: getMimeTypeFromExtension(filePath),
+                size: buffer.length
+            });
+        } else {
+            metadata = await mm.parseFile(filePath);
+        }
 
         if (!metadata) {
             console.error(`❌ 内嵌歌词获取失败: 无法解析音频文件元数据 - ${filePath}`);
@@ -2388,13 +2315,6 @@ ipcMain.handle('lyrics:getEmbedded', async (event, filePath) => {
                 error: '无法解析音频文件元数据'
             };
         }
-
-        // 输出详细的元数据调试信息
-        console.log('🔍 音频文件元数据概览:');
-        console.log(`  - 格式: ${metadata.format?.container || '未知'}`);
-        console.log(`  - 编解码器: ${metadata.format?.codec || '未知'}`);
-        console.log(`  - 标题: ${metadata.common?.title || '未知'}`);
-        console.log(`  - 艺术家: ${metadata.common?.artist || '未知'}`);
 
         if (metadata.native) {
             console.log('🔍 原生标签格式:');
@@ -2411,7 +2331,6 @@ ipcMain.handle('lyrics:getEmbedded', async (event, filePath) => {
         }
 
         const embeddedLyrics = extractEmbeddedLyrics(metadata);
-
         if (embeddedLyrics) {
             console.log(`✅ 成功提取内嵌歌词: ${embeddedLyrics.type} 格式 (语言: ${embeddedLyrics.language || '未知'})`);
             return {
@@ -2429,7 +2348,6 @@ ipcMain.handle('lyrics:getEmbedded', async (event, filePath) => {
     } catch (error) {
         console.error('❌ 获取内嵌歌词失败:', error);
 
-        // 根据错误类型提供更具体的错误信息
         let errorMessage = error.message;
         if (error.code === 'ENOENT') {
             errorMessage = '音频文件不存在或无法访问';
@@ -3269,4 +3187,59 @@ function calculateCoverMatchScore(fileName, pattern, patternIndex) {
         return Math.floor(similarity * 300) - patternIndex;
     }
     return 0;
+}
+
+// 更新网络文件元数据
+async function updateNetworkFileMetadata(filePath, metadata) {
+    const os = require('os');
+    const tempDir = os.tmpdir();
+    const tempFileName = `musicbox_temp_${Date.now()}_${path.basename(filePath)}`;
+    const tempFilePath = path.join(tempDir, tempFileName);
+
+    try {
+        console.log(`🌐 开始网络文件元数据更新: ${filePath}`);
+        console.log(`📁 临时文件路径: ${tempFilePath}`);
+
+        // 步骤1: 下载网络文件到临时位置
+        console.log(`⬇️ 下载网络文件到临时位置...`);
+        const networkBuffer = await networkFileAdapter.readFile(filePath);
+        fs.writeFileSync(tempFilePath, networkBuffer);
+        console.log(`✅ 文件下载完成，大小: ${networkBuffer.length} 字节`);
+
+        // 步骤2: 在临时文件上进行元数据编辑
+        console.log(`📝 在临时文件上更新元数据...`);
+        const result = await metadataHandler.updateMetadata(tempFilePath, metadata);
+
+        if (!result.success) {
+            throw new Error(result.error || '临时文件元数据更新失败');
+        }
+
+        console.log(`✅ 临时文件元数据更新成功 (使用方法: ${result.method})`);
+
+        // 步骤3: 读取修改后的临时文件
+        console.log(`📖 读取修改后的临时文件...`);
+        const modifiedBuffer = fs.readFileSync(tempFilePath);
+        console.log(`✅ 修改后文件大小: ${modifiedBuffer.length} 字节`);
+
+        // 步骤4: 将修改后的文件写回网络位置
+        console.log(`⬆️ 将修改后的文件写回网络位置...`);
+        await networkFileAdapter.writeFile(filePath, modifiedBuffer);
+        console.log(`✅ 网络文件写入完成`);
+
+        return {success: true, method: '网络文件临时编辑'};
+
+    } catch (error) {
+        console.error(`❌ 网络文件元数据更新失败: ${error.message}`);
+        throw error;
+    } finally {
+        // 清理临时文件
+        try {
+            if (fs.existsSync(tempFilePath)) {
+                fs.unlinkSync(tempFilePath);
+                console.log(`🧹 临时文件已清理: ${tempFilePath}`);
+            }
+        } catch (cleanupError) {
+            console.warn(`⚠️ 清理临时文件失败: ${cleanupError.message}`);
+        }
+    }
 }

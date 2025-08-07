@@ -168,9 +168,12 @@ function showToast(message, type = 'info', duration = 1500) {
     }, duration);
 }
 
-/**
- * Event emitter for custom events
- */
+window.components = {
+    component: {},
+    dialogs: {},
+};
+
+// 自定义事件
 class EventEmitter {
     constructor() {
         this.events = {};
@@ -205,9 +208,6 @@ class EventEmitter {
     }
 }
 
-/**
- * Theme management
- */
 const theme = {
     get current() {
         return document.documentElement.getAttribute('data-theme') || 'light';
@@ -229,13 +229,11 @@ const theme = {
         console.log("☁️ 主题初始化：", savedTheme);
     },
 
-    // Event emitter methods
     on: EventEmitter.prototype.on.bind(new EventEmitter()),
     off: EventEmitter.prototype.off.bind(new EventEmitter()),
     emit: EventEmitter.prototype.emit.bind(new EventEmitter())
 };
 
-// Initialize theme on load
 document.addEventListener('DOMContentLoaded', () => {
     theme.init();
 });
