@@ -746,3 +746,5 @@ class HomePage extends Component {
         }
     }
 }
+
+window.components.component.HomePage = HomePage;

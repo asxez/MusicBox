@@ -142,9 +142,10 @@ class CreatePlaylistDialog extends EventEmitter {
             console.error('❌ 创建歌单失败:', error);
             this.showError('创建歌单失败，请重试');
         } finally {
-            // 恢复按钮状态
             this.confirmBtn.disabled = false;
             this.confirmBtn.textContent = '创建';
         }
     }
 }
+
+window.components.dialogs.CreatePlaylistDialog = CreatePlaylistDialog;

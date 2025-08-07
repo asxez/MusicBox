@@ -21,6 +21,7 @@ class ContextMenu extends EventEmitter {
         this.playItem = this.element.querySelector('#context-play');
         this.addToPlaylistItem = this.element.querySelector('#context-add-to-playlist');
         this.addToCustomPlaylistItem = this.element.querySelector('#context-add-to-custom-playlist');
+        this.editInfoItem = this.element.querySelector('#context-edit-info');
         this.deleteItem = this.element.querySelector('#context-delete');
     }
 
@@ -37,6 +38,11 @@ class ContextMenu extends EventEmitter {
 
         this.addToCustomPlaylistItem.addEventListener('click', () => {
             this.emit('addToCustomPlaylist', {track: this.currentTrack, index: this.currentIndex});
+            this.hide();
+        });
+
+        this.editInfoItem.addEventListener('click', () => {
+            this.emit('editInfo', {track: this.currentTrack, index: this.currentIndex});
             this.hide();
         });
 
@@ -94,3 +100,5 @@ class ContextMenu extends EventEmitter {
         console.log('🎵 ContextMenu: 隐藏右键菜单');
     }
 }
+
+window.components.component.ContextMenu = ContextMenu;

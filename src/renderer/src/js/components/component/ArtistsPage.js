@@ -513,3 +513,5 @@ class ArtistsPage extends Component {
         return div.innerHTML;
     }
 }
+
+window.components.component.ArtistsPage = ArtistsPage;

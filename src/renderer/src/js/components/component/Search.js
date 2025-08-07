@@ -44,3 +44,5 @@ class Search extends Component {
         this.emit('searchCleared');
     }
 }
+
+window.components.component.Search = Search;

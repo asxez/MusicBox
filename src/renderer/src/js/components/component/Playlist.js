@@ -221,3 +221,5 @@ class Playlist extends EventEmitter {
         });
     }
 }
+
+window.components.component.Playlist = Playlist;

@@ -711,3 +711,5 @@ class EqualizerComponent extends Component {
         super.destroy();
     }
 }
+
+window.components.component.EqualizerComponent = EqualizerComponent;

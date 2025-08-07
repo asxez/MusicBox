@@ -4,9 +4,11 @@ const fs = require('fs');
 const iconv = require('iconv-lite');
 const chardet = require('chardet');
 const mm = require('music-metadata');
+const { spawn } = require('child_process');
 const LibraryCacheManager = require('./library-cache-manager');
 const NetworkDriveManager = require('./network-drive-manager');
 const NetworkFileAdapter = require('./network-file-adapter');
+const metadataHandler = require('./metadata-handler');
 
 // 字符串编码
 function fixStringEncoding(str) {
@@ -643,7 +645,11 @@ app.whenReady().then(async () => {
     console.log('🔧 步骤3: 初始化缓存管理器');
     await initializeCacheManager();
 
-    console.log('🔧 步骤4: 创建主窗口');
+    // 初始化元数据处理器
+    console.log('🔧 步骤4: 初始化元数据处理器');
+    await metadataHandler.initialize();
+
+    console.log('🔧 步骤5: 创建主窗口');
     createWindow();
 
     app.on('activate', () => {
@@ -844,6 +850,36 @@ ipcMain.handle('dialog:openFiles', async () => {
     return [];
 });
 
+// 通用文件选择对话框
+ipcMain.handle('dialog:showOpenDialog', async (event, options) => {
+    const result = await dialog.showOpenDialog(mainWindow, options);
+    return result;
+});
+
+// 文件系统相关IPC处理
+ipcMain.handle('fs:stat', async (event, filePath) => {
+    try {
+        const stats = fs.statSync(filePath);
+        return {
+            size: stats.size,
+            mtime: stats.mtime,
+            isFile: stats.isFile(),
+            isDirectory: stats.isDirectory()
+        };
+    } catch (error) {
+        throw new Error(`获取文件信息失败: ${error.message}`);
+    }
+});
+
+ipcMain.handle('fs:readFile', async (event, filePath) => {
+    try {
+        const buffer = fs.readFileSync(filePath);
+        return Array.from(buffer);
+    } catch (error) {
+        throw new Error(`读取文件失败: ${error.message}`);
+    }
+});
+
 // 图片文件选择对话框（用于歌单封面）
 ipcMain.handle('dialog:openImageFile', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
@@ -1002,6 +1038,21 @@ ipcMain.handle('audio:loadTrack', async (event, filePath) => {
         // 获取完整的元数据信息
         const metadata = await parseMetadata(filePath);
 
+        // 处理封面数据 - 确保不直接传递对象
+        let coverUrl = null;
+        if (metadata.cover && metadata.cover.data) {
+            console.log('🔍 main.js: 检测到内嵌封面，但不在主进程转换URL');
+            // 注意：不在主进程转换封面为URL，让渲染进程的封面管理器处理
+            // 这样可以避免在主进程中处理大量的封面数据转换
+            coverUrl = null; // 设置为null，让渲染进程异步获取
+        }
+
+        console.log('🔍 main.js: 封面处理结果', {
+            hasOriginalCover: !!(metadata.cover && metadata.cover.data),
+            coverUrl: coverUrl,
+            willUseEmbeddedManager: !coverUrl && !!(metadata.cover && metadata.cover.data)
+        });
+
         // 更新状态
         audioEngineState.currentTrack = {
             filePath: filePath,
@@ -1015,7 +1066,7 @@ ipcMain.handle('audio:loadTrack', async (event, filePath) => {
             genre: metadata.genre,
             track: metadata.track,
             disc: metadata.disc,
-            cover: metadata.cover,
+            cover: coverUrl, // 确保这里是URL字符串或null，不是对象
             embeddedLyrics: metadata.embeddedLyrics
         };
 
@@ -1437,7 +1488,23 @@ function getMimeTypeFromExtension(filePath) {
 }
 
 ipcMain.handle('library:getTracks', async () => {
-    return audioEngineState.scannedTracks || [];
+    const tracks = audioEngineState.scannedTracks || [];
+
+    // 确保返回的tracks中的cover字段不是对象
+    const cleanedTracks = tracks.map(track => {
+        const cleanedTrack = { ...track };
+
+        // 如果cover是对象，设置为null，让渲染进程的封面管理器处理
+        if (cleanedTrack.cover && typeof cleanedTrack.cover === 'object') {
+            console.log(`🔍 main.js: 清理track.cover对象 - ${track.title}`);
+            cleanedTrack.cover = null; // 设置为null，让渲染进程异步获取
+        }
+
+        return cleanedTrack;
+    });
+
+    console.log(`📚 main.js: 返回 ${cleanedTracks.length} 个tracks，已清理cover对象`);
+    return cleanedTracks;
 });
 
 // 扫描网络磁盘
@@ -1489,8 +1556,21 @@ ipcMain.handle('library:loadCachedTracks', async () => {
         // 将缓存的音乐文件加载到内存状态
         audioEngineState.scannedTracks = cachedTracks;
 
-        console.log(`✅ 从缓存加载 ${cachedTracks.length} 个音乐文件`);
-        return cachedTracks;
+        // 清理返回给渲染进程的tracks中的cover对象
+        const cleanedTracks = cachedTracks.map(track => {
+            const cleanedTrack = { ...track };
+
+            // 如果cover是对象，设置为null，让渲染进程的封面管理器处理
+            if (cleanedTrack.cover && typeof cleanedTrack.cover === 'object') {
+                console.log(`🔍 main.js: 清理缓存track.cover对象 - ${track.title}`);
+                cleanedTrack.cover = null; // 设置为null，让渲染进程异步获取
+            }
+
+            return cleanedTrack;
+        });
+
+        console.log(`✅ 从缓存加载 ${cleanedTracks.length} 个音乐文件，已清理cover对象`);
+        return cleanedTracks;
     } catch (error) {
         console.error('❌ 加载缓存音乐库失败:', error);
         return [];
@@ -1608,6 +1688,234 @@ ipcMain.handle('library:getTrackMetadata', async (event, filePath) => {
     } catch (error) {
         console.error('❌ 获取元数据失败:', error);
         return null;
+    }
+});
+
+// 更新歌曲元数据
+ipcMain.handle('library:updateTrackMetadata', async (event, updatedData) => {
+    // 启用详细调试日志
+    const DEBUG_METADATA_UPDATE = true;
+
+    try {
+        console.log(`📝 更新音频文件元数据: ${updatedData.filePath}`);
+        if (DEBUG_METADATA_UPDATE) {
+            console.log(`🔍 调试信息 - 更新数据:`, updatedData);
+        }
+
+        const { filePath, title, artist, album, year, genre, cover } = updatedData;
+
+        // 验证文件是否存在
+        if (!fs.existsSync(filePath)) {
+            throw new Error('文件不存在');
+        }
+
+        // 检查文件权限
+        try {
+            fs.accessSync(filePath, fs.constants.W_OK);
+            console.log(`✅ 文件写入权限验证通过: ${filePath}`);
+        } catch (permissionError) {
+            throw new Error(`文件没有写入权限: ${permissionError.message}`);
+        }
+
+        // 获取文件扩展名以确定处理方式
+        const fileExtension = path.extname(filePath).toLowerCase();
+        console.log(`🔍 文件格式: ${fileExtension}`);
+
+        // 备份原始文件修改时间，用于后续缓存同步
+        const originalStats = fs.statSync(filePath);
+        console.log(`📊 原始文件修改时间: ${originalStats.mtime}`);
+
+        // 检查格式是否支持
+        if (!metadataHandler.isFormatSupported(filePath)) {
+            throw new Error(`不支持的音频格式: ${fileExtension}。目前支持的格式: MP3, FLAC, M4A, OGG`);
+        }
+
+        // 准备元数据
+        const metadata = {
+            title: (title || '').toString().trim(),
+            artist: (artist || '').toString().trim(),
+            album: (album || '').toString().trim(),
+            year: year ? parseInt(year) : null,
+            genre: (genre || '').toString().trim(),
+            cover: cover && Array.isArray(cover) ? cover : null
+        };
+
+        console.log(`📝 准备写入的元数据:`, {
+            ...metadata,
+            cover: metadata.cover ? `[封面数据: ${metadata.cover.length} 字节]` : null
+        });
+
+        // 使用新的元数据处理器
+        const result = await metadataHandler.updateMetadata(filePath, metadata);
+
+        if (!result.success) {
+            throw new Error(result.error || '元数据更新失败');
+        }
+
+        console.log(`✅ 元数据更新成功 (使用方法: ${result.method})`);
+
+        // 等待一小段时间确保文件系统同步
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // 重新解析元数据以验证写入是否成功
+        console.log(`🔄 重新读取文件以验证元数据更新...`);
+        const updatedMetadata = await parseMetadata(filePath);
+
+        // 验证关键字段是否正确更新
+        const verificationResults = {
+            title: updatedMetadata.title === metadata.title,
+            artist: updatedMetadata.artist === metadata.artist,
+            album: updatedMetadata.album === metadata.album,
+            year: metadata.year ? (updatedMetadata.year?.toString() === metadata.year.toString()) : true,
+            genre: updatedMetadata.genre === metadata.genre
+        };
+
+        console.log(`🔍 元数据验证结果:`, verificationResults);
+
+        const failedFields = Object.entries(verificationResults)
+            .filter(([field, success]) => !success)
+            .map(([field]) => field);
+
+        if (failedFields.length > 0) {
+            console.warn(`⚠️ 以下字段可能未正确写入: ${failedFields.join(', ')}`);
+            console.warn(`期望值:`, metadata);
+            console.warn(`实际值:`, {
+                title: updatedMetadata.title,
+                artist: updatedMetadata.artist,
+                album: updatedMetadata.album,
+                year: updatedMetadata.year,
+                genre: updatedMetadata.genre
+            });
+
+            // 如果关键字段（title, artist）写入失败，抛出错误
+            const criticalFields = ['title', 'artist'];
+            const failedCriticalFields = failedFields.filter(field => criticalFields.includes(field));
+            if (failedCriticalFields.length > 0) {
+                throw new Error(`关键元数据字段写入失败: ${failedCriticalFields.join(', ')}。这可能是由于文件格式不支持或文件损坏导致的。`);
+            }
+        } else {
+            console.log(`✅ 所有元数据字段验证通过`);
+        }
+
+        // 获取更新后的文件状态
+        const updatedStats = fs.statSync(filePath);
+        console.log(`📊 更新后文件修改时间: ${updatedStats.mtime}`);
+
+        // 更新内存中的歌曲数据
+        if (audioEngineState.scannedTracks) {
+            const trackIndex = audioEngineState.scannedTracks.findIndex(track => track.filePath === filePath);
+            if (trackIndex !== -1) {
+                audioEngineState.scannedTracks[trackIndex] = {
+                    ...audioEngineState.scannedTracks[trackIndex],
+                    title: updatedMetadata.title,
+                    artist: updatedMetadata.artist,
+                    album: updatedMetadata.album,
+                    year: updatedMetadata.year,
+                    genre: updatedMetadata.genre,
+                    cover: updatedMetadata.cover,
+                    lastModified: updatedStats.mtime.getTime() // 更新修改时间
+                };
+                console.log(`✅ 已更新内存中的歌曲数据: ${updatedMetadata.title}`);
+            }
+        }
+
+        // 更新缓存，使用正确的文件修改时间和新的fileId
+        if (libraryCacheManager) {
+            try {
+                // 生成新的fileId以匹配更新后的文件状态
+                const newFileId = libraryCacheManager.generateFileId(filePath, updatedStats);
+
+                const cacheUpdateSuccess = libraryCacheManager.updateTrackInCache(filePath, {
+                    fileId: newFileId, // 更新fileId以匹配新的文件状态
+                    title: updatedMetadata.title,
+                    artist: updatedMetadata.artist,
+                    album: updatedMetadata.album,
+                    year: updatedMetadata.year,
+                    genre: updatedMetadata.genre,
+                    cover: updatedMetadata.cover,
+                    lastModified: updatedStats.mtime.getTime(), // 使用实际的文件修改时间
+                    fileSize: updatedStats.size
+                });
+
+                if (cacheUpdateSuccess) {
+                    // 立即保存缓存以确保持久化
+                    await libraryCacheManager.saveCache();
+                    console.log(`✅ 已更新并保存缓存中的歌曲数据: ${updatedMetadata.title}`);
+                    console.log(`🔑 已更新缓存中的fileId: ${newFileId}`);
+                } else {
+                    console.warn(`⚠️ 缓存更新失败，歌曲可能不在缓存中: ${filePath}`);
+                }
+            } catch (cacheError) {
+                console.error('❌ 更新缓存失败:', cacheError);
+                // 即使缓存更新失败，也不应该影响元数据写入的成功状态
+            }
+        }
+
+        console.log(`✅ 歌曲元数据更新成功: ${updatedMetadata.title} - ${updatedMetadata.artist}`);
+
+        // 检查是否更新了封面
+        const coverUpdated = metadata.cover && Array.isArray(metadata.cover) && metadata.cover.length > 0;
+
+        if (coverUpdated) {
+            console.log('封面已更新，通知渲染进程刷新显示');
+
+            const eventData = {
+                filePath: filePath,
+                title: updatedMetadata.title,
+                artist: updatedMetadata.artist,
+                album: updatedMetadata.album,
+                timestamp: Date.now()
+            };
+
+            // 向所有窗口发送封面更新事件
+            const allWindows = BrowserWindow.getAllWindows();
+            allWindows.forEach(window => {
+                if (window && !window.isDestroyed()) {
+                    window.webContents.send('cover-updated', eventData);
+                }
+            });
+        }
+
+        return {
+            success: true,
+            coverUpdated: coverUpdated,
+            updatedMetadata: {
+                filePath: filePath,
+                title: updatedMetadata.title,
+                artist: updatedMetadata.artist,
+                album: updatedMetadata.album,
+                year: updatedMetadata.year,
+                genre: updatedMetadata.genre,
+                cover: updatedMetadata.cover
+            }
+        };
+    } catch (error) {
+        console.error('❌ 更新歌曲元数据失败:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+});
+
+// 清理封面缓存
+ipcMain.handle('covers:clearCache', async (event, filePath) => {
+    try {
+        console.log(`🧹 清理封面缓存: ${filePath}`);
+
+        // 这里主要是为了日志记录，实际的缓存清理在渲染进程中进行
+        // 因为封面缓存管理器在渲染进程中
+
+        return {
+            success: true,
+            message: '封面缓存清理请求已处理'
+        };
+    } catch (error) {
+        console.error('❌ 清理封面缓存失败:', error);
+        return {
+            success: false,
+            error: error.message
+        };
     }
 });
 

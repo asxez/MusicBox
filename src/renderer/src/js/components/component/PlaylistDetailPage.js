@@ -506,6 +506,12 @@ class PlaylistDetailPage extends Component {
                 }
             });
 
+            // 右键菜单
+            item.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                this.showTrackContextMenu(e.clientX, e.clientY, track, index);
+            });
+
             // 操作按钮
             const likeBtn = item.querySelector('[data-action="like"]');
             if (likeBtn) {
@@ -1125,4 +1131,15 @@ class PlaylistDetailPage extends Component {
         const extension = filePath.toLowerCase().substring(filePath.lastIndexOf('.'));
         return validExtensions.includes(extension);
     }
+
+    showTrackContextMenu(x, y, track, index) {
+        const contextMenu = window.app?.components?.contextMenu;
+        if (contextMenu) {
+            contextMenu.show(x, y, track, index);
+        } else {
+            console.warn('⚠️ PlaylistDetailPage: 未找到全局右键菜单组件');
+        }
+    }
 }
+
+window.components.component.PlaylistDetailPage = PlaylistDetailPage;

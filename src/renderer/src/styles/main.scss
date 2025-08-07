@@ -1987,6 +1987,69 @@ a {
   }
 }
 
+// Edit Track Info Dialog styles
+#edit-track-info-dialog {
+  .modal-dialog {
+    max-width: 600px;
+    width: 90vw;
+  }
+}
+
+.track-info-form {
+  .cover-section {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .cover-container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+  }
+
+  .track-cover-preview {
+    width: 120px;
+    height: 120px;
+    border-radius: var(--radius-lg);
+    object-fit: cover;
+    border: 2px solid var(--color-border);
+    background: var(--color-bg-secondary);
+  }
+
+  .cover-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .form-group {
+    margin-bottom: var(--spacing-lg);
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .form-input {
+    transition: all var(--transition-fast);
+
+    &:focus {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.15);
+    }
+  }
+
+  .form-error {
+    color: var(--color-error);
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-xs);
+    display: none;
+
+    &.show {
+      display: block;
+    }
+  }
+}
+
 // Playlist selection list
 .playlist-list {
   max-height: 300px;

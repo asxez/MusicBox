@@ -217,6 +217,39 @@ class LocalCoverManager {
     }
 
     /**
+     * 清理特定歌曲的封面缓存
+     * @param {string} title - 歌曲标题
+     * @param {string} artist - 艺术家
+     * @param {string} album - 专辑名称
+     */
+    clearCacheForTrack(title, artist, album = '') {
+        const cacheKey = this.generateCacheKey(title, artist, album);
+        if (this.cache.has(cacheKey)) {
+            this.cache.delete(cacheKey);
+            console.log(`🧹 LocalCoverManager: 清理歌曲缓存 - ${title} by ${artist}`);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 强制刷新特定歌曲的封面
+     * @param {string} title - 歌曲标题
+     * @param {string} artist - 艺术家
+     * @param {string} album - 专辑名称
+     * @returns {Promise<Object>} 刷新结果
+     */
+    async refreshCoverForTrack(title, artist, album = '') {
+        console.log(`🔄 LocalCoverManager: 强制刷新封面 - ${title} by ${artist}`);
+
+        // 清理缓存
+        this.clearCacheForTrack(title, artist, album);
+
+        // 重新检查封面
+        return await this.checkLocalCover(title, artist, album);
+    }
+
+    /**
      * 获取缓存统计信息
      * @returns {Object} 缓存统计信息
      */

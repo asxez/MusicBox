@@ -19,8 +19,8 @@
 const COMPONENTS = {
     // 基础组件
     base: [
-        'EventEmitter', // 在 utils.js 中
-        'Component'     // 在 components/base/Component.js 中
+        'EventEmitter', // utils.js
+        'Component'     // base/Component.js
     ],
     
     // 页面组件
@@ -45,9 +45,15 @@ const COMPONENTS = {
     dialogs: [
         'AddToPlaylistDialog',         // 添加到歌单对话框
         'CreatePlaylistDialog',        // 创建歌单对话框
+        'EditTrackInfoDialog',         // 编辑歌曲信息对话框
         'MusicLibrarySelectionDialog', // 音乐库选择对话框
         'RenamePlaylistDialog',        // 重命名歌单对话框组件
     ]
+};
+
+window.components = {
+    component: {},
+    dialogs: {},
 };
 
 // 导出组件列表供调试使用
@@ -74,20 +80,15 @@ function checkComponentsLoaded() {
     // 检查页面组件
     const pageComponents = COMPONENTS.component;
     pageComponents.forEach(name => {
-        if (typeof window[name] === 'undefined') {
+        if (typeof window['components']['component'][name] === 'undefined') {
             missing.push(name);
         }
     });
-    
-    // 检查功能组件
-    if (typeof EqualizerComponent === 'undefined') {
-        missing.push('EqualizerComponent');
-    }
-    
+
     // 检查对话框组件
     const dialogComponents = COMPONENTS.dialogs;
     dialogComponents.forEach(name => {
-        if (typeof window[name] === 'undefined') {
+        if (typeof window['components']['dialogs'][name] === 'undefined') {
             missing.push(name);
         }
     });
@@ -101,7 +102,6 @@ function checkComponentsLoaded() {
     }
 }
 
-// 导出检查函数
 if (typeof window !== 'undefined') {
     window.checkComponentsLoaded = checkComponentsLoaded;
 }
@@ -111,7 +111,6 @@ if (typeof window !== 'undefined') {
  * 当所有组件都加载完成后触发
  */
 document.addEventListener('DOMContentLoaded', () => {
-    // 延迟检查，确保所有脚本都已执行
     setTimeout(() => {
         const allLoaded = checkComponentsLoaded();
         if (allLoaded) {

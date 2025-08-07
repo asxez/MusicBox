@@ -79,6 +79,7 @@ class MusicBoxApp extends EventEmitter {
         this.components.addToPlaylistDialog = new AddToPlaylistDialog();
         this.components.renamePlaylistDialog = new RenamePlaylistDialog();
         this.components.musicLibrarySelectionDialog = new MusicLibrarySelectionDialog();
+        this.components.editTrackInfoDialog = new EditTrackInfoDialog();
 
         // 初始化歌单详情页面组件
         this.components.playlistDetailPage = new PlaylistDetailPage('#content-area');
@@ -178,6 +179,10 @@ class MusicBoxApp extends EventEmitter {
             this.handleDeleteTrack(track, index);
         });
 
+        this.components.contextMenu.on('editInfo', async ({track, index}) => {
+            await this.handleEditTrackInfo(track, index);
+        });
+
         // 歌单对话框事件监听
         this.components.createPlaylistDialog.on('playlistCreated', async (playlist) => {
             await this.handlePlaylistCreated(playlist);
@@ -199,6 +204,11 @@ class MusicBoxApp extends EventEmitter {
         // 音乐库选择对话框事件监听
         this.components.musicLibrarySelectionDialog.on('tracksAdded', async (data) => {
             await this.handleTracksAddedToPlaylist(data);
+        });
+
+        // 编辑歌曲信息对话框事件监听
+        this.components.editTrackInfoDialog.on('trackUpdated', async (data) => {
+            await this.handleTrackInfoUpdated(data);
         });
 
         // 歌单详情页面事件监听
@@ -1494,6 +1504,106 @@ class MusicBoxApp extends EventEmitter {
             this.components.playlist.addTrack(track);
             console.log('🎵 添加歌曲到播放列表:', track.title);
             this.showInfo(`已添加 "${track.title}" 到播放列表`);
+        }
+    }
+
+    // 处理编辑歌曲信息
+    async handleEditTrackInfo(track, index) {
+        console.log('📝 编辑歌曲信息:', track.title);
+        await this.components.editTrackInfoDialog.show(track);
+    }
+
+    // 处理歌曲信息更新
+    async handleTrackInfoUpdated(data) {
+        const { track, updatedData } = data;
+        console.log('✅ 歌曲信息已更新:', updatedData.title);
+
+        // 确保cover字段是URL字符串
+        if (updatedData.cover && typeof updatedData.cover !== 'string') {
+            updatedData.cover = null;
+        }
+
+        try {
+            // 更新音乐库中的歌曲信息
+            const libraryTrack = this.library.find(t => t.filePath === track.filePath);
+            if (libraryTrack) {
+                Object.assign(libraryTrack, {
+                    title: updatedData.title,
+                    artist: updatedData.artist,
+                    album: updatedData.album,
+                    year: updatedData.year,
+                    genre: updatedData.genre,
+                    cover: updatedData.cover
+                });
+            }
+
+            // 更新过滤后的音乐库
+            const filteredTrack = this.filteredLibrary.find(t => t.filePath === track.filePath);
+            if (filteredTrack) {
+                Object.assign(filteredTrack, {
+                    title: updatedData.title,
+                    artist: updatedData.artist,
+                    album: updatedData.album,
+                    year: updatedData.year,
+                    genre: updatedData.genre,
+                    cover: updatedData.cover
+                });
+            }
+
+            // 更新播放列表中的歌曲信息（如果存在）
+            if (this.components.playlist) {
+                const playlistTrack = this.components.playlist.tracks.find(t => t.filePath === track.filePath);
+                if (playlistTrack) {
+                    Object.assign(playlistTrack, {
+                        title: updatedData.title,
+                        artist: updatedData.artist,
+                        album: updatedData.album,
+                        year: updatedData.year,
+                        genre: updatedData.genre,
+                        cover: updatedData.cover
+                    });
+                    this.components.playlist.render();
+                }
+            }
+
+            // 更新当前播放的歌曲信息（如果是当前播放的歌曲）
+            if (api.currentTrack && api.currentTrack.filePath === track.filePath) {
+                Object.assign(api.currentTrack, {
+                    title: updatedData.title,
+                    artist: updatedData.artist,
+                    album: updatedData.album,
+                    year: updatedData.year,
+                    genre: updatedData.genre,
+                    cover: updatedData.cover
+                });
+                // 更新播放器显示
+                if (this.components.player) {
+                    await this.components.player.updateTrackInfo(api.currentTrack);
+                }
+            }
+
+            // 重新渲染歌曲列表
+            this.updateTrackList('track-info-updated');
+
+            // 如果当前在歌单详情页面，也需要更新
+            if (this.currentView === 'playlist-detail' && this.components.playlistDetailPage.isVisible) {
+                const playlistTrack = this.components.playlistDetailPage.tracks.find(t => t.filePath === track.filePath);
+                if (playlistTrack) {
+                    Object.assign(playlistTrack, {
+                        title: updatedData.title,
+                        artist: updatedData.artist,
+                        album: updatedData.album,
+                        year: updatedData.year,
+                        genre: updatedData.genre
+                    });
+                    this.components.playlistDetailPage.render();
+                    console.log('✅ 已更新歌单详情页面中的歌曲信息');
+                }
+            }
+            this.showInfo(`歌曲信息已更新：${updatedData.title}`);
+        } catch (error) {
+            console.error('❌ 更新歌曲信息失败:', error);
+            this.showError('更新歌曲信息失败，请重试');
         }
     }
 }

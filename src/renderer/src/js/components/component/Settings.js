@@ -1286,3 +1286,5 @@ class Settings extends EventEmitter {
         showToast(message, type);
     }
 }
+
+window.components.component.Settings = Settings;
