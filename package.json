@@ -21,7 +21,8 @@
     "build:linux": "electron-builder --linux",
     "build:cross-platform": "node scripts/build-cross-platform.js --all",
     "build:icons": "electron-icon-builder --input=./docs/images/logo.png --output=build --flatten",
-    "postinstall": "cd src/renderer && npm install",
+    "setup:metadata": "node scripts/setup-metadata-support.js",
+    "postinstall": "cd src/renderer && npm install && npm run setup:metadata",
     "clean": "rimraf dist",
     "clean:all": "rimraf dist && cd src/renderer && npm run clean"
   },
@@ -42,6 +43,7 @@
     "fuse.js": "^6.6.2",
     "iconv-lite": "^0.6.3",
     "music-metadata": "^7.14.0",
+    "node-id3": "^0.2.9",
     "node-smb2": "^1.3.3",
     "webdav": "^5.8.0"
   }

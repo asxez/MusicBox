@@ -292,3 +292,5 @@ class StatisticsPage extends Component {
         `;
     }
 }
+
+window.components.component.StatisticsPage = StatisticsPage;

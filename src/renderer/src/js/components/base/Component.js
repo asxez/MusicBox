@@ -25,3 +25,5 @@ class Component extends EventEmitter {
         this.events = {};
     }
 }
+
+window.Component = Component;

@@ -326,3 +326,5 @@ class MusicLibrarySelectionDialog extends EventEmitter {
         return div.innerHTML;
     }
 }
+
+window.components.dialogs.MusicLibrarySelectionDialog = MusicLibrarySelectionDialog;

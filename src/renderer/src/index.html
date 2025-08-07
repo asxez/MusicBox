@@ -295,6 +295,12 @@
                 <span>添加到歌单</span>
             </div>
             <div class="context-menu-divider"></div>
+            <div class="context-menu-item" id="context-edit-info">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/>
+                </svg>
+                <span>编辑歌曲信息</span>
+            </div>
             <div class="context-menu-item" id="context-delete">
                 <svg class="icon" viewBox="0 0 24 24">
                     <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
@@ -795,6 +801,79 @@
             </div>
         </div>
 
+        <!-- Edit Track Info Dialog -->
+        <div id="edit-track-info-dialog" class="modal-overlay" style="display: none;">
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3 class="modal-title">编辑歌曲信息</h3>
+                    <button class="modal-close-btn" id="edit-track-info-close">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="track-info-form">
+                        <!-- 当前封面显示 -->
+                        <div class="form-group cover-section">
+                            <label class="form-label">专辑封面</label>
+                            <div class="cover-container">
+                                <img id="edit-track-cover" class="track-cover-preview" src="assets/images/default-cover.svg" alt="专辑封面">
+                                <div class="cover-actions">
+                                    <button type="button" class="btn btn-outline" id="select-cover-btn">
+                                        <svg class="icon" viewBox="0 0 24 24">
+                                            <path d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z"/>
+                                        </svg>
+                                        选择封面
+                                    </button>
+                                    <button type="button" class="btn btn-outline" id="remove-cover-btn">
+                                        <svg class="icon" viewBox="0 0 24 24">
+                                            <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                                        </svg>
+                                        移除封面
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 歌曲信息编辑 -->
+                        <div class="form-group">
+                            <label for="edit-track-title" class="form-label">歌曲名称</label>
+                            <input type="text" id="edit-track-title" class="form-input" placeholder="请输入歌曲名称" maxlength="100">
+                            <div class="form-error" id="edit-track-title-error" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="edit-track-artist" class="form-label">艺术家</label>
+                            <input type="text" id="edit-track-artist" class="form-input" placeholder="请输入艺术家名称" maxlength="100">
+                            <div class="form-error" id="edit-track-artist-error" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="edit-track-album" class="form-label">专辑名称</label>
+                            <input type="text" id="edit-track-album" class="form-input" placeholder="请输入专辑名称" maxlength="100">
+                            <div class="form-error" id="edit-track-album-error" style="display: none;"></div>
+                        </div>
+
+                        <!-- 可选的额外信息 -->
+                        <div class="form-group">
+                            <label for="edit-track-year" class="form-label">发行年份（可选）</label>
+                            <input type="number" id="edit-track-year" class="form-input" placeholder="例如：2023" min="1900" max="2099">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="edit-track-genre" class="form-label">音乐类型（可选）</label>
+                            <input type="text" id="edit-track-genre" class="form-input" placeholder="例如：流行、摇滚、古典" maxlength="50">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="edit-track-info-cancel">取消</button>
+                    <button class="btn btn-primary" id="edit-track-info-confirm" disabled>保存更改</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Network Drive Configuration Modal -->
         <div id="network-drive-modal" class="modal-overlay" style="display: none;">
             <div class="modal-dialog">
@@ -1134,7 +1213,10 @@
     <script src="js/cache-manager.js"></script>
     <script src="js/local-lyrics-manager.js"></script>
     <script src="js/embedded-lyrics-manager.js"></script>
+    <script src="js/embedded-cover-manager.js"></script>
     <script src="js/local-cover-manager.js"></script>
+    <script src="js/url-validator.js"></script>
+    <script src="js/cover-update-manager.js"></script>
     <script src="js/web-audio-engine.js"></script>
     <script src="js/bundle.js"></script>
 </body>

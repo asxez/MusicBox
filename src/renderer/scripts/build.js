@@ -137,6 +137,7 @@ async function bundleJS() {
         'local-cover-manager.js',
         'desktop-lyrics.js',
         'embedded-lyrics-manager.js',
+        'embedded-cover-manager.js'
     ];
 
     // Collect all JavaScript files

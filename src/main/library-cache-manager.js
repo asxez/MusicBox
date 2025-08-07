@@ -389,6 +389,44 @@ class LibraryCacheManager {
         return [...this.cache.tracks];
     }
 
+    // 更新缓存中的歌曲信息
+    updateTrackInCache(filePath, updatedData) {
+        const trackIndex = this.cache.tracks.findIndex(track => track.filePath === filePath);
+
+        if (trackIndex === -1) {
+            console.warn(`⚠️ LibraryCacheManager: 找不到要更新的歌曲 - ${filePath}`);
+            return false;
+        }
+
+        // 更新歌曲数据
+        const track = this.cache.tracks[trackIndex];
+        const oldData = { ...track };
+
+        // 合并更新数据
+        Object.assign(track, updatedData);
+
+        // 如果updatedData中包含lastModified，使用它；否则使用当前时间
+        if (!updatedData.lastModified) {
+            track.lastModified = Date.now();
+        }
+
+        // 更新缓存的最后更新时间
+        this.cache.lastUpdated = Date.now();
+
+        console.log(`✅ LibraryCacheManager: 更新缓存中的歌曲信息 - ${updatedData.title || track.title}`);
+        console.log(`🔄 LibraryCacheManager: 文件修改时间更新为 - ${new Date(track.lastModified)}`);
+
+        // 记录变更的字段
+        const changedFields = Object.keys(updatedData).filter(key =>
+            oldData[key] !== updatedData[key]
+        );
+        if (changedFields.length > 0) {
+            console.log(`📝 LibraryCacheManager: 变更的字段 - ${changedFields.join(', ')}`);
+        }
+
+        return true;
+    }
+
     // 根据条件搜索缓存的音乐文件
     searchTracks(query) {
         if (!query || query.trim() === '') {

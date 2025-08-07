@@ -413,7 +413,26 @@ class Lyrics extends EventEmitter {
         try {
             // 检查是否已有本地封面
             if (track.cover) {
-                console.log('🖼️ Player: 使用本地封面');
+                console.log('🖼️ Lyrics: 使用本地封面', {
+                    type: typeof track.cover,
+                    constructor: track.cover.constructor.name,
+                    value: typeof track.cover === 'string' ?
+                           track.cover.substring(0, 100) + '...' :
+                           JSON.stringify(track.cover)
+                });
+
+                if (typeof track.cover !== 'string') {
+                    console.error('❌ Lyrics: track.cover不是字符串，无法设置为src', {
+                        type: typeof track.cover,
+                        value: track.cover
+                    });
+                    this.trackCover.src = 'assets/images/default-cover.svg';
+                    this.trackCover.classList.remove('loading');
+                    this.background.style.backgroundImage = 'none';
+                    return;
+                }
+
+                console.log('🔄 Lyrics: 即将设置trackCover.src =', track.cover.substring(0, 100) + '...');
                 this.trackCover.src = track.cover;
                 this.trackCover.classList.remove('loading');
                 this.background.style.backgroundImage = `url(${track.cover})`;
@@ -422,15 +441,32 @@ class Lyrics extends EventEmitter {
 
             // 尝试从API获取封面
             if (track.title && track.artist) {
-                console.log('🖼️ Player: 从API获取封面');
-                const coverResult = await api.getCover(track.title, track.artist, track.album);
-                if (coverResult.success) {
-                    this.trackCover.src = coverResult.imageUrl;
-                    console.log('✅ Player: 封面更新成功');
-                    // 缓存封面URL到track对象
-                    track.cover = coverResult.imageUrl;
+                console.log('🖼️ Lyrics: 从API获取封面');
+                const coverResult = await api.getCover(track.title, track.artist, track.album, track.filePath);
+
+                if (coverResult.success && coverResult.imageUrl) {
+                    console.log('✅ Lyrics: 封面获取成功', {
+                        source: coverResult.source,
+                        type: coverResult.type,
+                        urlType: typeof coverResult.imageUrl
+                    });
+
+                    // 验证URL格式
+                    if (typeof coverResult.imageUrl === 'string') {
+                        this.trackCover.src = coverResult.imageUrl;
+                        this.background.style.backgroundImage = `url(${coverResult.imageUrl})`;
+                        console.log('✅ Lyrics: 封面更新成功');
+
+                        // 缓存封面URL到track对象
+                        track.cover = coverResult.imageUrl;
+                    } else {
+                        console.error('❌ Lyrics: API返回的imageUrl不是字符串', {
+                            type: typeof coverResult.imageUrl,
+                            value: coverResult.imageUrl
+                        });
+                    }
                 } else {
-                    console.log('❌ Player: 封面获取失败，使用默认封面');
+                    console.log('❌ Lyrics: 封面获取失败，使用默认封面', coverResult.error);
                 }
             }
             // 设置背景图像
@@ -739,3 +775,5 @@ class Lyrics extends EventEmitter {
         await api.seek(seekTime);
     }
 }
+
+window.components.component.Lyrics = Lyrics;

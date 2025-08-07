@@ -1060,28 +1060,65 @@ class MusicBoxAPI extends EventEmitter {
         this.emit('libraryTrackDurationUpdated', {filePath, duration});
     }
 
-    // 封面和歌词API方法
-    async getCover(title, artist, album) {
+    async getCover(title, artist, album, filePath = null, forceRefresh = false) {
         try {
-            console.log(`🖼️ 获取封面: ${title} - ${artist}`);
-
-            // 检查本地封面缓存
-            if (window.localCoverManager && window.localCoverManager.getCoverDirectory()) {
-                const localCoverResult = await window.localCoverManager.checkLocalCover(title, artist, album);
-                if (localCoverResult.success) {
-                    console.log(`✅ 本地封面缓存命中: ${title} - ${localCoverResult.fileName}`);
-                    return {
-                        success: true,
-                        imageUrl: `file://${localCoverResult.filePath}`,
-                        type: 'local-file',
-                        source: 'local-cache',
-                        filePath: localCoverResult.filePath
-                    };
+            // 如果强制刷新，先清理缓存
+            if (forceRefresh) {
+                if (filePath && window.embeddedCoverManager) {
+                    window.embeddedCoverManager.clearCacheForFile(filePath);
+                }
+                if (window.localCoverManager) {
+                    window.localCoverManager.clearCacheForTrack(title, artist, album);
                 }
             }
 
-            // 从第三方API获取封面
-            console.log(`🌐 从第三方API获取封面: ${title} - ${artist}`);
+            // 优先级1: 检查内嵌封面
+            if (filePath && window.embeddedCoverManager) {
+                try {
+                    const embeddedResult = await window.embeddedCoverManager.getEmbeddedCover(filePath);
+                    if (embeddedResult.success && embeddedResult.url) {
+                        // 验证URL有效性
+                        const isValidUrl = window.urlValidator ?
+                            await window.urlValidator.isValidUrl(embeddedResult.url) : true;
+
+                        if (isValidUrl) {
+                            return {
+                                success: true,
+                                imageUrl: embeddedResult.url,
+                                type: 'embedded',
+                                source: 'embedded-cover',
+                                format: embeddedResult.format,
+                                size: embeddedResult.size,
+                                mimeType: embeddedResult.mimeType
+                            };
+                        } else {
+                            console.warn('⚠️ API: 内嵌封面URL无效，跳过');
+                        }
+                    }
+                } catch (embeddedError) {
+                    console.warn('内嵌封面获取失败:', embeddedError.message);
+                }
+            }
+
+            // 优先级2: 检查本地封面缓存
+            if (window.localCoverManager && window.localCoverManager.getCoverDirectory()) {
+                try {
+                    const localCoverResult = await window.localCoverManager.checkLocalCover(title, artist, album);
+                    if (localCoverResult.success) {
+                        return {
+                            success: true,
+                            imageUrl: `file://${localCoverResult.filePath}`,
+                            type: 'local-file',
+                            source: 'local-cache',
+                            filePath: localCoverResult.filePath
+                        };
+                    }
+                } catch (localError) {
+                    console.warn('本地封面缓存获取失败:', localError.message);
+                }
+            }
+
+            // 优先级3: 从第三方API获取封面
             const params = new URLSearchParams();
             if (title) params.append('title', title);
             if (artist) params.append('artist', artist);
@@ -1117,10 +1154,12 @@ class MusicBoxAPI extends EventEmitter {
             }
             return result;
         } catch (error) {
-            console.error(`❌ 封面获取失败: ${title} - ${error.message}`);
+            console.error(`封面获取失败: ${title} - ${error.message}`);
             return {success: false, error: error.message};
         }
     }
+
+
 
     // 保存封面到本地
     async saveCoverToLocalCache(title, artist, album, imageData) {

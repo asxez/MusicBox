@@ -13,6 +13,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openFiles: () => ipcRenderer.invoke('dialog:openFiles'),
     openImageFile: () => ipcRenderer.invoke('dialog:openImageFile'),
 
+    // Dialog API for EditTrackInfoDialog
+    dialog: {
+        showOpenDialog: (options) => ipcRenderer.invoke('dialog:showOpenDialog', options)
+    },
+
+    // File system API for EditTrackInfoDialog
+    fs: {
+        stat: (filePath) => ipcRenderer.invoke('fs:stat', filePath),
+        readFile: (filePath) => ipcRenderer.invoke('fs:readFile', filePath)
+    },
+
     // 音频引擎
     audio: {
         // Initialize the audio engine
@@ -70,6 +81,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
         getTrackMetadata: (filePath) => ipcRenderer.invoke('library:getTrackMetadata', filePath),
         updateTrackMetadata: (trackId, metadata) => ipcRenderer.invoke('library:updateTrackMetadata', trackId, metadata),
 
+        // Cover cache management
+        clearCoverCache: (filePath) => ipcRenderer.invoke('covers:clearCache', filePath),
+
         // Playlists
         createPlaylist: (name, description) => ipcRenderer.invoke('library:createPlaylist', name, description),
         // getPlaylists: () => ipcRenderer.invoke('library:getPlaylists'),
@@ -103,6 +117,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
         onCacheValidationProgress: (callback) => {
             ipcRenderer.on('library:cacheValidationProgress', (event, progress) => callback(progress));
             return () => ipcRenderer.removeListener('library:cacheValidationProgress', callback);
+        },
+        onCoverUpdated: (callback) => {
+            ipcRenderer.on('cover-updated', (event, data) => callback(data));
+            return () => ipcRenderer.removeListener('cover-updated', callback);
         }
     },
 

@@ -445,3 +445,5 @@ class RecentPage extends Component {
         });
     }
 }
+
+window.components.component.RecentPage = RecentPage;

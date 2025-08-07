@@ -184,6 +184,13 @@ class Player extends Component {
         api.on('trackIndexChanged', (index) => {
             this.emit('trackIndexChanged', index);
         });
+
+        // 监听封面更新事件
+        if (window.coverUpdateManager) {
+            this.coverUpdateUnsubscribe = window.coverUpdateManager.onCoverUpdate((data) => {
+                this.handleCoverUpdate(data);
+            });
+        }
     }
 
     setupAPIListeners() {
@@ -265,31 +272,105 @@ class Player extends Component {
         try {
             // 检查是否已有本地封面
             if (track.cover) {
-                console.log('🖼️ Player: 使用本地封面');
+                console.log('🖼️ Player: 使用本地封面', {
+                    type: typeof track.cover,
+                    constructor: track.cover.constructor.name,
+                    value: typeof track.cover === 'string' ?
+                           track.cover.substring(0, 100) + '...' :
+                           JSON.stringify(track.cover)
+                });
+
+                if (typeof track.cover !== 'string') {
+                    console.error('❌ Player: track.cover不是字符串，无法设置为src', {
+                        type: typeof track.cover,
+                        value: track.cover
+                    });
+                    this.trackCover.src = 'assets/images/default-cover.svg';
+                    this.trackCover.classList.remove('loading');
+                    return;
+                }
+
+                console.log('🔄 Player: 即将设置trackCover.src =', track.cover.substring(0, 100) + '...');
                 this.trackCover.src = track.cover;
                 this.trackCover.classList.remove('loading');
                 return;
             }
 
-            // 尝试从API获取封面
+            // 获取封面
             if (track.title && track.artist) {
-                console.log('🖼️ Player: 从API获取封面');
-                const coverResult = await api.getCover(track.title, track.artist, track.album);
+                const coverResult = await api.getCover(track.title, track.artist, track.album, track.filePath, true);
+                if (coverResult.success && coverResult.imageUrl) {
+                    console.log('✅ Player: 封面获取成功', {
+                        source: coverResult.source,
+                        type: coverResult.type,
+                        urlType: typeof coverResult.imageUrl
+                    });
 
-                if (coverResult.success) {
-                    this.trackCover.src = coverResult.imageUrl;
-                    console.log('✅ Player: 封面更新成功');
+                    if (typeof coverResult.imageUrl === 'string') {
+                        // 使用安全的图片设置方法
+                        if (window.urlValidator) {
+                            const success = await window.urlValidator.safeSetImageSrc(
+                                this.trackCover,
+                                coverResult.imageUrl
+                            );
 
-                    // 缓存封面URL到track对象
-                    track.cover = coverResult.imageUrl;
+                            if (success) {
+                                track.cover = coverResult.imageUrl;
+                            } else {
+                                track.cover = null;
+                            }
+                        } else {
+                            this.trackCover.src = coverResult.imageUrl;
+                            track.cover = coverResult.imageUrl;
+                        }
+                    }
                 } else {
-                    console.log('❌ Player: 封面获取失败，使用默认封面');
+                    console.log('❌ Player: 封面获取失败，使用默认封面', coverResult.error);
                 }
             }
         } catch (error) {
             console.error('❌ Player: 封面更新失败:', error);
         } finally {
             this.trackCover.classList.remove('loading');
+        }
+    }
+
+    async handleCoverUpdate(data) {
+        const { filePath, title, artist, type } = data;
+
+        // 只处理封面更新事件
+        if (type && type !== 'cover-updated' && type !== 'manual-refresh') {
+            return;
+        }
+
+        const currentTrack = api.getCurrentTrack();
+        if (!currentTrack) {
+            return;
+        }
+
+        // 检查是否是当前播放的歌曲
+        const isCurrentTrack = (
+            currentTrack.filePath === filePath ||
+            (currentTrack.title === title && currentTrack.artist === artist)
+        );
+
+        if (isCurrentTrack) {
+            // 清除缓存并重新获取封面
+            if (currentTrack.cover) {
+                delete currentTrack.cover;
+            }
+
+            try {
+                await this.updateCoverArt(currentTrack);
+            } catch (error) {
+                console.error('封面更新失败:', error);
+            }
+        }
+    }
+
+    destroy() {
+        if (this.coverUpdateUnsubscribe) {
+            this.coverUpdateUnsubscribe();
         }
     }
 
@@ -527,3 +608,5 @@ class Player extends Component {
         }
     }
 }
+
+window.components.component.Player = Player;

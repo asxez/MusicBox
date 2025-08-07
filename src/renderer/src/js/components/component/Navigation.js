@@ -577,3 +577,5 @@ class Navigation extends Component {
         return div.innerHTML;
     }
 }
+
+window.components.component.Navigation = Navigation;

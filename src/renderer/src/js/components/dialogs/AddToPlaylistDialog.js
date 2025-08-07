@@ -147,3 +147,5 @@ class AddToPlaylistDialog extends EventEmitter {
         return div.innerHTML;
     }
 }
+
+window.components.dialogs.AddToPlaylistDialog = AddToPlaylistDialog;

@@ -91,22 +91,32 @@ class WebAudioEngine {
             const metadata = await this.getTrackMetadata(filePath);
             this.duration = (metadata.duration && metadata.duration > 0) ? metadata.duration : webAudioDuration;
 
-            // 处理封面数据
+            // 处理内嵌封面
             let coverUrl = null;
             if (metadata.cover && metadata.cover.data) {
                 try {
-                    console.log(`🖼️ 处理音频文件内嵌封面: ${metadata.cover.format}`);
-                    // 将Buffer数据转换为Blob
-                    const coverBlob = new Blob([metadata.cover.data], {
-                        type: `image/${metadata.cover.format.toLowerCase()}`
-                    });
-                    coverUrl = URL.createObjectURL(coverBlob);
-                    // 记录URL用于后续清理
-                    this.coverObjectUrls.add(coverUrl);
-                    console.log(`✅ 封面URL创建成功: ${coverUrl}`);
+                    if (window.embeddedCoverManager) {
+                        const coverResult = window.embeddedCoverManager.convertCoverToUrl(metadata.cover);
+                        if (coverResult.success && typeof coverResult.url === 'string') {
+                            coverUrl = coverResult.url;
+                            this.coverObjectUrls.add(coverUrl);
+                        }
+                    } else {
+                        // 直接处理封面数据
+                        const coverBlob = new Blob([metadata.cover.data], {
+                            type: `image/${metadata.cover.format.toLowerCase()}`
+                        });
+                        coverUrl = URL.createObjectURL(coverBlob);
+                        this.coverObjectUrls.add(coverUrl);
+                    }
                 } catch (error) {
-                    console.error('❌ 封面数据处理失败:', error);
+                    console.error('封面处理失败:', error);
                 }
+            }
+
+            // 验证封面URL格式
+            if (coverUrl && typeof coverUrl !== 'string') {
+                coverUrl = null;
             }
 
             // 更新当前曲目信息

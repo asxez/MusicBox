@@ -126,9 +126,10 @@ class RenamePlaylistDialog extends EventEmitter {
             console.error('❌ 重命名歌单失败:', error);
             this.showError('重命名失败，请重试');
         } finally {
-            // 恢复按钮状态
             this.confirmBtn.disabled = false;
             this.confirmBtn.textContent = '重命名';
         }
     }
 }
+
+window.components.dialogs.RenamePlaylistDialog = RenamePlaylistDialog;
