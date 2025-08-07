@@ -22,7 +22,7 @@
     "build:cross-platform": "node scripts/build-cross-platform.js --all",
     "build:icons": "electron-icon-builder --input=./docs/images/logo.png --output=build --flatten",
     "build:python": "node scripts/build-python-module.js",
-    "postinstall": "cd src/renderer && npm install && npm run setup:metadata",
+    "postinstall": "cd src/renderer && npm install",
     "clean": "rimraf dist",
     "clean:all": "rimraf dist && cd src/renderer && npm run clean"
   },
