@@ -247,21 +247,18 @@ class PlaylistDetailPage extends Component {
         const playAllBtn = this.container.querySelector('#playlist-play-all');
         if (playAllBtn) {
             playAllBtn.addEventListener('click', () => this.playAllTracks());
-            console.log('✅ 绑定播放全部按钮事件');
         }
 
         // 随机播放按钮
         const shuffleBtn = this.container.querySelector('#playlist-shuffle');
         if (shuffleBtn) {
             shuffleBtn.addEventListener('click', () => this.shufflePlayTracks());
-            console.log('✅ 绑定随机播放按钮事件');
         }
 
         // 添加歌曲按钮
         const addSongsBtn = this.container.querySelector('#playlist-add-songs');
         if (addSongsBtn) {
             addSongsBtn.addEventListener('click', () => this.showAddSongsDialog());
-            console.log('✅ 绑定添加歌曲按钮事件');
         } else {
             console.warn('⚠️ 未找到添加歌曲按钮元素');
         }
@@ -285,9 +282,7 @@ class PlaylistDetailPage extends Component {
             menuBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 menuDropdown.classList.toggle('show');
-                console.log('🔧 菜单按钮点击，切换显示状态');
             });
-            console.log('✅ 绑定菜单按钮事件');
 
             // 设置document点击监听器（每次都重新设置，因为DOM已重新生成）
             this.setupDocumentClickHandler(menuDropdown);
@@ -297,10 +292,8 @@ class PlaylistDetailPage extends Component {
             if (clearBtn) {
                 clearBtn.addEventListener('click', async () => {
                     menuDropdown.classList.remove('show');
-                    console.log('🔧 清空歌单按钮点击');
                     await this.clearPlaylist();
                 });
-                console.log('✅ 绑定清空歌单按钮事件');
             } else {
                 console.warn('⚠️ 未找到清空歌单按钮元素');
             }

@@ -257,20 +257,8 @@ class TrackList extends Component {
         try {
             console.log(`🎵 双击播放: ${track.title || track.filePath}`);
 
-            // 加载并播放音频文件
-            const loadResult = await api.loadTrack(track.filePath);
-            if (loadResult) {
-                // 自动开始播放
-                const playResult = await api.play();
-                if (playResult) {
-                    console.log('✅ 双击播放成功');
-                } else {
-                    console.log('❌ 双击播放失败');
-                }
-            } else {
-                console.log('❌ 双击加载文件失败');
-            }
-
+            // 触发trackPlayed事件，让App.js处理播放逻辑
+            // 可以确保播放列表正确设置，避免重复的播放操作
             this.emit('trackPlayed', track, index);
         } catch (error) {
             console.error('❌ 双击播放错误:', error);

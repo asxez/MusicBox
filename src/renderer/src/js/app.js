@@ -758,26 +758,49 @@ class MusicBoxApp extends EventEmitter {
 
     async handleTrackPlayed(track, index) {
         console.log('🎵 从音乐库播放歌曲:', track.title, '当前视图:', this.currentView);
+
         if (this.components.playlist) {
-            // 如果播放列表为空，只添加当前歌曲，避免页面跳转
-            if (this.components.playlist.tracks.length === 0) {
-                console.log('🎵 播放列表为空，添加当前歌曲，当前视图:', this.currentView);
-                // 只添加当前歌曲，而不是整个音乐库，避免触发页面跳转
-                this.components.playlist.setTracks([track], 0);
-                console.log('🔍 setTracks 完成，当前视图:', this.currentView);
-                await this.playTrackFromPlaylist(track, 0);
-            } else {
-                // 播放列表不为空，检查歌曲是否已在播放列表中
-                const existingIndex = this.components.playlist.tracks.findIndex(t =>
-                    t.filePath === track.filePath
-                );
-                if (existingIndex === -1) {
-                    // 歌曲不在播放列表中，添加到末尾并播放
-                    const newIndex = this.components.playlist.addTrack(track);
-                    await this.playTrackFromPlaylist(track, newIndex);
+            // 如果当前在音乐库页面，将整个音乐库添加到播放列表
+            if (this.currentView === 'library') {
+                // 获取当前显示的音乐列表
+                const currentLibrary = this.filteredLibrary && this.filteredLibrary.length > 0
+                    ? this.filteredLibrary
+                    : this.library;
+
+                if (currentLibrary.length > 0) {
+                    // 找到被双击歌曲在当前列表中的索引
+                    const trackIndex = currentLibrary.findIndex(t => t.filePath === track.filePath);
+                    const startIndex = trackIndex !== -1 ? trackIndex : 0;
+
+                    console.log(`🎵 设置播放列表: ${currentLibrary.length} 首歌曲，从第 ${startIndex + 1} 首开始播放`);
+
+                    // 将整个音乐库设置为播放列表，并从被双击的歌曲开始播放
+                    this.components.playlist.setTracks(currentLibrary, startIndex);
+                    await this.playTrackFromPlaylist(track, startIndex);
                 } else {
-                    // 歌曲已在播放列表中，直接播放
-                    await this.playTrackFromPlaylist(track, existingIndex);
+                    console.warn('⚠️ 音乐库为空，无法播放');
+                }
+            } else {
+                // 在其他页面的播放逻辑保持不变
+                if (this.components.playlist.tracks.length === 0) {
+                    console.log('🎵 播放列表为空，添加当前歌曲，当前视图:', this.currentView);
+                    // 只添加当前歌曲，而不是整个音乐库，避免触发页面跳转
+                    this.components.playlist.setTracks([track], 0);
+                    console.log('🔍 setTracks 完成，当前视图:', this.currentView);
+                    await this.playTrackFromPlaylist(track, 0);
+                } else {
+                    // 播放列表不为空，检查歌曲是否已在播放列表中
+                    const existingIndex = this.components.playlist.tracks.findIndex(t =>
+                        t.filePath === track.filePath
+                    );
+                    if (existingIndex === -1) {
+                        // 歌曲不在播放列表中，添加到末尾并播放
+                        const newIndex = this.components.playlist.addTrack(track);
+                        await this.playTrackFromPlaylist(track, newIndex);
+                    } else {
+                        // 歌曲已在播放列表中，直接播放
+                        await this.playTrackFromPlaylist(track, existingIndex);
+                    }
                 }
             }
         } else {
@@ -1328,11 +1351,7 @@ class MusicBoxApp extends EventEmitter {
                     // 加载并播放指定的歌曲
                     const loadResult = await api.loadTrack(track.filePath);
                     if (loadResult) {
-                        // 开始播放
                         const playResult = await api.play();
-                        if (playResult) {
-                            console.log('✅ 播放列表播放成功');
-                        }
                     }
                 }
             }
