@@ -27,26 +27,25 @@ class LibraryCacheManager {
         };
 
         this.initializeCacheFile();
-        console.log('🗄️ LibraryCacheManager: 音乐库缓存管理器初始化完成');
     }
 
-    // 初始化缓存文件路径
     initializeCacheFile() {
         try {
             const {app} = require('electron');
             const userDataPath = app.getPath('userData');
             this.cacheFilePath = path.join(userDataPath, this.cacheFileName);
-            console.log(`🗄️ LibraryCacheManager: 缓存文件路径 - ${this.cacheFilePath}`);
         } catch (error) {
-            // 如果在非Electron环境中运行，使用当前目录
             this.cacheFilePath = path.join(process.cwd(), this.cacheFileName);
-            console.warn('⚠️ LibraryCacheManager: 非Electron环境，使用当前目录作为缓存路径');
         }
     }
 
-    // 生成文件唯一标识符
     generateFileId(filePath, stats) {
-        const data = `${filePath}_${stats.size}_${stats.mtime.getTime()}`;
+        let timestamp = stats.mtime.getTime();
+        if (this.isNetworkPath(filePath)) {
+            timestamp = Math.floor(timestamp / 1000) * 1000;
+        }
+
+        const data = `${filePath}_${stats.size}_${timestamp}`;
         return crypto.createHash('md5').update(data).digest('hex');
     }
 
@@ -59,7 +58,6 @@ class LibraryCacheManager {
     async loadCache() {
         try {
             if (!fs.existsSync(this.cacheFilePath)) {
-                console.log('🗄️ LibraryCacheManager: 缓存文件不存在，使用空缓存');
                 return this.cache;
             }
 
@@ -69,12 +67,11 @@ class LibraryCacheManager {
             // 验证和修复缓存数据结构
             this.cache = this.validateAndFixCacheData(parsedCache);
 
-            console.log(`✅ LibraryCacheManager: 缓存加载成功，包含 ${this.cache.tracks.length} 个音乐文件和 ${this.cache.playlists.length} 个歌单`);
+
             return this.cache;
 
         } catch (error) {
             console.error('❌ LibraryCacheManager: 缓存加载失败:', error);
-            console.log('🔄 LibraryCacheManager: 使用默认空缓存');
             return this.cache;
         }
     }
@@ -118,7 +115,6 @@ class LibraryCacheManager {
                 Array.isArray(playlist.trackIds);
         });
 
-        console.log(`🔍 LibraryCacheManager: 缓存数据验证完成，修复了数据结构`);
         return validatedCache;
     }
 
@@ -149,8 +145,7 @@ class LibraryCacheManager {
 
             const cacheData = JSON.stringify(this.cache, null, 2);
             fs.writeFileSync(this.cacheFilePath, cacheData, 'utf8');
-            console.log('✅ LibraryCacheManager缓存路径：', this.cacheFilePath);
-            console.log(`✅ LibraryCacheManager: 缓存保存成功，包含 ${this.cache.tracks.length} 个音乐文件和 ${this.cache.playlists.length} 个歌单`);
+
             return true;
         } catch (error) {
             console.error('❌ LibraryCacheManager: 缓存保存失败:', error);
@@ -161,7 +156,6 @@ class LibraryCacheManager {
     // 验证音乐文件是否仍然有效
     async validateTrack(track) {
         try {
-            console.log(`🔍 LibraryCacheManager: 验证文件 "${track.fileName}" (${track.filePath})`);
 
             // 检查是否为网络路径
             if (this.isNetworkPath(track.filePath)) {
@@ -179,7 +173,6 @@ class LibraryCacheManager {
     async validateLocalTrack(track) {
         try {
             if (!fs.existsSync(track.filePath)) {
-                console.log(`❌ LibraryCacheManager: 本地文件不存在 "${track.filePath}"`);
                 return {valid: false, reason: 'file_not_found'};
             }
 
@@ -187,11 +180,9 @@ class LibraryCacheManager {
             const currentId = this.generateFileId(track.filePath, stats);
 
             if (currentId !== track.fileId) {
-                console.log(`⚠️ LibraryCacheManager: 本地文件已修改 "${track.filePath}"`);
                 return {valid: false, reason: 'file_modified', stats};
             }
 
-            console.log(`✅ LibraryCacheManager: 本地文件验证通过 "${track.fileName}"`);
             return {valid: true};
         } catch (error) {
             console.error(`❌ LibraryCacheManager: 本地文件验证失败 "${track.filePath}":`, error.message);
@@ -210,25 +201,18 @@ class LibraryCacheManager {
                 return {valid: true, reason: 'network_adapter_unavailable'};
             }
 
-            console.log(`🌐 LibraryCacheManager: 验证网络文件 "${track.filePath}"`);
-
-            // 使用网络文件适配器检查文件是否存在
             const exists = await this.networkFileAdapter.exists(track.filePath);
             if (!exists) {
-                console.log(`❌ LibraryCacheManager: 网络文件不存在 "${track.filePath}"`);
                 return {valid: false, reason: 'network_file_not_found'};
             }
 
-            // 获取网络文件的统计信息
             const stats = await this.networkFileAdapter.stat(track.filePath);
             const currentId = this.generateFileId(track.filePath, stats);
 
             if (currentId !== track.fileId) {
-                console.log(`⚠️ LibraryCacheManager: 网络文件已修改 "${track.filePath}"`);
                 return {valid: false, reason: 'network_file_modified', stats};
             }
 
-            console.log(`✅ LibraryCacheManager: 网络文件验证通过 "${track.fileName}"`);
             return {valid: true};
         } catch (error) {
             console.error(`❌ LibraryCacheManager: 网络文件验证失败 "${track.filePath}":`, error.message);
@@ -236,7 +220,6 @@ class LibraryCacheManager {
             // 对于网络文件，若验证失败则可能是网络原因，不立即删除
             // 较宽松的策略
             if (error.message.includes('网络磁盘') && error.message.includes('未连接')) {
-                console.log(`🔌 LibraryCacheManager: 网络磁盘未连接，保留文件 "${track.filePath}"`);
                 return {valid: true, reason: 'network_disconnected'};
             }
             return {valid: false, reason: 'network_access_error', error: error.message};
@@ -249,7 +232,7 @@ class LibraryCacheManager {
         const invalidTracks = [];
         const modifiedTracks = [];
 
-        console.log(`🔍 LibraryCacheManager: 开始验证 ${this.cache.tracks.length} 个缓存文件`);
+
 
         for (let i = 0; i < this.cache.tracks.length; i++) {
             const track = this.cache.tracks[i];
@@ -258,7 +241,8 @@ class LibraryCacheManager {
             if (validation.valid) {
                 validTracks.push(track);
             } else {
-                if (validation.reason === 'file_modified') {
+                // 检查是否为文件修改（包括本地文件和网络文件）
+                if (validation.reason === 'file_modified' || validation.reason === 'network_file_modified') {
                     modifiedTracks.push({track, stats: validation.stats});
                 } else {
                     invalidTracks.push({track, reason: validation.reason});
@@ -277,7 +261,7 @@ class LibraryCacheManager {
             }
         }
 
-        console.log(`✅ LibraryCacheManager: 验证完成 - 有效: ${validTracks.length}, 无效: ${invalidTracks.length}, 已修改: ${modifiedTracks.length}`);
+
         return {
             valid: validTracks,
             invalid: invalidTracks,
@@ -289,12 +273,18 @@ class LibraryCacheManager {
     addTrack(trackData, filePath, stats) {
         const fileId = this.generateFileId(filePath, stats);
 
+        // 对于网络文件，标准化时间精度
+        let lastModified = stats.mtime.getTime();
+        if (this.isNetworkPath(filePath)) {
+            lastModified = Math.floor(lastModified / 1000) * 1000;
+        }
+
         const cacheTrack = {
             fileId,
             filePath,
             fileName: path.basename(filePath),
             fileSize: stats.size,
-            lastModified: stats.mtime.getTime(),
+            lastModified: lastModified,
             addedToCache: Date.now(),
             ...trackData
         };
@@ -303,7 +293,7 @@ class LibraryCacheManager {
         const existingIndex = this.cache.tracks.findIndex(track => track.filePath === filePath);
         if (existingIndex !== -1) {
             this.cache.tracks[existingIndex] = cacheTrack;
-            console.log(`🔄 LibraryCacheManager: 更新缓存文件 - ${trackData.title}`);
+
         } else {
             this.cache.tracks.push(cacheTrack);
             console.log(`➕ LibraryCacheManager: 添加缓存文件 - ${trackData.title}`);
@@ -321,7 +311,7 @@ class LibraryCacheManager {
             addedTracks.push(cacheTrack);
         }
 
-        console.log(`✅ LibraryCacheManager: 批量添加 ${addedTracks.length} 个音乐文件到缓存`);
+
         return addedTracks;
     }
 
@@ -334,7 +324,7 @@ class LibraryCacheManager {
             !invalidPaths.includes(track.filePath)
         );
 
-        console.log(`🗑️ LibraryCacheManager: 移除 ${removedCount} 个无效缓存条目`);
+
         return removedCount;
     }
 
@@ -342,7 +332,7 @@ class LibraryCacheManager {
     addScannedDirectory(directoryPath) {
         if (!this.cache.scannedDirectories.includes(directoryPath)) {
             this.cache.scannedDirectories.push(directoryPath);
-            console.log(`📁 LibraryCacheManager: 添加已扫描目录 - ${directoryPath}`);
+
         }
     }
 
@@ -380,7 +370,7 @@ class LibraryCacheManager {
             }
         };
 
-        console.log('🧹 LibraryCacheManager: 缓存已清空');
+
         return this.saveCache();
     }
 
@@ -400,21 +390,25 @@ class LibraryCacheManager {
 
         // 更新歌曲数据
         const track = this.cache.tracks[trackIndex];
-        const oldData = { ...track };
+        const oldData = {...track};
 
         // 合并更新数据
         Object.assign(track, updatedData);
 
-        // 如果updatedData中包含lastModified，使用它；否则使用当前时间
-        if (!updatedData.lastModified) {
+        // 处理lastModified时间标准化
+        if (updatedData.lastModified) {
+            // 对于网络文件，标准化时间精度
+            if (this.isNetworkPath(filePath)) {
+                track.lastModified = Math.floor(updatedData.lastModified / 1000) * 1000;
+            } else {
+                track.lastModified = updatedData.lastModified;
+            }
+        } else {
             track.lastModified = Date.now();
         }
 
         // 更新缓存的最后更新时间
         this.cache.lastUpdated = Date.now();
-
-        console.log(`✅ LibraryCacheManager: 更新缓存中的歌曲信息 - ${updatedData.title || track.title}`);
-        console.log(`🔄 LibraryCacheManager: 文件修改时间更新为 - ${new Date(track.lastModified)}`);
 
         // 记录变更的字段
         const changedFields = Object.keys(updatedData).filter(key =>

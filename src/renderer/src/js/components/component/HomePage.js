@@ -722,9 +722,14 @@ class HomePage extends Component {
         if (scanBtn) {
             scanBtn.addEventListener('click', async () => {
                 try {
-                    await app.openDirectoryDialog();
-                    this.tracks = await api.getTracks();
-                    this.render();
+                    const directory = await api.openDirectory();
+                    if (directory) {
+                        const success = await api.scanDirectory(directory);
+                        if (success) {
+                            this.tracks = await api.getTracks();
+                            this.render();
+                        }
+                    }
                 } catch (error) {
                     console.error('扫描文件夹失败:', error);
                 }

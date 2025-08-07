@@ -1,24 +1,23 @@
 const {contextBridge, ipcRenderer} = require('electron');
 
-// Expose protected methods that allow the renderer process to use
-// the ipcRenderer without exposing the entire object
+// 暴露安全的IPC方法给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
-    // App info
+    // 应用信息
     getVersion: () => ipcRenderer.invoke('app:getVersion'),
     getPlatform: () => ipcRenderer.invoke('app:getPlatform'),
 
-    // File dialogs
+    // 文件对话框
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
     selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
     openFiles: () => ipcRenderer.invoke('dialog:openFiles'),
     openImageFile: () => ipcRenderer.invoke('dialog:openImageFile'),
 
-    // Dialog API for EditTrackInfoDialog
+    // 对话框API
     dialog: {
         showOpenDialog: (options) => ipcRenderer.invoke('dialog:showOpenDialog', options)
     },
 
-    // File system API for EditTrackInfoDialog
+    // 文件系统API
     fs: {
         stat: (filePath) => ipcRenderer.invoke('fs:stat', filePath),
         readFile: (filePath) => ipcRenderer.invoke('fs:readFile', filePath)

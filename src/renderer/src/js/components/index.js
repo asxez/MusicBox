@@ -51,11 +51,6 @@ const COMPONENTS = {
     ]
 };
 
-window.components = {
-    component: {},
-    dialogs: {},
-};
-
 // 导出组件列表供调试使用
 if (typeof window !== 'undefined') {
     window.MUSICBOX_COMPONENTS = COMPONENTS;

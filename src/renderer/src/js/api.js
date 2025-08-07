@@ -11,15 +11,12 @@ class MusicBoxAPI extends EventEmitter {
         this.currentIndex = -1;
         this.playMode = 'sequence'; // sequence, shuffle, repeat-one
 
-        // Progress tracking
+        // 进度跟踪
         this.progressInterval = null;
 
-        // 初始化Web Audio Engine
         this.webAudioEngine = null;
 
-        // Check if Electron API is available, create mock if not
         if (!window.electronAPI) {
-            console.warn('Electron API not available - running in browser mode with mock API');
             this.createMockAPI();
         }
 
@@ -91,31 +88,20 @@ class MusicBoxAPI extends EventEmitter {
             }
         };
 
-        console.log('Mock Electron API created for browser testing');
+
     }
 
     async initializeWebAudio() {
         try {
-            // 检查是否有Web Audio Engine
             if (window.WebAudioEngine) {
                 this.webAudioEngine = new window.WebAudioEngine();
-
-                // 设置事件回调（这里只是临时设置，真正的设置在setupEventListeners中）
-                console.log('🎵 Web Audio Engine 可用，将在setupEventListeners中设置事件回调');
-
-                // 初始化音频引擎
                 const initialized = await this.webAudioEngine.initialize();
                 if (initialized) {
-                    console.log('🎵 Web Audio Engine 初始化成功');
                     this.webAudioEngine.setVolume(window.cacheManager.getLocalCache('volume'));
-                } else {
-                    console.warn('⚠️ Web Audio Engine 初始化失败');
                 }
-            } else {
-                console.warn('⚠️ Web Audio Engine 不可用');
             }
         } catch (error) {
-            console.error('❌ Web Audio Engine 初始化错误:', error);
+            console.error('Web Audio Engine 初始化错误:', error);
         }
     }
 
@@ -157,13 +143,11 @@ class MusicBoxAPI extends EventEmitter {
                 this.updateTrackDuration(filePath, duration);
                 this.emit('trackDurationUpdated', {filePath, duration});
             };
-
-            console.log('✅ API: Web Audio Engine 事件监听器设置完成');
         } else {
             console.warn('⚠️ API: Web Audio Engine 不可用，无法设置事件监听器');
         }
 
-        // Electron IPC events (回退)
+        // Electron IPC events
         if (window.electronAPI.audio) {
             window.electronAPI.audio.onTrackChanged((event, track) => {
                 if (!this.webAudioEngine) {
@@ -217,7 +201,6 @@ class MusicBoxAPI extends EventEmitter {
 
     async loadTrack(filePath) {
         try {
-            console.log(`🔄 加载音频文件: ${filePath}`);
             if (this.webAudioEngine) {
                 const result = await this.webAudioEngine.loadTrack(filePath);
                 if (result) {
@@ -238,11 +221,9 @@ class MusicBoxAPI extends EventEmitter {
                         // 如果找到了，同步到Web Audio Engine
                         if (this.currentIndex !== -1) {
                             this.webAudioEngine.currentIndex = this.currentIndex;
-                            console.log(`🔄 设置播放列表索引: ${this.currentIndex}`);
                         }
                     }
 
-                    console.log('✅ Web Audio Engine 加载成功:', this.currentTrack);
                     this.emit('trackLoaded', this.currentTrack);
                     this.emit('trackChanged', this.currentTrack);
                     this.emit('durationChanged', this.duration);
@@ -251,8 +232,6 @@ class MusicBoxAPI extends EventEmitter {
 
                     // 更新播放列表中的时长信息
                     this.updateTrackDuration(filePath, this.duration);
-
-                    // 同步到主进程
                     await window.electronAPI.audio.loadTrack(filePath);
                     return true;
                 }
@@ -264,7 +243,6 @@ class MusicBoxAPI extends EventEmitter {
                 this.duration = await window.electronAPI.audio.getDuration();
                 this.position = 0;
 
-                console.log('✅ IPC 加载成功:', this.currentTrack);
                 this.emit('trackLoaded', this.currentTrack);
                 this.emit('trackChanged', this.currentTrack);
                 this.emit('durationChanged', this.duration);
@@ -280,11 +258,9 @@ class MusicBoxAPI extends EventEmitter {
 
     async play() {
         try {
-            console.log('🔄 API: 请求播放');
             if (this.webAudioEngine) {
                 const result = await this.webAudioEngine.play();
                 if (result) {
-                    console.log('✅ API: Web Audio Engine 播放成功');
                     // 不在这里手动设置状态，让Web Audio Engine的事件回调来处理
 
                     // 同步到主进程
@@ -309,11 +285,9 @@ class MusicBoxAPI extends EventEmitter {
 
     async pause() {
         try {
-            console.log('🔄 API: 请求暂停播放');
             if (this.webAudioEngine) {
                 const result = this.webAudioEngine.pause();
                 if (result) {
-                    console.log('✅ API: Web Audio Engine 暂停成功');
                     // 不在这里手动设置状态，让Web Audio Engine的事件回调来处理
 
                     // 同步到主进程
@@ -469,8 +443,6 @@ class MusicBoxAPI extends EventEmitter {
 
     async nextTrack() {
         try {
-            console.log('🔄 API: 请求播放下一首，当前播放模式:', this.playMode);
-
             if (this.playlist.length === 0) {
                 console.log('⚠️ 播放列表为空');
                 return false;
@@ -489,8 +461,6 @@ class MusicBoxAPI extends EventEmitter {
                 return false;
             }
 
-            console.log(`⏭️ 切换到下一首 (${this.playMode}模式): ${nextTrack.title || nextTrack.filePath}`);
-
             // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
                 // 手动设置索引和播放
@@ -507,15 +477,11 @@ class MusicBoxAPI extends EventEmitter {
                         this.position = 0;
                         this.isPlaying = this.webAudioEngine.isPlaying;
 
-                        console.log('✅ API: Web Audio Engine 切换成功:', this.currentTrack);
-
-                        // 触发事件
                         this.emit('trackIndexChanged', this.currentIndex);
                         this.emit('trackChanged', this.currentTrack);
                         this.emit('durationChanged', this.duration);
                         this.emit('positionChanged', 0);
                         this.emit('playbackStateChanged', this.isPlaying ? 'playing' : 'paused');
-
                         return true;
                     }
                 }
@@ -534,8 +500,6 @@ class MusicBoxAPI extends EventEmitter {
 
     async previousTrack() {
         try {
-            console.log('🔄 API: 请求播放上一首，当前播放模式:', this.playMode);
-
             if (this.playlist.length === 0) {
                 console.log('⚠️ 播放列表为空');
                 return false;
@@ -553,7 +517,6 @@ class MusicBoxAPI extends EventEmitter {
                 console.log('⚠️ 上一首歌曲不存在');
                 return false;
             }
-            console.log(`⏮️ 切换到上一首 (${this.playMode}模式): ${prevTrack.title || prevTrack.filePath}`);
 
             if (this.webAudioEngine) {
                 // 手动设置索引和播放
@@ -570,9 +533,6 @@ class MusicBoxAPI extends EventEmitter {
                         this.position = 0;
                         this.isPlaying = this.webAudioEngine.isPlaying;
 
-                        console.log('✅ API: Web Audio Engine 切换成功:', this.currentTrack);
-
-                        // 触发事件
                         this.emit('trackIndexChanged', this.currentIndex);
                         this.emit('trackChanged', this.currentTrack);
                         this.emit('durationChanged', this.duration);
@@ -595,12 +555,10 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    // File Dialog Methods
+    // 打开文件对话框
     async openFileDialog() {
         try {
-            const files = await window.electronAPI.openFiles();
-            console.log('Selected files:', files);
-            return files;
+            return await window.electronAPI.openFiles();
         } catch (error) {
             console.error('Failed to open file dialog:', error);
             return [];
@@ -609,31 +567,43 @@ class MusicBoxAPI extends EventEmitter {
 
     async openDirectoryDialog() {
         try {
-            const directory = await window.electronAPI.openDirectory();
-            console.log('Selected directory:', directory);
-            return directory;
+            return await window.electronAPI.openDirectory();
         } catch (error) {
             console.error('Failed to open directory dialog:', error);
             return null;
         }
     }
 
-    // Library Methods
     async scanDirectory(path) {
         try {
-            console.log(`Scanning directory: ${path}`);
             this.emit('scanStarted', path);
             const result = await window.electronAPI.library.scanDirectory(path);
             if (result) {
-                console.log('Directory scan completed successfully');
                 this.emit('scanCompleted', path);
-                // Refresh the track list
                 const tracks = await this.getTracks();
                 this.emit('libraryUpdated', tracks);
             }
             return result;
         } catch (error) {
             console.error('Failed to scan directory:', error);
+            this.emit('scanError', error.message);
+            return false;
+        }
+    }
+
+    async scanNetworkDrive(driveId, relativePath = '/') {
+        try {
+            this.emit('scanStarted', `network://${driveId}`);
+            const result = await window.electronAPI.library.scanNetworkDrive(driveId, relativePath);
+            if (result) {
+                this.emit('scanCompleted', `network://${driveId}`);
+                // 刷新音乐库列表
+                const tracks = await this.getTracks();
+                this.emit('libraryUpdated', tracks);
+            }
+            return result;
+        } catch (error) {
+            console.error('❌ 网络磁盘扫描失败:', error);
             this.emit('scanError', error.message);
             return false;
         }
@@ -734,16 +704,13 @@ class MusicBoxAPI extends EventEmitter {
     // 音乐库缓存方法
     async loadCachedTracks() {
         try {
-            console.log('📚 加载缓存的音乐库...');
             const tracks = await window.electronAPI.library.loadCachedTracks();
 
             if (tracks && tracks.length > 0) {
-                console.log(`✅ 从缓存加载 ${tracks.length} 个音乐文件`);
                 this.emit('libraryLoaded', tracks);
                 this.emit('libraryUpdated', tracks);
                 return tracks;
             } else {
-                console.log('📚 缓存为空或不存在');
                 return [];
             }
         } catch (error) {
@@ -755,7 +722,6 @@ class MusicBoxAPI extends EventEmitter {
 
     async validateCache() {
         try {
-            console.log('🔍 验证音乐库缓存...');
             this.emit('cacheValidationStarted');
 
             // 设置验证进度监听器
@@ -777,7 +743,6 @@ class MusicBoxAPI extends EventEmitter {
                 if (result.tracks) {
                     this.emit('libraryUpdated', result.tracks);
                 }
-
                 return result;
             } else {
                 throw new Error('缓存验证失败');
@@ -793,7 +758,6 @@ class MusicBoxAPI extends EventEmitter {
         try {
             const stats = await window.electronAPI.library.getCacheStatistics();
             if (stats) {
-                console.log('📊 缓存统计:', stats);
                 return stats;
             }
             return null;
@@ -805,11 +769,8 @@ class MusicBoxAPI extends EventEmitter {
 
     async clearCache() {
         try {
-            console.log('🧹 清空音乐库缓存...');
             const success = await window.electronAPI.library.clearCache();
-
             if (success) {
-                console.log('✅ 音乐库缓存已清空');
                 this.emit('cacheCleared');
                 this.emit('libraryUpdated', []);
                 return true;
@@ -837,10 +798,8 @@ class MusicBoxAPI extends EventEmitter {
     // 歌单封面管理方法
     async updatePlaylistCover(playlistId, imagePath) {
         try {
-            console.log(`🖼️ 更新歌单封面: ${playlistId} -> ${imagePath}`);
             const result = await window.electronAPI.library.updatePlaylistCover(playlistId, imagePath);
             if (result.success) {
-                console.log('✅ 歌单封面更新成功');
                 this.emit('playlistCoverUpdated', {playlistId, imagePath});
                 return {success: true};
             } else {
@@ -868,10 +827,8 @@ class MusicBoxAPI extends EventEmitter {
 
     async removePlaylistCover(playlistId) {
         try {
-            console.log(`🗑️ 移除歌单封面: ${playlistId}`);
             const result = await window.electronAPI.library.removePlaylistCover(playlistId);
             if (result.success) {
-                console.log('✅ 歌单封面移除成功');
                 this.emit('playlistCoverRemoved', {playlistId});
                 return {success: true};
             } else {
@@ -883,7 +840,6 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    // File Dialog Methods
     async openDirectory() {
         try {
             // 使用原始的openDirectory方法，返回字符串路径（用于音乐目录扫描等）
@@ -931,7 +887,6 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    // Settings Methods
     async getSetting(key) {
         try {
             return window.cacheManager.getLocalCache(key);
@@ -950,7 +905,6 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    // Utility Methods
     async getAppVersion() {
         try {
             return await window.electronAPI.getVersion();
@@ -976,12 +930,10 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    // Play Mode Methods
     setPlayMode(mode) {
         const validModes = ['sequence', 'shuffle', 'repeat-one'];
         if (validModes.includes(mode)) {
             this.playMode = mode;
-            console.log('🔄 播放模式切换为:', mode);
             this.emit('playModeChanged', mode);
             return true;
         }
@@ -1042,16 +994,12 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    // Utility Methods
     updateTrackDuration(filePath, duration) {
         // 更新当前播放列表中的时长信息
         if (this.playlist && this.playlist.length > 0) {
             const track = this.playlist.find(t => t.filePath === filePath);
             if (track) {
                 track.duration = duration;
-                console.log(`✅ 更新播放列表歌曲时长: ${track.title} - ${duration.toFixed(2)}s`);
-
-                // 触发播放列表更新事件
                 this.emit('playlistChanged', this.playlist);
             }
         }
@@ -1133,19 +1081,16 @@ class MusicBoxAPI extends EventEmitter {
                 // 直接返回图片数据
                 const blob = await response.blob();
                 const imageUrl = URL.createObjectURL(blob);
-                console.log(`✅ 封面获取成功 (直接图片): ${title}`);
                 result = {success: true, imageUrl, type: 'blob', source: 'api'};
                 await this.saveCoverToLocalCache(title, artist, album, blob);
             } else if (response.redirected) {
                 // 处理重定向
-                console.log(`✅ 封面获取成功 (重定向): ${title}`);
                 result = {success: true, imageUrl: response.url, type: 'url', source: 'api'};
                 await this.saveCoverToLocalCache(title, artist, album, response.url);
             } else {
                 // 尝试解析为JSON或文本
                 const text = await response.text();
                 if (text.startsWith('http')) {
-                    console.log(`✅ 封面获取成功 (URL响应): ${title}`);
                     result = {success: true, imageUrl: text.trim(), type: 'url', source: 'api'};
                     await this.saveCoverToLocalCache(title, artist, album, text.trim());
                 } else {
@@ -1159,8 +1104,6 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-
-
     // 保存封面到本地
     async saveCoverToLocalCache(title, artist, album, imageData) {
         try {
@@ -1168,9 +1111,6 @@ class MusicBoxAPI extends EventEmitter {
                 console.log('⚠️ 未设置封面缓存目录，跳过本地缓存保存');
                 return;
             }
-
-            console.log(`🔄 API: 开始保存封面到本地缓存 - ${title} by ${artist}`);
-            console.log(`🔍 API: 图片数据类型 - ${imageData instanceof Blob ? 'Blob' : typeof imageData}`);
 
             // 确定图片格式
             let imageFormat = 'jpg';
@@ -1185,16 +1125,10 @@ class MusicBoxAPI extends EventEmitter {
                 else if (imageData.includes('.webp') || imageData.includes('webp')) imageFormat = 'webp';
                 else if (imageData.includes('.gif') || imageData.includes('gif')) imageFormat = 'gif';
             }
-            console.log(`🔍 API: 推断的图片格式 - ${imageFormat}`);
 
             const saveResult = await window.localCoverManager.saveCoverToCache(
                 title, artist, album, imageData, imageFormat
             );
-            if (saveResult.success) {
-                console.log(`✅ 封面已保存到本地缓存: ${saveResult.fileName}`);
-            } else {
-                console.warn(`⚠️ 封面保存到本地缓存失败: ${saveResult.error}`);
-            }
         } catch (error) {
             console.error('❌ 保存封面到本地缓存时发生错误:', error);
         }
@@ -1209,10 +1143,7 @@ class MusicBoxAPI extends EventEmitter {
                 try {
                     const embeddedResult = await window.embeddedLyricsManager.getEmbeddedLyrics(filePath);
                     if (embeddedResult.success) {
-                        console.log(`✅ 内嵌歌词获取成功: ${title} - ${embeddedResult.type} 格式`);
                         return embeddedResult;
-                    } else {
-                        console.log(`ℹ️ 内嵌歌词未找到: ${title} - ${embeddedResult.error}`);
                     }
                 } catch (embeddedError) {
                     console.warn(`⚠️ 内嵌歌词获取异常: ${title} - ${embeddedError.message}`);
@@ -1224,10 +1155,7 @@ class MusicBoxAPI extends EventEmitter {
                 try {
                     const localResult = await window.localLyricsManager.getLyrics(title, artist, album);
                     if (localResult.success) {
-                        console.log(`✅ 本地歌词获取成功: ${title} - ${localResult.fileName}`);
                         return localResult;
-                    } else {
-                        console.log(`ℹ️ 本地歌词未找到: ${title} - ${localResult.error}`);
                     }
                 } catch (localError) {
                     console.warn(`⚠️ 本地歌词获取异常: ${title} - ${localError.message}`);
@@ -1238,7 +1166,6 @@ class MusicBoxAPI extends EventEmitter {
             if (window.cacheManager) {
                 const cached = window.cacheManager.getLyricsCache(title, artist, album);
                 if (cached) {
-                    console.log(`✅ 歌词缓存命中: ${title}`);
                     return cached;
                 }
             }
@@ -1256,8 +1183,6 @@ class MusicBoxAPI extends EventEmitter {
             if (!lrcText || lrcText.trim() === '') {
                 console.error(`⚠️ 歌词内容为空`);
             }
-
-            console.log(`✅ 网络歌词获取成功: ${title}`);
             const result = {
                 success: true,
                 lrc: lrcText.trim(),
@@ -1406,7 +1331,6 @@ class MusicBoxAPI extends EventEmitter {
 
             // 同步播放进度
             await this.syncToDesktopLyrics('position', this.position);
-            console.log('✅ 当前状态已同步到桌面歌词');
         } catch (error) {
             console.error('❌ 同步当前状态到桌面歌词失败:', error);
         }
