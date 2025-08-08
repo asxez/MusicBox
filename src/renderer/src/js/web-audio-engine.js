@@ -102,7 +102,7 @@ class WebAudioEngine {
                 coverUrl = null;
             }
 
-            // 更新当前曲目信息
+            // 更新当前歌曲信息
             this.currentTrack = {
                 filePath: filePath,
                 title: metadata.title,

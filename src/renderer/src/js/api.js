@@ -111,7 +111,7 @@ class MusicBoxAPI extends EventEmitter {
             console.log('🔄 API: 设置Web Audio Engine事件监听器');
 
             this.webAudioEngine.onTrackChanged = (track) => {
-                console.log('🎵 API: Web Audio Engine 曲目变化:', track);
+                console.log('🎵 API: Web Audio Engine 歌曲变化:', track);
                 this.currentTrack = track;
                 this.emit('trackChanged', track);
                 // 同步到桌面歌词

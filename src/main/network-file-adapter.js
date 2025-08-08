@@ -9,7 +9,6 @@ class NetworkFileAdapter {
         this.filePathMappings = new Map();
     }
 
-
     isNetworkPath(filePath) {
         if (!filePath || typeof filePath !== 'string') {
             return false;
@@ -37,7 +36,7 @@ class NetworkFileAdapter {
         const parts = pathWithoutProtocol.split('/');
         const driveId = parts[0];
         const relativePath = parts.slice(1).join('/');
-        return { driveId, relativePath };
+        return {driveId, relativePath};
     }
 
     // 构建网络路径
@@ -131,7 +130,7 @@ class NetworkFileAdapter {
     // 为网络文件重新建立路径映射
     async rebuildPathMapping(networkPath) {
         try {
-            const { driveId, relativePath } = this.parseNetworkPath(networkPath);
+            const {driveId, relativePath} = this.parseNetworkPath(networkPath);
             const fileName = require('path').basename(relativePath);
             const dirPath = require('path').dirname(relativePath);
             const networkDirPath = this.buildNetworkPath(driveId, dirPath === '.' ? '/' : dirPath);
@@ -155,7 +154,7 @@ class NetworkFileAdapter {
         }
 
         // 解析基础路径
-        const { driveId, relativePath } = this.parseNetworkPath(basePath);
+        const {driveId, relativePath} = this.parseNetworkPath(basePath);
 
         // 构建新的相对路径
         let newRelativePath;
@@ -171,9 +170,9 @@ class NetworkFileAdapter {
     }
 
     async readFile(networkPath) {
-        const { driveId, relativePath } = this.parseNetworkPath(networkPath);
+        const {driveId, relativePath} = this.parseNetworkPath(networkPath);
         const driveInfo = this.networkDriveManager.getDriveInfo(driveId);
-        
+
         if (!driveInfo) {
             throw new Error(`网络磁盘 ${driveId} 未挂载`);
         }
@@ -224,7 +223,7 @@ class NetworkFileAdapter {
     async readWebDAVFile(webdavClient, filePath) {
         try {
             const actualPath = this.getActualWebDAVPath(filePath);
-            const arrayBuffer = await webdavClient.getFileContents(actualPath, { format: 'binary' });
+            const arrayBuffer = await webdavClient.getFileContents(actualPath, {format: 'binary'});
             console.log(`✅ NetworkFileAdapter: WebDAV文件读取成功，大小: ${arrayBuffer.byteLength} 字节`);
             return Buffer.from(arrayBuffer);
         } catch (error) {
@@ -237,7 +236,7 @@ class NetworkFileAdapter {
                 console.log(`🔄 尝试备选方案：使用编码路径`);
                 try {
                     const encodedPath = this.encodeWebDAVPath(filePath);
-                    const arrayBuffer = await webdavClient.getFileContents(encodedPath, { format: 'binary' });
+                    const arrayBuffer = await webdavClient.getFileContents(encodedPath, {format: 'binary'});
                     return Buffer.from(arrayBuffer);
                 } catch (fallbackError) {
                     console.error(`❌ 备选方案也失败:`, fallbackError.message);
@@ -249,9 +248,9 @@ class NetworkFileAdapter {
 
     // 获取网络文件统计信息
     async stat(networkPath) {
-        const { driveId, relativePath } = this.parseNetworkPath(networkPath);
+        const {driveId, relativePath} = this.parseNetworkPath(networkPath);
         const driveInfo = this.networkDriveManager.getDriveInfo(driveId);
-        
+
         if (!driveInfo) {
             throw new Error(`网络磁盘 ${driveId} 未挂载`);
         }
@@ -339,9 +338,9 @@ class NetworkFileAdapter {
 
     // 列出网络目录内容
     async readdir(networkPath) {
-        const { driveId, relativePath } = this.parseNetworkPath(networkPath);
+        const {driveId, relativePath} = this.parseNetworkPath(networkPath);
         const driveInfo = this.networkDriveManager.getDriveInfo(driveId);
-        
+
         if (!driveInfo) {
             throw new Error(`网络磁盘 ${driveId} 未挂载`);
         }
@@ -438,7 +437,7 @@ class NetworkFileAdapter {
                 return false;
             }
 
-            const { driveId, relativePath } = this.parseNetworkPath(networkPath);
+            const {driveId, relativePath} = this.parseNetworkPath(networkPath);
             console.log(`🔍 NetworkFileAdapter: 解析路径 driveId="${driveId}", relativePath="${relativePath}"`);
 
             let driveInfo = this.networkDriveManager.getDriveInfo(driveId);
@@ -509,7 +508,7 @@ class NetworkFileAdapter {
             throw new Error('文件内容必须是Buffer类型');
         }
 
-        const { driveId, relativePath } = this.parseNetworkPath(networkPath);
+        const {driveId, relativePath} = this.parseNetworkPath(networkPath);
         const driveInfo = this.networkDriveManager.getDriveInfo(driveId);
 
         if (!driveInfo) {
@@ -591,7 +590,7 @@ class NetworkFileAdapter {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 const actualPath = this.getActualWebDAVPath(filePath);
-                await webdavClient.putFileContents(actualPath, buffer, { overwrite: true });
+                await webdavClient.putFileContents(actualPath, buffer, {overwrite: true});
                 console.log(`✅ NetworkFileAdapter: WebDAV文件写入成功 (尝试 ${attempt})`);
                 return true;
             } catch (error) {
@@ -604,7 +603,7 @@ class NetworkFileAdapter {
                 if (this.filePathMappings.has(filePath) && attempt === 1) {
                     try {
                         const encodedPath = this.encodeWebDAVPath(filePath);
-                        await webdavClient.putFileContents(encodedPath, buffer, { overwrite: true });
+                        await webdavClient.putFileContents(encodedPath, buffer, {overwrite: true});
                         return true;
                     } catch (fallbackError) {
                         console.error(`❌ 备选方案也失败:`, fallbackError.message);

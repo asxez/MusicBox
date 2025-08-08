@@ -324,7 +324,7 @@ class ArtistsPage extends Component {
             albums[albumName].push(track);
         });
 
-        // 按专辑内的曲目编号排序
+        // 按专辑内的歌曲编号排序
         Object.values(albums).forEach(albumTracks => {
             albumTracks.sort((a, b) => (a.track || 0) - (b.track || 0));
         });

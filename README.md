@@ -68,7 +68,7 @@
 
 ### 预编译版本下载
 
-前往 [Releases](https://github.com/asxez/MusicBox/releases) 页面下载适合你操作系统的安装包，目前项目处于DEV阶段，仅提供Windows版本。
+前往 [Releases](https://github.com/asxez/MusicBox/releases) 页面下载适合你系统的安装包。
 
 ### 从源码构建
 
@@ -154,6 +154,7 @@ MusicBox/
 #### 1. 环境要求
 
 - Node.js >= 20.0.0
+- python >= 3.8
 
 #### 2. 克隆项目
 
