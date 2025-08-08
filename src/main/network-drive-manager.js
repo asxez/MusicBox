@@ -36,7 +36,6 @@ class NetworkDriveManager extends EventEmitter {
         }
     }
 
-
     async initialize() {
         if (this.isInitialized) {
             return true;
@@ -66,7 +65,6 @@ class NetworkDriveManager extends EventEmitter {
             return false;
         }
     }
-
 
     async ensureWebDAVLoaded() {
         if (!this.isInitialized) {
