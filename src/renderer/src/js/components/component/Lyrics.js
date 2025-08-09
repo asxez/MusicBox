@@ -736,11 +736,12 @@ class Lyrics extends EventEmitter {
 
     // 进度条交互方法
     async seekToPosition(e) {
-        if (!this.currentTrack || !await api.getDuration()) return;
+        const duration = (this.currentTrack && this.currentTrack.duration) ? this.currentTrack.duration : (await api.getDuration());
+        if (!this.currentTrack || !duration) return;
         const rect = this.progressBar.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const percentage = clickX / rect.width;
-        const seekTime = percentage * await api.getDuration();
+        const seekTime = percentage * duration;
         await api.seek(seekTime);
         console.log('🎵 Lyrics: 跳转到', this.formatTime(seekTime));
     }
@@ -752,7 +753,8 @@ class Lyrics extends EventEmitter {
     }
 
     updateProgressDrag(e) {
-        if (!this.isDraggingProgress || !this.currentTrack || !api.getDuration()) return;
+        const duration = (this.currentTrack && this.currentTrack.duration) ? this.currentTrack.duration : (api.duration || 0);
+        if (!this.isDraggingProgress || !this.currentTrack || duration <= 0) return;
 
         const rect = this.progressBar.getBoundingClientRect();
         const dragX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
@@ -760,7 +762,7 @@ class Lyrics extends EventEmitter {
 
         // 实时更新进度条显示
         this.progressFill.style.width = `${percentage * 100}%`;
-        this.currentTimeEl.textContent = this.formatTime(percentage * api.getDuration());
+        this.currentTimeEl.textContent = this.formatTime(percentage * duration);
     }
 
     async endProgressDrag() {
@@ -771,7 +773,8 @@ class Lyrics extends EventEmitter {
 
         // 执行实际的跳转
         const percentage = parseFloat(this.progressFill.style.width) / 100;
-        const seekTime = percentage * await api.getDuration();
+        const duration = (this.currentTrack && this.currentTrack.duration) ? this.currentTrack.duration : (await api.getDuration());
+        const seekTime = percentage * (duration || 0);
         await api.seek(seekTime);
     }
 }
