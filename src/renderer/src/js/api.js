@@ -379,9 +379,9 @@ class MusicBoxAPI extends EventEmitter {
         return this.volume;
     }
 
-    async getCurrentPosition() {
+    getCurrentPosition() {
         try {
-            this.position = await window.electronAPI.audio.getPosition();
+            this.position = this.webAudioEngine.getPosition();
             return this.position;
         } catch (error) {
             console.error('Failed to get position:', error);
@@ -389,9 +389,9 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async getCurrentTrack() {
+    getCurrentTrack() {
         try {
-            this.currentTrack = await window.electronAPI.audio.getCurrentTrack();
+            this.currentTrack = this.webAudioEngine.getCurrentTrack();
             return this.currentTrack;
         } catch (error) {
             console.error('Failed to get track:', error);
@@ -401,7 +401,7 @@ class MusicBoxAPI extends EventEmitter {
 
     async getDuration() {
         try {
-            this.duration = await window.electronAPI.audio.getDuration();
+            this.duration = this.webAudioEngine.getDuration();
             return this.duration;
         } catch (error) {
             console.error('Failed to get duration:', error);

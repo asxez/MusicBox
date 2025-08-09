@@ -45,8 +45,7 @@ class MusicBoxApp extends EventEmitter {
         if (!success) {
             throw new Error('Failed to initialize audio engine');
         }
-
-        // Load saved settings
+        // 恢复音量
         const savedVolume = window.cacheManager.getLocalCache('volume');
         if (savedVolume !== null) {
             await api.setVolume(savedVolume);
@@ -336,7 +335,9 @@ class MusicBoxApp extends EventEmitter {
         // Update lyrics page progress
         api.on('positionChanged', (position) => {
             if (this.components.lyrics.isVisible) {
-                this.components.lyrics.updateProgress(position, api.duration);
+                // 使用当前歌曲的时长以避免使用可能过期的全局 api.duration
+                const duration = (api.currentTrack && api.currentTrack.duration) ? api.currentTrack.duration : api.duration;
+                this.components.lyrics.updateProgress(position, duration);
             }
         });
 
@@ -989,7 +990,7 @@ class MusicBoxApp extends EventEmitter {
                     if (this.components.lyrics.isVisible) {
                         this.components.lyrics.hide();
                     } else {
-                        const currentTrack = await api.getCurrentTrack();
+                        const currentTrack = api.getCurrentTrack();
                         if (currentTrack) {
                             this.components.lyrics.show(currentTrack);
                         }
