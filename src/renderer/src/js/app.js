@@ -80,6 +80,7 @@ class MusicBoxApp extends EventEmitter {
         this.components.homePage = new HomePage('#content-area');
         this.components.recentPage = new RecentPage('#content-area');
         this.components.artistsPage = new ArtistsPage('#content-area');
+        this.components.albumsPage = new AlbumsPage('#content-area');
         this.components.statisticsPage = new StatisticsPage('#content-area');
 
         // 设置组件事件监听
@@ -251,6 +252,13 @@ class MusicBoxApp extends EventEmitter {
         this.components.settings.on('artistsPageEnabled', (enabled) => {
             if (this.components.navigation) {
                 this.components.navigation.updateArtistsPageButtonVisibility(enabled);
+            }
+        });
+
+        // 监听专辑页面设置变化
+        this.components.settings.on('albumsPageEnabled', (enabled) => {
+            if (this.components.navigation) {
+                this.components.navigation.updateAlbumsPageButtonVisibility(enabled);
             }
         });
 
@@ -686,6 +694,19 @@ class MusicBoxApp extends EventEmitter {
         this.components.artistsPage.on('addToPlaylist', (track) => {
             this.addToPlaylist(track);
         });
+
+        // AlbumsPage events
+        this.components.albumsPage.on('trackPlayed', async (track, index) => {
+            await this.handleTrackPlayed(track, index);
+        });
+
+        this.components.albumsPage.on('playAll', async (tracks) => {
+            await this.handlePlayAllTracks(tracks);
+        });
+
+        this.components.albumsPage.on('addToPlaylist', (track) => {
+            this.addToPlaylist(track);
+        });
     }
 
     async handlePlayAllTracks(tracks) {
@@ -730,6 +751,9 @@ class MusicBoxApp extends EventEmitter {
             case 'artists':
                 await this.components.artistsPage.show();
                 break;
+            case 'albums':
+                await this.components.albumsPage.show();
+                break;
             case 'statistics':
                 await this.components.statisticsPage.show();
                 break;
@@ -752,6 +776,7 @@ class MusicBoxApp extends EventEmitter {
         if (this.components.homePage) this.components.homePage.hide();
         if (this.components.recentPage) this.components.recentPage.hide();
         if (this.components.artistsPage) this.components.artistsPage.hide();
+        if (this.components.albumsPage) this.components.albumsPage.hide();
         if (this.components.statisticsPage) this.components.statisticsPage.hide();
         if (this.components.playlistDetailPage) this.components.playlistDetailPage.hide();
         if (this.components.trackList) this.components.trackList.hide();

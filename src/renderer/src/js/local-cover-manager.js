@@ -40,7 +40,9 @@ class LocalCoverManager {
     generateCoverFileName(title, artist, album = '') {
         // 清理文件名中的非法字符
         const cleanString = (str) => {
-            return str.replace(/[<>:"/\\|?*]/g, '_')
+            if (str == null) return '';
+            return String(str)
+                .replace(/[<>:"/\\|?*]/g, '_')
                 .replace(/\s+/g, '_')
                 .substring(0, 100); // 限制长度
         };
@@ -49,6 +51,10 @@ class LocalCoverManager {
         const cleanArtist = cleanString(artist);
         const cleanAlbum = cleanString(album);
 
+        // Album-only 命名：当没有标题时，使用 艺术家_专辑__ALBUM 做强区分
+        if (!cleanTitle && cleanAlbum) {
+            return `${cleanArtist}_${cleanAlbum}__ALBUM`;
+        }
         // 优先使用 艺术家_歌曲_专辑 格式，如果没有专辑则使用 艺术家_歌曲
         if (cleanAlbum) {
             return `${cleanArtist}_${cleanTitle}_${cleanAlbum}`;
@@ -65,7 +71,12 @@ class LocalCoverManager {
      * @returns {string} 缓存键
      */
     generateCacheKey(title, artist, album = '') {
-        return `${artist}|${title}|${album}`.toLowerCase();
+        const s = (v) => (v == null ? '' : String(v)).toLowerCase();
+        if (!title) {
+            // Album-only 缓存键前缀，避免与单曲封面混淆
+            return `album|${s(artist)}|${s(album)}`;
+        }
+        return `${s(artist)}|${s(title)}|${s(album)}`;
     }
 
     /**
@@ -95,11 +106,20 @@ class LocalCoverManager {
             console.log(`🔍 LocalCoverManager: 检查本地封面缓存 - ${title} by ${artist}`);
 
             // 搜索匹配的封面文件
+            const isAlbum = !title;
             const searchResult = await window.electronAPI.covers.checkLocalCover(
-                this.coverDirectory, title, artist, album
+                this.coverDirectory, title, artist, album, isAlbum
             );
 
             if (searchResult.success && searchResult.filePath) {
+                // Album-only 查询时，仅接受专辑命名规范的文件，避免误命中单曲封面
+                if (!title) {
+                    const expectedBase = this.generateCoverFileName('', artist, album); // artist_album__ALBUM
+                    const ok = searchResult.fileName && searchResult.fileName.startsWith(`${expectedBase}.`);
+                    if (!ok) {
+                        return {success: false, error: '未找到本地封面缓存（album-only 过滤）'};
+                    }
+                }
                 // 添加到内存缓存
                 this.addToCache(cacheKey, searchResult.filePath);
                 console.log(`✅ LocalCoverManager: 找到本地封面缓存 - ${searchResult.fileName}`);

@@ -7,9 +7,7 @@ class HomePage extends Component {
         super(container);
         this.tracks = [];
         this.recentTracks = [];
-        this.personalizedRecommendations = [];
         this.setupElements();
-        console.log('🏠 HomePage: 新首页组件初始化完成');
     }
 
     setupElements() {
@@ -17,7 +15,6 @@ class HomePage extends Component {
     }
 
     async show() {
-        console.log('🏠 HomePage: 显示新首页');
         if (this.element) {
             this.element.style.display = 'block';
         }
@@ -26,7 +23,6 @@ class HomePage extends Component {
     }
 
     hide() {
-        console.log('🏠 HomePage: 隐藏首页');
         if (this.container) {
             this.container.innerHTML = '';
         }

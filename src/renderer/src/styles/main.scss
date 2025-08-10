@@ -9687,3 +9687,290 @@ body.focus-mode {
     font-size: var(--font-size-md);
   }
 }
+
+
+/* AlbumsX - 全新专辑页样式（不改动现有变量，仅新增） */
+.albumsx {
+  --albumsx-gap: var(--spacing-lg);
+  --albumsx-radius: var(--radius-lg);
+  --albumsx-shadow: var(--shadow-card);
+  --albumsx-shadow-hover: var(--shadow-card-hover);
+
+  &.page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--albumsx-gap);
+  }
+
+  /* 顶部工具栏 */
+  .albumsx-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--color-secondary-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+  }
+  .albumsx-toolbar .cluster { display: flex; align-items: center; gap: var(--spacing-lg); }
+  .albumsx-toolbar .title { display: flex; align-items: baseline; gap: var(--spacing-sm); font-weight: 700; font-size: 22px; }
+  .albumsx-toolbar .title .disc { font-size: 20px; }
+  .albumsx-toolbar .title .muted { color: var(--color-text-secondary); font-weight: 500; font-size: 14px; }
+
+  .segmented { display: inline-flex; background: var(--color-body-bg); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 2px; }
+  .segmented .seg-btn {
+    padding: 6px 12px; border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+  }
+  .segmented .seg-btn:hover { background: var(--color-hover); color: var(--color-text); }
+  .segmented .seg-btn.active { background: var(--color-primary); color: #fff; box-shadow: var(--albumsx-shadow); }
+
+  .search-inline input {
+    height: 32px; padding: 0 12px; background: var(--color-body-bg);
+    border: 1px solid var(--color-border); border-radius: var(--radius-md);
+    color: var(--color-text); font-size: 14px; min-width: 220px;
+  }
+  .search-inline input::placeholder { color: var(--color-text-secondary); }
+  .select select {
+    height: 32px; padding: 0 12px; background: var(--color-body-bg);
+    border: 1px solid var(--color-border); border-radius: var(--radius-md);
+    color: var(--color-text); font-size: 14px;
+  }
+
+  /* 专辑网格 */
+  .albumsx-grid {
+    --cover: 150px; /* JS 会覆盖 */
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(calc(var(--cover) + 60px), 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .albumsx-tile { user-select: none; }
+  .albumsx-tile .art {
+    position: relative; width: var(--cover); height: var(--cover);
+    border-radius: var(--albumsx-radius); overflow: hidden; box-shadow: var(--albumsx-shadow);
+    transition: transform var(--transition-smooth), box-shadow var(--transition-smooth);
+    margin: 0 auto;
+  }
+  .albumsx-tile .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .albumsx-tile .art::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,.25) 100%);
+    opacity: 0; transition: opacity var(--transition-smooth);
+  }
+  .albumsx-tile .art .play {
+    position: absolute; right: 12px; bottom: 12px; width: 40px; height: 40px;
+    border-radius: 50%; color: #fff; background: rgba(var(--color-primary-rgb), .9);
+    display: grid; place-items: center; transform: translateY(6px); opacity: 0;
+    box-shadow: var(--albumsx-shadow); transition: all var(--transition-smooth);
+  }
+  .albumsx-tile .art .play svg { width: 20px; height: 20px; fill: currentColor; }
+  .albumsx-tile:hover .art { transform: translateY(-4px); box-shadow: var(--albumsx-shadow-hover); }
+  .albumsx-tile:hover .art::after { opacity: 1; }
+  .albumsx-tile:hover .art .play { transform: translateY(0); opacity: 1; }
+
+  .albumsx-tile .meta { padding: 10px 6px 0; text-align: center; }
+  .albumsx-tile .name { font-weight: 600; font-size: 15px; color: var(--color-text); }
+  .albumsx-tile .sub { margin-top: 4px; font-size: 12px; color: var(--color-text-secondary); }
+
+  .clamp-1 {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1;
+    overflow: hidden; text-overflow: ellipsis; white-space: normal;
+  }
+
+  /* 空状态 */
+  .albumsx-empty { text-align: center; padding: 80px 0; color: var(--color-text-secondary); }
+  .albumsx-empty .icon { width: 56px; height: 56px; margin: 0 auto 12px; opacity: .5; }
+  .albumsx-empty h3 { font-size: 20px; margin-bottom: 6px; color: var(--color-text); }
+
+  /* 详情页 */
+  &.detail { display: flex; flex-direction: column; gap: var(--spacing-lg); }
+
+  .detail-topbar {
+    position: sticky; top: 0; z-index: 5; display: flex; align-items: center;
+    padding: 10px; background: var(--color-navbar-bg); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .detail-topbar .ghost { display: inline-flex; align-items: center; gap: 6px; color: var(--color-text-secondary); padding: 6px 10px; border-radius: var(--radius-md); }
+  .detail-topbar .ghost:hover { background: var(--color-hover); color: var(--color-text); }
+  .detail-topbar .ghost svg { width: 18px; height: 18px; }
+
+  .detail-hero { display: grid; grid-template-columns: auto 1fr; gap: var(--spacing-xl); align-items: center; padding: 0 var(--spacing-md); }
+  .detail-hero .cover { width: 240px; height: 240px; border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--albumsx-shadow-hover); }
+  .detail-hero .cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .detail-hero .info .name { font-size: 34px; font-weight: 800; margin-bottom: 8px; }
+  .detail-hero .info .stats { color: var(--color-text-secondary); display: flex; gap: 8px; align-items: center; }
+  .detail-hero .info .actions { margin-top: 18px; display: flex; gap: 12px; }
+  .detail-hero .info .actions .primary {
+    background: var(--color-primary); color: #fff; padding: 10px 16px; border-radius: var(--radius-md);
+    display: inline-flex; align-items: center; gap: 8px; box-shadow: var(--albumsx-shadow);
+  }
+  .detail-hero .info .actions .primary:hover { transform: translateY(-1px); box-shadow: var(--albumsx-shadow-hover); }
+  .detail-hero .info .actions .outline {
+    background: transparent; color: var(--color-text); padding: 10px 16px; border-radius: var(--radius-md);
+    border: 1px solid var(--color-border); display: inline-flex; align-items: center; gap: 8px;
+  }
+  .detail-hero .info .actions .outline:hover { background: var(--color-hover); }
+  .detail-hero .info .actions svg { width: 18px; height: 18px; }
+
+  .detail-tracks { padding: 0 var(--spacing-md) var(--spacing-xl); }
+  .trackx { display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: var(--spacing-md); padding: 10px 8px; border-radius: var(--radius-md); }
+  .trackx:hover { background: var(--color-hover); }
+  .trackx .idx { text-align: right; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+  .trackx .t-title { font-weight: 500; color: var(--color-text); }
+  .trackx .t-tail { display: inline-flex; align-items: center; gap: 8px; color: var(--color-text-secondary); }
+  .trackx .t-time { font-variant-numeric: tabular-nums; }
+  .trackx .i-btn { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: var(--color-text-secondary); }
+  .trackx .i-btn:hover { background: var(--color-body-bg); color: var(--color-text); box-shadow: var(--albumsx-shadow); }
+  .trackx .i-btn svg { width: 16px; height: 16px; }
+
+  @media (max-width: 920px) {
+    .detail-hero { grid-template-columns: 1fr; }
+    .detail-hero .cover { justify-self: center; }
+    .detail-hero .info { text-align: center; }
+    .detail-hero .info .actions { justify-content: center; }
+  }
+}
+
+/* AlbumsX v2 – 质感与动效增强（覆盖/补充上方同名选择器） */
+.albumsx {
+  /* 页面与过渡 */
+  &.page { animation: albumsxFadeIn 320ms var(--transition-smooth) both; }
+  &.detail { animation: albumsxFadeIn 280ms var(--transition-smooth) both; }
+  @keyframes albumsxFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 磁贴质感：多层阴影 + 内阴影 + 高光 */
+  .albumsx-tile .art {
+    box-shadow:
+      0 1px 2px rgba(0,0,0,0.06),
+      0 4px 14px rgba(0,0,0,0.12),
+      0 10px 24px rgba(0,0,0,0.08);
+    border: 1px solid rgba(0,0,0,0.06);
+    position: relative;
+    will-change: transform, box-shadow;
+  }
+  /* 细腻内阴影模拟“封套”边缘 */
+  .albumsx-tile .art::before {
+    content: ''; pointer-events: none; position: absolute; inset: 0;
+    background: linear-gradient(145deg, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.04) 35%, rgba(0,0,0,0.08) 100%);
+    mix-blend-mode: overlay; opacity: 0.0; transition: opacity 220ms var(--transition-smooth);
+  }
+  /* 底部光晕叠层增强纵深 */
+  .albumsx-tile .art::after {
+    box-shadow: inset 0 -20px 40px rgba(0,0,0,0.18);
+  }
+
+  /* 悬停动效：轻微抬升 + 透视 + 阴影增强 */
+  .albumsx-tile:hover .art {
+    transform: perspective(600px) translateY(-8px) scale(1.015) rotateX(1.2deg) rotateY(0.6deg);
+    box-shadow:
+      0 6px 16px rgba(0,0,0,0.16),
+      0 18px 36px rgba(0,0,0,0.14),
+      0 30px 56px rgba(0,0,0,0.10);
+    border-color: rgba(0,0,0,0.08);
+  }
+  .albumsx-tile:hover .art::before { opacity: 0.35; }
+
+  /* 播放按钮出现动画：平滑弹性 */
+  .albumsx-tile .art .play { transform: translateY(8px) scale(0.96); opacity: 0; will-change: transform, opacity; }
+  .albumsx-tile:hover .art .play { opacity: 1; transform: translateY(0) scale(1); box-shadow: 0 8px 20px rgba(0,0,0,0.18); }
+  .albumsx-tile .art .play:active { transform: translateY(0) scale(0.96); }
+
+  /* 细节：卡片整体 hover 的微妙光泽与标题上浮 */
+  .albumsx-tile:hover .name { transform: translateY(-1px); }
+  .albumsx-tile .name { transition: transform 200ms var(--transition-smooth), color 200ms var(--transition-smooth); }
+  .albumsx-tile .sub { opacity: 0.85; transition: opacity 200ms var(--transition-smooth); }
+  .albumsx-tile:hover .sub { opacity: 1; }
+
+  /* 工具栏微交互：分段按钮与选择器 */
+  .segmented .seg-btn { transition: background 160ms ease, color 160ms ease, transform 120ms ease; }
+  .segmented .seg-btn:active { transform: translateY(1px); }
+  .select select { transition: border-color 160ms ease, box-shadow 160ms ease; }
+  .select select:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.12); }
+  .search-inline input { transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
+  .search-inline input:focus { background: var(--color-body-bg); border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.10); }
+
+  /* 详情页按钮反馈 */
+  .detail-hero .info .actions .primary,
+  .detail-hero .info .actions .outline { will-change: transform, box-shadow, background; }
+  .detail-hero .info .actions .primary:hover { filter: saturate(1.02); }
+  .detail-hero .info .actions .primary:active,
+  .detail-hero .info .actions .outline:active { transform: translateY(1px); }
+
+  /* 曲目行微交互 */
+  .trackx { transition: background 160ms ease, transform 160ms ease; }
+  .trackx:active { transform: scale(0.996); }
+  .trackx .i-btn { transition: background 160ms ease, color 160ms ease, transform 100ms ease; }
+  .trackx .i-btn:active { transform: scale(0.92); }
+
+  /* 渐变与色彩层次：工具栏细腻渐变背景（提升层次但保持克制） */
+  .albumsx-toolbar {
+    background: linear-gradient(180deg, rgba(var(--color-body-bg-rgb), 1) 0%, rgba(var(--color-body-bg-rgb), 0.94) 100%);
+  }
+
+  /* 响应式细节优化：不同封面尺寸下的元素比例调整 */
+  @media (max-width: 1280px) { .albumsx-grid { gap: var(--spacing-md); } }
+  @media (max-width: 920px)  { .albumsx-toolbar .title { font-size: 20px; } .albumsx-tile .name { font-size: 14px; } }
+  @media (max-width: 680px)  { .albumsx-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); } }
+}
+
+/* 深色主题专辑封面材质调优 */
+[data-theme='dark'] .albumsx {
+  .albumsx-tile .art {
+    border-color: rgba(255,255,255,0.06);
+    box-shadow:
+      0 1px 2px rgba(0,0,0,0.35),
+      0 6px 18px rgba(0,0,0,0.45),
+      0 24px 46px rgba(0,0,0,0.38);
+  }
+  .albumsx-tile .art::before {
+    background: linear-gradient(145deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 35%, rgba(0,0,0,0.20) 100%);
+  }
+  .albumsx-toolbar {
+    background: linear-gradient(180deg, rgba(34,34,34,1) 0%, rgba(34,34,34,0.94) 100%);
+  }
+}
+
+
+
+/* AlbumsX – 方向性高光 CSS 驱动（由 JS 写入变量） */
+.albumsx .albumsx-tile .art {
+  /* 根据鼠标角度和强度生成动态高光层 */
+  --mx: .5; /* 鼠标相对X 0..1 */
+  --my: .5; /* 鼠标相对Y 0..1 */
+  --ang: 0; /* 角度（度） */
+  --gloss: 0; /* 强度 0..1 */
+}
+.albumsx .albumsx-tile .art::before {
+  /* 叠加动态方向性高光（与默认的 overlay 高光共同作用） */
+  background:
+    linear-gradient(
+      calc(var(--ang) * 1deg),
+      rgba(255,255,255, calc(var(--gloss) * 0.6)) 0%,
+      rgba(255,255,255, calc(var(--gloss) * 0.08)) 35%,
+      rgba(0,0,0, calc(var(--gloss) * 0.10)) 100%
+    );
+}
+
+/* 共享元素转场的过渡容器（ghost）可使用浏览器动画API创建，这里无需额外 CSS） */
+
+
+/* AlbumsX 专辑卡封面加载态 */
+.albumsx .albumsx-tile .art.loading {
+  filter: saturate(0.95) brightness(0.98);
+}
+.albumsx .albumsx-tile .art.loading::after {
+  /* 叠加轻微骨架光带，与既有效果兼容 */
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.22) 50%, rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+  animation: albumsxShimmer 1.1s linear infinite;
+  opacity: .35;
+}
+@keyframes albumsxShimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}

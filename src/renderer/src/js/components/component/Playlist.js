@@ -55,8 +55,6 @@ class Playlist extends EventEmitter {
 
         // 自动滚动到当前播放的歌曲
         this.scrollToCurrentTrack();
-
-        console.log('🎵 Playlist: 显示播放列表');
     }
 
     hide() {
@@ -67,7 +65,6 @@ class Playlist extends EventEmitter {
                 this.panel.style.display = 'none';
             }
         }, 300);
-        console.log('🎵 Playlist: 隐藏播放列表');
     }
 
     toggle() {

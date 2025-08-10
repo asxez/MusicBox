@@ -12,8 +12,6 @@ class ContextMenu extends EventEmitter {
 
         this.setupElements();
         this.setupEventListeners();
-
-        console.log('🎵 ContextMenu: 组件初始化完成');
     }
 
     setupElements() {
@@ -88,8 +86,6 @@ class ContextMenu extends EventEmitter {
         if (rect.bottom > windowHeight) {
             this.menu.style.top = `${windowHeight - rect.height - 10}px`;
         }
-
-        console.log('🎵 ContextMenu: 显示右键菜单');
     }
 
     hide() {
@@ -97,7 +93,6 @@ class ContextMenu extends EventEmitter {
         this.menu.style.display = 'none';
         this.currentTrack = null;
         this.currentIndex = -1;
-        console.log('🎵 ContextMenu: 隐藏右键菜单');
     }
 }
 
