@@ -11,7 +11,6 @@ class ArtistsPage extends Component {
         this.viewMode = 'grid'; // grid or list
         this.setupElements();
         this.setupEventListeners();
-        console.log('🎤 ArtistsPage: 组件初始化完成');
     }
 
     setupElements() {
@@ -30,7 +29,6 @@ class ArtistsPage extends Component {
     }
 
     async show() {
-        console.log('🎤 ArtistsPage: 显示艺术家页面');
         if (this.element) {
             this.element.style.display = 'block';
         }
@@ -41,7 +39,6 @@ class ArtistsPage extends Component {
     }
 
     hide() {
-        console.log('🎤 ArtistsPage: 隐藏艺术家页面');
         this.isVisible = false;
         this.selectedArtist = null;
         if (this.container) {

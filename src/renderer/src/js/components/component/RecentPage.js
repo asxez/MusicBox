@@ -26,7 +26,6 @@ class RecentPage extends Component {
     }
 
     async show() {
-        console.log('🕒 RecentPage: 显示最近播放页面');
         if (this.element) {
             this.element.style.display = 'block';
         }
@@ -36,7 +35,6 @@ class RecentPage extends Component {
     }
 
     hide() {
-        console.log('🕒 RecentPage: 隐藏最近播放页面');
         this.isVisible = false;
         if (this.container) {
             this.container.innerHTML = '';

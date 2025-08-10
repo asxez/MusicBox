@@ -102,6 +102,7 @@ async function bundleJS() {
 
         // 2. 页面组件
         'components/component/ArtistsPage.js',
+        'components/component/AlbumsPage.js',
         'components/component/ContextMenu.js',
         'components/component/EqualizerComponent.js',
         'components/component/HomePage.js',

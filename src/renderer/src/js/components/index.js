@@ -26,6 +26,7 @@ const COMPONENTS = {
     // 页面组件
     component: [
         'ArtistsPage',         // 艺术家页组件
+        'AlbumsPage',          // 专辑页组件
         'ContextMenu',         // 菜单组件
         'EqualizerComponent',  // 均衡器组件
         'HomePage',            // 首页组件

@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const {generateCoverSearchPatterns, findBestCoverMatch} = require('../utils/file-search');
+const {cleanFileName} = require('../utils/string');
 
 /**
  * 从URL下载图片
@@ -61,9 +62,9 @@ function registerCoversIpcHandlers({ipcMain}) {
     if (!ipcMain) throw new Error('registerCoversIpcHandlers: 缺少 ipcMain');
 
     // 检查本地封面缓存是否存在
-    ipcMain.handle('covers:checkLocalCover', async (event, coverDir, title, artist, album) => {
+    ipcMain.handle('covers:checkLocalCover', async (event, coverDir, title, artist, album, isAlbum = false) => {
         try {
-            console.log(`🔍 检查本地封面缓存: ${title} - ${artist} 在目录 ${coverDir}`);
+            console.log(`🔍 检查本地封面缓存: ${title} - ${artist} 在目录 ${coverDir} (isAlbum=${!!isAlbum})`);
 
             if (!fs.existsSync(coverDir)) {
                 return {success: false, error: '封面缓存目录不存在'};
@@ -75,6 +76,22 @@ function registerCoversIpcHandlers({ipcMain}) {
                 return ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext);
             });
 
+            // 专辑精确匹配模式：仅匹配 艺术家_专辑__ALBUM.扩展名
+            if (isAlbum) {
+                const cleanArtist = cleanFileName(artist).replace(/\s+/g, '_');
+                const cleanAlbum = cleanFileName(album).replace(/\s+/g, '_');
+                const expectedBase = `${cleanArtist}_${cleanAlbum}__ALBUM`.toLowerCase();
+                const matched = imageFiles.find(file => path.parse(file).name.toLowerCase() === expectedBase);
+                if (matched) {
+                    const fullPath = path.join(coverDir, matched);
+                    console.log(`✅ [Album-only] 找到匹配的封面文件: ${matched}`);
+                    return {success: true, filePath: fullPath, fileName: matched};
+                }
+                console.log('❌ [Album-only] 未找到严格匹配的专辑封面');
+                return {success: false, error: '未找到匹配的专辑封面'};
+            }
+
+            // 默认单曲/广义匹配逻辑
             const searchPatterns = generateCoverSearchPatterns(title, artist, album);
             const matchedFile = findBestCoverMatch(imageFiles, searchPatterns);
             if (matchedFile) {

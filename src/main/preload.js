@@ -166,8 +166,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // 本地封面缓存
     covers: {
-        checkLocalCover: (coverDir, title, artist, album) =>
-            ipcRenderer.invoke('covers:checkLocalCover', coverDir, title, artist, album),
+        checkLocalCover: (coverDir, title, artist, album, isAlbum = false) =>
+            ipcRenderer.invoke('covers:checkLocalCover', coverDir, title, artist, album, isAlbum),
         saveCoverFile: (coverDir, fileName, imageData, dataType) =>
             ipcRenderer.invoke('covers:saveCoverFile', coverDir, fileName, imageData, dataType)
     },

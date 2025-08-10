@@ -61,6 +61,7 @@ class Navigation extends Component {
         this.statisticsLink = document.querySelector('[data-view="statistics"]');
         this.recentLink = document.querySelector('[data-view="recent"]');
         this.artistsLink = document.querySelector('[data-view="artists"]');
+        this.albumsLink = document.querySelector('[data-view="albums"]');
     }
 
     setupEventListeners() {
@@ -323,13 +324,7 @@ class Navigation extends Component {
         }
 
         const listItem = this.statisticsLink.parentElement;
-        if (enabled) {
-            listItem.style.display = 'block';
-            console.log('📊 Navigation: 统计信息按钮已显示');
-        } else {
-            listItem.style.display = 'none';
-            console.log('📊 Navigation: 统计信息按钮已隐藏');
-        }
+        listItem.style.display = enabled ? 'block' : 'none';
     }
 
     // 控制最近播放按钮显示/隐藏
@@ -340,13 +335,7 @@ class Navigation extends Component {
         }
 
         const listItem = this.recentLink.parentElement;
-        if (enabled) {
-            listItem.style.display = 'block';
-            console.log('🕒 Navigation: 最近播放按钮已显示');
-        } else {
-            listItem.style.display = 'none';
-            console.log('🕒 Navigation: 最近播放按钮已隐藏');
-        }
+        listItem.style.display = enabled ? 'block' : 'none';
     }
 
     // 控制艺术家页面按钮显示/隐藏
@@ -357,13 +346,17 @@ class Navigation extends Component {
         }
 
         const listItem = this.artistsLink.parentElement;
-        if (enabled) {
-            listItem.style.display = 'block';
-            console.log('🎨 Navigation: 艺术家页面按钮已显示');
-        } else {
-            listItem.style.display = 'none';
-            console.log('🎨 Navigation: 艺术家页面按钮已隐藏');
+        listItem.style.display = enabled ? 'block' : 'none';
+    }
+
+    // 控制专辑页面按钮显示/隐藏
+    updateAlbumsPageButtonVisibility(enabled) {
+        if (!this.albumsLink) {
+            console.warn('🎵 Navigation: 专辑页面按钮元素不存在');
+            return;
         }
+        const listItem = this.albumsLink.parentElement;
+        listItem.style.display = enabled ? 'block' : 'none';
     }
 
     // 初始化侧边栏按钮状态
@@ -382,8 +375,10 @@ class Navigation extends Component {
             // 艺术家页面按钮状态
             const artistsPageEnabled = settings.hasOwnProperty('artistsPage') ? settings.artistsPage : true;
             this.updateArtistsPageButtonVisibility(artistsPageEnabled);
+            // 专辑页面按钮状态（与艺术家开关一致，后续如需可拆）
+            this.updateAlbumsPageButtonVisibility(artistsPageEnabled);
 
-            console.log('🎵 Navigation: 侧边栏按钮状态初始化完成 - 统计信息:', statisticsEnabled, '最近播放:', recentPlayEnabled, '艺术家页面:', artistsPageEnabled);
+            console.log('🎵 Navigation: 侧边栏按钮状态初始化完成 - 统计信息:', statisticsEnabled, '最近播放:', recentPlayEnabled, '艺术家/专辑页面:', artistsPageEnabled);
         } catch (error) {
             console.error('❌ Navigation: 初始化侧边栏按钮状态失败:', error);
         }
@@ -564,7 +559,7 @@ class Navigation extends Component {
     updatePlaylistInfo(updatedPlaylist) {
         const index = this.userPlaylists.findIndex(p => p.id === updatedPlaylist.id);
         if (index !== -1) {
-            this.userPlaylists[index] = { ...this.userPlaylists[index], ...updatedPlaylist };
+            this.userPlaylists[index] = {...this.userPlaylists[index], ...updatedPlaylist};
             this.renderUserPlaylists();
             console.log('✅ Navigation: 歌单信息已更新', updatedPlaylist.name);
         }

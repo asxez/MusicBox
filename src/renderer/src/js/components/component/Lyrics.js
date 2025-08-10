@@ -241,7 +241,6 @@ class Lyrics extends EventEmitter {
                 this.lyricsDisplay.scrollTop = 0;
             }
         }, 50);
-        console.log('🎵 Lyrics: 显示歌词页面');
     }
 
     hide() {
@@ -253,8 +252,6 @@ class Lyrics extends EventEmitter {
                 this.page.style.display = 'none';
             }
         }, 300);
-
-        console.log('🎵 Lyrics: 隐藏歌词页面');
     }
 
     toggle(track) {

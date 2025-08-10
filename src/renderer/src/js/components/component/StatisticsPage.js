@@ -10,7 +10,6 @@ class StatisticsPage extends Component {
         this.playStats = {};
         this.setupElements();
         this.setupEventListeners();
-        console.log('📊 StatisticsPage: 统计页面组件初始化完成');
     }
 
     setupElements() {
@@ -31,7 +30,6 @@ class StatisticsPage extends Component {
     }
 
     async show() {
-        console.log('📊 StatisticsPage: 显示统计页面');
         if (this.element) {
             this.element.style.display = 'block';
         }
@@ -42,7 +40,6 @@ class StatisticsPage extends Component {
     }
 
     hide() {
-        console.log('📊 StatisticsPage: 隐藏统计页面');
         if (this.container) {
             this.container.innerHTML = '';
         }
