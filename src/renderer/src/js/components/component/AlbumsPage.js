@@ -267,9 +267,6 @@ class AlbumsPage extends Component {
             <div class="albumsx-tile" data-album-key="${this.escapeHtml(album.key)}" title="${title}\n${subtitle}">
                 <div class="art shadow">
                     <img src="${cover}" alt="${title}" loading="lazy"/>
-                    <button class="play" title="播放">
-                        <svg viewBox="0 0 24 24"><path d="M8,5.14V19.14L19,12.14L8,5.14Z"/></svg>
-                    </button>
                 </div>
                 <div class="meta">
                     <div class="name clamp-1">${title}</div>
@@ -386,14 +383,7 @@ class AlbumsPage extends Component {
             if (!album) return;
             const art = tile.querySelector('.art');
 
-            // 播放按钮
-            const playBtn = tile.querySelector('.play');
-            if (playBtn) {
-                playBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.emit('playAll', [...album.tracks].sort((a, b) => (a.track || 0) - (b.track || 0)));
-                });
-            }
+
             // 双击进入详情
             // 飞入动画
             tile.addEventListener('dblclick', () => this.animateToDetail(tile, album));

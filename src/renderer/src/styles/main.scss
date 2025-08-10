@@ -9759,16 +9759,8 @@ body.focus-mode {
     background: linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,.25) 100%);
     opacity: 0; transition: opacity var(--transition-smooth);
   }
-  .albumsx-tile .art .play {
-    position: absolute; right: 12px; bottom: 12px; width: 40px; height: 40px;
-    border-radius: 50%; color: #fff; background: rgba(var(--color-primary-rgb), .9);
-    display: grid; place-items: center; transform: translateY(6px); opacity: 0;
-    box-shadow: var(--albumsx-shadow); transition: all var(--transition-smooth);
-  }
-  .albumsx-tile .art .play svg { width: 20px; height: 20px; fill: currentColor; }
   .albumsx-tile:hover .art { transform: translateY(-4px); box-shadow: var(--albumsx-shadow-hover); }
   .albumsx-tile:hover .art::after { opacity: 1; }
-  .albumsx-tile:hover .art .play { transform: translateY(0); opacity: 1; }
 
   .albumsx-tile .meta { padding: 10px 6px 0; text-align: center; }
   .albumsx-tile .name { font-weight: 600; font-size: 15px; color: var(--color-text); }
@@ -9875,10 +9867,7 @@ body.focus-mode {
   }
   .albumsx-tile:hover .art::before { opacity: 0.35; }
 
-  /* 播放按钮出现动画：平滑弹性 */
-  .albumsx-tile .art .play { transform: translateY(8px) scale(0.96); opacity: 0; will-change: transform, opacity; }
-  .albumsx-tile:hover .art .play { opacity: 1; transform: translateY(0) scale(1); box-shadow: 0 8px 20px rgba(0,0,0,0.18); }
-  .albumsx-tile .art .play:active { transform: translateY(0) scale(0.96); }
+
 
   /* 细节：卡片整体 hover 的微妙光泽与标题上浮 */
   .albumsx-tile:hover .name { transform: translateY(-1px); }
