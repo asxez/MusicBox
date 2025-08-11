@@ -8,7 +8,6 @@ class CacheManager {
         this.memoryCache = new Map();
         this.maxMemorySize = 15;
         this.storagePrefix = 'musicbox_cache_';
-        console.log('🗄️ CacheManager: 缓存管理器初始化完成');
     }
 
     // 生成缓存键

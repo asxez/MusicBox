@@ -10,7 +10,6 @@ class EmbeddedCoverManager {
         this.objectUrls = new Set(); // 跟踪创建的Object URLs
         this.urlReferences = new Map(); // URL引用计数
         this.pendingReleases = new Map(); // 待释放的URL
-        console.log('🖼️ EmbeddedCoverManager: 内嵌封面管理器初始化完成');
     }
 
     /**
@@ -35,11 +34,10 @@ class EmbeddedCoverManager {
             // 检查缓存
             const cacheKey = this.generateCacheKey(filePath);
             if (this.cache.has(cacheKey)) {
-                console.log(`✅ EmbeddedCoverManager: 缓存命中 - ${filePath}`);
                 return this.cache.get(cacheKey);
             }
 
-            console.log(`🔍 EmbeddedCoverManager: 获取内嵌封面 - ${filePath}`);
+            // console.log(`🔍 EmbeddedCoverManager: 获取内嵌封面 - ${filePath}`);
 
             // 从主进程获取元数据（包括封面）
             const metadata = await window.electronAPI.library.getTrackMetadata(filePath);
@@ -62,8 +60,6 @@ class EmbeddedCoverManager {
                 this.setCache(cacheKey, errorResult);
                 return errorResult;
             }
-
-
 
             // 转换封面数据为可用的URL
             const convertedCover = this.convertCoverToUrl(metadata.cover);

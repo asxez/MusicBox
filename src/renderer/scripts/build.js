@@ -124,7 +124,7 @@ async function bundleJS() {
         'components/dialogs/RenamePlaylistDialog.js',
 
         // 4. 组件索引
-        'components/index.js'
+        'components/index.js',
     ];
 
     // Main files in specific order
