@@ -270,6 +270,14 @@ class MusicBoxApp extends EventEmitter {
             }
         });
 
+        // 监听无间隙播放设置变化
+        this.components.settings.on('gaplessPlaybackEnabled', (enabled) => {
+            console.log(`🎵 App: 无间隙播放设置已更新为 ${enabled ? '启用' : '禁用'}`);
+            if (window.api) {
+                window.api.setGaplessPlayback(enabled);
+            }
+        });
+
         // 新页面组件事件监听
         this.setupPageComponentEvents();
 

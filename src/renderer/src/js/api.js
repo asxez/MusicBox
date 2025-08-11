@@ -98,6 +98,10 @@ class MusicBoxAPI extends EventEmitter {
                 const initialized = await this.webAudioEngine.initialize();
                 if (initialized) {
                     this.webAudioEngine.setVolume(window.cacheManager.getLocalCache('volume'));
+
+                    // 设置无间隙播放状态
+                    const gaplessEnabled = window.cacheManager.getLocalCache('musicbox-settings')?.gaplessPlayback !== false;
+                    this.webAudioEngine.setGaplessPlayback(gaplessEnabled);
                 }
             }
         } catch (error) {
@@ -461,29 +465,22 @@ class MusicBoxAPI extends EventEmitter {
                 return false;
             }
 
-            // 优先使用Web Audio Engine
             if (this.webAudioEngine) {
-                // 手动设置索引和播放
-                this.webAudioEngine.currentIndex = nextIndex;
-                const filePath = nextTrack.filePath || nextTrack.path || nextTrack;
-                const result = await this.webAudioEngine.loadTrack(filePath);
+                const result = await this.webAudioEngine.nextTrack();
                 if (result) {
-                    const playResult = await this.webAudioEngine.play();
-                    if (playResult) {
-                        // 更新API状态
-                        this.currentIndex = nextIndex;
-                        this.currentTrack = this.webAudioEngine.getCurrentTrack();
-                        this.duration = this.webAudioEngine.getDuration();
-                        this.position = 0;
-                        this.isPlaying = this.webAudioEngine.isPlaying;
+                    // 更新API状态
+                    this.currentIndex = this.webAudioEngine.currentIndex;
+                    this.currentTrack = this.webAudioEngine.getCurrentTrack();
+                    this.duration = this.webAudioEngine.getDuration();
+                    this.position = 0;
+                    this.isPlaying = this.webAudioEngine.isPlaying;
 
-                        this.emit('trackIndexChanged', this.currentIndex);
-                        this.emit('trackChanged', this.currentTrack);
-                        this.emit('durationChanged', this.duration);
-                        this.emit('positionChanged', 0);
-                        this.emit('playbackStateChanged', this.isPlaying ? 'playing' : 'paused');
-                        return true;
-                    }
+                    this.emit('trackIndexChanged', this.currentIndex);
+                    this.emit('trackChanged', this.currentTrack);
+                    this.emit('durationChanged', this.duration);
+                    this.emit('positionChanged', 0);
+                    this.emit('playbackStateChanged', this.isPlaying ? 'playing' : 'paused');
+                    return true;
                 }
             }
 
@@ -519,28 +516,21 @@ class MusicBoxAPI extends EventEmitter {
             }
 
             if (this.webAudioEngine) {
-                // 手动设置索引和播放
-                this.webAudioEngine.currentIndex = prevIndex;
-                const filePath = prevTrack.filePath || prevTrack.path || prevTrack;
-                const result = await this.webAudioEngine.loadTrack(filePath);
+                const result = await this.webAudioEngine.previousTrack();
                 if (result) {
-                    const playResult = await this.webAudioEngine.play();
-                    if (playResult) {
-                        // 更新API状态
-                        this.currentIndex = prevIndex;
-                        this.currentTrack = this.webAudioEngine.getCurrentTrack();
-                        this.duration = this.webAudioEngine.getDuration();
-                        this.position = 0;
-                        this.isPlaying = this.webAudioEngine.isPlaying;
+                    // 更新API状态
+                    this.currentIndex = this.webAudioEngine.currentIndex;
+                    this.currentTrack = this.webAudioEngine.getCurrentTrack();
+                    this.duration = this.webAudioEngine.getDuration();
+                    this.position = 0;
+                    this.isPlaying = this.webAudioEngine.isPlaying;
 
-                        this.emit('trackIndexChanged', this.currentIndex);
-                        this.emit('trackChanged', this.currentTrack);
-                        this.emit('durationChanged', this.duration);
-                        this.emit('positionChanged', 0);
-                        this.emit('playbackStateChanged', this.isPlaying ? 'playing' : 'paused');
-
-                        return true;
-                    }
+                    this.emit('trackIndexChanged', this.currentIndex);
+                    this.emit('trackChanged', this.currentTrack);
+                    this.emit('durationChanged', this.duration);
+                    this.emit('positionChanged', 0);
+                    this.emit('playbackStateChanged', this.isPlaying ? 'playing' : 'paused');
+                    return true;
                 }
             }
 
@@ -1249,6 +1239,22 @@ class MusicBoxAPI extends EventEmitter {
         if (this.webAudioEngine) {
             this.webAudioEngine.setEqualizerEnabled(enabled);
         }
+    }
+
+    // 设置无间隙播放状态
+    setGaplessPlayback(enabled) {
+        if (this.webAudioEngine) {
+            this.webAudioEngine.setGaplessPlayback(enabled);
+            console.log(`🎵 API: 无间隙播放${enabled ? '启用' : '禁用'}`);
+        }
+    }
+
+    // 获取无间隙播放状态
+    getGaplessPlayback() {
+        if (this.webAudioEngine) {
+            return this.webAudioEngine.getGaplessPlayback();
+        }
+        return false;
     }
 
     // 桌面歌词同步方法

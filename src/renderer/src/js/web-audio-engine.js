@@ -34,6 +34,13 @@ class WebAudioEngine {
 
         // 封面对象URL管理
         this.coverObjectUrls = new Set();
+
+        // 无间隙播放相关属性
+        this.gaplessPlaybackEnabled = true; // 默认启用无间隙播放
+        this.nextAudioBuffer = null; // 下一首歌曲的音频缓冲区
+        this.nextTrackInfo = null; // 下一首歌曲信息
+        this.isPreloading = false; // 是否正在预加载
+        this.preloadPromise = null; // 预加载Promise
     }
 
     async initialize() {
@@ -118,7 +125,6 @@ class WebAudioEngine {
                 cover: coverUrl
             };
 
-
             // 触发事件
             if (this.onTrackChanged) {
                 this.onTrackChanged(this.currentTrack);
@@ -128,6 +134,11 @@ class WebAudioEngine {
             // if (this.onDurationChanged) {
             //     this.onDurationChanged(filePath, this.duration);
             // }
+
+            // 若启用无间隙播放，预加载下一首歌曲
+            if (this.gaplessPlaybackEnabled && this.playlist.length > 1) {
+                setTimeout(() => this.preloadNextTrack(), 2000);
+            }
             return true;
         } catch (error) {
             console.error('❌ 音频文件加载失败:', error);
@@ -422,6 +433,22 @@ class WebAudioEngine {
         return this.volume;
     }
 
+    // 设置无间隙播放状态
+    setGaplessPlayback(enabled) {
+        this.gaplessPlaybackEnabled = enabled;
+        console.log(`🎵 WebAudioEngine: 无间隙播放${enabled ? '启用' : '禁用'}`);
+
+        // 如果禁用无间隙播放，清理预加载的资源
+        if (!enabled) {
+            this.clearNextTrackBuffer();
+        }
+    }
+
+    // 获取无间隙播放状态
+    getGaplessPlayback() {
+        return this.gaplessPlaybackEnabled;
+    }
+
     // 获取当前播放位置
     getPosition() {
         if (!this.isPlaying && !this.isPaused) {
@@ -467,6 +494,90 @@ class WebAudioEngine {
         return true;
     }
 
+    // 清理下一首歌曲的缓冲区
+    clearNextTrackBuffer() {
+        if (this.nextAudioBuffer) {
+            this.nextAudioBuffer = null;
+            this.nextTrackInfo = null;
+            console.log('🧹 WebAudioEngine: 清理下一首歌曲缓冲区');
+        }
+    }
+
+    // 预加载下一首歌曲
+    async preloadNextTrack() {
+        if (!this.gaplessPlaybackEnabled || this.playlist.length <= 1) {
+            return false;
+        }
+
+        // 如果已经在预加载，等待完成
+        if (this.isPreloading && this.preloadPromise) {
+            return await this.preloadPromise;
+        }
+
+        // 计算下一首歌曲的索引
+        const nextIndex = (this.currentIndex + 1) % this.playlist.length;
+        const nextTrackInfo = this.playlist[nextIndex];
+
+        if (!nextTrackInfo) {
+            return false;
+        }
+
+        const filePath = nextTrackInfo.filePath || nextTrackInfo.path || nextTrackInfo;
+        if (!filePath) {
+            console.warn('⚠️ 下一首歌曲文件路径为空');
+            return false;
+        }
+
+        // 若已预加载了相同歌曲，直接返回
+        if (this.nextTrackInfo && this.nextTrackInfo.filePath === filePath && this.nextAudioBuffer) {
+            console.log('✅ 下一首歌曲已预加载:', nextTrackInfo.title || filePath);
+            return true;
+        }
+
+        this.isPreloading = true;
+        this.preloadPromise = this.loadNextTrackBuffer(filePath, nextTrackInfo);
+        try {
+            return await this.preloadPromise;
+        } finally {
+            this.isPreloading = false;
+            this.preloadPromise = null;
+        }
+    }
+
+    // 加载下一首歌曲的音频缓冲区
+    async loadNextTrackBuffer(filePath, trackInfo) {
+        try {
+            console.log(`🔄 预加载下一首歌曲: ${trackInfo.title || filePath}`);
+
+            let arrayBuffer;
+            if (window.electronAPI && window.electronAPI.readAudioFile) {
+                arrayBuffer = await window.electronAPI.readAudioFile(filePath);
+            } else {
+                const fileUrl = filePath.startsWith('file://') ? filePath : `file:///${filePath.replace(/\\/g, '/')}`;
+                const response = await fetch(fileUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch audio file: ${response.status}`);
+                }
+                arrayBuffer = await response.arrayBuffer();
+            }
+
+            // 解码音频数据
+            this.nextAudioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+            this.nextTrackInfo = {
+                ...trackInfo,
+                filePath: filePath,
+                duration: this.nextAudioBuffer.duration
+            };
+
+            console.log(`✅ 下一首歌曲预加载完成: ${trackInfo.title || filePath}`);
+            return true;
+        } catch (error) {
+            console.error('❌ 预加载下一首歌曲失败:', error);
+            this.clearNextTrackBuffer();
+            return false;
+        }
+    }
+
     // 播放下一首
     async nextTrack() {
         if (this.playlist.length === 0) {
@@ -494,12 +605,48 @@ class WebAudioEngine {
 
         console.log(`⏭️ 切换到下一首 (索引 ${this.currentIndex}): ${nextTrack.title || filePath}`);
 
-        const loadResult = await this.loadTrack(filePath);
-        if (loadResult) {
-            // 自动开始播放
-            return await this.play();
+        // 若启用无间隙播放且已预加载，使用预加载的缓冲区
+        if (this.gaplessPlaybackEnabled && this.nextAudioBuffer && this.nextTrackInfo && this.nextTrackInfo.filePath === filePath) {
+            console.log('🎵 使用预加载的音频缓冲区进行无间隙播放');
+            this.stop();
+
+            // 使用预加载的缓冲区
+            this.audioBuffer = this.nextAudioBuffer;
+            this.duration = this.nextTrackInfo.duration;
+            this.currentTrack = this.nextTrackInfo;
+
+            // 清理预加载的资源
+            this.clearNextTrackBuffer();
+
+            // 触发歌曲变更事件
+            if (this.onTrackChanged) {
+                this.onTrackChanged(this.currentTrack);
+            }
+
+            // 播放
+            const playResult = await this.play();
+
+            // 预加载下一首
+            if (playResult) {
+                setTimeout(() => this.preloadNextTrack(), 1000);
+            }
+
+            return playResult;
+        } else {
+            // 普通加载方式
+            const loadResult = await this.loadTrack(filePath);
+            if (loadResult) {
+                // 播放
+                const playResult = await this.play();
+
+                // 预加载下一首歌曲
+                if (playResult && this.gaplessPlaybackEnabled) {
+                    setTimeout(() => this.preloadNextTrack(), 1000);
+                }
+                return playResult;
+            }
+            return false;
         }
-        return false;
     }
 
     // 播放上一首
@@ -572,11 +719,19 @@ class WebAudioEngine {
         this.isPlaying = false;
         this.isPaused = false;
 
-        // 自动播放下一首（nextTrack方法内部已经调用了play，不需要重复调用）
+        // 自动播放下一首
         if (this.playlist.length > 0) {
-            setTimeout(async () => {
-                await this.nextTrack();
-            }, 500);
+            if (this.gaplessPlaybackEnabled) {
+                // 无间隙播放
+                setTimeout(async () => {
+                    await this.nextTrack();
+                }, 0);
+            } else {
+                // 普通播放
+                setTimeout(async () => {
+                    await this.nextTrack();
+                }, 500);
+            }
         }
     }
 
