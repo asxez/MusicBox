@@ -30,6 +30,7 @@ class Settings extends EventEmitter {
         this.artistsPageToggle = this.element.querySelector('#artists-page-toggle');
         this.albumsPageToggle = this.element.querySelector('#albums-page-toggle');
         this.showTrackCoversToggle = this.element.querySelector('#show-track-covers-toggle');
+        this.gaplessPlaybackToggle = this.element.querySelector('#gapless-playback-toggle');
         this.autoScanToggle = this.element.querySelector('#auto-scan-toggle');
         this.selectFolderBtn = this.element.querySelector('#select-folder-btn');
         this.selectLyricsFolderBtn = this.element.querySelector('#select-lyrics-folder-btn');
@@ -202,6 +203,15 @@ class Settings extends EventEmitter {
             // 通知主界面更新歌曲列表封面显示状态
             this.emit('showTrackCoversEnabled', e.target.checked);
             console.log(`🖼️ Settings: 歌曲封面显示功能${e.target.checked ? '启用' : '禁用'}`);
+        });
+
+        // 无间隙播放设置
+        this.gaplessPlaybackToggle.addEventListener('change', (e) => {
+            this.updateSetting('gaplessPlayback', e.target.checked);
+
+            // 通知音频引擎更新无间隙播放状态
+            this.emit('gaplessPlaybackEnabled', e.target.checked);
+            console.log(`🎵 Settings: 无间隙播放功能${e.target.checked ? '启用' : '禁用'}`);
         });
 
         this.autoScanToggle.addEventListener('change', (e) => {
@@ -463,6 +473,7 @@ class Settings extends EventEmitter {
         this.artistsPageToggle.checked = this.settings.hasOwnProperty('artistsPage') ? this.settings.artistsPage : true;
         this.albumsPageToggle.checked = this.settings.hasOwnProperty('albumsPage') ? this.settings.albumsPage : true;
         this.showTrackCoversToggle.checked = this.settings.hasOwnProperty('showTrackCovers') ? this.settings.showTrackCovers : true;
+        this.gaplessPlaybackToggle.checked = this.settings.hasOwnProperty('gaplessPlayback') ? this.settings.gaplessPlayback : true;
         this.autoScanToggle.checked = this.settings.autoScan || false;
 
         // 初始化本地歌词目录
@@ -511,13 +522,7 @@ class Settings extends EventEmitter {
             this.emit('recentPlayEnabled', this.recentPlayToggle.checked);
             this.emit('artistsPageEnabled', this.artistsPageToggle.checked);
             this.emit('albumsPageEnabled', this.albumsPageToggle.checked);
-            console.log(
-                '🎵 Settings: 发出初始状态事件 - 桌面歌词:', this.desktopLyricsToggle.checked,
-                '统计信息:', this.statisticsToggle.checked,
-                '最近播放:', this.recentPlayToggle.checked,
-                '艺术家页面:', this.artistsPageToggle.checked,
-                '专辑页面:', this.albumsPageToggle.checked
-            );
+            this.emit('gaplessPlaybackEnabled', this.gaplessPlaybackToggle.checked);
         }, 100);
     }
 
