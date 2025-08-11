@@ -9,7 +9,6 @@ class LocalCoverManager {
         this.cache = new Map();
         this.maxCacheSize = 10;
         this.supportedFormats = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
-        console.log('🖼️ LocalCoverManager: 本地封面管理器初始化完成');
     }
 
     /**
@@ -103,7 +102,7 @@ class LocalCoverManager {
                 };
             }
 
-            console.log(`🔍 LocalCoverManager: 检查本地封面缓存 - ${title} by ${artist}`);
+            // console.log(`🔍 LocalCoverManager: 检查本地封面缓存 - ${title} by ${artist}`);
 
             // 搜索匹配的封面文件
             const isAlbum = !title;
@@ -122,7 +121,7 @@ class LocalCoverManager {
                 }
                 // 添加到内存缓存
                 this.addToCache(cacheKey, searchResult.filePath);
-                console.log(`✅ LocalCoverManager: 找到本地封面缓存 - ${searchResult.fileName}`);
+                // console.log(`✅ LocalCoverManager: 找到本地封面缓存 - ${searchResult.fileName}`);
                 return {
                     success: true,
                     filePath: searchResult.filePath,
@@ -222,10 +221,8 @@ class LocalCoverManager {
         if (this.cache.size >= this.maxCacheSize) {
             const firstKey = this.cache.keys().next().value;
             this.cache.delete(firstKey);
-            console.log(`🗑️ LocalCoverManager: 删除最旧的缓存条目 - ${firstKey}`);
         }
         this.cache.set(key, filePath);
-        console.log(`📝 LocalCoverManager: 添加到内存缓存 - ${key}`);
     }
 
     /**
@@ -290,8 +287,6 @@ class LocalCoverManager {
         if (!this.coverDirectory || !Array.isArray(trackList)) {
             return;
         }
-        console.log(`🔄 LocalCoverManager: 开始预加载 ${trackList.length} 首歌曲的封面`);
-
         let loadedCount = 0;
         for (const track of trackList.slice(0, 12)) { // 限制预加载数量
             try {
@@ -300,7 +295,6 @@ class LocalCoverManager {
             } catch (error) {
             }
         }
-        console.log(`✅ LocalCoverManager: 预加载完成，成功加载 ${loadedCount} 首歌曲的封面缓存信息`);
     }
 
     /**

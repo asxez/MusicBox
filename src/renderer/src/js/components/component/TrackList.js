@@ -139,13 +139,13 @@ class TrackList extends Component {
 
     getTrackCover(track) {
         if (track.cover) {
-            console.log('🔍 TrackList: getTrackCover检查封面数据', {
-                type: typeof track.cover,
-                constructor: track.cover.constructor.name,
-                value: typeof track.cover === 'string' ?
-                       track.cover.substring(0, 100) + '...' :
-                       JSON.stringify(track.cover)
-            });
+            // console.log('🔍 TrackList: getTrackCover检查封面数据', {
+            //     type: typeof track.cover,
+            //     constructor: track.cover.constructor.name,
+            //     value: typeof track.cover === 'string' ?
+            //            track.cover.substring(0, 100) + '...' :
+            //            JSON.stringify(track.cover)
+            // });
 
             if (typeof track.cover !== 'string') {
                 console.error('❌ TrackList: track.cover不是字符串，返回默认封面', {

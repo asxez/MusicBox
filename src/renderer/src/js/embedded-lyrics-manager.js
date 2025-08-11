@@ -7,7 +7,6 @@ class EmbeddedLyricsManager {
     constructor() {
         this.cache = new Map();
         this.maxCacheSize = 10;
-        console.log('🎵 EmbeddedLyricsManager: 内嵌歌词管理器初始化完成');
     }
 
     /**
