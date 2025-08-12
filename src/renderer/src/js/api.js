@@ -87,8 +87,6 @@ class MusicBoxAPI extends EventEmitter {
                 clearSizeCache: () => Promise.resolve(null),
             }
         };
-
-
     }
 
     async initializeWebAudio() {
@@ -383,7 +381,7 @@ class MusicBoxAPI extends EventEmitter {
         return this.volume;
     }
 
-    getCurrentPosition() {
+    getPosition() {
         try {
             this.position = this.webAudioEngine.getPosition();
             return this.position;

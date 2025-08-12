@@ -35,7 +35,7 @@ function registerLibraryMetadataIpcHandlers(
     // 获取音频文件元数据
     ipcMain.handle('library:getTrackMetadata', async (event, filePath) => {
         try {
-            console.log(`📋 获取音频文件元数据: ${filePath}`);
+            // console.log(`📋 获取音频文件元数据: ${filePath}`);
             const metadata = await parseMetadata(filePath);
             return {
                 filePath,
