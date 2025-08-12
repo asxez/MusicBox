@@ -208,6 +208,8 @@ class EventEmitter {
     }
 }
 
+window.EventEmitter = EventEmitter;
+
 const theme = {
     get current() {
         return document.documentElement.getAttribute('data-theme') || 'light';

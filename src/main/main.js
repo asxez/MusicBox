@@ -14,6 +14,8 @@ const {registerAudioIpcHandlers} = require('./ipc/audio');
 const {registerDialogIpcHandlers} = require('./ipc/dialog');
 const {registerWindowIpcHandlers} = require('./ipc/window');
 const {registerFsIpcHandlers} = require('./ipc/fs');
+const {registerOsIpcHandlers} = require('./ipc/os');
+const {registerPathIpcHandlers} = require('./ipc/path');
 const {registerNetworkDriveIpcHandlers} = require('./ipc/network-drive');
 const {registerDesktopLyricsIpcHandlers} = require('./ipc/desktop-lyrics');
 const {registerLyricsIpcHandlers} = require('./ipc/lyrics');
@@ -195,8 +197,10 @@ registerDialogIpcHandlers({ipcMain});
 // 注册窗口控制IPC
 registerWindowIpcHandlers({ipcMain});
 
-// 注册文件系统IPC
+// 注册系统IPC
 registerFsIpcHandlers({ipcMain});
+registerOsIpcHandlers({ipcMain});
+registerPathIpcHandlers({ipcMain});
 
 // 注册封面IPC
 registerCoversIpcHandlers({ipcMain});
