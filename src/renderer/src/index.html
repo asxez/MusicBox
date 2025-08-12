@@ -625,7 +625,7 @@
                         <h2 class="section-title">音乐库</h2>
                         <div class="settings-item">
                             <div class="item-info">
-                                <label class="item-label">音乐文件夹</label>
+                                <label class="item-label">音乐文件夹（未实现）</label>
                                 <p class="item-description">选择包含您音乐文件的文件夹</p>
                             </div>
                             <div class="item-control">
@@ -807,6 +807,20 @@
                             </div>
                             <div class="item-control">
                                 <button class="settings-button danger" id="reset-shortcuts-btn">重置为默认</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 插件管理 -->
+                    <div class="settings-section">
+                        <h2 class="section-title">插件管理</h2>
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">插件管理</label>
+                                <p class="item-description">管理、安装和配置插件</p>
+                            </div>
+                            <div class="item-control">
+                                <button class="settings-button" id="open-plugin-manager-btn">管理插件</button>
                             </div>
                         </div>
                     </div>
@@ -1112,6 +1126,160 @@
                                 <p class="lyrics-line">请欣赏音乐</p>
                                 <div class="lyrics-line-spacer"></div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 插件管理器模态框 -->
+    <div id="plugin-manager-modal" class="plugin-modal" style="display: none;">
+        <div class="plugin-modal-content">
+            <div class="plugin-modal-header">
+                <h2 class="plugin-modal-title">插件管理器</h2>
+                <button class="plugin-modal-close" id="plugin-manager-close">
+                    <img class="icon" src="assets/icons/x.svg" alt="关闭">
+                </button>
+            </div>
+
+            <div class="plugin-modal-body">
+                <!-- 顶部状态栏 -->
+                <div class="plugin-status-bar">
+                    <div class="plugin-status-info">
+                        <div class="status-indicator" id="pm-status-indicator">●</div>
+                        <span class="status-text" id="pm-status-text">未初始化</span>
+                        <span class="plugin-count" id="pm-count-text">0 个插件</span>
+                    </div>
+                    <div class="plugin-dev-mode">
+                        <label class="dev-mode-label">开发模式</label>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="pm-dev-mode-toggle" class="toggle-input">
+                            <label for="pm-dev-mode-toggle" class="toggle-label"></label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按钮栏 -->
+                <div class="plugin-actions-bar">
+                    <button class="plugin-action-btn primary" id="pm-install-plugin-btn">
+                        <span class="btn-icon">➕</span>
+                        <span class="btn-text">安装插件（暂不可用）</span>
+                    </button>
+                    <button class="plugin-action-btn secondary" id="pm-import-plugin-btn">
+                        <span class="btn-icon">📁</span>
+                        <span class="btn-text">导入插件</span>
+                    </button>
+                    <button class="plugin-action-btn secondary" id="pm-refresh-plugins-btn">
+                        <span class="btn-icon">🔄</span>
+                        <span class="btn-text">刷新列表</span>
+                    </button>
+                </div>
+
+                <!-- 插件列表 -->
+                <div class="plugin-list-section">
+                    <div class="section-header">
+                        <h3 class="section-title">已安装的插件</h3>
+
+                        <!-- 搜索和筛选控件 -->
+                        <div class="plugin-list-controls">
+                            <div class="plugin-search">
+                                <input type="text" id="pm-search-input" class="search-input" placeholder="搜索插件...">
+                            </div>
+                            <div class="plugin-filters">
+                                <select id="pm-status-filter" class="filter-select">
+                                    <option value="all">全部状态</option>
+                                    <option value="enabled">已启用</option>
+                                    <option value="disabled">已禁用</option>
+                                    <option value="loading">加载中</option>
+                                </select>
+                                <select id="pm-sort-select" class="filter-select">
+                                    <option value="name">按名称排序</option>
+                                    <option value="status">按状态排序</option>
+                                    <option value="author">按作者排序</option>
+                                    <option value="size">按大小排序</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="plugin-list-container">
+                        <div class="plugin-list" id="pm-plugin-list">
+                            <!-- 插件项目将在这里动态生成 -->
+                        </div>
+                        <div class="plugin-list-empty" id="pm-plugin-list-empty" style="display: none;">
+                            <div class="empty-icon">🔌</div>
+                            <div class="empty-text">暂无已安装的插件</div>
+                            <div class="empty-description">点击"安装插件"或"导入文件"来添加新插件</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 安装插件面板 -->
+                <div class="plugin-install-panel" id="pm-install-panel" style="display: none;">
+                    <div class="install-panel-header">
+                        <h3 class="panel-title">安装新插件</h3>
+                        <button class="panel-close-btn" id="pm-install-panel-close">
+                            <img class="icon" src="assets/icons/x.svg" alt="关闭">
+                        </button>
+                    </div>
+
+                    <div class="install-panel-content">
+                        <!-- 安装方式选项卡 -->
+                        <div class="install-tabs">
+                            <button class="install-tab-btn active" data-tab="code">代码安装</button>
+                            <button class="install-tab-btn" data-tab="config">配置安装</button>
+                            <button class="install-tab-btn" data-tab="template">使用模板</button>
+                        </div>
+
+                        <!-- 代码安装面板 -->
+                        <div class="install-tab-panel active" id="pm-install-tab-code">
+                            <div class="install-input-group">
+                                <label for="pm-plugin-code-input" class="input-label">插件代码:</label>
+                                <textarea id="pm-plugin-code-input" class="code-textarea"
+                                         placeholder="请输入插件JavaScript代码..." rows="12"></textarea>
+                            </div>
+                            <div class="install-input-group">
+                                <label for="pm-plugin-id-input" class="input-label">插件ID:</label>
+                                <input type="text" id="pm-plugin-id-input" class="text-input"
+                                       placeholder="例如: my-awesome-plugin">
+                            </div>
+                        </div>
+
+                        <!-- 配置安装面板 -->
+                        <div class="install-tab-panel" id="pm-install-tab-config">
+                            <div class="install-input-group">
+                                <label for="pm-plugin-config-input" class="input-label">插件配置JSON:</label>
+                                <textarea id="pm-plugin-config-input" class="code-textarea"
+                                         placeholder="请输入插件配置JSON..." rows="12"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- 模板安装面板 -->
+                        <div class="install-tab-panel" id="pm-install-tab-template">
+                            <div class="install-input-group">
+                                <label for="pm-template-select" class="input-label">选择模板:</label>
+                                <select id="pm-template-select" class="select-input">
+                                    <option value="basic">基础插件</option>
+                                    <option value="ui">UI扩展插件</option>
+                                    <option value="music">音乐增强插件</option>
+                                </select>
+                            </div>
+                            <div class="install-input-group">
+                                <label for="pm-template-id" class="input-label">插件ID:</label>
+                                <input type="text" id="pm-template-id" class="text-input"
+                                       placeholder="例如: my-plugin">
+                            </div>
+                            <div class="install-input-group">
+                                <label for="pm-template-name" class="input-label">插件名称:</label>
+                                <input type="text" id="pm-template-name" class="text-input"
+                                       placeholder="例如: 我的插件">
+                            </div>
+                        </div>
+
+                        <!-- 安装按钮 -->
+                        <div class="install-panel-footer">
+                            <button class="install-btn secondary" id="pm-install-cancel">取消</button>
+                            <button class="install-btn primary" id="pm-install-confirm">安装插件</button>
                         </div>
                     </div>
                 </div>

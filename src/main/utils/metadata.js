@@ -293,7 +293,7 @@ function getMimeTypeFromExtension(filePath) {
  */
 async function parseMetadata(filePath, networkFileAdapter = null) {
     try {
-        console.log(`🔍 解析音频元数据: ${filePath}`);
+        // console.log(`🔍 解析音频元数据: ${filePath}`);
 
         let metadata;
         if (networkFileAdapter && networkFileAdapter.isNetworkPath(filePath)) {

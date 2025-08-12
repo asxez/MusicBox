@@ -1,5 +1,30 @@
 const {contextBridge, ipcRenderer} = require('electron');
 
+const OS_ALLOWED = [
+    'platform', 'type', 'arch', 'release',
+    'uptime', 'freemem', 'totalmem', 'cpus', 'loadavg', 'endianness'
+];
+const PATH_ALLOWED = [
+    'join', 'resolve', 'normalize', 'basename', 'dirname',
+    'extname', 'isAbsolute', 'relative', 'parse', 'format', 'sep'
+];
+const FS_ALLOWED = [
+    'stat', 'lstat', 'readdir', 'readFile', 'realpath', 'access'
+];
+
+const osApi = {};
+const pathApi = {};
+const fsApi = {};
+for (const prop of OS_ALLOWED) {
+    osApi[prop] = (...args) => ipcRenderer.invoke('os:call', { prop, args });
+}
+for (const prop of PATH_ALLOWED) {
+    pathApi[prop] = (...args) => ipcRenderer.invoke('path:call', { prop, args });
+}
+for (const prop of FS_ALLOWED) {
+    fsApi[prop] = (...args) => ipcRenderer.invoke('fs:call', { prop, args });
+}
+
 // 暴露安全的IPC方法给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
     // 应用信息
@@ -19,9 +44,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // 文件系统API
     fs: {
+        fs: fsApi,
         stat: (filePath) => ipcRenderer.invoke('fs:stat', filePath),
-        readFile: (filePath) => ipcRenderer.invoke('fs:readFile', filePath)
+        readFile: (filePath, encoding) => ipcRenderer.invoke('fs:readFile', filePath, encoding)
     },
+
+    // 系统API
+    os: osApi,
+    path: pathApi,
 
     // 音频引擎
     audio: {

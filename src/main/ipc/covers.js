@@ -64,7 +64,7 @@ function registerCoversIpcHandlers({ipcMain}) {
     // 检查本地封面缓存是否存在
     ipcMain.handle('covers:checkLocalCover', async (event, coverDir, title, artist, album, isAlbum = false) => {
         try {
-            console.log(`🔍 检查本地封面缓存: ${title} - ${artist} 在目录 ${coverDir} (isAlbum=${!!isAlbum})`);
+            // console.log(`🔍 检查本地封面缓存: ${title} - ${artist} 在目录 ${coverDir} (isAlbum=${!!isAlbum})`);
 
             if (!fs.existsSync(coverDir)) {
                 return {success: false, error: '封面缓存目录不存在'};
@@ -84,7 +84,7 @@ function registerCoversIpcHandlers({ipcMain}) {
                 const matched = imageFiles.find(file => path.parse(file).name.toLowerCase() === expectedBase);
                 if (matched) {
                     const fullPath = path.join(coverDir, matched);
-                    console.log(`✅ [Album-only] 找到匹配的封面文件: ${matched}`);
+                    // console.log(`✅ [Album-only] 找到匹配的封面文件: ${matched}`);
                     return {success: true, filePath: fullPath, fileName: matched};
                 }
                 console.log('❌ [Album-only] 未找到严格匹配的专辑封面');
@@ -96,7 +96,7 @@ function registerCoversIpcHandlers({ipcMain}) {
             const matchedFile = findBestCoverMatch(imageFiles, searchPatterns);
             if (matchedFile) {
                 const fullPath = path.join(coverDir, matchedFile);
-                console.log(`✅ 找到匹配的封面文件: ${matchedFile}`);
+                // console.log(`✅ 找到匹配的封面文件: ${matchedFile}`);
                 return {success: true, filePath: fullPath, fileName: matchedFile};
             } else {
                 console.log(`❌ 未找到匹配的封面文件`);

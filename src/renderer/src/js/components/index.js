@@ -35,6 +35,7 @@ const COMPONENTS = {
         'Player',              // 播放器控制台组件
         'Playlist',            // 播放列表组件
         'PlaylistDetailPage',  // 歌单页组件
+        'PluginManagerModal',  // 插件管理器模态框组件
         'RecentPage',          // 最近播放页组件
         'Search',              // 搜索组件
         'Settings',            // 设置组件
