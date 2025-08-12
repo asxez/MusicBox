@@ -21,12 +21,20 @@ class MusicBoxApp extends EventEmitter {
             }
 
             await this.initializeAPI();
-            this.initializeComponents();
+            this.initializeComponents(); // 先初始化组件
             await this.setupEventListeners();
             await this.loadInitialData();
+
+            // 在组件完全初始化后再初始化插件系统
+            await this.initializePluginSystem();
+
             this.showApp();
 
             this.isInitialized = true;
+
+            // 通知插件系统应用已完全初始化
+            this.notifyPluginSystemReady();
+
             return {
                 status: true
             };
@@ -49,6 +57,73 @@ class MusicBoxApp extends EventEmitter {
         const savedVolume = window.cacheManager.getLocalCache('volume');
         if (savedVolume !== null) {
             await api.setVolume(savedVolume);
+        }
+    }
+
+    // 初始化插件系统
+    async initializePluginSystem() {
+        try {
+            console.log('🔌 App: 开始初始化插件系统...');
+            console.log('🔌 App: 当前组件状态:', {
+                componentsCount: Object.keys(this.components).length,
+                availableComponents: Object.keys(this.components),
+                appInitialized: this.isInitialized
+            });
+
+            // 检查插件系统是否可用
+            if (typeof window.initializePluginSystem === 'function') {
+                const success = await window.initializePluginSystem();
+                if (success) {
+                    // 设置应用引用到插件系统
+                    if (window.pluginManager) {
+                        window.pluginManager.app = this;
+
+                        // 更新插件管理器的上下文，确保包含最新的组件
+                        if (window.pluginAPI && typeof window.pluginAPI.createPluginContext === 'function') {
+                            window.pluginManager.pluginContext = window.pluginAPI.createPluginContext('system');
+                        }
+                    }
+
+                    console.log('✅ App: 插件系统初始化成功');
+                } else {
+                    console.warn('⚠️ App: 插件系统初始化失败，但应用将继续运行');
+                }
+            } else {
+                console.warn('⚠️ App: 插件系统未加载，跳过初始化');
+            }
+
+        } catch (error) {
+            console.error('❌ App: 插件系统初始化失败:', error);
+            // 不抛出错误，让应用继续运行
+        }
+    }
+
+    // 通知插件系统应用已完全初始化
+    notifyPluginSystemReady() {
+        try {
+            console.log('🔌 App: 通知插件系统应用已完全初始化');
+            console.log('🔌 App: 最终组件状态:', {
+                componentsCount: Object.keys(this.components).length,
+                availableComponents: Object.keys(this.components),
+                appInitialized: this.isInitialized
+            });
+
+            // 触发应用就绪事件
+            document.dispatchEvent(new CustomEvent('appReady', {
+                detail: {
+                    app: this,
+                    components: this.components,
+                    isInitialized: this.isInitialized
+                }
+            }));
+
+            // 如果插件管理器存在，通知它应用已就绪
+            if (window.pluginManager && typeof window.pluginManager.onAppReady === 'function') {
+                window.pluginManager.onAppReady(this);
+            }
+
+        } catch (error) {
+            console.error('❌ App: 通知插件系统失败:', error);
         }
     }
 
@@ -75,6 +150,9 @@ class MusicBoxApp extends EventEmitter {
 
         // 将settings组件暴露到全局，供其他组件访问
         window.settings = this.components.settings;
+
+        // 初始化插件管理组件
+        this.components.pluginManagerModal = new PluginManagerModal();
 
         // 初始化新页面组件
         this.components.homePage = new HomePage('#content-area');

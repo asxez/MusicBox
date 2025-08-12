@@ -100,7 +100,16 @@ async function bundleJS() {
         // 1. 基础组件
         'components/base/Component.js',
 
-        // 2. 页面组件
+        // 2. 插件系统
+        'plugin-system/PluginBase.js',
+        'plugin-system/PluginLoader.js',
+        'plugin-system/PluginAPI.js',
+        'plugin-system/PluginManager.js',
+        'plugin-system/PluginDevServer.js',
+        'plugin-system/PluginTester.js',
+        'plugin-system/index.js',
+
+        // 3. 页面组件
         'components/component/ArtistsPage.js',
         'components/component/AlbumsPage.js',
         'components/component/ContextMenu.js',
@@ -111,19 +120,20 @@ async function bundleJS() {
         'components/component/Player.js',
         'components/component/Playlist.js',
         'components/component/PlaylistDetailPage.js',
+        'components/component/PluginManagerModal.js',
         'components/component/RecentPage.js',
         'components/component/Search.js',
         'components/component/Settings.js',
         'components/component/StatisticsPage.js',
         'components/component/TrackList.js',
 
-        // 3. 对话框组件
+        // 4. 对话框组件
         'components/dialogs/AddToPlaylistDialog.js',
         'components/dialogs/CreatePlaylistDialog.js',
         'components/dialogs/MusicLibrarySelectionDialog.js',
         'components/dialogs/RenamePlaylistDialog.js',
 
-        // 4. 组件索引
+        // 5. 组件索引
         'components/index.js',
     ];
 
@@ -144,6 +154,14 @@ async function bundleJS() {
     // Collect all JavaScript files
     const allFiles = collectJSFiles(jsDir);
 
+    // 创建路径规范化函数
+    function normalizePath(filePath) {
+        return filePath.replace(/\\/g, '/').toLowerCase();
+    }
+
+    // 创建已处理文件跟踪集合
+    const actuallyProcessedFiles = new Set();
+
     // Add main files first
     for (const fileName of mainFileOrder) {
         const file = allFiles.find(f => f.relativePath === fileName);
@@ -151,6 +169,9 @@ async function bundleJS() {
             const content = fs.readFileSync(file.path, 'utf8');
             console.log(`✓ Adding ${file.relativePath} (${content.length} chars)`);
             bundledCode += `// === ${file.relativePath} ===\n${content}\n\n`;
+
+            // 记录已处理的文件
+            actuallyProcessedFiles.add(normalizePath(file.relativePath));
         } else {
             console.log(`⚠ File ${fileName} not found`);
         }
@@ -158,11 +179,21 @@ async function bundleJS() {
 
     // Add component files in specific order
     for (const componentPath of componentLoadOrder) {
-        const file = allFiles.find(f => f.relativePath === componentPath);
+        const normalizedComponentPath = normalizePath(componentPath);
+
+        // 尝试匹配不同的路径分隔符格式
+        const file = allFiles.find(f => {
+            const normalizedFilePath = normalizePath(f.relativePath);
+            return normalizedFilePath === normalizedComponentPath;
+        });
+
         if (file) {
             const content = fs.readFileSync(file.path, 'utf8');
             console.log(`✓ Adding ${file.relativePath} (${content.length} chars)`);
             bundledCode += `// === ${file.relativePath} ===\n${content}\n\n`;
+
+            // 记录已处理的文件
+            actuallyProcessedFiles.add(normalizePath(file.relativePath));
         } else {
             console.log(`⚠ Component ${componentPath} not found`);
         }
@@ -174,26 +205,28 @@ async function bundleJS() {
         const content = fs.readFileSync(appFile.path, 'utf8');
         console.log(`✓ Adding ${appFile.relativePath} (${content.length} chars)`);
         bundledCode += `// === ${appFile.relativePath} ===\n${content}\n\n`;
+
+        // 记录已处理的文件
+        actuallyProcessedFiles.add(normalizePath(appFile.relativePath));
     } else {
         console.log(`⚠ File app.js not found`);
     }
 
-    // Add any remaining files (excluding specified files)
-    const processedFiles = new Set([
-        ...mainFileOrder,
-        ...componentLoadOrder,
-        'app.js'
-    ]);
-
+    // Add any remaining files (excluding already processed files)
     for (const file of allFiles) {
+        const normalizedPath = normalizePath(file.relativePath);
+
         if (
-            !processedFiles.has(file.relativePath) &&
+            !actuallyProcessedFiles.has(normalizedPath) &&
             !excludeFiles.includes(file.name) &&
             !excludeFiles.includes(file.relativePath)
         ) {
             const content = fs.readFileSync(file.path, 'utf8');
             console.log(`✓ Adding ${file.relativePath} (${content.length} chars)`);
             bundledCode += `// === ${file.relativePath} ===\n${content}\n\n`;
+
+            // 标记为已处理
+            actuallyProcessedFiles.add(normalizedPath);
         }
     }
 

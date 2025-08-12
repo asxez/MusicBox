@@ -9212,6 +9212,1331 @@ body.focus-mode {
   }
 }
 
+
+// ===== 插件管理模态框 =====
+
+// 模态框主体 - 与均衡器模态框保持一致
+.plugin-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-smooth);
+
+  &.show {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+.plugin-modal-content {
+  background: var(--color-body-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-heavy);
+  border: 1px solid var(--color-border);
+  width: 90%;
+  max-width: 1000px;
+  max-height: 90vh;
+  overflow: hidden;
+  transform: scale(0.9);
+  transition: transform var(--transition-smooth);
+
+  .plugin-modal.show & {
+    transform: scale(1);
+  }
+}
+
+// 模态框头部 - 与均衡器头部保持一致
+.plugin-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-secondary-bg);
+
+  .plugin-modal-title {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0;
+  }
+
+  .plugin-modal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    transition: background-color var(--transition-fast);
+
+    &:hover {
+      background: var(--color-hover);
+    }
+
+    .icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--color-text-secondary);
+    }
+  }
+}
+
+// 模态框主体内容
+.plugin-modal-body {
+  padding: var(--spacing-lg);
+  max-height: calc(90vh - 120px);
+  overflow-y: auto;
+}
+
+// 状态栏 - 采用设置页面的设计模式
+.plugin-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-lg) 0;
+  margin-bottom: var(--spacing-lg);
+  border-bottom: 1px solid rgba(128, 128, 128, 0.1);
+
+  .plugin-status-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--color-text-secondary);
+      transition: all var(--transition-fast);
+
+      &.active {
+        background: var(--color-success);
+        animation: pulse 2s infinite;
+      }
+
+      &.inactive {
+        background: var(--color-text-secondary);
+      }
+    }
+
+    .status-text {
+      font-weight: 500;
+      color: var(--color-text);
+      font-size: var(--font-size-md);
+    }
+
+    .plugin-count {
+      color: var(--color-text-secondary);
+      font-size: var(--font-size-sm);
+    }
+  }
+
+  .plugin-dev-mode {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+
+    .dev-mode-label {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      font-weight: 500;
+    }
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+// 操作按钮栏 - 使用设置页面的按钮样式
+.plugin-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  flex-wrap: wrap;
+
+  .plugin-action-btn {
+    @extend .settings-button;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+
+    .btn-icon {
+      font-size: 1rem;
+    }
+
+    .btn-text {
+      white-space: nowrap;
+    }
+
+    &.secondary {
+      @extend .settings-button, .secondary
+    }
+  }
+}
+
+// 插件列表区域 - 采用设置页面的列表设计
+.plugin-list-section {
+  .section-header {
+    margin-bottom: var(--spacing-lg);
+
+    .section-title {
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+      color: var(--color-text);
+      margin: 0 0 var(--spacing-md) 0;
+    }
+
+    // 搜索和筛选控件
+    .plugin-list-controls {
+      display: flex;
+      gap: var(--spacing-md);
+      align-items: center;
+      flex-wrap: wrap;
+
+      .plugin-search {
+        flex: 1;
+        min-width: 200px;
+
+        .search-input {
+          width: 100%;
+          padding: var(--spacing-sm) var(--spacing-md);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-md);
+          background: var(--color-body-bg);
+          color: var(--color-text);
+          font-size: var(--font-size-sm);
+          transition: all var(--transition-fast);
+
+          &::placeholder {
+            color: var(--color-text-secondary);
+          }
+
+          &:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
+          }
+        }
+      }
+
+      .plugin-filters {
+        display: flex;
+        gap: var(--spacing-sm);
+
+        .filter-select {
+          @extend .settings-select;
+          min-width: 120px;
+        }
+      }
+    }
+  }
+
+  .plugin-list-container {
+    position: relative;
+  }
+
+  // 插件列表 - 采用类似设置项的列表布局
+  .plugin-list {
+    background: var(--color-secondary-bg);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+  }
+}
+
+// 插件项 - 采用设置项的设计模式
+.pm-plugin-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid rgba(128, 128, 128, 0.1);
+  transition: all var(--transition-fast);
+  background: transparent;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: var(--color-hover);
+  }
+
+  &.disabled {
+    opacity: 0.6;
+  }
+}
+
+// 插件信息区域 - 采用设置项的信息布局
+.pm-plugin-info {
+  flex: 1;
+  margin-right: var(--spacing-lg);
+
+  .pm-plugin-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xs);
+
+    .pm-plugin-name {
+      font-size: var(--font-size-md);
+      font-weight: 500;
+      color: var(--color-text);
+      margin: 0;
+    }
+
+    .pm-plugin-version {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-secondary);
+      background: var(--color-body-bg);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-border);
+    }
+
+    .pm-status-badge {
+      font-size: var(--font-size-xs);
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid;
+
+      &.enabled {
+        background: rgba(var(--color-success), 0.1);
+        border-color: var(--color-success);
+        color: var(--color-success);
+      }
+
+      &.loading {
+        background: rgba(var(--color-warning), 0.1);
+        border-color: var(--color-warning);
+        color: var(--color-warning);
+        animation: pulse 1.5s infinite;
+      }
+
+      &.disabled {
+        background: var(--color-secondary-bg);
+        border-color: var(--color-border);
+        color: var(--color-text-secondary);
+      }
+    }
+  }
+
+  .pm-plugin-description {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .pm-plugin-meta {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-xs);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+
+    .pm-plugin-author,
+    .pm-plugin-size {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+  }
+}
+
+// 插件操作区域 - 采用设置项的控制区域设计
+.pm-plugin-controls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+
+  .pm-plugin-toggle {
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+
+      .toggle-input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+
+        &:checked + .toggle-label {
+          background: var(--color-success);
+
+          &::before {
+            transform: translateX(20px);
+          }
+        }
+
+        &:focus + .toggle-label {
+          box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
+        }
+      }
+
+      .toggle-label {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--color-border);
+        transition: all var(--transition-fast);
+        border-radius: 24px;
+
+        &::before {
+          position: absolute;
+          content: '';
+          height: 18px;
+          width: 18px;
+          left: 3px;
+          top: 3px;
+          background: white;
+          transition: all var(--transition-fast);
+          border-radius: 50%;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        &:hover {
+          background: var(--color-text-secondary);
+        }
+      }
+    }
+  }
+
+  .pm-action-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+
+    .pm-action-btn {
+      @extend .settings-button, .secondary;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      font-size: var(--font-size-xs);
+      min-width: auto;
+
+      &.danger {
+        background: var(--color-secondary-bg);
+        border-color: var(--color-danger);
+        color: var(--color-danger);
+
+        &:hover {
+          background: var(--color-danger);
+          border-color: var(--color-danger);
+          color: white;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+        }
+      }
+    }
+  }
+}
+
+// 空状态
+.plugin-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--spacing-xl) * 2);
+  text-align: center;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--border-radius-xl);
+  background: var(--color-secondary-bg);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--gradient-primary);
+    opacity: 0.02;
+    pointer-events: none;
+  }
+
+  .empty-icon {
+    font-size: 4rem;
+    margin-bottom: var(--spacing-lg);
+    opacity: 0.6;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .empty-text {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .empty-description {
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    max-width: 300px;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+// 安装面板
+.plugin-install-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-smooth);
+
+  &.show {
+    opacity: 1;
+    visibility: visible;
+
+    .install-panel-content {
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .install-panel-content {
+    background: var(--gradient-card);
+    backdrop-filter: blur(20px);
+    border-radius: var(--border-radius-xl);
+    box-shadow: var(--shadow-heavy);
+    border: 1px solid var(--color-border);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow: hidden;
+    transform: scale(0.9) translateY(20px);
+    transition: all var(--transition-smooth);
+  }
+
+  .install-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-xl);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--gradient-secondary);
+
+    .panel-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--color-text);
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+
+      &::before {
+        content: '⚡';
+        font-size: 1.2rem;
+      }
+    }
+
+    .panel-close-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: var(--spacing-sm);
+      border-radius: var(--border-radius-md);
+      transition: all var(--transition-fast);
+
+      &:hover {
+        background: var(--color-hover);
+        transform: scale(1.1);
+      }
+
+      .icon {
+        width: 20px;
+        height: 20px;
+        fill: var(--color-text-secondary);
+      }
+    }
+  }
+
+  .install-panel-content {
+    padding: var(--spacing-xl);
+    max-height: calc(80vh - 120px);
+    overflow-y: auto;
+
+    // 选项卡
+    .install-tabs {
+      display: flex;
+      gap: var(--spacing-xs);
+      margin-bottom: var(--spacing-xl);
+      background: var(--color-secondary-bg);
+      padding: var(--spacing-xs);
+      border-radius: var(--border-radius-lg);
+      border: 1px solid var(--color-border);
+
+      .install-tab-btn {
+        flex: 1;
+        padding: var(--spacing-md) var(--spacing-lg);
+        border: none;
+        background: transparent;
+        color: var(--color-text-secondary);
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        border-radius: var(--border-radius-md);
+        transition: all var(--transition-fast);
+        position: relative;
+
+        &:hover {
+          background: var(--color-hover);
+          color: var(--color-text);
+        }
+
+        &.active {
+          background: var(--gradient-primary);
+          color: white;
+          box-shadow: var(--shadow-card);
+        }
+      }
+    }
+
+    // 选项卡面板
+    .install-tab-panel {
+      display: none;
+
+      &.active {
+        display: block;
+        animation: fadeInUp 0.3s ease-out;
+      }
+
+      .install-input-group {
+        margin-bottom: var(--spacing-lg);
+
+        .input-label {
+          display: block;
+          font-weight: 600;
+          color: var(--color-text);
+          margin-bottom: var(--spacing-sm);
+          font-size: 0.95rem;
+        }
+
+        .text-input,
+        .select-input {
+          width: 100%;
+          padding: var(--spacing-md);
+          border: 1px solid var(--color-border);
+          border-radius: var(--border-radius-md);
+          background: var(--color-body-bg);
+          color: var(--color-text);
+          font-size: 0.95rem;
+          transition: all var(--transition-fast);
+
+          &:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
+          }
+
+          &::placeholder {
+            color: var(--color-text-secondary);
+          }
+        }
+
+        .code-textarea {
+          width: 100%;
+          padding: var(--spacing-md);
+          border: 1px solid var(--color-border);
+          border-radius: var(--border-radius-md);
+          background: var(--color-secondary-bg);
+          color: var(--color-text);
+          font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+          font-size: 0.85rem;
+          line-height: 1.5;
+          resize: vertical;
+          min-height: 200px;
+          transition: all var(--transition-fast);
+
+          &:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(var(--color-primary), 0.1);
+          }
+
+          &::placeholder {
+            color: var(--color-text-secondary);
+          }
+        }
+      }
+    }
+
+    // 底部按钮
+    .install-panel-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--spacing-md);
+      margin-top: var(--spacing-xl);
+      padding-top: var(--spacing-lg);
+      border-top: 1px solid var(--color-border);
+
+      .install-btn {
+        padding: var(--spacing-md) var(--spacing-xl);
+        border-radius: var(--border-radius-md);
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        border: none;
+        min-width: 100px;
+
+        &.secondary {
+          background: var(--color-secondary-bg);
+          color: var(--color-text);
+          border: 1px solid var(--color-border);
+
+          &:hover {
+            background: var(--color-hover);
+          }
+        }
+
+        &.primary {
+          background: var(--gradient-primary);
+          color: white;
+          box-shadow: var(--shadow-card);
+
+          &:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-card-hover);
+          }
+
+          &:active {
+            transform: translateY(0);
+          }
+        }
+
+        &:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none !important;
+          box-shadow: none !important;
+        }
+      }
+    }
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// 响应式设计
+@media (max-width: 1200px) {
+  .plugin-modal-content {
+    width: 95%;
+    max-width: 900px;
+  }
+}
+
+@media (max-width: 768px) {
+  .plugin-modal-content {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .plugin-modal-header,
+  .plugin-modal-body {
+    padding: var(--spacing-md);
+  }
+
+  .plugin-modal-header {
+    .plugin-modal-title {
+      font-size: var(--font-size-lg);
+    }
+  }
+
+  // 状态栏响应式
+  .plugin-status-bar {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    align-items: stretch;
+    text-align: center;
+
+    .plugin-status-info {
+      justify-content: center;
+    }
+
+    .plugin-dev-mode {
+      justify-content: center;
+    }
+  }
+
+  // 操作按钮栏响应式
+  .plugin-actions-bar {
+    justify-content: center;
+
+    .plugin-action-btn {
+      flex: 1;
+      min-width: 0;
+
+      .btn-text {
+        display: none;
+      }
+
+      .btn-icon {
+        font-size: 1.2rem;
+      }
+    }
+  }
+
+  // 搜索和筛选控件响应式
+  .plugin-list-controls {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+
+    .plugin-search {
+      min-width: auto;
+    }
+
+    .plugin-filters {
+      justify-content: center;
+
+      .filter-select {
+        flex: 1;
+        min-width: 0;
+      }
+    }
+  }
+
+  // 插件项响应式
+  .pm-plugin-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-md);
+
+    .pm-plugin-info {
+      margin-right: 0;
+
+      .pm-plugin-header {
+        flex-wrap: wrap;
+        justify-content: center;
+        text-align: center;
+      }
+
+      .pm-plugin-description {
+        text-align: center;
+      }
+
+      .pm-plugin-meta {
+        justify-content: center;
+      }
+    }
+
+    .pm-plugin-controls {
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: var(--spacing-sm);
+
+      .pm-action-buttons {
+        .pm-action-btn {
+          font-size: var(--font-size-xs);
+          padding: var(--spacing-xs);
+        }
+      }
+    }
+  }
+
+  // 安装面板响应式
+  .install-panel-content {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .install-tabs {
+    .install-tab-btn {
+      font-size: var(--font-size-xs);
+      padding: var(--spacing-sm);
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .plugin-modal-header {
+    padding: var(--spacing-sm);
+
+    .plugin-modal-title {
+      font-size: var(--font-size-md);
+    }
+  }
+
+  .plugin-modal-body {
+    padding: var(--spacing-sm);
+  }
+
+  .plugin-actions-bar {
+    .plugin-action-btn {
+      padding: var(--spacing-xs) var(--spacing-sm);
+
+      .btn-icon {
+        font-size: 1rem;
+      }
+    }
+  }
+
+  .plugin-list-controls {
+    .plugin-filters {
+      flex-direction: column;
+    }
+  }
+
+  .pm-plugin-card {
+    padding: var(--spacing-md);
+
+    .pm-plugin-info {
+      .pm-plugin-header {
+        gap: var(--spacing-sm);
+
+        .pm-plugin-name {
+          font-size: var(--font-size-sm);
+        }
+      }
+
+      .pm-plugin-meta {
+        flex-direction: column;
+        gap: var(--spacing-xs);
+        align-items: center;
+      }
+    }
+
+    .pm-plugin-controls {
+      .pm-action-buttons {
+        flex-direction: column;
+        width: 100%;
+
+        .pm-action-btn {
+          width: 100%;
+          justify-content: center;
+        }
+      }
+    }
+  }
+
+  .install-tabs {
+    flex-direction: column;
+
+    .install-tab-btn {
+      text-align: center;
+    }
+  }
+
+  .install-panel-footer {
+    flex-direction: column;
+
+    .install-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+// 加载状态和动画效果
+.plugin-loading {
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    animation: shimmer 1.5s infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+// 工具提示
+.tooltip {
+  position: relative;
+  cursor: help;
+
+  &::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-fast);
+    z-index: 1000;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.9);
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-fast);
+    z-index: 1000;
+  }
+
+  &:hover::before,
+  &:hover::after {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+// 焦点管理
+.plugin-modal {
+  &:focus-within {
+    .plugin-modal-content {
+      box-shadow: var(--shadow-heavy), 0 0 0 3px rgba(var(--color-primary), 0.2);
+    }
+  }
+}
+
+// 高对比度模式支持
+@media (prefers-contrast: high) {
+  .pm-plugin-card {
+    border-width: 2px;
+
+    &:hover {
+      border-width: 3px;
+    }
+  }
+
+  .pm-status-badge {
+    border-width: 2px;
+    font-weight: 700;
+  }
+
+  .plugin-action-btn,
+  .install-btn {
+    border-width: 2px;
+    font-weight: 700;
+  }
+}
+
+// 减少动画模式支持
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .plugin-loading::after {
+    display: none;
+  }
+}
+
+// 额外的视觉增强
+.plugin-modal {
+  // 背景模糊效果增强
+  &.show {
+    .plugin-modal-content {
+      animation: modalEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+  }
+}
+
+@keyframes modalEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(40px) rotateX(10deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0) rotateX(0deg);
+  }
+}
+
+// 插件卡片增强效果
+.pm-plugin-card {
+  // 3D 悬停效果
+  transform-style: preserve-3d;
+  perspective: 1000px;
+
+  &:hover {
+    animation: cardFloat 0.6s ease-out;
+  }
+
+  // 状态指示器增强
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--gradient-primary);
+    opacity: 0;
+    transition: opacity var(--transition-smooth);
+  }
+
+  &.enabled::after {
+    opacity: 1;
+  }
+
+  // 卡片内容渐入效果
+  .pm-card-header,
+  .pm-card-body,
+  .pm-card-actions {
+    animation: fadeInUp 0.6s ease-out;
+    animation-fill-mode: both;
+  }
+
+  .pm-card-header {
+    animation-delay: 0.1s;
+  }
+
+  .pm-card-body {
+    animation-delay: 0.2s;
+  }
+
+  .pm-card-actions {
+    animation-delay: 0.3s;
+  }
+}
+
+@keyframes cardFloat {
+  0%, 100% {
+    transform: translateY(-4px) rotateX(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotateX(2deg);
+  }
+}
+
+// 按钮增强效果
+.plugin-action-btn,
+.install-btn {
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+  }
+
+  &:active::before {
+    width: 300px;
+    height: 300px;
+  }
+
+  // 图标旋转效果
+  .btn-icon {
+    transition: transform var(--transition-fast);
+  }
+
+  &:hover .btn-icon {
+    transform: scale(1.1) rotate(5deg);
+  }
+}
+
+// 状态指示器脉冲效果增强
+.status-indicator.active {
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border-radius: 50%;
+    background: var(--color-success);
+    opacity: 0.3;
+    animation: statusPulse 2s infinite;
+  }
+}
+
+@keyframes statusPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+// 安装面板增强
+.install-panel-content {
+  // 玻璃态效果增强
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(30px) saturate(180%);
+
+  [data-theme="dark"] & {
+    background: rgba(30, 30, 30, 0.95);
+  }
+
+  // 选项卡切换动画
+  .install-tab-panel {
+    &.active {
+      animation: tabSlideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+  }
+}
+
+@keyframes tabSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+// 代码编辑器增强
+.code-textarea {
+  // 语法高亮提示
+  &:focus {
+    background: var(--color-body-bg);
+    box-shadow:
+      0 0 0 3px rgba(var(--color-primary), 0.1),
+      inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  // 行号模拟
+  background-image:
+    linear-gradient(
+      to right,
+      var(--color-border) 40px,
+      transparent 40px
+    );
+  background-size: 100% 1.5em;
+  background-repeat: repeat-y;
+  padding-left: 50px;
+}
+
+// 微交互增强
+.pm-plugin-toggle .toggle-label {
+  &:hover {
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+// 空状态增强
+.plugin-list-empty {
+  .empty-icon {
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+  }
+
+  &:hover .empty-icon {
+    animation: bounce 1s ease-in-out;
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+.pm-tab-btn.active { background: var(--color-primary); color:#fff; border-color: var(--color-primary); }
+.pm-tab-panel { display:none; }
+.pm-tab-panel.active { display:block; }
+.plugin-input-group { display:flex; flex-direction:column; gap: 6px; margin-bottom: 10px; }
+
 .equalizer-body {
   padding: var(--spacing-lg);
 }
