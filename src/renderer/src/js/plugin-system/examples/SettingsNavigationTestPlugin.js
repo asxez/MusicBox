@@ -5,11 +5,16 @@
 class SettingsTestPlugin extends PluginBase {
     constructor(context) {
         super(context);
-        this.id = 'settings-test-plugin';
-        this.name = '测试插件';
-        this.version = '1.0.0';
-        this.description = '测试插件';
-        this.author = 'MusicBox Team';
+
+        this.metadata = {
+            id: 'settings-test-plugin',
+            name: '测试插件',
+            version: '1.0.0',
+            description: '测试插件',
+            author: 'MusicBox-ASXE',
+            permissions: ['settings', 'navigation'],
+            category: '功能测试'
+        };
 
         // 测试数据
         this.testSettings = {

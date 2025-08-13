@@ -53,6 +53,47 @@ contextBridge.exposeInMainWorld('electronAPI', {
     os: osApi,
     path: pathApi,
 
+    // HTTP服务器API
+    httpServer: {
+        create: (config) => ipcRenderer.invoke('httpServer:create', config),
+        start: (serverId) => ipcRenderer.invoke('httpServer:start', serverId),
+        stop: (serverId) => ipcRenderer.invoke('httpServer:stop', serverId),
+        destroy: (serverId) => ipcRenderer.invoke('httpServer:destroy', serverId),
+        getStatus: (serverId) => ipcRenderer.invoke('httpServer:getStatus', serverId),
+        list: () => ipcRenderer.invoke('httpServer:list'),
+        registerHandler: (serverId, method, path, handlerId) =>
+            ipcRenderer.invoke('httpServer:registerHandler', serverId, method, path, handlerId),
+
+        // 处理HTTP请求的回调注册
+        onHandleRequest: (callback) => {
+            const wrappedCallback = async (event, requestData) => {
+                try {
+                    const response = await callback(requestData);
+                    const responseData = {
+                        ...response,
+                        requestId: requestData.requestId
+                    };
+                    ipcRenderer.send('httpServer:handleResponse', responseData);
+
+                } catch (error) {
+                    console.error('插件处理失败:', error);
+                    const errorResponse = {
+                        success: false,
+                        error: error.message,
+                        statusCode: 500,
+                        requestId: requestData.requestId
+                    };
+                    ipcRenderer.send('httpServer:handleResponse', errorResponse);
+                }
+            };
+
+            ipcRenderer.on('httpServer:handleRequest', wrappedCallback);
+            return () => {
+                ipcRenderer.removeListener('httpServer:handleRequest', wrappedCallback);
+            };
+        }
+    },
+
     // 音频引擎
     audio: {
         // Initialize the audio engine

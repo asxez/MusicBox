@@ -23,6 +23,7 @@ const {registerCoversIpcHandlers} = require('./ipc/covers');
 const {registerGlobalShortcutsIpcHandlers} = require('./ipc/global-shortcuts');
 const {registerSettingsIpcHandlers} = require('./ipc/settings');
 const {registerAppIpcHandlers} = require('./ipc/app');
+const {registerHttpServerIpcHandlers} = require('./ipc/http-server');
 const {registerSecurityIntegration} = require('./security/security-integration');
 
 // 导入音乐库相关IPC
@@ -269,6 +270,9 @@ registerLibraryScanIpcHandlers({
 
 // 注册 Settings IPC
 registerSettingsIpcHandlers({ipcMain});
+
+// 注册HTTP服务器IPC
+registerHttpServerIpcHandlers({ipcMain});
 
 // 注册安全/集成 IPC
 registerSecurityIntegration({isDev});

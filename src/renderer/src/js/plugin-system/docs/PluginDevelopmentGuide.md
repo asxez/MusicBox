@@ -18,7 +18,14 @@ MusicBox 插件系统是一个高权限、灵活的扩展框架，允许第三�
 此方法注册了 context 中大量的核心接口，createPluginContext 方法则是创建上下文（context）的总方法，所有 context 都在这里创建。
 2. 查看 PluginBase 类，这是所有插件的基类，可查看其内置的接口。
 
-示例插件中可能有你想要的，尤其是ThemeSwitcherPlugin.js和SettingsNavigationTestPlugin.js：
+3. 查看示例插件
+
+ThemeSwitcherPlugin.js => 主要是ui和storage
+
+SettingsNavigationTestPlugin.js => 主要是settings和navigation以及事件监听等
+
+RealtimeStatusAPIPlugin.js => 主要是network, system, api和事件监听等。
+
 - [示例插件](../examples/)
 - [类型定义文件](./TypeDefinitions.js)
 
@@ -756,16 +763,16 @@ class MyPlugin extends PluginBase {
 ### Q: 插件无法加载怎么办？
 
 **A:** 检查以下几点：
-1. 确保插件配置文件格式正确
-2. 检查主入口文件路径是否正确
+1. 检查主入口文件路径是否正确
+2. 确保插件正确继承自 `PluginBase`
 3. 确保插件类正确导出到 `window.PluginClass`
-4. 查看浏览器控制台的错误信息
+4. 应用中按 ctrl+shift+i 调出浏览器控制台，查看错误信息
 
 ### Q: 如何调试插件？
 
 **A:**
 1. 使用 `console.log()` 输出调试信息
-2. 在浏览器开发者工具中设置断点
+2. 在浏览器开发者工具中设置断点，可按 ctrl+shift+i 打开控制台
 3. 使用 `this.showNotification()` 显示状态信息
 4. 检查插件管理器的日志输出
 
