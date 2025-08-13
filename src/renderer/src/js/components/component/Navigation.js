@@ -37,6 +37,7 @@ class Navigation extends Component {
         this.closeBtn = this.element.querySelector('#close-btn');
         this.maximizeIcon = this.maximizeBtn.querySelector('.maximize-icon');
         this.restoreIcon = this.maximizeBtn.querySelector('.restore-icon');
+        this.navbarContent = this.element.querySelector('.navbar-content');
 
         // 侧边栏相关元素
         this.sidebar = document.getElementById('sidebar');
@@ -95,6 +96,10 @@ class Navigation extends Component {
 
         this.closeBtn.addEventListener('click', async () => {
             await this.closeWindow();
+        });
+
+        this.navbarContent.addEventListener('dblclick', async () => {
+            await this.toggleMaximizeWindow();
         });
 
         // 监听窗口最大化状态变化
@@ -262,10 +267,10 @@ class Navigation extends Component {
                     window.electronAPI.window.getSize().then(([width, height]) => {
                         this.originalWindowWidth = width;
                         this.originalWindowHeight = height;
-                        console.log('🎵 Navigation: 记录原始窗口尺寸', {
-                            width: this.originalWindowWidth,
-                            height: this.originalWindowHeight
-                        });
+                        // console.log('🎵 Navigation: 记录原始窗口尺寸', {
+                        //     width: this.originalWindowWidth,
+                        //     height: this.originalWindowHeight
+                        // });
                     }).catch(error => {
                         console.error('❌ Navigation: 获取窗口尺寸失败', error);
                     });
@@ -274,7 +279,7 @@ class Navigation extends Component {
                 console.error('❌ Navigation: 尺寸记录失败', error);
             }
 
-            console.log('🎵 Navigation: 开始拖拽窗口', {dinatesX: this.dinatesX, dinatesY: this.dinatesY});
+            // console.log('🎵 Navigation: 开始拖拽窗口', {dinatesX: this.dinatesX, dinatesY: this.dinatesY});
 
             document.onmousemove = async (ev) => {
                 if (this.isKeyDown) {
@@ -306,7 +311,7 @@ class Navigation extends Component {
                 this.originalWindowWidth = 0;
                 this.originalWindowHeight = 0;
 
-                console.log('🎵 Navigation: 结束拖拽窗口，已清理尺寸缓存');
+                // console.log('🎵 Navigation: 结束拖拽窗口，已清理尺寸缓存');
             };
         };
         navbarContent.addEventListener('mousedown', mousedown);
@@ -328,7 +333,6 @@ class Navigation extends Component {
             console.warn('🎵 Navigation: 统计信息按钮元素不存在');
             return;
         }
-
         const listItem = this.statisticsLink.parentElement;
         listItem.style.display = enabled ? 'block' : 'none';
     }
@@ -339,7 +343,6 @@ class Navigation extends Component {
             console.warn('🎵 Navigation: 最近播放按钮元素不存在');
             return;
         }
-
         const listItem = this.recentLink.parentElement;
         listItem.style.display = enabled ? 'block' : 'none';
     }
@@ -350,7 +353,6 @@ class Navigation extends Component {
             console.warn('🎵 Navigation: 艺术家页面按钮元素不存在');
             return;
         }
-
         const listItem = this.artistsLink.parentElement;
         listItem.style.display = enabled ? 'block' : 'none';
     }
@@ -381,10 +383,11 @@ class Navigation extends Component {
             // 艺术家页面按钮状态
             const artistsPageEnabled = settings.hasOwnProperty('artistsPage') ? settings.artistsPage : true;
             this.updateArtistsPageButtonVisibility(artistsPageEnabled);
-            // 专辑页面按钮状态（与艺术家开关一致，后续如需可拆）
-            this.updateAlbumsPageButtonVisibility(artistsPageEnabled);
 
-            console.log('🎵 Navigation: 侧边栏按钮状态初始化完成 - 统计信息:', statisticsEnabled, '最近播放:', recentPlayEnabled, '艺术家/专辑页面:', artistsPageEnabled);
+            // 专辑页面按钮状态
+            const albumsPageEnabled = settings.hasOwnProperty('albumsPage') ? settings.albumsPage : true;
+            this.updateAlbumsPageButtonVisibility(albumsPageEnabled);
+            // console.log('🎵 Navigation: 侧边栏按钮状态初始化完成 - 统计信息:', statisticsEnabled, '最近播放:', recentPlayEnabled, '艺术家/专辑页面:', artistsPageEnabled);
         } catch (error) {
             console.error('❌ Navigation: 初始化侧边栏按钮状态失败:', error);
         }
@@ -396,7 +399,7 @@ class Navigation extends Component {
         try {
             this.userPlaylists = await window.electronAPI.library.getPlaylists();
             this.renderUserPlaylists();
-            console.log(`🎵 Navigation: 加载了 ${this.userPlaylists.length} 个用户歌单`);
+            // console.log(`🎵 Navigation: 加载了 ${this.userPlaylists.length} 个用户歌单`);
         } catch (error) {
             console.error('❌ Navigation: 加载用户歌单失败', error);
             this.userPlaylists = [];
@@ -502,7 +505,7 @@ class Navigation extends Component {
     openPlaylist(playlistId) {
         const playlist = this.userPlaylists.find(p => p.id === playlistId);
         if (playlist) {
-            console.log('🎵 Navigation: 打开歌单', playlist.name);
+            // console.log('🎵 Navigation: 打开歌单', playlist.name);
             this.emit('playlistSelected', playlist);
         }
     }
@@ -537,7 +540,7 @@ class Navigation extends Component {
         try {
             const result = await window.electronAPI.library.deletePlaylist(playlist.id);
             if (result.success) {
-                console.log('✅ Navigation: 歌单删除成功');
+                // console.log('✅ Navigation: 歌单删除成功');
                 await this.refreshPlaylists();
                 if (window.app && window.app.showInfo) {
                     window.app.showInfo(`歌单 "${playlist.name}" 已删除`);
@@ -567,7 +570,7 @@ class Navigation extends Component {
         if (index !== -1) {
             this.userPlaylists[index] = {...this.userPlaylists[index], ...updatedPlaylist};
             this.renderUserPlaylists();
-            console.log('✅ Navigation: 歌单信息已更新', updatedPlaylist.name);
+            // console.log('✅ Navigation: 歌单信息已更新', updatedPlaylist.name);
         }
     }
 
