@@ -45,7 +45,7 @@ class EqualizerComponent extends Component {
         for (let i = 0; i < 10; i++) {
             this.bandSliders[i] = this.element.querySelector(`#band-${i}`);
             this.bandValues[i] = this.element.querySelector(`#band-value-${i}`);
-            console.log(`🎛️ 频段 ${i} - 滑块:`, this.bandSliders[i], '数值:', this.bandValues[i]);
+            // console.log(`🎛️ 频段 ${i} - 滑块:`, this.bandSliders[i], '数值:', this.bandValues[i]);
         }
 
         // 控制按钮
@@ -258,13 +258,13 @@ class EqualizerComponent extends Component {
     }
 
     updateBandValueDisplay(bandIndex, gain) {
-        console.log(`🎛️ 更新频段 ${bandIndex} 显示值: ${gain}dB`);
-        console.log(`🎛️ 数值元素:`, this.bandValues[bandIndex]);
+        // console.log(`🎛️ 更新频段 ${bandIndex} 显示值: ${gain}dB`);
+        // console.log(`🎛️ 数值元素:`, this.bandValues[bandIndex]);
 
         if (this.bandValues[bandIndex]) {
             const displayValue = gain >= 0 ? `+${gain.toFixed(1)}dB` : `${gain.toFixed(1)}dB`;
             this.bandValues[bandIndex].textContent = displayValue;
-            console.log(`✅ 频段 ${bandIndex} 显示值已更新为: ${displayValue}`);
+            // console.log(`✅ 频段 ${bandIndex} 显示值已更新为: ${displayValue}`);
         } else {
             console.error(`❌ 频段 ${bandIndex} 的数值元素不存在`);
         }

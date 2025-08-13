@@ -259,10 +259,25 @@ class PluginManager extends EventEmitter {
             // 创建插件实例
             let pluginInstance;
             try {
+                console.log(`🔌 PluginManager: 开始实例化插件 ${pluginId}`);
+                console.log(`🔌 PluginManager: 插件上下文状态:`, {
+                    hasContext: !!pluginContext,
+                    contextKeys: Object.keys(pluginContext || {}),
+                    hasApp: !!pluginContext?.app,
+                    hasAPI: !!pluginContext?.api,
+                    appInitialized: pluginContext?.app?.isInitialized
+                });
+
                 pluginInstance = new PluginConstructor(pluginContext);
                 console.log(`✅ PluginManager: 插件实例创建成功 ${pluginId}`);
             } catch (constructorError) {
                 console.error(`❌ PluginManager: 插件实例化失败:`, constructorError);
+                console.error(`❌ PluginManager: 构造函数错误详情:`, {
+                    errorMessage: constructorError.message,
+                    errorStack: constructorError.stack,
+                    constructorName: PluginConstructor.name,
+                    contextProvided: !!pluginContext
+                });
                 throw new Error(`插件实例化失败: ${constructorError.message}`);
             }
 

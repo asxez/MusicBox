@@ -26,11 +26,10 @@ class MusicBoxApp extends EventEmitter {
             await this.loadInitialData();
 
             // 在组件完全初始化后再初始化插件系统
+            this.isInitialized = true;
             await this.initializePluginSystem();
 
             this.showApp();
-
-            this.isInitialized = true;
 
             // 通知插件系统应用已完全初始化
             this.notifyPluginSystemReady();
@@ -547,7 +546,7 @@ class MusicBoxApp extends EventEmitter {
         try {
             // 设置验证进度监听器
             api.on('cacheValidationProgress', (progress) => {
-                console.log(`🔍 缓存验证进度: ${progress.current}/${progress.total}`);
+                // console.log(`🔍 缓存验证进度: ${progress.current}/${progress.total}`);
             });
 
             api.on('cacheValidationCompleted', (result) => {

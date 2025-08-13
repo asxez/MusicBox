@@ -5,10 +5,16 @@
 
 class PluginBase {
     constructor(context) {
+        if (!context) {
+            throw new Error('PluginBase构造函数需要context参数。请确保插件构造函数正确接收并传递context参数。');
+        }
+
         this.context = context;
         this.id = null;
         this.name = null;
         this.version = null;
+
+        // 插件元数据
         this.metadata = {
             id: null,
             name: null,
@@ -19,7 +25,7 @@ class PluginBase {
             category: null
         };
         this.isActive = false;
-        
+
         // 插件资源管理
         this.disposables = [];
         this.styleElements = [];
@@ -33,6 +39,7 @@ class PluginBase {
     }
 
     // 插件停用 - 子类可以重写
+    // 建议重写此方法，除非确实没有其他的资源需要清理
     async deactivate() {
         // 清理所有资源
         this.dispose();
@@ -43,7 +50,7 @@ class PluginBase {
     // 清理插件资源
     dispose() {
         // 移除事件监听器
-        this.eventListeners.forEach(({ element, event, handler }) => {
+        this.eventListeners.forEach(({element, event, handler}) => {
             element.removeEventListener(event, handler);
         });
         this.eventListeners = [];
@@ -70,12 +77,85 @@ class PluginBase {
     // --- 提供快捷方法 ---
 
     // 添加CSS样式
-    addStyle(css) {
+    addStyle(css, options = {}) {
+        const {
+            scoped = false,
+            important = false,
+            id = null
+        } = options;
+
         const style = document.createElement('style');
-        style.textContent = css;
+
+        // 设置样式元素ID
+        if (id) {
+            style.id = `plugin-${this.id}-${id}`;
+        } else {
+            style.id = `plugin-${this.id}-style-${this.styleElements.length}`;
+        }
+
+        // 处理CSS内容
+        let processedCSS = css;
+
+        // 如果启用作用域，为所有选择器添加插件前缀
+        if (scoped && this.id) {
+            processedCSS = this.scopeCSS(css);
+        }
+
+        // 如果启用重要性，为所有属性添加!important
+        if (important) {
+            processedCSS = this.addImportantToCSS(processedCSS);
+        }
+
+        style.textContent = processedCSS;
         document.head.appendChild(style);
         this.styleElements.push(style);
+
+        console.log(`🎨 Plugin ${this.id}: 添加样式 ${style.id}`);
         return style;
+    }
+
+    // 为CSS添加插件作用域
+    scopeCSS(css) {
+        const pluginScope = `[data-plugin="${this.id}"]`;
+
+        // 简单的CSS选择器作用域处理
+        return css.replace(/([^{}]+)\s*{/g, (match, selector) => {
+            // 跳过@规则（如@media, @keyframes等）
+            if (selector.trim().startsWith('@')) {
+                return match;
+            }
+
+            // 为每个选择器添加插件作用域
+            const scopedSelectors = selector.split(',').map(sel => {
+                const trimmedSel = sel.trim();
+
+                // 如果选择器已经包含插件作用域，跳过
+                if (trimmedSel.includes(`[data-plugin="${this.id}"]`)) {
+                    return trimmedSel;
+                }
+
+                // 如果是全局选择器（如body, html），不添加作用域
+                if (trimmedSel.match(/^(html|body|:root)(\s|$|:)/)) {
+                    return trimmedSel;
+                }
+
+                // 添加插件作用域
+                return `${pluginScope} ${trimmedSel}`;
+            }).join(', ');
+
+            return `${scopedSelectors} {`;
+        });
+    }
+
+    // 为CSS属性添加!important
+    addImportantToCSS(css) {
+        return css.replace(/([^{}]+):\s*([^;!]+);/g, (match, property, value) => {
+            // 如果已经有!important，跳过
+            if (value.includes('!important')) {
+                return match;
+            }
+            return `${property}: ${value} !important;`;
+        });
     }
 
     // 创建DOM元素
@@ -83,10 +163,27 @@ class PluginBase {
         return this.context.utils.createElement(tag, attributes, children);
     }
 
+    // 为元素添加插件数据属性
+    // 此方法用于CSS作用域
+    addPluginScope(element) {
+        if (element && this.id) {
+            element.setAttribute('data-plugin', this.id);
+        }
+        return element;
+    }
+
+    // 为HTML字符串添加插件作用域属性
+    addScopeToHTML(html) {
+        if (!this.id) return html;
+
+        // 为根元素添加data-plugin属性
+        return html.replace(/^(\s*<[^>]+)/, `$1 data-plugin="${this.id}"`);
+    }
+
     // 添加事件监听器
     addEventListener(element, event, handler) {
         element.addEventListener(event, handler);
-        this.eventListeners.push({ element, event, handler });
+        this.eventListeners.push({element, event, handler});
         return () => element.removeEventListener(event, handler);
     }
 
@@ -98,7 +195,7 @@ class PluginBase {
     // 注册命令
     registerCommand(commandId, handler) {
         this.context.utils.registerCommand(this.id, commandId, handler);
-        
+
         // 添加到清理列表
         this.disposables.push(() => {
             this.context.utils.unregisterCommand(this.id, commandId);
@@ -128,7 +225,7 @@ class PluginBase {
     // 监听插件间消息
     on(event, handler) {
         this.context.messaging.on(`plugin:${this.id}:${event}`, handler);
-        
+
         // 添加到清理列表
         this.disposables.push(() => {
             this.context.messaging.off(`plugin:${this.id}:${event}`, handler);
@@ -138,7 +235,7 @@ class PluginBase {
     // 监听其他插件消息
     onPlugin(pluginId, event, handler) {
         this.context.messaging.on(`plugin:${pluginId}:${event}`, handler);
-        
+
         // 添加到清理列表
         this.disposables.push(() => {
             this.context.messaging.off(`plugin:${pluginId}:${event}`, handler);
@@ -149,6 +246,20 @@ class PluginBase {
 
     // 获取应用实例
     getApp() {
+        if (!this.context) {
+            throw new Error(`Plugin ${this.id || 'Unknown'}: context未初始化。请检查插件构造函数是否正确传递了context参数。`);
+        }
+
+        if (!this.context.app) {
+            console.warn(`⚠️ Plugin ${this.id || 'Unknown'}: context.app为空，应用可能尚未完全初始化`);
+            console.log(`🔍 Plugin ${this.id || 'Unknown'}: context内容:`, {
+                hasContext: !!this.context,
+                contextKeys: Object.keys(this.context || {}),
+                appExists: !!this.context.app,
+                windowAppExists: !!window.app
+            });
+        }
+
         return this.context.app;
     }
 
@@ -194,18 +305,64 @@ class PluginBase {
     }
 
     // 等待应用完全初始化
-    async waitForAppInitialization(timeout = 10000) {
+    async waitForAppInitialization(timeout = 5000) {
         const startTime = Date.now();
+        let lastLogTime = 0;
+
+        console.log(`⏳ Plugin ${this.id}: 开始等待应用初始化...`);
+
         while (Date.now() - startTime < timeout) {
-            const app = this.getApp();
-            if (app && app.isInitialized && app.components && Object.keys(app.components).length > 0) {
-                console.log(`✅ Plugin ${this.id}: 应用初始化完成，可用组件: ${Object.keys(app.components).join(', ')}`);
-                return true;
+            try {
+                // 首先检查window.app是否存在
+                if (!window.app) {
+                    const elapsed = Date.now() - startTime;
+                    if (elapsed - lastLogTime > 1000) { // 每秒记录一次
+                        console.log(`⏳ Plugin ${this.id}: 等待window.app初始化... (${elapsed}ms)`);
+                        lastLogTime = elapsed;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    continue;
+                }
+
+                // 检查context.app是否与window.app同步
+                if (!this.context.app && window.app) {
+                    console.log(`🔄 Plugin ${this.id}: 同步context.app与window.app`);
+                    // 如果context.app为空但window.app存在，可能需要重新创建context
+                    // 这里我们直接使用window.app作为备用
+                }
+
+                const app = this.context.app || window.app;
+
+                if (app && app.isInitialized && app.components && Object.keys(app.components).length > 0) {
+                    console.log(`✅ Plugin ${this.id}: 应用初始化完成，可用组件: ${Object.keys(app.components).join(', ')}`);
+                    return true;
+                }
+
+                const elapsed = Date.now() - startTime;
+                if (elapsed - lastLogTime > 1000) { // 每秒记录一次
+                    console.log(`⏳ Plugin ${this.id}: 等待应用组件初始化... (${elapsed}ms)`, {
+                        appExists: !!app,
+                        isInitialized: app?.isInitialized,
+                        componentsExists: !!app?.components,
+                        componentsCount: Object.keys(app?.components || {}).length
+                    });
+                    lastLogTime = elapsed;
+                }
+
+            } catch (error) {
+                console.error(`❌ Plugin ${this.id}: 等待应用初始化时出错:`, error);
             }
-            console.log(`⏳ Plugin ${this.id}: 等待应用初始化... (${Date.now() - startTime}ms)`);
+
             await new Promise(resolve => setTimeout(resolve, 100));
         }
+
         console.error(`❌ Plugin ${this.id}: 等待应用初始化超时 (${timeout}ms)`);
+        console.error(`❌ Plugin ${this.id}: 最终状态:`, {
+            windowAppExists: !!window.app,
+            contextAppExists: !!this.context?.app,
+            appInitialized: window.app?.isInitialized || this.context?.app?.isInitialized,
+            componentsCount: Object.keys(window.app?.components || this.context?.app?.components || {}).length
+        });
         return false;
     }
 
@@ -220,34 +377,21 @@ class PluginBase {
             return null;
         }
 
-        const navigation = this.getComponent('navigation');
-        if (!navigation) {
-            console.error(`❌ Plugin ${this.id}: Navigation组件不存在，无法添加侧边栏项目`);
-            return null;
-        }
-
-        if (typeof navigation.addPluginItem !== 'function') {
-            console.error(`❌ Plugin ${this.id}: Navigation组件不支持addPluginItem方法`);
-            console.log(`🔍 Plugin ${this.id}: Navigation组件可用方法:`, Object.getOwnPropertyNames(Object.getPrototypeOf(navigation)));
-            return null;
-        }
-
         try {
-            // 添加插件ID到配置中
-            const configWithPluginId = { ...config, pluginId: this.id };
-            const itemId = navigation.addPluginItem(configWithPluginId);
+            // 使用统一的context.navigation接口
+            const itemId = this.context.navigation.addItem(config);
 
             if (itemId) {
                 console.log(`✅ Plugin ${this.id}: 成功添加侧边栏项目 ${itemId}`);
 
                 // 添加到清理列表
                 this.disposables.push(() => {
-                    navigation.removePluginItem(itemId);
+                    this.context.navigation.removeItem(itemId);
                 });
 
                 return itemId;
             } else {
-                console.error(`❌ Plugin ${this.id}: addPluginItem返回了无效的itemId`);
+                console.error(`❌ Plugin ${this.id}: addItem返回了无效的itemId`);
                 return null;
             }
         } catch (error) {
@@ -267,34 +411,21 @@ class PluginBase {
             return null;
         }
 
-        const settings = this.getComponent('settings');
-        if (!settings) {
-            console.error(`❌ Plugin ${this.id}: Settings组件不存在，无法添加设置部分`);
-            return null;
-        }
-
-        if (typeof settings.addPluginSection !== 'function') {
-            console.error(`❌ Plugin ${this.id}: Settings组件不支持addPluginSection方法`);
-            console.log(`🔍 Plugin ${this.id}: Settings组件可用方法:`, Object.getOwnPropertyNames(Object.getPrototypeOf(settings)));
-            return null;
-        }
-
         try {
-            // 添加插件ID到配置中
-            const configWithPluginId = { ...config, pluginId: this.id };
-            const sectionId = settings.addPluginSection(configWithPluginId);
+            // 使用统一的context.settings接口，传递pluginId和config
+            const sectionId = this.context.settings.addSection(this.id, config);
 
             if (sectionId) {
                 console.log(`✅ Plugin ${this.id}: 成功添加设置部分 ${sectionId}`);
 
                 // 添加到清理列表
                 this.disposables.push(() => {
-                    settings.removePluginSection(sectionId);
+                    this.context.settings.removeSection(this.id, sectionId);
                 });
 
                 return sectionId;
             } else {
-                console.error(`❌ Plugin ${this.id}: addPluginSection返回了无效的sectionId`);
+                console.error(`❌ Plugin ${this.id}: addSection返回了无效的sectionId`);
                 return null;
             }
         } catch (error) {
@@ -308,7 +439,7 @@ class PluginBase {
         const contextMenu = this.getComponent('contextMenu');
         if (contextMenu && typeof contextMenu.addPluginItem === 'function') {
             const itemId = contextMenu.addPluginItem(config);
-            
+
             // 添加到清理列表
             this.disposables.push(() => {
                 contextMenu.removePluginItem(itemId);
@@ -324,15 +455,15 @@ class PluginBase {
         const app = this.getApp();
         if (app && typeof app.registerPluginPage === 'function') {
             app.registerPluginPage(pageId, pageComponent);
-            
+
             // 添加到清理列表
             this.disposables.push(() => {
                 app.unregisterPluginPage(pageId);
             });
-            
+
             return pageId;
         }
-        
+
         console.warn(`🔌 Plugin ${this.id}: 无法注册页面，App不支持插件页面`);
         return null;
     }

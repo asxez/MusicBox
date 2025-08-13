@@ -9,9 +9,14 @@ class Settings extends EventEmitter {
         this.isVisible = false;
         this.settings = this.loadSettings();
 
+        // 插件相关属性
+        this.pluginSections = new Map(); // 存储插件设置区域
+        this.pluginSectionIdCounter = 0; // 插件区域ID计数器
+
         this.setupElements();
         this.setupEventListeners();
         this.initializeSettings();
+        this.initializePluginContainer();
     }
 
     setupElements() {
@@ -1298,6 +1303,517 @@ class Settings extends EventEmitter {
     // 显示通知消息
     showNotification(message, type = 'info') {
         showToast(message, type);
+    }
+
+    // --- 插件管理接口 ---
+
+    // 初始化插件设置容器
+    initializePluginContainer() {
+        // 查找或创建插件设置容器
+        let pluginContainer = this.element.querySelector('#plugin-settings-container');
+        if (!pluginContainer) {
+            // 创建插件设置容器
+            pluginContainer = document.createElement('div');
+            pluginContainer.id = 'plugin-settings-container';
+            pluginContainer.className = 'settings-section plugin-settings-section';
+            pluginContainer.innerHTML = `
+                <div class="section-header">
+                    <h3 class="section-title">插件设置</h3>
+                    <p class="section-description">管理已安装插件的配置选项</p>
+                </div>
+                <div class="plugin-sections-list" id="plugin-sections-list"></div>
+            `;
+
+            // 插入到设置页面的适当位置（在最后一个设置区域之后）
+            const settingsContent = this.element.querySelector('.settings-content');
+            if (settingsContent) {
+                settingsContent.appendChild(pluginContainer);
+            }
+        }
+
+        this.pluginContainer = pluginContainer;
+        this.pluginSectionsList = pluginContainer.querySelector('#plugin-sections-list');
+
+        // 初始时隐藏插件设置容器
+        this.updatePluginContainerVisibility();
+    }
+
+    /**
+     * 添加插件设置区域
+     * @param {string} pluginId - 插件ID
+     * @param {Object} config - 插件设置配置
+     * @returns {string|null} - 返回设置区域ID，失败返回null
+     */
+    addPluginSection(pluginId, config) {
+        try {
+            // 验证参数
+            if (!pluginId || typeof pluginId !== 'string') {
+                throw new Error('插件ID无效');
+            }
+
+            if (!config || typeof config !== 'object') {
+                throw new Error('插件设置配置无效');
+            }
+
+            const {
+                id = `plugin-section-${++this.pluginSectionIdCounter}`,
+                title = '插件设置',
+                description = '',
+                items = [],
+                order = 100
+            } = config;
+
+            // 生成唯一的区域ID
+            const sectionId = `${pluginId}-${id}`;
+
+            // 检查是否已存在
+            if (this.pluginSections.has(sectionId)) {
+                console.warn(`⚠️ Settings: 插件设置区域 ${sectionId} 已存在`);
+                return sectionId;
+            }
+
+            // 创建设置区域数据
+            const sectionData = {
+                id: sectionId,
+                pluginId,
+                title,
+                description,
+                items,
+                order,
+                element: null,
+                itemElements: new Map()
+            };
+
+            // 存储设置区域
+            this.pluginSections.set(sectionId, sectionData);
+
+            // 渲染设置区域
+            this.renderPluginSection(sectionData);
+
+            // 更新容器可见性
+            this.updatePluginContainerVisibility();
+
+            return sectionId;
+        } catch (error) {
+            console.error('❌ Settings: 添加插件设置区域失败:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 移除插件设置区域
+     * @param {string} pluginId - 插件ID
+     * @param {string} sectionId - 设置区域ID
+     * @returns {boolean} - 成功返回true，失败返回false
+     */
+    removePluginSection(pluginId, sectionId) {
+        try {
+            // 验证参数
+            if (!pluginId || typeof pluginId !== 'string') {
+                console.warn(`⚠️ Settings: 插件ID无效: ${pluginId}`);
+                return false;
+            }
+
+            if (!sectionId || typeof sectionId !== 'string') {
+                console.warn(`⚠️ Settings: 设置区域ID无效: ${sectionId}`);
+                return false;
+            }
+
+            const sectionData = this.pluginSections.get(sectionId);
+            if (!sectionData) {
+                console.warn(`⚠️ Settings: 插件设置区域 ${sectionId} 不存在`);
+                return false;
+            }
+
+            // 验证插件ID是否匹配
+            if (sectionData.pluginId !== pluginId) {
+                console.warn(`⚠️ Settings: 插件ID不匹配，期望: ${sectionData.pluginId}，实际: ${pluginId}`);
+                return false;
+            }
+
+            // 移除DOM元素
+            if (sectionData.element && sectionData.element.parentNode) {
+                sectionData.element.parentNode.removeChild(sectionData.element);
+            }
+
+            // 从存储中移除
+            this.pluginSections.delete(sectionId);
+
+            // 更新容器可见性
+            this.updatePluginContainerVisibility();
+
+            return true;
+        } catch (error) {
+            console.error('❌ Settings: 移除插件设置区域失败:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 渲染插件设置区域
+     * @param {Object} sectionData - 设置区域数据
+     */
+    renderPluginSection(sectionData) {
+        try {
+            // 创建设置区域元素
+            const sectionElement = document.createElement('div');
+            sectionElement.className = 'plugin-section';
+            sectionElement.dataset.sectionId = sectionData.id;
+            sectionElement.dataset.pluginId = sectionData.pluginId;
+
+            // 添加插件作用域属性，用于CSS样式匹配
+            sectionElement.setAttribute('data-plugin', sectionData.pluginId);
+
+            // 设置区域HTML结构
+            sectionElement.innerHTML = `
+                <div class="plugin-section-header">
+                    <h4 class="plugin-section-title">${this.escapeHtml(sectionData.title)}</h4>
+                    ${sectionData.description ? `<p class="plugin-section-description">${this.escapeHtml(sectionData.description)}</p>` : ''}
+                </div>
+                <div class="plugin-section-content">
+                    <div class="plugin-settings-items" data-section-id="${sectionData.id}"></div>
+                </div>
+            `;
+
+            // 渲染设置项
+            const itemsContainer = sectionElement.querySelector('.plugin-settings-items');
+            sectionData.items.forEach(item => {
+                const itemElement = this.renderPluginSettingItem(item, sectionData);
+                if (itemElement) {
+                    itemsContainer.appendChild(itemElement);
+                    sectionData.itemElements.set(item.id, itemElement);
+                }
+            });
+
+            // 按order排序插入
+            const existingSections = Array.from(this.pluginSectionsList.children);
+            let insertIndex = existingSections.findIndex(section => {
+                const existingData = this.pluginSections.get(section.dataset.sectionId);
+                return existingData && existingData.order > sectionData.order;
+            });
+
+            if (insertIndex === -1) {
+                this.pluginSectionsList.appendChild(sectionElement);
+            } else {
+                this.pluginSectionsList.insertBefore(sectionElement, existingSections[insertIndex]);
+            }
+
+            // 保存元素引用
+            sectionData.element = sectionElement;
+
+        } catch (error) {
+            console.error('❌ Settings: 渲染插件设置区域失败:', error);
+        }
+    }
+
+    /**
+     * 渲染插件设置项
+     * @param {Object} item - 设置项配置
+     * @param {Object} sectionData - 所属区域数据
+     * @returns {HTMLElement|null} - 设置项元素
+     */
+    renderPluginSettingItem(item, sectionData) {
+        try {
+            const itemElement = document.createElement('div');
+            itemElement.className = 'plugin-setting-item';
+            itemElement.dataset.itemId = item.id;
+            itemElement.dataset.itemType = item.type;
+
+            // 添加插件作用域属性，确保插件样式能正确应用
+            itemElement.setAttribute('data-plugin', sectionData.pluginId);
+
+            // 根据设置项类型渲染不同的UI
+            switch (item.type) {
+                case 'toggle':
+                    itemElement.innerHTML = this.renderToggleItem(item, sectionData);
+                    break;
+                case 'select':
+                    itemElement.innerHTML = this.renderSelectItem(item, sectionData);
+                    break;
+                case 'input':
+                    itemElement.innerHTML = this.renderInputItem(item, sectionData);
+                    break;
+                case 'button':
+                    itemElement.innerHTML = this.renderButtonItem(item, sectionData);
+                    break;
+                case 'slider':
+                    itemElement.innerHTML = this.renderSliderItem(item, sectionData);
+                    break;
+                case 'color':
+                    itemElement.innerHTML = this.renderColorItem(item, sectionData);
+                    break;
+                default:
+                    console.warn(`⚠️ Settings: 不支持的设置项类型: ${item.type}`);
+                    return null;
+            }
+
+            // 绑定事件监听器
+            this.bindPluginSettingItemEvents(itemElement, item, sectionData);
+
+            return itemElement;
+        } catch (error) {
+            console.error('❌ Settings: 渲染插件设置项失败:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 更新插件容器可见性
+     */
+    updatePluginContainerVisibility() {
+        if (this.pluginContainer) {
+            const hasPluginSections = this.pluginSections.size > 0;
+            this.pluginContainer.style.display = hasPluginSections ? 'block' : 'none';
+        }
+    }
+
+    /**
+     * 渲染开关设置项
+     * @param {Object} item - 设置项配置
+     * @param {Object} sectionData - 所属区域数据
+     * @returns {string} - HTML字符串
+     */
+    renderToggleItem(item, sectionData) {
+        const itemId = `${sectionData.id}-${item.id}`;
+        const checked = item.value ? 'checked' : '';
+        const disabled = item.disabled ? 'disabled' : '';
+
+        return `
+            <div class="setting-item">
+                <div class="setting-info">
+                    <label for="${itemId}" class="setting-label">${this.escapeHtml(item.label)}</label>
+                    ${item.description ? `<p class="setting-description">${this.escapeHtml(item.description)}</p>` : ''}
+                </div>
+                <div class="setting-control">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="${itemId}" ${checked} ${disabled}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 渲染选择设置项
+     * @param {Object} item - 设置项配置
+     * @param {Object} sectionData - 所属区域数据
+     * @returns {string} - HTML字符串
+     */
+    renderSelectItem(item, sectionData) {
+        const itemId = `${sectionData.id}-${item.id}`;
+        const disabled = item.disabled ? 'disabled' : '';
+
+        const options = (item.options || []).map(option => {
+            const selected = option.value === item.value ? 'selected' : '';
+            return `<option value="${this.escapeHtml(option.value)}" ${selected}>${this.escapeHtml(option.label)}</option>`;
+        }).join('');
+
+        return `
+            <div class="setting-item">
+                <div class="setting-info">
+                    <label for="${itemId}" class="setting-label">${this.escapeHtml(item.label)}</label>
+                    ${item.description ? `<p class="setting-description">${this.escapeHtml(item.description)}</p>` : ''}
+                </div>
+                <div class="setting-control">
+                    <select id="${itemId}" class="setting-select" ${disabled}>
+                        ${options}
+                    </select>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 渲染输入设置项
+     * @param {Object} item - 设置项配置
+     * @param {Object} sectionData - 所属区域数据
+     * @returns {string} - HTML字符串
+     */
+    renderInputItem(item, sectionData) {
+        const itemId = `${sectionData.id}-${item.id}`;
+        const disabled = item.disabled ? 'disabled' : '';
+        const placeholder = item.placeholder ? `placeholder="${this.escapeHtml(item.placeholder)}"` : '';
+        const value = item.value ? `value="${this.escapeHtml(item.value)}"` : '';
+
+        return `
+            <div class="setting-item">
+                <div class="setting-info">
+                    <label for="${itemId}" class="setting-label">${this.escapeHtml(item.label)}</label>
+                    ${item.description ? `<p class="setting-description">${this.escapeHtml(item.description)}</p>` : ''}
+                </div>
+                <div class="setting-control">
+                    <input type="text" id="${itemId}" class="setting-input" ${value} ${placeholder} ${disabled}>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 渲染按钮设置项
+     * @param {Object} item - 设置项配置
+     * @param {Object} sectionData - 所属区域数据
+     * @returns {string} - HTML字符串
+     */
+    renderButtonItem(item, sectionData) {
+        const itemId = `${sectionData.id}-${item.id}`;
+        const disabled = item.disabled ? 'disabled' : '';
+        const buttonText = item.buttonText || item.label;
+
+        return `
+            <div class="setting-item">
+                <div class="setting-info">
+                    <label class="setting-label">${this.escapeHtml(item.label)}</label>
+                    ${item.description ? `<p class="setting-description">${this.escapeHtml(item.description)}</p>` : ''}
+                </div>
+                <div class="setting-control">
+                    <button id="${itemId}" class="btn btn-primary setting-button" ${disabled}>
+                        ${this.escapeHtml(buttonText)}
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 渲染滑块设置项
+     * @param {Object} item - 设置项配置
+     * @param {Object} sectionData - 所属区域数据
+     * @returns {string} - HTML字符串
+     */
+    renderSliderItem(item, sectionData) {
+        const itemId = `${sectionData.id}-${item.id}`;
+        const disabled = item.disabled ? 'disabled' : '';
+        const min = item.min || 0;
+        const max = item.max || 100;
+        const step = item.step || 1;
+        const value = item.value !== undefined ? item.value : min;
+
+        return `
+            <div class="setting-item">
+                <div class="setting-info">
+                    <label for="${itemId}" class="setting-label">${this.escapeHtml(item.label)}</label>
+                    ${item.description ? `<p class="setting-description">${this.escapeHtml(item.description)}</p>` : ''}
+                </div>
+                <div class="setting-control">
+                    <div class="slider-container">
+                        <input type="range" id="${itemId}" class="setting-slider"
+                               min="${min}" max="${max}" step="${step}" value="${value}" ${disabled}>
+                        <span class="slider-value" id="${itemId}-value">${value}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 渲染颜色设置项
+     * @param {Object} item - 设置项配置
+     * @param {Object} sectionData - 所属区域数据
+     * @returns {string} - HTML字符串
+     */
+    renderColorItem(item, sectionData) {
+        const itemId = `${sectionData.id}-${item.id}`;
+        const disabled = item.disabled ? 'disabled' : '';
+        const value = item.value || '#000000';
+
+        return `
+            <div class="setting-item">
+                <div class="setting-info">
+                    <label for="${itemId}" class="setting-label">${this.escapeHtml(item.label)}</label>
+                    ${item.description ? `<p class="setting-description">${this.escapeHtml(item.description)}</p>` : ''}
+                </div>
+                <div class="setting-control">
+                    <input type="color" id="${itemId}" class="setting-color" value="${value}" ${disabled}>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 绑定插件设置项事件
+     * @param {HTMLElement} itemElement - 设置项元素
+     * @param {Object} item - 设置项配置
+     * @param {Object} sectionData - 所属区域数据
+     */
+    bindPluginSettingItemEvents(itemElement, item, sectionData) {
+        try {
+            const itemId = `${sectionData.id}-${item.id}`;
+            const control = itemElement.querySelector(`#${itemId}`);
+
+            if (!control) {
+                console.warn(`⚠️ Settings: 找不到设置项控件: ${itemId}`);
+                return;
+            }
+
+            // 根据设置项类型绑定不同的事件
+            switch (item.type) {
+                case 'toggle':
+                    control.addEventListener('change', (e) => {
+                        if (typeof item.onChange === 'function') {
+                            try {
+                                item.onChange(e.target.checked);
+                            } catch (error) {
+                                console.error(`❌ Settings: 插件设置项 ${itemId} 变更回调失败:`, error);
+                            }
+                        }
+                    });
+                    break;
+
+                case 'select':
+                case 'input':
+                case 'color':
+                    control.addEventListener('change', (e) => {
+                        if (typeof item.onChange === 'function') {
+                            try {
+                                item.onChange(e.target.value);
+                            } catch (error) {
+                                console.error(`❌ Settings: 插件设置项 ${itemId} 变更回调失败:`, error);
+                            }
+                        }
+                    });
+                    break;
+
+                case 'slider':
+                    const valueDisplay = itemElement.querySelector(`#${itemId}-value`);
+                    control.addEventListener('input', (e) => {
+                        if (valueDisplay) {
+                            valueDisplay.textContent = e.target.value;
+                        }
+                        if (typeof item.onChange === 'function') {
+                            try {
+                                item.onChange(parseFloat(e.target.value));
+                            } catch (error) {
+                                console.error(`❌ Settings: 插件设置项 ${itemId} 变更回调失败:`, error);
+                            }
+                        }
+                    });
+                    break;
+
+                case 'button':
+                    control.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        if (typeof item.onClick === 'function') {
+                            try {
+                                item.onClick();
+                            } catch (error) {
+                                console.error(`❌ Settings: 插件设置项 ${itemId} 点击回调失败:`, error);
+                            }
+                        }
+                    });
+                    break;
+            }
+
+        } catch (error) {
+            console.error('❌ Settings: 绑定插件设置项事件失败:', error);
+        }
+    }
+
+    // HTML转义
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 }
 

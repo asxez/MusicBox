@@ -94,7 +94,7 @@ class LocalCoverManager {
             const cacheKey = this.generateCacheKey(title, artist, album);
             if (this.cache.has(cacheKey)) {
                 const cachedPath = this.cache.get(cacheKey);
-                console.log(`✅ LocalCoverManager: 内存缓存命中 - ${title}`);
+                // console.log(`✅ LocalCoverManager: 内存缓存命中 - ${title}`);
                 return {
                     success: true,
                     filePath: cachedPath,

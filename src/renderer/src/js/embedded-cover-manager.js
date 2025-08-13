@@ -124,12 +124,12 @@ class EmbeddedCoverManager {
                 throw new Error('封面数据无效');
             }
 
-            console.log('🔍 开始封面URL转换:', {
-                format: coverData.format,
-                dataType: typeof coverData.data,
-                dataLength: coverData.data.length,
-                dataConstructor: coverData.data.constructor.name
-            });
+            // console.log('🔍 开始封面URL转换:', {
+            //     format: coverData.format,
+            //     dataType: typeof coverData.data,
+            //     dataLength: coverData.data.length,
+            //     dataConstructor: coverData.data.constructor.name
+            // });
 
             let imageData = coverData.data;
             const format = coverData.format || 'jpeg';
@@ -142,7 +142,7 @@ class EmbeddedCoverManager {
                 imageData = new Uint8Array(imageData);
                 console.log('🔄 EmbeddedCoverManager: 转换Array为Uint8Array');
             } else if (imageData instanceof Uint8Array) {
-                console.log('✅ EmbeddedCoverManager: 数据已是Uint8Array格式');
+                // console.log('✅ EmbeddedCoverManager: 数据已是Uint8Array格式');
             } else if (this.isBufferLike(imageData)) {
                 imageData = new Uint8Array(imageData);
                 console.log('🔄 EmbeddedCoverManager: 转换Buffer-like对象为Uint8Array');
@@ -167,7 +167,7 @@ class EmbeddedCoverManager {
                 throw new Error('封面数据长度为0');
             }
 
-            console.log(`✅ EmbeddedCoverManager: 数据转换完成，长度: ${imageData.length}`);
+            // console.log(`✅ EmbeddedCoverManager: 数据转换完成，长度: ${imageData.length}`);
 
             // 创建Blob
             const mimeType = `image/${format.toLowerCase()}`;
@@ -178,11 +178,11 @@ class EmbeddedCoverManager {
                 throw new Error('创建的Blob大小为0');
             }
 
-            console.log(`✅ EmbeddedCoverManager: Blob创建成功，大小: ${blob.size}, 类型: ${mimeType}`);
+            // console.log(`✅ EmbeddedCoverManager: Blob创建成功，大小: ${blob.size}, 类型: ${mimeType}`);
 
             // 创建Object URL
             const objectUrl = URL.createObjectURL(blob);
-            console.log('✅ EmbeddedCoverManager: Object URL创建成功', objectUrl);
+            // console.log('✅ EmbeddedCoverManager: Object URL创建成功', objectUrl);
 
             // 验证创建的URL
             if (typeof objectUrl !== 'string' || !objectUrl.startsWith('blob:')) {
@@ -206,13 +206,13 @@ class EmbeddedCoverManager {
                 size: blob.size
             };
 
-            // 最终验证
-            console.log('🔍 EmbeddedCoverManager: convertCoverToUrl最终验证', {
-                success: result.success,
-                urlType: typeof result.url,
-                urlValid: typeof result.url === 'string' && result.url.startsWith('blob:'),
-                urlPreview: result.url.substring(0, 50) + '...'
-            });
+            // // 最终验证
+            // console.log('🔍 EmbeddedCoverManager: convertCoverToUrl最终验证', {
+            //     success: result.success,
+            //     urlType: typeof result.url,
+            //     urlValid: typeof result.url === 'string' && result.url.startsWith('blob:'),
+            //     urlPreview: result.url.substring(0, 50) + '...'
+            // });
 
             return result;
 
