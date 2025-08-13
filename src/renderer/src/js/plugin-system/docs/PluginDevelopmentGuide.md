@@ -18,7 +18,7 @@ MusicBox 插件系统是一个高权限、灵活的扩展框架，允许第三�
 此方法注册了 context 中大量的核心接口，createPluginContext 方法则是创建上下文（context）的总方法，所有 context 都在这里创建。
 2. 查看 PluginBase 类，这是所有插件的基类，可查看其内置的接口。
 
-示例插件中可能有你想要的，尤其是ThemeSwitcherPlugin.js：
+示例插件中可能有你想要的，尤其是ThemeSwitcherPlugin.js和SettingsNavigationTestPlugin.js：
 - [示例插件](../examples/)
 - [类型定义文件](./TypeDefinitions.js)
 

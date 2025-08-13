@@ -109,11 +109,21 @@ class PluginAPI {
                 }
             },
             getCurrentView: () => {
-                return window.app?.currentView;
+                // 优先从Navigation组件获取，其次才从app对象获取
+                const navigation = window.app?.components?.navigation;
+                if (navigation && navigation.currentView) {
+                    return navigation.currentView;
+                }
+                return window.app?.currentView || null;
             },
-            navigateTo: (view) => {
-                if (window.app && typeof window.app.handleViewChange === 'function') {
-                    window.app.handleViewChange(view);
+            navigateTo: async (view) => {
+                // 使用Navigation组件的navigateToView方法
+                const navigation = window.app?.components?.navigation;
+                if (navigation && typeof navigation.navigateToView === 'function') {
+                    navigation.navigateToView(view);
+                } else if (window.app && typeof window.app.handleViewChange === 'function') {
+                    // 否则调用app的handleViewChange
+                    await window.app.handleViewChange(view);
                 }
             }
         });
@@ -194,6 +204,17 @@ class PluginAPI {
 
     // 创建插件上下文
     createPluginContext(pluginId) {
+        console.log(`🔌 PluginAPI: 开始为插件 ${pluginId} 创建上下文`);
+
+        // 检查当前应用状态
+        const appStatus = {
+            windowAppExists: !!window.app,
+            windowAppInitialized: window.app?.isInitialized,
+            componentsCount: Object.keys(window.app?.components || {}).length,
+            availableComponents: Object.keys(window.app?.components || {})
+        };
+        console.log(`🔌 PluginAPI: 当前应用状态:`, appStatus);
+
         // 为插件创建专用的API实例
         const pluginSpecificAPIs = this.createPluginSpecificAPIs(pluginId);
 
@@ -206,11 +227,19 @@ class PluginAPI {
             ...pluginSpecificAPIs,
 
             get app() {
-                return window.app;
+                const app = window.app;
+                if (!app) {
+                    console.warn(`⚠️ PluginAPI: window.app不存在，插件 ${pluginId} 可能需要等待应用初始化`);
+                }
+                return app;
             },
 
             get api() {
-                return window.api;
+                const api = window.api;
+                if (!api) {
+                    console.warn(`⚠️ PluginAPI: window.api不存在，插件 ${pluginId} 可能需要等待API初始化`);
+                }
+                return api;
             },
 
             // 全局

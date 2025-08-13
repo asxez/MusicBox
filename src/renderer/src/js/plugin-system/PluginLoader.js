@@ -202,12 +202,41 @@ class PluginLoader extends EventEmitter {
     clearPreviousPluginExports() {
         const previousExports = {};
 
+        // 安全删除属性的辅助函数
+        const safeDeleteProperty = (obj, propName) => {
+            try {
+                // 检查属性是否存在
+                if (!(propName in obj)) {
+                    return false;
+                }
+
+                // 获取属性描述符
+                const descriptor = Object.getOwnPropertyDescriptor(obj, propName);
+
+                // 如果属性不可配置，不尝试删除
+                if (descriptor && descriptor.configurable === false) {
+                    console.warn(`⚠️ PluginLoader: 属性 ${propName} 不可配置，跳过删除`);
+                    return false;
+                }
+
+                // 尝试删除属性
+                const deleted = delete obj[propName];
+                if (!deleted) {
+                    console.warn(`⚠️ PluginLoader: 无法删除属性 ${propName}`);
+                }
+                return deleted;
+            } catch (error) {
+                console.warn(`⚠️ PluginLoader: 删除属性 ${propName} 时出错:`, error.message);
+                return false;
+            }
+        };
+
         // 清理常见的插件导出变量
         const exportNames = ['PluginClass', 'Plugin', 'default'];
         exportNames.forEach(name => {
             if (window[name]) {
                 previousExports[name] = typeof window[name];
-                delete window[name];
+                safeDeleteProperty(window, name);
             }
         });
 
@@ -216,7 +245,7 @@ class PluginLoader extends EventEmitter {
             if (key.startsWith('Plugin_') || key.endsWith('Plugin')) {
                 if (typeof window[key] === 'function') {
                     previousExports[key] = 'function';
-                    delete window[key];
+                    safeDeleteProperty(window, key);
                 }
             }
         });

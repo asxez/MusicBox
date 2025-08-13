@@ -1000,7 +1000,7 @@ class AudioEqualizer {
         console.log(`🔗 起始节点: input (${!!this.input})`);
 
         for (let i = 0; i < this.frequencies.length; i++) {
-            console.log(`🔗 创建第 ${i + 1} 个滤波器 (${this.frequencies[i]}Hz)...`);
+            // console.log(`🔗 创建第 ${i + 1} 个滤波器 (${this.frequencies[i]}Hz)...`);
 
             const filter = this.audioContext.createBiquadFilter();
             // 设置滤波器类型
@@ -1027,12 +1027,12 @@ class AudioEqualizer {
 
             // 初始增益为0
             filter.gain.value = 0;
-            console.log(`🔗 滤波器 ${i} 初始增益: 0dB`);
+            // console.log(`🔗 滤波器 ${i} 初始增益: 0dB`);
 
             try {
                 // 连接到链中
                 previousNode.connect(filter);
-                console.log(`✅ 滤波器 ${i} 连接成功: ${previousNode === this.input ? 'input' : 'filter' + (i - 1)} -> filter${i}`);
+                // console.log(`✅ 滤波器 ${i} 连接成功: ${previousNode === this.input ? 'input' : 'filter' + (i - 1)} -> filter${i}`);
                 previousNode = filter;
             } catch (error) {
                 console.error(`❌ 滤波器 ${i} 连接失败:`, error);
