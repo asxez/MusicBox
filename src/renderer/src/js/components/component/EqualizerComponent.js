@@ -115,10 +115,6 @@ class EqualizerComponent extends Component {
     }
 
     async initializeEqualizer() {
-        console.log('🎛️ 尝试初始化均衡器组件...');
-        console.log('🎛️ window.api:', window.api);
-        console.log('🎛️ window.api.getEqualizer:', window.api?.getEqualizer);
-
         // 等待API初始化
         if (window.api && window.api.getEqualizer) {
             this.equalizer = window.api.getEqualizer();
@@ -130,14 +126,14 @@ class EqualizerComponent extends Component {
                     this.loadSettings();
                     this.updatePresetSelect();
                 }
-                console.log('✅ 均衡器组件初始化成功');
+                // console.log('✅ 均衡器组件初始化成功');
             } else {
-                console.log('⏳ 均衡器实例为空，延迟重试...');
+                // console.log('⏳ 均衡器实例为空，延迟重试...');
                 // 延迟初始化
                 setTimeout(() => this.initializeEqualizer(), 100);
             }
         } else {
-            console.log('⏳ API或getEqualizer方法不可用，延迟重试...');
+            // console.log('⏳ API或getEqualizer方法不可用，延迟重试...');
             setTimeout(() => this.initializeEqualizer(), 100);
         }
     }
@@ -163,11 +159,11 @@ class EqualizerComponent extends Component {
     }
 
     setEnabled(enabled) {
-        console.log(`🎛️ 设置均衡器状态: ${enabled} (当前状态: ${this.isEnabled})`);
+        // console.log(`🎛️ 设置均衡器状态: ${enabled} (当前状态: ${this.isEnabled})`);
 
         // 防止重复设置相同状态
         if (this.isEnabled === enabled) {
-            console.log(`ℹ️ 均衡器状态已经是 ${enabled}，跳过设置`);
+            // console.log(`ℹ️ 均衡器状态已经是 ${enabled}，跳过设置`);
             return;
         }
 
@@ -176,7 +172,7 @@ class EqualizerComponent extends Component {
         // 更新音频引擎
         if (window.api && window.api.setEqualizerEnabled) {
             window.api.setEqualizerEnabled(enabled);
-            console.log(`🎛️ 音频引擎均衡器状态已更新: ${enabled}`);
+            // console.log(`🎛️ 音频引擎均衡器状态已更新: ${enabled}`);
         } else {
             console.warn('⚠️ 音频引擎API不可用，无法更新均衡器状态');
         }
@@ -186,7 +182,7 @@ class EqualizerComponent extends Component {
 
         // 立即保存设置到缓存
         this.saveSettingsImmediate();
-        console.log(`✅ 均衡器${enabled ? '已启用' : '已禁用'}`);
+        // console.log(`✅ 均衡器${enabled ? '已启用' : '已禁用'}`);
     }
 
     // 更新UI状态，避免触发事件
@@ -197,24 +193,24 @@ class EqualizerComponent extends Component {
             this.equalizerToggle.onchange = null;
             this.equalizerToggle.checked = enabled;
             this.equalizerToggle.onchange = oldHandler;
-            console.log(`🎛️ UI开关状态已更新: ${enabled}`);
+            // console.log(`🎛️ UI开关状态已更新: ${enabled}`);
         }
 
         if (this.equalizerSettings) {
             this.equalizerSettings.classList.toggle('disabled', !enabled);
-            console.log(`🎛️ 设置面板状态已更新: ${enabled ? '启用' : '禁用'}`);
+            // console.log(`🎛️ 设置面板状态已更新: ${enabled ? '启用' : '禁用'}`);
         }
     }
 
     applyPreset(presetName) {
         if (!this.equalizer) return;
 
-        console.log(`🎵 开始应用预设: ${presetName}`);
+        // console.log(`🎵 开始应用预设: ${presetName}`);
 
         // 检查是否是自定义预设
         if (presetName.startsWith('custom:')) {
             const customPresetName = presetName.substring(7); // 移除 'custom:' 前缀
-            console.log(`🎵 应用自定义预设: ${customPresetName}`);
+            // console.log(`🎵 应用自定义预设: ${customPresetName}`);
             this.loadCustomPreset(customPresetName);
             return;
         }
@@ -224,14 +220,14 @@ class EqualizerComponent extends Component {
             this.currentPreset = presetName;
             this.updateUI();
             this.saveSettingsImmediate(); // 保存设置
-            console.log(`🎵 已应用内置预设: ${presetName}`);
+            // console.log(`🎵 已应用内置预设: ${presetName}`);
         } else {
             console.error(`❌ 应用预设失败: ${presetName}`);
         }
     }
 
     updateBandGain(bandIndex, gain) {
-        console.log(`🎛️ 调节频段 ${bandIndex}，增益: ${gain}dB`);
+        // console.log(`🎛️ 调节频段 ${bandIndex}，增益: ${gain}dB`);
 
         if (!this.equalizer) {
             console.error('❌ 均衡器实例不存在');
@@ -254,7 +250,7 @@ class EqualizerComponent extends Component {
             this.saveSettingsImmediate();
         }, 500);
 
-        console.log(`✅ 频段 ${bandIndex} 增益已更新为 ${gain}dB`);
+        // console.log(`✅ 频段 ${bandIndex} 增益已更新为 ${gain}dB`);
     }
 
     updateBandValueDisplay(bandIndex, gain) {
@@ -289,13 +285,13 @@ class EqualizerComponent extends Component {
 
             if (optionExists) {
                 this.presetSelect.value = this.currentPreset;
-                console.log(`🎛️ 预设选择器已更新为: ${this.currentPreset}`);
+                // console.log(`🎛️ 预设选择器已更新为: ${this.currentPreset}`);
             } else {
                 console.warn(`⚠️ 预设选择器中没有找到选项: ${this.currentPreset}`);
                 // 如果是自定义预设但选项不存在，回退到'custom'
                 if (this.currentPreset.startsWith('custom:')) {
                     this.presetSelect.value = 'custom';
-                    console.log('🔄 回退到通用自定义选项');
+                    // console.log('🔄 回退到通用自定义选项');
                 }
             }
         }
@@ -303,11 +299,9 @@ class EqualizerComponent extends Component {
 
     reset() {
         if (!this.equalizer) return;
-
         this.equalizer.reset();
         this.currentPreset = 'flat';
         this.updateUI();
-        console.log('🔄 均衡器已重置');
     }
 
     loadSettings() {
@@ -318,14 +312,12 @@ class EqualizerComponent extends Component {
                 return;
             }
 
-            console.log('🔄 开始加载均衡器设置...');
-
             const settings = window.cacheManager.getLocalCache('musicbox-equalizer-settings') || {};
             console.log('📋 从缓存加载的设置:', settings);
             const customPresets = window.cacheManager.getLocalCache('musicbox-equalizer-custom-presets') || {};
             console.log('📋 从缓存加载的自定义预设:', Object.keys(customPresets));
             this.isEnabled = settings.enabled === true;
-            console.log(`🎛️ 均衡器启用状态: ${this.isEnabled}`);
+            // console.log(`🎛️ 均衡器启用状态: ${this.isEnabled}`);
 
             // 更新UI但不触发事件
             if (this.equalizerToggle) {
@@ -384,7 +376,6 @@ class EqualizerComponent extends Component {
                 }
             } else {
                 // 默认使用平坦预设
-                console.log('🎵 使用默认平坦预设');
                 this.currentPreset = 'flat';
                 if (this.equalizer) {
                     this.equalizer.applyPreset('flat');
@@ -402,7 +393,6 @@ class EqualizerComponent extends Component {
 
             // 更新UI显示
             this.updateUI();
-            console.log('✅ 均衡器设置已从缓存完整加载');
         } catch (error) {
             console.error('❌ 加载均衡器设置失败:', error);
             this.useDefaultSettings();
@@ -410,7 +400,6 @@ class EqualizerComponent extends Component {
     }
 
     useDefaultSettings() {
-        console.log('🔄 使用默认均衡器设置');
         this.isEnabled = false;
         this.currentPreset = 'flat';
 
@@ -443,7 +432,6 @@ class EqualizerComponent extends Component {
             };
 
             window.cacheManager.setLocalCache('musicbox-equalizer-settings', settings);
-            console.log('💾 均衡器主要设置已保存到缓存');
 
             // 保存自定义预设
             try {
@@ -460,7 +448,6 @@ class EqualizerComponent extends Component {
             // 验证保存是否成功
             const saved = window.cacheManager.getLocalCache('musicbox-equalizer-settings');
             if (saved) {
-                console.log('✅ 均衡器设置保存验证成功');
                 return true;
             } else {
                 console.error('❌ 均衡器设置保存验证失败');
@@ -543,7 +530,6 @@ class EqualizerComponent extends Component {
             this.newPresetNameInput.value = '';
             this.loadCustomPresetsList();
             this.updateSaveButtonState();
-            console.log(`✅ 自定义预设"${name}"保存成功`);
         } catch (error) {
             console.error('❌ 保存自定义预设失败:', error);
             alert('保存预设失败，请重试');
@@ -559,7 +545,7 @@ class EqualizerComponent extends Component {
                 console.error(`❌ 自定义预设"${name}"不存在`);
                 return;
             }
-            console.log(`🔄 开始加载自定义预设"${name}"`);
+            // console.log(`🔄 开始加载自定义预设"${name}"`);
 
             // 应用预设的增益值（不触发保存）
             for (let i = 0; i < 10; i++) {
@@ -578,13 +564,12 @@ class EqualizerComponent extends Component {
             const customPresetValue = `custom:${name}`;
             if (this.presetSelect) {
                 this.presetSelect.value = customPresetValue;
-                console.log(`🎛️ 预设选择器已更新为: ${customPresetValue}`);
+                // console.log(`🎛️ 预设选择器已更新为: ${customPresetValue}`);
             }
 
             // 设置当前预设为自定义预设的完整标识
             this.currentPreset = customPresetValue;
             this.saveSettingsImmediate();
-            console.log(`✅ 自定义预设"${name}"加载成功`);
         } catch (error) {
             console.error('❌ 加载自定义预设失败:', error);
             alert('加载预设失败，请重试');
@@ -611,7 +596,6 @@ class EqualizerComponent extends Component {
             // 更新预设选择器
             this.updatePresetSelect();
             this.loadCustomPresetsList();
-            console.log(`✅ 自定义预设"${name}"删除成功`);
         } catch (error) {
             console.error('❌ 删除自定义预设失败:', error);
             alert('删除预设失败，请重试');
@@ -695,7 +679,6 @@ class EqualizerComponent extends Component {
 
     // 重新加载配置
     reloadConfig() {
-        console.log('🔄 重新加载均衡器配置');
         this.loadSettings();
         this.updatePresetSelect();
         return true;
