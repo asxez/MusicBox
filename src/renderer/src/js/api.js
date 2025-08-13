@@ -377,7 +377,7 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async getVolume() {
+    getVolume() {
         return this.volume;
     }
 
@@ -401,7 +401,7 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async getDuration() {
+    getDuration() {
         try {
             this.duration = this.webAudioEngine.getDuration();
             return this.duration;
