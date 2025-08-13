@@ -1,21 +1,18 @@
 /**
- * 主题切换插件示例
- * 展示如何创建一个实用的插件，提供多种主题切换功能
- *
+ * 主题切换插件
+ * 提供多种预设主题和主题切换功能
  */
-
 class ThemeSwitcherPlugin extends PluginBase {
     constructor(context) {
         super(context);
 
-        // 插件元数据
         this.metadata = {
             id: 'theme-switcher',
             name: '主题切换器',
-            version: '六百六十六',
-            description: '提供多种预设主题和自定义主题功能，支持实时切换和主题导入导出',
+            version: '666',
+            description: '提供多种预设主题和自定义主题功能，支持实时切换',
             author: 'MusicBox-ASXE',
-            permissions: ['ui', 'settings', 'storage'],
+            permissions: ['ui', 'storage'],
             category: '界面增强'
         };
 
@@ -120,88 +117,51 @@ class ThemeSwitcherPlugin extends PluginBase {
         };
 
         this.currentTheme = 'light';
-        this.originalTheme = null; // 保存插件激活前的原始主题
-        this.sidebarItemId = null;
-        this.settingsSectionId = null;
-
-        console.log('🎨 ThemeSwitcherPlugin: 主题切换插件构造完成');
+        this.originalTheme = null;
+        this.themePanel = null;
+        this.floatingButton = null;
+        this.themeChangeHandler = null;
+        this.themeObserver = null;
     }
 
-    /**
-     * 插件激活
-     */
     async activate() {
         await super.activate();
 
-        // 保存当前主题状态
         this.saveOriginalTheme();
-
-        // 加载保存的主题
         this.loadSavedTheme();
-
-        // 添加插件样式
         this.addPluginStyles();
-
-        // 扩展UI
         this.extendUI();
-
-        // 注册命令
         this.registerCommands();
-
-        // 添加快捷键
         this.setupShortcuts();
-
-        // 监听应用主题变化
         this.setupThemeListener();
 
         this.showNotification('主题切换插件已激活', 'success');
-        console.log('🎨 ThemeSwitcherPlugin: 插件激活完成');
     }
 
-    /**
-     * 插件停用
-     */
     async deactivate() {
-        // 恢复原始主题
         this.restoreOriginalTheme();
-
-        // 移除主题监听器
         this.removeThemeListener();
+        this.cleanupDOMReferences();
 
         await super.deactivate();
-
         this.showNotification('主题切换插件已停用', 'info');
-        console.log('🎨 ThemeSwitcherPlugin: 插件停用完成');
     }
 
-    /**
-     * 保存原始主题状态
-     */
     saveOriginalTheme() {
         this.originalTheme = {
             dataTheme: document.documentElement.getAttribute('data-theme') || 'light',
             customColors: this.getCurrentCustomColors()
         };
-        console.log('🎨 ThemeSwitcherPlugin: 已保存原始主题状态:', this.originalTheme);
     }
 
-    /**
-     * 恢复原始主题
-     */
     restoreOriginalTheme() {
         if (this.originalTheme) {
-            // 恢复data-theme属性
             document.documentElement.setAttribute('data-theme', this.originalTheme.dataTheme);
-
-            // 清除自定义CSS变量
             this.clearCustomColors();
 
-            // 如果有自定义颜色，恢复它们
             if (this.originalTheme.customColors) {
                 this.applyCustomColors(this.originalTheme.customColors);
             }
-
-            console.log('🎨 ThemeSwitcherPlugin: 已恢复原始主题');
         }
     }
 
@@ -240,9 +200,6 @@ class ThemeSwitcherPlugin extends PluginBase {
         });
     }
 
-    /**
-     * 清除自定义颜色
-     */
     clearCustomColors() {
         const root = document.documentElement;
         const colorVars = [
@@ -256,26 +213,19 @@ class ThemeSwitcherPlugin extends PluginBase {
         });
     }
 
-    /**
-     * 设置主题监听器
-     */
     setupThemeListener() {
         this.themeChangeHandler = (e) => {
             const newTheme = e.detail || e;
-            console.log('🎨 ThemeSwitcherPlugin: 检测到应用主题变化:', newTheme);
-            // 如果是应用自身的主题变化，同步更新插件状态
             if (newTheme === 'light' || newTheme === 'dark') {
                 this.currentTheme = newTheme;
                 this.updateThemePanel();
             }
         };
 
-        // 监听应用的主题变化事件
         if (window.theme && typeof window.theme.on === 'function') {
             window.theme.on('change', this.themeChangeHandler);
         }
 
-        // 监听DOM变化
         this.themeObserver = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
@@ -294,12 +244,10 @@ class ThemeSwitcherPlugin extends PluginBase {
         });
     }
 
-    /**
-     * 移除主题监听器
-     */
     removeThemeListener() {
         if (window.theme && typeof window.theme.off === 'function' && this.themeChangeHandler) {
             window.theme.off('change', this.themeChangeHandler);
+            this.themeChangeHandler = null;
         }
 
         if (this.themeObserver) {
@@ -308,17 +256,17 @@ class ThemeSwitcherPlugin extends PluginBase {
         }
     }
 
-    /**
-     * 加载保存的主题
-     */
+    cleanupDOMReferences() {
+        this.themePanel = null;
+        this.floatingButton = null;
+    }
+
+
     loadSavedTheme() {
         const savedTheme = this.getStorage('currentTheme') || 'light';
         this.applyTheme(savedTheme);
     }
 
-    /**
-     * 添加插件样式
-     */
     addPluginStyles() {
         this.addStyle(`
             .theme-switcher-panel {
@@ -334,25 +282,29 @@ class ThemeSwitcherPlugin extends PluginBase {
                 z-index: 9999;
                 transition: all 0.3s ease;
                 transform: translateX(300px);
+                opacity: 0;
+                visibility: hidden;
             }
-            
+
             .theme-switcher-panel.visible {
                 transform: translateX(0);
+                opacity: 1;
+                visibility: visible;
             }
-            
+
             .theme-panel-header {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
                 margin-bottom: 16px;
             }
-            
+
             .theme-panel-title {
                 font-weight: 600;
                 color: var(--color-text);
                 font-size: 16px;
             }
-            
+
             .theme-close-btn {
                 background: none;
                 border: none;
@@ -363,19 +315,19 @@ class ThemeSwitcherPlugin extends PluginBase {
                 border-radius: 4px;
                 transition: all 0.2s ease;
             }
-            
+
             .theme-close-btn:hover {
                 background: var(--color-hover);
                 color: var(--color-text);
             }
-            
+
             .theme-grid {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
                 gap: 12px;
                 margin-bottom: 16px;
             }
-            
+
             .theme-card {
                 padding: 12px;
                 border: 2px solid var(--color-border);
@@ -383,18 +335,21 @@ class ThemeSwitcherPlugin extends PluginBase {
                 cursor: pointer;
                 transition: all 0.2s ease;
                 text-align: center;
+                background: var(--color-secondary-bg);
             }
-            
+
             .theme-card:hover {
                 transform: translateY(-2px);
                 box-shadow: var(--shadow-medium);
+                border-color: var(--color-primary);
             }
-            
+
             .theme-card.active {
                 border-color: var(--color-primary);
                 background: rgba(102, 126, 234, 0.1);
+                box-shadow: var(--shadow-medium);
             }
-            
+
             .theme-preview {
                 display: flex;
                 height: 20px;
@@ -402,22 +357,22 @@ class ThemeSwitcherPlugin extends PluginBase {
                 overflow: hidden;
                 margin-bottom: 8px;
             }
-            
+
             .theme-color {
                 flex: 1;
             }
-            
+
             .theme-name {
                 font-size: 12px;
                 font-weight: 500;
                 color: var(--color-text);
             }
-            
+
             .theme-actions {
                 display: flex;
                 gap: 8px;
             }
-            
+
             .theme-btn {
                 flex: 1;
                 padding: 8px 12px;
@@ -429,18 +384,23 @@ class ThemeSwitcherPlugin extends PluginBase {
                 font-size: 12px;
                 transition: all 0.2s ease;
             }
-            
+
             .theme-btn:hover {
                 background: var(--color-hover);
                 transform: translateY(-1px);
             }
-            
+
             .theme-btn.primary {
                 background: var(--color-primary);
                 color: white;
                 border-color: var(--color-primary);
             }
-            
+
+            .theme-btn.primary:hover {
+                background: var(--color-primary);
+                opacity: 0.9;
+            }
+
             .theme-floating-btn {
                 position: fixed;
                 bottom: 100px;
@@ -457,115 +417,51 @@ class ThemeSwitcherPlugin extends PluginBase {
                 transition: all 0.3s ease;
                 z-index: 9998;
             }
-            
+
             .theme-floating-btn:hover {
                 transform: scale(1.1);
                 box-shadow: var(--shadow-extra-large);
             }
-        `);
+
+            .theme-floating-btn:active {
+                transform: scale(0.95);
+            }
+        `, {
+            id: 'theme-switcher-styles'
+        });
     }
 
-    /**
-     * 扩展UI
-     */
     extendUI() {
-        // 添加侧边栏项目
-        this.sidebarItemId = this.addSidebarItem({
-            id: 'theme-switcher',
-            name: '🎨 主题',
-            icon: '🎨',
-            order: 90,
-            onClick: () => {
-                this.toggleThemePanel();
-            }
-        });
-
-        // 添加设置部分
-        this.settingsSectionId = this.addSettingsSection({
-            id: 'theme-switcher-settings',
-            title: '主题切换设置',
-            items: [
-                {
-                    type: 'select',
-                    id: 'default-theme',
-                    label: '默认主题',
-                    description: '应用启动时使用的主题',
-                    value: this.getStorage('defaultTheme') || 'light',
-                    options: Object.entries(this.themes).map(([key, theme]) => ({
-                        value: key,
-                        label: theme.name
-                    })),
-                    onChange: (value) => {
-                        this.setStorage('defaultTheme', value);
-                        this.applyTheme(value);
-                    }
-                },
-                {
-                    type: 'toggle',
-                    id: 'show-floating-btn',
-                    label: '显示浮动按钮',
-                    description: '在页面右下角显示主题切换按钮',
-                    value: this.getStorage('showFloatingBtn') !== false,
-                    onChange: (value) => {
-                        this.setStorage('showFloatingBtn', value);
-                        this.toggleFloatingButton(value);
-                    }
-                },
-                {
-                    type: 'button',
-                    id: 'reset-theme',
-                    label: '重置主题',
-                    description: '恢复到默认主题设置',
-                    buttonText: '重置',
-                    onClick: () => {
-                        this.resetTheme();
-                    }
-                }
-            ]
-        });
-
-        // 创建主题面板
         this.createThemePanel();
-        
-        // 创建浮动按钮
-        if (this.getStorage('showFloatingBtn') !== false) {
+
+        const showFloatingBtn = this.getStorage('showFloatingBtn');
+        if (showFloatingBtn === null || showFloatingBtn === undefined || showFloatingBtn !== 'false') {
             this.createFloatingButton();
         }
     }
 
-    /**
-     * 注册命令
-     */
     registerCommands() {
-        // 切换主题命令
         this.registerCommand('switchTheme', (themeId) => {
             this.applyTheme(themeId);
         });
 
-        // 下一个主题
         this.registerCommand('nextTheme', () => {
             this.switchToNextTheme();
         });
 
-        // 上一个主题
         this.registerCommand('previousTheme', () => {
             this.switchToPreviousTheme();
         });
 
-        // 切换主题面板
         this.registerCommand('togglePanel', () => {
             this.toggleThemePanel();
         });
 
-        // 随机主题
         this.registerCommand('randomTheme', () => {
             this.applyRandomTheme();
         });
     }
 
-    /**
-     * 设置快捷键
-     */
     setupShortcuts() {
         // Ctrl+Shift+T 切换主题面板
         this.addEventListener(document, 'keydown', (e) => {
@@ -592,39 +488,38 @@ class ThemeSwitcherPlugin extends PluginBase {
         });
     }
 
-    /**
-     * 创建主题面板
-     */
     createThemePanel() {
         const panel = this.createElement('div', {
             className: 'theme-switcher-panel',
             id: 'theme-switcher-panel'
         });
 
+        this.addPluginScope(panel);
+
         panel.innerHTML = `
             <div class="theme-panel-header">
                 <div class="theme-panel-title">🎨 主题切换</div>
-                <button class="theme-close-btn" onclick="window.plugins.get('${this.id}')?.toggleThemePanel()">×</button>
+                <button class="theme-close-btn" data-action="close">×</button>
             </div>
-            
+
             <div class="theme-grid" id="theme-grid">
                 ${this.renderThemeCards()}
             </div>
-            
+
             <div class="theme-actions">
-                <button class="theme-btn" onclick="window.plugins.get('${this.id}')?.applyRandomTheme()">
+                <button class="theme-btn" data-action="random">
                     🎲 随机主题
                 </button>
-                <button class="theme-btn primary" onclick="window.plugins.get('${this.id}')?.resetTheme()">
+                <button class="theme-btn primary" data-action="reset">
                     🔄 重置
                 </button>
             </div>
         `;
 
+        this.setupPanelEventListeners(panel);
         document.body.appendChild(panel);
         this.themePanel = panel;
 
-        // 添加到清理列表
         this.disposables.push(() => {
             if (panel.parentNode) {
                 panel.parentNode.removeChild(panel);
@@ -632,20 +527,55 @@ class ThemeSwitcherPlugin extends PluginBase {
         });
     }
 
-    /**
-     * 渲染主题卡片
-     */
+
+    setupPanelEventListeners(panel) {
+        const closeBtn = panel.querySelector('[data-action="close"]');
+        if (closeBtn) {
+            this.addEventListener(closeBtn, 'click', () => {
+                this.toggleThemePanel();
+            });
+        }
+
+        const randomBtn = panel.querySelector('[data-action="random"]');
+        if (randomBtn) {
+            this.addEventListener(randomBtn, 'click', () => {
+                this.applyRandomTheme();
+            });
+        }
+
+        const resetBtn = panel.querySelector('[data-action="reset"]');
+        if (resetBtn) {
+            this.addEventListener(resetBtn, 'click', () => {
+                this.resetTheme();
+            });
+        }
+
+        const themeGrid = panel.querySelector('#theme-grid');
+        if (themeGrid) {
+            this.rebindThemeCardEvents(themeGrid);
+        }
+    }
+
+    testThemeCardClick(themeId) {
+        if (this.themePanel) {
+            const card = this.themePanel.querySelector(`[data-theme="${themeId}"]`);
+            if (card) {
+                card.click();
+            }
+        }
+    }
+
     renderThemeCards() {
         return Object.entries(this.themes).map(([themeId, theme]) => {
             const isActive = this.currentTheme === themeId;
             return `
-                <div class="theme-card ${isActive ? 'active' : ''}" 
-                     onclick="window.plugins.get('${this.id}')?.applyTheme('${themeId}')">
+                <div class="theme-card ${isActive ? 'active' : ''}"
+                     data-theme="${themeId}">
                     <div class="theme-preview">
-                        <div class="theme-color" style="background: ${theme.colors.primary}"></div>
-                        <div class="theme-color" style="background: ${theme.colors.secondary}"></div>
-                        <div class="theme-color" style="background: ${theme.colors.background}"></div>
-                        <div class="theme-color" style="background: ${theme.colors.surface}"></div>
+                        <div class="theme-color" style="background: ${theme.colors['color-primary'] || theme.colors.primary || '#335eea'}"></div>
+                        <div class="theme-color" style="background: ${theme.colors['color-secondary-bg'] || theme.colors.secondary || '#f5f5f7'}"></div>
+                        <div class="theme-color" style="background: ${theme.colors['color-body-bg'] || theme.colors.background || '#ffffff'}"></div>
+                        <div class="theme-color" style="background: ${theme.colors['color-player-bg'] || theme.colors.surface || '#ffffff'}"></div>
                     </div>
                     <div class="theme-name">${theme.name}</div>
                 </div>
@@ -653,9 +583,6 @@ class ThemeSwitcherPlugin extends PluginBase {
         }).join('');
     }
 
-    /**
-     * 创建浮动按钮
-     */
     createFloatingButton() {
         const button = this.createElement('button', {
             className: 'theme-floating-btn',
@@ -663,14 +590,14 @@ class ThemeSwitcherPlugin extends PluginBase {
             title: '主题切换 (Ctrl+Shift+T)'
         });
 
-        button.addEventListener('click', () => {
+        this.addPluginScope(button);
+        this.addEventListener(button, 'click', () => {
             this.toggleThemePanel();
         });
 
         document.body.appendChild(button);
         this.floatingButton = button;
 
-        // 添加到清理列表
         this.disposables.push(() => {
             if (button.parentNode) {
                 button.parentNode.removeChild(button);
@@ -690,119 +617,106 @@ class ThemeSwitcherPlugin extends PluginBase {
         }
     }
 
-    /**
-     * 应用主题
-     */
     applyTheme(themeId) {
         const theme = this.themes[themeId];
         if (!theme) {
-            console.warn(`🎨 ThemeSwitcherPlugin: 主题不存在: ${themeId}`);
-            return;
+            this.showNotification(`主题 ${themeId} 不存在`, 'error');
+            return false;
         }
 
-        console.log(`🎨 ThemeSwitcherPlugin: 应用主题: ${theme.name}`);
+        if (this.currentTheme === themeId) {
+            return true;
+        }
 
         const root = document.documentElement;
 
-        // 如果是内置主题（light/dark），使用data-theme属性
-        if (theme.dataTheme === 'light' || theme.dataTheme === 'dark') {
-            // 清除之前的自定义颜色
-            this.clearCustomColors();
+        requestAnimationFrame(() => {
+            if (theme.dataTheme === 'light' || theme.dataTheme === 'dark') {
+                this.clearCustomColors();
+                root.setAttribute('data-theme', theme.dataTheme);
 
-            // 设置data-theme属性
-            root.setAttribute('data-theme', theme.dataTheme);
+                if (window.theme && typeof window.theme.set === 'function') {
+                    this.removeThemeListener();
+                    window.theme.set(theme.dataTheme);
+                    setTimeout(() => this.setupThemeListener(), 100);
+                }
+            } else {
+                root.setAttribute('data-theme', 'custom');
+                const cssText = Object.entries(theme.colors)
+                    .map(([property, value]) => `--${property}: ${value}`)
+                    .join('; ');
 
-            // 通知应用主题系统
-            if (window.theme && typeof window.theme.set === 'function') {
-                // 临时移除监听器，避免循环调用
-                this.removeThemeListener();
-                window.theme.set(theme.dataTheme);
-                // 重新设置监听器
-                setTimeout(() => this.setupThemeListener(), 100);
+                if (cssText) {
+                    root.style.cssText += '; ' + cssText;
+                }
             }
-        } else {
-            // 自定义主题：设置为custom并应用自定义颜色
-            root.setAttribute('data-theme', 'custom');
 
-            // 应用自定义CSS变量
-            Object.entries(theme.colors).forEach(([property, value]) => {
-                root.style.setProperty(`--${property}`, value);
-            });
-        }
+            this.currentTheme = themeId;
+            this.setStorage('currentTheme', themeId);
+            this.updateThemePanel();
+            this.showNotification(`已切换到 ${theme.name}`, 'success');
+            this.emit('themeChanged', {themeId, theme});
+        });
 
-        // 更新当前主题
-        this.currentTheme = themeId;
-        this.setStorage('currentTheme', themeId);
-
-        // 更新主题面板
-        this.updateThemePanel();
-
-        // 显示通知
-        this.showNotification(`已切换到 ${theme.name}`, 'success', 2000);
-
-        // 发送主题变化事件
-        this.emit('themeChanged', { themeId, theme });
-
-        console.log(`🎨 ThemeSwitcherPlugin: 主题 ${theme.name} 应用完成`);
+        return true;
     }
 
-    /**
-     * 更新主题面板
-     */
     updateThemePanel() {
         const themeGrid = document.getElementById('theme-grid');
         if (themeGrid) {
             themeGrid.innerHTML = this.renderThemeCards();
+            this.rebindThemeCardEvents(themeGrid);
         }
     }
 
-    /**
-     * 切换主题面板
-     */
+    rebindThemeCardEvents(themeGrid) {
+        const themeCards = themeGrid.querySelectorAll('.theme-card');
+
+        themeCards.forEach((card) => {
+            const themeId = card.dataset.theme || card.getAttribute('data-theme');
+
+            if (themeId) {
+                this.addEventListener(card, 'click', () => {
+                    this.applyTheme(themeId);
+                });
+            }
+        });
+    }
+
     toggleThemePanel() {
         if (this.themePanel) {
             this.themePanel.classList.toggle('visible');
+        } else {
+            this.createThemePanel();
         }
     }
 
-    /**
-     * 切换到下一个主题
-     */
     switchToNextTheme() {
         const themeIds = Object.keys(this.themes);
         const currentIndex = themeIds.indexOf(this.currentTheme);
         const nextIndex = (currentIndex + 1) % themeIds.length;
         const nextThemeId = themeIds[nextIndex];
-        
+
         this.applyTheme(nextThemeId);
     }
 
-    /**
-     * 切换到上一个主题
-     */
     switchToPreviousTheme() {
         const themeIds = Object.keys(this.themes);
         const currentIndex = themeIds.indexOf(this.currentTheme);
         const prevIndex = (currentIndex - 1 + themeIds.length) % themeIds.length;
         const prevThemeId = themeIds[prevIndex];
-        
+
         this.applyTheme(prevThemeId);
     }
 
-    /**
-     * 应用随机主题
-     */
     applyRandomTheme() {
         const themeIds = Object.keys(this.themes);
         const randomIndex = Math.floor(Math.random() * themeIds.length);
         const randomThemeId = themeIds[randomIndex];
-        
+
         this.applyTheme(randomThemeId);
     }
 
-    /**
-     * 重置主题
-     */
     resetTheme() {
         this.applyTheme('light');
         this.setStorage('defaultTheme', 'light');
