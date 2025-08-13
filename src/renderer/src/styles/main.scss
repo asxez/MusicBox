@@ -11215,7 +11215,7 @@ body.focus-mode {
   .detail-hero .info .actions .primary:active,
   .detail-hero .info .actions .outline:active { transform: translateY(1px); }
 
-  /* 曲目行微交互 */
+  /* 歌曲行微交互 */
   .trackx { transition: background 160ms ease, transform 160ms ease; }
   .trackx:active { transform: scale(0.996); }
   .trackx .i-btn { transition: background 160ms ease, color 160ms ease, transform 100ms ease; }

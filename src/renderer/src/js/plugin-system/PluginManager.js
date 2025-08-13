@@ -109,9 +109,10 @@ class PluginManager extends EventEmitter {
             app: window.app || null,
             api: window.api || null,
             
-            // DOM操作
+            // 高权限
             document: document,
             window: window,
+            electronAPI: window.electronAPI,
             
             // 组件系统
             Component: window.Component,
@@ -143,9 +144,9 @@ class PluginManager extends EventEmitter {
             
             // 系统API
             system: {
-                fs: window.electronAPI?.fs || null,
-                path: window.electronAPI?.path || null,
-                os: window.electronAPI?.os || null
+                fs: window.electronAPI.fs.fs || null,
+                path: window.electronAPI.path || null,
+                os: window.electronAPI.os || null
             }
         };
         

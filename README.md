@@ -9,7 +9,7 @@
     <!-- <a href="#-特性"><strong>✨ 查看特性</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp; -->
     <a href="#-安装"><strong>📦下载安装</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
     <a href="#-开发"><strong>🛠️开发指南</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    <a href="#-插件开发"><strong>🔧为MusicBox开发插件</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="#-插件开发"><strong>🔧为MusicBox开发（安装）插件</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
     <a href="#-相关截图"><strong>📌相关截图</strong></a>
     <br />
   </p>
@@ -187,15 +187,19 @@ npm run dev:main
 
 ## 🔧 插件开发
 
-文档正在完善中
-
-查看插件相关文档
-
-可在issue中提交你开发的插件，我会在此链接你的仓库😋
-
-[MusicBox 插件文档](src/renderer/src/js/plugin-system/README.md)
+可在 **issue** 中提交你开发的插件，我会在此链接你的仓库😋
 
 [MusicBox 插件开发文档](src/renderer/src/js/plugin-system/docs)
+
+
+### 可用插件列表
+
+Q: 如何使用插件？
+
+A：设置中打开插件管理，导入插件即可，目前只支持单个的 JS 文件。
+
+[主题切换器-示例插件](src/renderer/src/js/plugin-system/examples/ThemeSwitcherPlugin.js)
+
 
 ## 🤝 贡献
 
