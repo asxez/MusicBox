@@ -95,17 +95,17 @@ class PluginAPI {
 
         // 导航API
         this.registerAPI('navigation', {
-            addItem: (pluginId, config) => {
+            addItem: (config) => {
                 const navigation = window.app?.components?.navigation;
                 if (navigation && typeof navigation.addPluginItem === 'function') {
-                    return navigation.addPluginItem(pluginId, config);
+                    return navigation.addPluginItem(config);
                 }
                 return null;
             },
-            removeItem: (pluginId, itemId) => {
+            removeItem: (itemId) => {
                 const navigation = window.app?.components?.navigation;
                 if (navigation && typeof navigation.removePluginItem === 'function') {
-                    navigation.removePluginItem(pluginId, itemId);
+                    navigation.removePluginItem(itemId);
                 }
             },
             getCurrentView: () => {
@@ -150,7 +150,6 @@ class PluginAPI {
             os: window.electronAPI.os,
             openDirectory: () => window.api.openDirectory(),
             openFiles: () => window.api.openFiles(),
-            showItemInFolder: (path) => window.electronAPI.showItemInFolder?.(path)
         });
 
         // 事件API

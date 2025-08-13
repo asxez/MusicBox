@@ -785,16 +785,16 @@ class APITestPlugin extends PluginBase {
             }
         }
 
-        // 测试获取曲目列表
+        // 测试获取歌曲列表
         if (typeof api.getTracks === 'function') {
             try {
                 const tracks = await api.getTracks();
                 const isValidTracks = Array.isArray(tracks);
-                this.addTestResult('library', '获取曲目', isValidTracks,
-                    isValidTracks ? `获取到${tracks.length}首曲目` : '获取曲目失败',
+                this.addTestResult('library', '获取歌曲', isValidTracks,
+                    isValidTracks ? `获取到${tracks.length}首歌曲` : '获取歌曲失败',
                     this.testTypes.FUNCTIONALITY);
             } catch (error) {
-                this.addTestResult('library', '获取曲目', false,
+                this.addTestResult('library', '获取歌曲', false,
                     `错误: ${error.message}`, this.testTypes.ERROR_HANDLING);
             }
         }

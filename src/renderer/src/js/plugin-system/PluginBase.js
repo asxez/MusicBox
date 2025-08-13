@@ -106,8 +106,8 @@ class PluginBase {
     }
 
     // 获取存储数据
-    getStorage(key) {
-        return this.context.storage.get(this.id, key);
+    getStorage(key, defaultValue) {
+        return this.context.storage.get(this.id, key) || defaultValue;
     }
 
     // 设置存储数据
