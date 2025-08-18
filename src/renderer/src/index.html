@@ -780,8 +780,26 @@
                             </div>
                         </div>
 
-                        <!-- 快捷键配置容器 -->
-                        <div id="shortcuts-container" class="shortcuts-container">
+                        <!-- 快捷键配置折叠区域 -->
+                        <div class="settings-item collapsible-item">
+                            <div class="item-info collapsible-header" id="shortcuts-header">
+                                <div class="collapsible-title">
+                                    <label class="item-label">快捷键配置</label>
+                                    <div class="collapsible-indicator">
+                                        <svg class="collapse-icon" viewBox="0 0 24 24">
+                                            <path d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <p class="item-description">
+                                    <span id="shortcuts-summary">已配置 0 个快捷键</span>
+                                    <span class="collapsible-hint">点击展开查看详细配置</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- 快捷键配置容器（可折叠内容） -->
+                        <div id="shortcuts-container" class="shortcuts-container collapsible-content">
                             <!-- 局内快捷键 -->
                             <div class="shortcuts-group">
                                 <h3 class="shortcuts-group-title">应用内快捷键</h3>
@@ -797,15 +815,9 @@
                                     <!-- 快捷键将通过JavaScript生成 -->
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- 快捷键操作按钮 -->
-                        <div class="settings-item">
-                            <div class="item-info">
-                                <label class="item-label">重置快捷键</label>
-                                <p class="item-description">将所有快捷键恢复为默认设置</p>
-                            </div>
-                            <div class="item-control">
+                            <!-- 快捷键操作按钮 -->
+                            <div class="shortcuts-actions">
                                 <button class="settings-button danger" id="reset-shortcuts-btn">重置为默认</button>
                             </div>
                         </div>

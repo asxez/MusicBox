@@ -10,7 +10,7 @@ class ThemeSwitcherPlugin extends PluginBase {
             id: 'theme-switcher',
             name: '主题切换器',
             version: '666',
-            description: '提供多种预设主题和自定义主题功能，支持实时切换',
+            description: '提供多种预设主题，支持实时切换',
             author: 'MusicBox-ASXE',
             permissions: ['ui', 'storage'],
             category: '界面增强'

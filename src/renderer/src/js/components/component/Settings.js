@@ -769,7 +769,11 @@ class Settings extends EventEmitter {
         // 渲染快捷键列表
         this.renderShortcutsList('local', config.localShortcuts);
         this.renderShortcutsList('global', config.globalShortcuts);
-        console.log('🎹 快捷键配置初始化完成');
+
+        // 延迟初始化折叠功能，确保DOM完全渲染
+        setTimeout(() => {
+            window.shortcutConfig.initializeCollapsibleShortcuts();
+        }, 100);
     }
 
     renderShortcutsList(type, shortcuts) {
@@ -919,6 +923,8 @@ class Settings extends EventEmitter {
             const success = await window.shortcutConfig.setGlobalShortcutsEnabled(enabled);
             if (success) {
                 this.updateGlobalShortcutsVisibility(enabled);
+                // 刷新快捷键摘要
+                window.shortcutConfig.refreshSummary();
                 showToast(enabled ? '全局快捷键已启用' : '全局快捷键已禁用', 'success');
                 this.emit('shortcutsUpdated');
             } else {
@@ -964,6 +970,8 @@ class Settings extends EventEmitter {
         if (success) {
             // 重新初始化快捷键配置
             this.initializeShortcuts();
+            // 刷新摘要
+            window.shortcutConfig.refreshSummary();
             showToast('快捷键已重置为默认设置', 'success');
             this.emit('shortcutsUpdated');
         } else {

@@ -9,7 +9,7 @@ const {OS_ALLOWED, PATH_ALLOWED, FS_ALLOWED} = require('../utils/allowed_func');
  */
 function registerOsIpcHandlers({ipcMain}) {
     ipcMain.handle('os:call', (event, {prop, args}) => {
-        if (!OS_ALLOWED.has(prop)) {
+        if (OS_ALLOWED.indexOf(prop) === -1) {
             throw new Error('not allowed');
         }
         const val = os[prop];

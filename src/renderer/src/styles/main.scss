@@ -347,7 +347,7 @@ a {
     "navbar navbar"
     "sidebar main"
     "player player";
-  grid-template-rows: 64px 1fr 80px;
+  grid-template-rows: 64px 1fr 64px;
   grid-template-columns: 240px 1fr;
   height: 100vh;
   overflow: hidden;
@@ -5831,7 +5831,7 @@ a {
       "main"
       "player";
     grid-template-columns: 1fr;
-    grid-template-rows: 64px 1fr 80px;
+    grid-template-rows: 64px 1fr 64px;
   }
 
   .sidebar {
@@ -8756,6 +8756,178 @@ body.focus-mode {
     .quick-start-section .quick-start-actions {
       flex-direction: column;
       align-items: center;
+    }
+  }
+}
+
+// ===== 可折叠设置项样式 =====
+
+.collapsible-item {
+  .collapsible-header {
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+    margin: -12px !important;
+    user-select: none !important;
+
+    &:hover {
+      background: rgba(51, 94, 234, 0.1) !important;
+    }
+
+    .collapsible-title {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      width: 100% !important;
+
+      .item-label {
+        margin: 0 !important;
+        font-weight: 600 !important;
+        color: var(--color-text, #000000) !important;
+      }
+
+      .collapsible-indicator {
+        display: flex !important;
+        align-items: center !important;
+        margin-left: 16px !important;
+
+        .collapse-icon {
+          width: 20px !important;
+          height: 20px !important;
+          fill: var(--color-text-secondary, #7a7a7b) !important;
+          transition: transform 0.3s ease !important;
+        }
+      }
+    }
+
+    .item-description {
+      margin: 8px 0 0 0 !important;
+
+      .collapsible-hint {
+        color: var(--color-text-secondary, #7a7a7b) !important;
+        font-size: 0.9em !important;
+        margin-left: 8px !important;
+        opacity: 0.8 !important;
+      }
+    }
+
+    &.expanded {
+      .collapsible-indicator .collapse-icon {
+        transform: rotate(180deg) !important;
+      }
+
+      .collapsible-hint {
+        display: none !important;
+      }
+    }
+  }
+
+  .collapsible-content {
+    max-height: 0 !important;
+    overflow: hidden !important;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease !important;
+    opacity: 0 !important;
+    margin-top: 16px !important;
+
+    &.expanded {
+      max-height: 3000px !important; // 更大的值以容纳内容
+      opacity: 1 !important;
+    }
+  }
+}
+
+/* 快捷键特定样式 */
+#shortcuts-container.collapsible-content {
+  background: var(--color-surface, #ffffff) !important;
+  border: 1px solid var(--color-border, #e5e5e7) !important;
+  border-radius: 12px !important;
+  padding: 20px !important;
+  box-sizing: border-box !important;
+
+  &:not(.expanded) {
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+  }
+}
+
+// 快捷键配置特定样式
+.shortcuts-container {
+  &.collapsible-content {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+
+    .shortcuts-group {
+      margin-bottom: var(--spacing-lg);
+
+      &:last-of-type {
+        margin-bottom: var(--spacing-md);
+      }
+
+      .shortcuts-group-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--color-text);
+        margin: 0 0 var(--spacing-md) 0;
+        padding-bottom: var(--spacing-xs);
+        border-bottom: 1px solid var(--color-border);
+      }
+    }
+
+    .shortcuts-actions {
+      padding-top: var(--spacing-md);
+      border-top: 1px solid var(--color-border);
+      text-align: right;
+    }
+  }
+}
+
+// 快捷键摘要样式
+#shortcuts-summary {
+  font-weight: 500;
+  color: var(--color-primary);
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .collapsible-item {
+    .collapsible-header {
+      .collapsible-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
+
+        .collapsible-indicator {
+          align-self: flex-end;
+          margin-left: 0;
+          margin-top: var(--spacing-xs);
+        }
+      }
+
+      .item-description {
+        .collapsible-hint {
+          display: block;
+          margin-left: 0;
+          margin-top: var(--spacing-xs);
+        }
+      }
+    }
+
+    .collapsible-content {
+      &.expanded {
+        max-height: 3000px; // 移动端需要更大的高度
+      }
+    }
+  }
+
+  .shortcuts-container.collapsible-content {
+    padding: var(--spacing-md);
+
+    .shortcuts-actions {
+      text-align: center;
     }
   }
 }

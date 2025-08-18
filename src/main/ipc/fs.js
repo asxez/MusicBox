@@ -1,6 +1,7 @@
 // 文件系统相关 IPC
 
 const fs = require('fs');
+const fsPromises = require('fs').promises;
 const {OS_ALLOWED, PATH_ALLOWED, FS_ALLOWED} = require('../utils/allowed_func');
 
 /**
@@ -11,15 +12,41 @@ const {OS_ALLOWED, PATH_ALLOWED, FS_ALLOWED} = require('../utils/allowed_func');
 function registerFsIpcHandlers({ipcMain}) {
     if (!ipcMain) throw new Error('registerFsIpcHandlers: 缺少 ipcMain');
 
-    ipcMain.handle('fs:call', (event, {prop, args}) => {
-        if (!FS_ALLOWED.has(prop)) {
+    ipcMain.handle('fs:call', async (event, {prop, args}) => {
+        if (FS_ALLOWED.indexOf(prop) === -1) {
             throw new Error('not allowed');
         }
-        const val = fs[prop];
-        if (typeof val === 'function') {
-            return val.apply(fs, args || []);
+
+        console.log('🔧 fs:call 调用:', prop, args);
+
+        // 使用Promise版本的fs方法
+        try {
+            switch (prop) {
+                case 'readdir':
+                    return await fsPromises.readdir(args[0]);
+                case 'access':
+                    await fsPromises.access(args[0]);
+                    return true; // access成功返回true
+                case 'stat':
+                    return await fsPromises.stat(args[0]);
+                case 'lstat':
+                    return await fsPromises.lstat(args[0]);
+                case 'readFile':
+                    return await fsPromises.readFile(args[0], args[1]);
+                case 'realpath':
+                    return await fsPromises.realpath(args[0]);
+                default:
+                    // 其他方法，暂时使用原始方式
+                    const val = fs[prop];
+                    if (typeof val === 'function') {
+                        return val.apply(fs, args || []);
+                    }
+                    return val;
+            }
+        } catch (error) {
+            console.error('🔧 fs:call 错误:', prop, args, error.message);
+            throw error;
         }
-        return val;
     });
 
     // 获取文件信息
