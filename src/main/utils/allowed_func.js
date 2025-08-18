@@ -13,7 +13,7 @@ const PATH_ALLOWED = [
 
 // fs (仅只读、异步 promise API)
 const FS_ALLOWED = [
-    'stat', 'lstat', 'readdir', 'readFile', 'realpath', 'access'
+    'stat', 'lstat', 'readdir', 'readFile', 'realpath', 'access', 'readFileSync'
 ];
 
 
