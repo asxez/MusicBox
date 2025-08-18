@@ -397,18 +397,14 @@ class Player extends Component {
         const volumePercent = this.volume * 100;
         this.volumeFill.style.width = `${volumePercent}%`;
         this.volumeHandle.style.left = `${volumePercent}%`;
-
-        // Update volume icon based on volume level
         this.updateVolumeIcon();
     }
 
     updateVolumeIcon() {
-        // Hide all icons first
         if (this.volumeHighIcon) this.volumeHighIcon.style.display = 'none';
         if (this.volumeHalfIcon) this.volumeHalfIcon.style.display = 'none';
         if (this.volumeMuteIcon) this.volumeMuteIcon.style.display = 'none';
 
-        // Show appropriate icon based on volume level
         if (this.volume === 0) {
             if (this.volumeMuteIcon) this.volumeMuteIcon.style.display = 'block';
         } else if (this.volume <= 0.5) {
