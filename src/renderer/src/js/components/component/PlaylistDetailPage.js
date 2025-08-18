@@ -17,8 +17,6 @@ class PlaylistDetailPage extends Component {
         this.setupElements();
         this.setupEventListeners();
         this.setupSettingsListener();
-
-        console.log('🎵 PlaylistDetailPage: 组件初始化完成');
     }
 
     setupElements() {
@@ -104,7 +102,8 @@ class PlaylistDetailPage extends Component {
         if (!this.currentPlaylist || !this.container) return;
 
         const createdDate = new Date(this.currentPlaylist.createdAt);
-        const trackCount = this.currentPlaylist.trackIds ? this.currentPlaylist.trackIds.length : 0;
+        // 使用实际加载的tracks数量，确保UI状态与数据一致
+        const trackCount = this.tracks ? this.tracks.length : (this.currentPlaylist.trackIds ? this.currentPlaylist.trackIds.length : 0);
         const totalDuration = this.calculateTotalDuration();
 
         this.container.innerHTML = `
@@ -333,7 +332,6 @@ class PlaylistDetailPage extends Component {
 
         // 添加新的监听器
         document.addEventListener('click', this.documentClickHandler);
-        console.log('✅ 设置document点击监听器');
     }
 
     async loadPlaylistCover() {
@@ -341,10 +339,8 @@ class PlaylistDetailPage extends Component {
             const result = await api.getPlaylistCover(this.currentPlaylist.id);
             if (result.success && result.coverPath) {
                 this.currentPlaylist.coverImage = result.coverPath;
-                console.log('✅ PlaylistDetailPage: 加载歌单封面成功', result.coverPath);
             } else {
                 this.currentPlaylist.coverImage = null;
-                console.log('📷 PlaylistDetailPage: 歌单无自定义封面');
             }
         } catch (error) {
             console.error('❌ PlaylistDetailPage: 加载歌单封面失败', error);
@@ -357,6 +353,16 @@ class PlaylistDetailPage extends Component {
             const result = await window.electronAPI.library.getPlaylistDetail(this.currentPlaylist.id);
             if (result.success) {
                 this.tracks = result.playlist.tracks || [];
+
+                // 同步更新currentPlaylist对象，确保UI状态正确
+                if (result.playlist) {
+                    this.currentPlaylist.trackIds = result.playlist.trackIds || [];
+                    this.currentPlaylist.trackCount = this.tracks.length;
+                    // 如果有其他需要同步的属性，也在这里更新
+                    if (result.playlist.name) this.currentPlaylist.name = result.playlist.name;
+                    if (result.playlist.description !== undefined) this.currentPlaylist.description = result.playlist.description;
+                }
+
                 this.render();
                 // 确保DOM更新后再绑定事件
                 setTimeout(() => {
@@ -365,11 +371,17 @@ class PlaylistDetailPage extends Component {
             } else {
                 console.error('❌ PlaylistDetailPage: 加载歌单歌曲失败', result.error);
                 this.tracks = [];
+                // 同步更新空状态
+                this.currentPlaylist.trackIds = [];
+                this.currentPlaylist.trackCount = 0;
                 this.render();
             }
         } catch (error) {
             console.error('❌ PlaylistDetailPage: 加载歌单歌曲失败', error);
             this.tracks = [];
+            // 同步更新空状态
+            this.currentPlaylist.trackIds = [];
+            this.currentPlaylist.trackCount = 0;
             this.render();
         }
     }
@@ -676,11 +688,8 @@ class PlaylistDetailPage extends Component {
             );
 
             if (result.success) {
-                console.log('✅ 歌单清空成功');
-
                 // 重新加载歌单
                 await this.loadPlaylistTracks();
-                this.render();
 
                 // 触发歌单更新事件
                 this.emit('playlistUpdated', this.currentPlaylist);
@@ -814,14 +823,11 @@ class PlaylistDetailPage extends Component {
                 }
             }
 
-            console.log(`✅ 批量移除歌曲完成: 成功 ${successCount}, 失败 ${failCount}`);
-
             // 清除选择状态
             this.clearSelection();
 
             // 重新加载歌单
             await this.loadPlaylistTracks();
-            this.render();
 
             // 触发歌单更新事件
             this.emit('playlistUpdated', this.currentPlaylist);
@@ -859,12 +865,8 @@ class PlaylistDetailPage extends Component {
             );
 
             if (result.success) {
-                console.log('✅ PlaylistDetailPage: 歌曲已从歌单移除');
-
                 // 重新加载歌单
                 await this.loadPlaylistTracks();
-                this.currentPlaylist.trackIds = this.currentPlaylist.trackIds.filter(id => id !== track.fileId);
-                this.render();
 
                 // 触发歌单更新事件
                 this.emit('playlistUpdated', this.currentPlaylist);
