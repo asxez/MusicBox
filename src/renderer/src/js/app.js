@@ -1049,7 +1049,9 @@ class MusicBoxApp extends EventEmitter {
             search: {id: 'search', name: '搜索', key: 'Ctrl+F'},
             toggleLyrics: {id: 'toggleLyrics', name: '显示/隐藏歌词', key: 'Ctrl+L'},
             toggleFullscreen: {id: 'toggleFullscreen', name: '全屏切换', key: 'F11'},
-            exitLyrics: {id: 'exitLyrics', name: '退出歌词页面', key: 'Escape'}
+            exitLyrics: {id: 'exitLyrics', name: '退出歌词页面', key: 'Escape'},
+            seekForward: {id: 'seekForward', name: '快进', key: 'ArrowRight'},
+            seekBackward: {id: 'seekBackward', name: '回退', key: 'ArrowLeft'}
         };
     }
 
@@ -1095,6 +1097,14 @@ class MusicBoxApp extends EventEmitter {
 
             case 'search':
                 document.getElementById('search-input')?.focus();
+                break;
+
+            case 'seekForward':
+                await api.seekForward(3);
+                break;
+
+            case 'seekBackward':
+                await api.seekBackward(3);
                 break;
 
             case 'toggleLyrics':

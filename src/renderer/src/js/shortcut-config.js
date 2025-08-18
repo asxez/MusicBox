@@ -29,28 +29,28 @@ class ShortcutConfig {
                 previousTrack: {
                     id: 'previousTrack',
                     name: '上一首',
-                    description: '播放上一首歌曲',
+                    description: '播放上一首',
                     key: 'Ctrl+ArrowLeft',
                     enabled: true
                 },
                 nextTrack: {
                     id: 'nextTrack',
                     name: '下一首',
-                    description: '播放下一首歌曲',
+                    description: '播放下一首',
                     key: 'Ctrl+ArrowRight',
                     enabled: true
                 },
                 volumeUp: {
                     id: 'volumeUp',
                     name: '音量增加',
-                    description: '增加播放音量',
+                    description: '增加音量 1%',
                     key: 'Ctrl+ArrowUp',
                     enabled: true
                 },
                 volumeDown: {
                     id: 'volumeDown',
                     name: '音量减少',
-                    description: '减少播放音量',
+                    description: '减少音量 1%',
                     key: 'Ctrl+ArrowDown',
                     enabled: true
                 },
@@ -81,6 +81,20 @@ class ShortcutConfig {
                     description: '关闭歌词页面或退出全屏',
                     key: 'Escape',
                     enabled: true
+                },
+                seekForward: {
+                    id: 'seekForward',
+                    name: '快进',
+                    description: '快进3秒',
+                    key: 'ArrowRight',
+                    enabled: true
+                },
+                seekBackward: {
+                    id: 'seekBackward',
+                    name: '回退',
+                    description: '回退3秒',
+                    key: 'ArrowLeft',
+                    enabled: true
                 }
             },
 
@@ -89,43 +103,57 @@ class ShortcutConfig {
                 playPause: {
                     id: 'playPause',
                     name: '播放/暂停',
-                    description: '全局切换音乐播放状态',
+                    description: '全局-切换音乐播放状态',
                     key: 'Alt+Space',
                     enabled: true
                 },
                 previousTrack: {
                     id: 'previousTrack',
                     name: '上一首',
-                    description: '全局播放上一首歌曲',
+                    description: '全局-播放上一首',
                     key: 'Alt+Ctrl+ArrowLeft',
                     enabled: true
                 },
                 nextTrack: {
                     id: 'nextTrack',
                     name: '下一首',
-                    description: '全局播放下一首歌曲',
+                    description: '全局-播放下一首',
                     key: 'Alt+Ctrl+ArrowRight',
                     enabled: true
                 },
                 volumeUp: {
                     id: 'volumeUp',
                     name: '音量增加',
-                    description: '全局增加播放音量',
+                    description: '全局-增加音量 1%',
                     key: 'Alt+Ctrl+ArrowUp',
                     enabled: true
                 },
                 volumeDown: {
                     id: 'volumeDown',
                     name: '音量减少',
-                    description: '全局减少播放音量',
+                    description: '全局-减少音量 1%',
                     key: 'Alt+Ctrl+ArrowDown',
                     enabled: true
                 },
                 toggleLyrics: {
                     id: 'toggleLyrics',
                     name: '显示/隐藏歌词',
-                    description: '全局切换歌词页面显示状态',
+                    description: '全局-切换歌词页面显示状态',
                     key: 'Alt+Ctrl+L',
+                    enabled: true
+                },
+                seekForward: {
+                    id: 'seekForward',
+                    name: '快进',
+                    description: '全局-快进3秒',
+                    key: 'Alt+ArrowRight',
+                    enabled: true
+                },
+                seekBackward: {
+                    id: 'seekBackward',
+                    name: '回退',
+                    description: '全局-回退3秒',
+                    key: 'Alt+ArrowLeft',
                     enabled: true
                 }
             }
