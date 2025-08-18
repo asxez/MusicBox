@@ -86,6 +86,115 @@ function registerLibraryScanIpcHandlers(
         }
     });
 
+    // 扫描文件夹中的音频文件但不添加到音乐库
+    // 歌单添加功能
+    ipcMain.handle('library:scanDirectoryForFiles', async (event, directoryPath) => {
+        try {
+            const audioExtensions = ['.mp3', '.flac', '.wav', '.ogg', '.m4a', '.aac', '.wma'];
+            const audioFiles = [];
+
+            async function scanDir(dir) {
+                try {
+                    const items = fs.readdirSync(dir);
+                    for (const item of items) {
+                        const fullPath = path.join(dir, item);
+                        const stat = fs.statSync(fullPath);
+                        if (stat.isDirectory()) {
+                            await scanDir(fullPath);
+                        } else if (audioExtensions.includes(path.extname(item).toLowerCase())) {
+                            try {
+                                const metadata = await parseMetadata(fullPath);
+                                const audioFile = {
+                                    filePath: fullPath,
+                                    fileName: item,
+                                    title: metadata.title,
+                                    artist: metadata.artist,
+                                    album: metadata.album,
+                                    duration: metadata.duration,
+                                    bitrate: metadata.bitrate,
+                                    sampleRate: metadata.sampleRate,
+                                    year: metadata.year,
+                                    genre: metadata.genre,
+                                    track: metadata.track,
+                                    disc: metadata.disc,
+                                    fileSize: stat.size,
+                                    embeddedLyrics: metadata.embeddedLyrics,
+                                };
+                                audioFiles.push(audioFile);
+                            } catch (metadataError) {
+                                console.warn(`⚠️ 解析元数据失败: ${fullPath}`, metadataError.message);
+                                // 即使元数据解析失败，也添加基本信息
+                                audioFiles.push({
+                                    filePath: fullPath,
+                                    fileName: item,
+                                    title: path.basename(item, path.extname(item)),
+                                    artist: '未知艺术家',
+                                    album: '未知专辑',
+                                    duration: 0,
+                                    fileSize: stat.size,
+                                });
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error(`扫描目录错误 ${dir}:`, error.message);
+                }
+            }
+
+            await scanDir(directoryPath);
+            return { success: true, files: audioFiles };
+        } catch (error) {
+            console.error('❌ 扫描文件夹失败:', error);
+            return { success: false, error: error.message, files: [] };
+        }
+    });
+
+    // 添加单个音频文件到音乐库
+    ipcMain.handle('library:addTrackToLibrary', async (event, audioFile) => {
+        try {
+            if (!getLibraryCacheManager()) {
+                await initializeCacheManager();
+            }
+
+            const libraryCacheManager = getLibraryCacheManager();
+
+            // 检查文件是否已存在
+            const existingTrack = libraryCacheManager.cache.tracks.find(
+                track => track.filePath === audioFile.filePath
+            );
+
+            if (existingTrack) {
+                return { success: true, track: existingTrack, isNew: false };
+            }
+
+            // 获取文件统计信息
+            const fs = require('fs');
+            const stats = fs.statSync(audioFile.filePath);
+
+            // 添加到音乐库
+            const trackData = {
+                title: audioFile.title,
+                artist: audioFile.artist,
+                album: audioFile.album,
+                duration: audioFile.duration,
+                bitrate: audioFile.bitrate,
+                sampleRate: audioFile.sampleRate,
+                year: audioFile.year,
+                genre: audioFile.genre,
+                track: audioFile.track,
+                disc: audioFile.disc,
+                embeddedLyrics: audioFile.embeddedLyrics,
+            };
+
+            const cacheTrack = libraryCacheManager.addTrack(trackData, audioFile.filePath, stats);
+            await libraryCacheManager.saveCache();
+            return { success: true, track: cacheTrack, isNew: true };
+        } catch (error) {
+            console.error('❌ 添加音频文件到音乐库失败:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
     // 扫描本地目录
     async function scanLocalDirectory(directoryPath, scanStartTime) {
         const audioExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac'];

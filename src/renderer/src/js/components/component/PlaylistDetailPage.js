@@ -182,6 +182,12 @@ class PlaylistDetailPage extends Component {
                             </svg>
                             <span>添加歌曲</span>
                         </button>
+                        <button class="action-btn add-from-folder" id="playlist-add-from-folder">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4M14,12H12V14H10V12H8V10H10V8H12V10H14V12Z"/>
+                            </svg>
+                            <span>从文件夹添加</span>
+                        </button>
                         <div class="action-menu">
                             <button class="action-btn menu-trigger" id="playlist-menu">
                                 <svg class="icon" viewBox="0 0 24 24">
@@ -261,6 +267,14 @@ class PlaylistDetailPage extends Component {
             addSongsBtn.addEventListener('click', () => this.showAddSongsDialog());
         } else {
             console.warn('⚠️ 未找到添加歌曲按钮元素');
+        }
+
+        // 从文件夹添加音乐按钮
+        const addFromFolderBtn = this.container.querySelector('#playlist-add-from-folder');
+        if (addFromFolderBtn) {
+            addFromFolderBtn.addEventListener('click', () => this.addFromFolder());
+        } else {
+            console.warn('⚠️ 未找到从文件夹添加按钮元素');
         }
 
         // 全选按钮
@@ -576,6 +590,73 @@ class PlaylistDetailPage extends Component {
 
     showAddSongsDialog() {
         this.emit('showAddSongsDialog', this.currentPlaylist);
+    }
+
+    // 从文件夹添加音乐
+    async addFromFolder() {
+        try {
+            // 显示进度提示
+            if (window.app && window.app.showInfo) {
+                window.app.showInfo('正在选择文件夹...');
+            }
+
+            // 打开文件夹选择对话框
+            const folderPath = await window.electronAPI.openDirectory();
+            if (!folderPath) {
+                return;
+            }
+
+            // 显示扫描进度
+            if (window.app && window.app.showInfo) {
+                window.app.showInfo('正在扫描文件夹中的音频文件...');
+            }
+
+            // 扫描文件夹中的音频文件
+            const audioFiles = await this.scanFolderForAudioFiles(folderPath);
+
+            if (audioFiles.length === 0) {
+                if (window.app && window.app.showInfo) {
+                    window.app.showInfo('在选择的文件夹中未找到音频文件');
+                }
+                return;
+            }
+
+            // 显示添加进度
+            if (window.app && window.app.showInfo) {
+                window.app.showInfo(`正在添加 ${audioFiles.length} 首歌曲到歌单...`);
+            }
+
+            // 批量添加到歌单
+            const result = await this.addTracksToPlaylist(audioFiles);
+
+            // 显示结果
+            if (result.success) {
+                const successCount = result.successCount || 0;
+                const failCount = result.failCount || 0;
+
+                let message = `成功添加 ${successCount} 首歌曲到歌单`;
+                if (failCount > 0) {
+                    message += `，${failCount} 首歌曲添加失败`;
+                }
+
+                if (window.app && window.app.showSuccess) {
+                    window.app.showSuccess(message);
+                } else if (window.app && window.app.showInfo) {
+                    window.app.showInfo(message);
+                }
+                await this.loadPlaylistTracks();
+            } else {
+                if (window.app && window.app.showError) {
+                    window.app.showError(result.error || '添加歌曲到歌单失败');
+                }
+            }
+
+        } catch (error) {
+            console.error('❌ PlaylistDetailPage: 从文件夹添加音乐失败', error);
+            if (window.app && window.app.showError) {
+                window.app.showError('从文件夹添加音乐失败，请重试');
+            }
+        }
     }
 
     async clearPlaylist() {
@@ -994,7 +1075,7 @@ class PlaylistDetailPage extends Component {
         }
 
         if (removeCoverItem) {
-            removeCoverItem.addEventListener('click', async() => {
+            removeCoverItem.addEventListener('click', async () => {
                 this.hideCoverContextMenu();
                 await this.removeCover();
             });
@@ -1131,6 +1212,86 @@ class PlaylistDetailPage extends Component {
             contextMenu.show(x, y, track, index);
         } else {
             console.warn('⚠️ PlaylistDetailPage: 未找到全局右键菜单组件');
+        }
+    }
+
+    // 扫描文件夹中的音频文件
+    async scanFolderForAudioFiles(folderPath) {
+        try {
+            const result = await window.electronAPI.library.scanDirectoryForFiles(folderPath);
+
+            if (result && result.success && result.files) {
+                return result.files;
+            } else {
+                console.warn('📁 扫描文件夹失败或未找到音频文件');
+                return [];
+            }
+        } catch (error) {
+            console.error('❌ 扫描文件夹失败:', error);
+            return [];
+        }
+    }
+
+    // 批量添加音频文件到歌单
+    async addTracksToPlaylist(audioFiles) {
+        try {
+            if (!this.currentPlaylist || !audioFiles || audioFiles.length === 0) {
+                return {success: false, error: '无效的参数'};
+            }
+
+            let successCount = 0;
+            let failCount = 0;
+            const errors = [];
+
+            // 批量处理音频文件
+            for (const audioFile of audioFiles) {
+                try {
+                    // 首先确保文件在音乐库中
+                    const addToLibraryResult = await window.electronAPI.library.addTrackToLibrary(audioFile);
+                    if (addToLibraryResult && addToLibraryResult.success && addToLibraryResult.track) {
+                        // 添加到歌单
+                        const addToPlaylistResult = await window.electronAPI.library.addToPlaylist(
+                            this.currentPlaylist.id,
+                            addToLibraryResult.track.fileId
+                        );
+
+                        if (addToPlaylistResult && addToPlaylistResult.success) {
+                            successCount++;
+                        } else {
+                            failCount++;
+                            const error = `添加到歌单失败: ${audioFile.fileName || audioFile.filePath}`;
+                            errors.push(error);
+                            console.warn(`⚠️ ${error}`);
+                        }
+                    } else {
+                        failCount++;
+                        const error = `添加到音乐库失败: ${audioFile.fileName || audioFile.filePath}`;
+                        errors.push(error);
+                        console.warn(`⚠️ ${error}`);
+                    }
+                } catch (error) {
+                    failCount++;
+                    const errorMsg = `处理文件失败: ${audioFile.fileName || audioFile.filePath} - ${error.message}`;
+                    errors.push(errorMsg);
+                    console.error(`❌ ${errorMsg}`);
+                }
+            }
+
+            return {
+                success: successCount > 0,
+                successCount,
+                failCount,
+                errors,
+                totalCount: audioFiles.length
+            };
+        } catch (error) {
+            console.error('❌ 批量添加音频文件到歌单失败:', error);
+            return {
+                success: false,
+                error: error.message || '批量添加失败',
+                successCount: 0,
+                failCount: audioFiles ? audioFiles.length : 0
+            };
         }
     }
 }
