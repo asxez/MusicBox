@@ -354,6 +354,40 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
+    // 快进
+    async seekForward(seconds = 10) {
+        try {
+            const currentPosition = this.getPosition();
+            const duration = this.getDuration();
+
+            if (!duration || duration <= 0) {
+                console.warn('⚠️ 无法获取音频时长，跳过快进操作');
+                return false;
+            }
+
+            // 计算新位置，确保不超过音频总时长
+            const newPosition = Math.min(currentPosition + seconds, duration - 0.1);
+            return await this.seek(newPosition);
+        } catch (error) {
+            console.error('❌ 快进失败:', error);
+            return false;
+        }
+    }
+
+    // 回退
+    async seekBackward(seconds = 10) {
+        try {
+            const currentPosition = this.getPosition();
+
+            // 计算新位置，确保不小于0
+            const newPosition = Math.max(currentPosition - seconds, 0);
+            return await this.seek(newPosition);
+        } catch (error) {
+            console.error('❌ 回退失败:', error);
+            return false;
+        }
+    }
+
     async setVolume(volume) {
         try {
             if (this.webAudioEngine) {

@@ -63,7 +63,6 @@
 - ✅ 插件系统 
 - ✅ MusicBox 实时状态接口
 - ❌ 歌词逐字
-- ❌ 更多快捷键支持（快进回退...）
 - ❌ 修复播放列表存在的问题
 - ❌ 歌词样式调整
 - 🔄 更多其他特性
@@ -199,6 +198,7 @@ Q: 如何使用插件？
 A：设置中打开插件管理，导入插件即可，目前只支持单个的 JS 文件。
 
 [主题切换器-示例插件](src/renderer/src/js/plugin-system/examples/ThemeSwitcherPlugin.js)
+[MusicBox实时状态接口](src/renderer/src/js/plugin-system/examples/RealtimeStatusAPIPlugin.js)
 
 
 ## 🤝 贡献
