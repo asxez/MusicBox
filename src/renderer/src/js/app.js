@@ -25,6 +25,13 @@ class MusicBoxApp extends EventEmitter {
             await this.setupEventListeners();
             await this.loadInitialData();
 
+            // 恢复音量
+            const savedVolume = window.cacheManager.getLocalCache('volume');
+            if (savedVolume !== null) {
+                await api.setVolume(savedVolume);
+                await this.components.player.updateUI();
+            }
+
             // 在组件完全初始化后再初始化插件系统
             this.isInitialized = true;
             await this.initializePluginSystem();
@@ -51,11 +58,6 @@ class MusicBoxApp extends EventEmitter {
         const success = await api.initializeAudio();
         if (!success) {
             throw new Error('Failed to initialize audio engine');
-        }
-        // 恢复音量
-        const savedVolume = window.cacheManager.getLocalCache('volume');
-        if (savedVolume !== null) {
-            await api.setVolume(savedVolume);
         }
     }
 
