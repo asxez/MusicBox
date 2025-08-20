@@ -15,6 +15,7 @@
   </p>
 </p>
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/asxez/MusicBox)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#-安装)
 [![Electron](https://img.shields.io/badge/Electron-31.0.0-47848f.svg)](https://electronjs.org/)
@@ -28,6 +29,7 @@
 - 项目灵感来源于 [YesPlayMusic](https://github.com/qier222/YesPlayMusic) 的设计美学。
 
 ## ✨ 特性
+
 - 💻️ 支持 Windows / macOS / Linux
 - ✅ 支持flac, mp3, wav, ogg, m4a, aac, wma等多种音乐格式
 - 🔧 强大的插件系统（允许在插件中实现任何功能，高权限）
@@ -44,6 +46,7 @@
 - 🛠️ 更多特性开发中
 
 ## 📔 TODOS
+
 ✅已完成，❌未完成，🔄部分完成，❓待定
 
 - ✅ 局内/全局快捷键
