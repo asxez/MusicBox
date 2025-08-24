@@ -475,6 +475,9 @@ class MusicBoxAPI extends EventEmitter {
                     this.emit('playlistChanged', tracks);
                     this.emit('trackIndexChanged', this.currentIndex);
 
+                    // 播放列表变更时保存状态
+                    this.saveCurrentPlaybackState();
+
                     // 同步到主进程
                     await window.electronAPI.audio.setPlaylist(tracks);
                     return true;
@@ -486,6 +489,9 @@ class MusicBoxAPI extends EventEmitter {
             this.currentIndex = startIndex;
             this.emit('playlistChanged', tracks);
             this.emit('trackIndexChanged', this.currentIndex);
+
+            // 播放列表变更时保存状态
+            this.saveCurrentPlaybackState();
             return true;
         } catch (error) {
             console.error('Failed to set playlist:', error);
@@ -988,6 +994,8 @@ class MusicBoxAPI extends EventEmitter {
         if (validModes.includes(mode)) {
             this.playMode = mode;
             this.emit('playModeChanged', mode);
+            // 播放模式变更时保存状态
+            this.saveCurrentPlaybackState();
             return true;
         }
         return false;
@@ -1404,6 +1412,9 @@ class MusicBoxAPI extends EventEmitter {
                     currentTrack: this.currentTrack,
                     position: position,
                     isPlaying: this.isPlaying,
+                    playlist: this.playlist,
+                    currentIndex: this.currentIndex,
+                    playMode: this.playMode,
                     timestamp: Date.now()
                 };
 
@@ -1428,9 +1439,24 @@ class MusicBoxAPI extends EventEmitter {
                 currentTrack: this.currentTrack,
                 position: this.position,
                 isPlaying: this.isPlaying,
+                playlist: this.playlist,
+                currentIndex: this.currentIndex,
+                playMode: this.playMode,
                 timestamp: Date.now()
             };
+
+            console.log('💾 API: 保存播放状态:', {
+                hasTrack: !!this.currentTrack,
+                trackTitle: this.currentTrack?.title,
+                position: this.position,
+                isPlaying: this.isPlaying,
+                playlistLength: this.playlist.length,
+                currentIndex: this.currentIndex,
+                playMode: this.playMode
+            });
+
             window.cacheManager.setLocalCache('playback-state', playbackState);
+            console.log('✅ API: 播放状态已保存（包含播放列表）');
         } catch (error) {
             console.error('❌ API: 保存播放状态失败:', error);
         }
