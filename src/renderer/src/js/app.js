@@ -404,7 +404,7 @@ class MusicBoxApp extends EventEmitter {
         this.setupFileLoading();
 
         // API events
-        api.on('libraryUpdated', async () => {
+        api.on('libraryUpdated', async (data) => {
             await this.refreshLibrary();
         });
 
@@ -662,18 +662,28 @@ class MusicBoxApp extends EventEmitter {
         try {
             const filePaths = await api.openFiles();
             if (filePaths.length > 0) {
+                let successCount = 0;
                 for (const filePath of filePaths) {
+                    // 获取文件元数据
                     const metadata = await api.getTrackMetadata(filePath);
                     if (metadata) {
-                        this.library.push(metadata);
+                        // 添加到音乐库缓存
+                        const result = await api.addTrackToLibrary(metadata);
+                        if (result && result.success) {
+                            successCount++;
+                            console.log('🎉 [App] 文件添加成功:', metadata.title);
+                        }
                     }
                 }
-                this.filteredLibrary = [...this.library];
-                this.updateTrackList();
-                showToast(`添加 ${filePaths.length} 首音乐`, 'success');
+
+                // 显示结果提示
+                if (successCount > 0) {
+                    showToast(`成功添加 ${successCount} 首音乐`, 'success');
+                } else {
+                    showToast('添加音乐失败', 'error');
+                }
             }
         } catch (error) {
-            console.error('添加音乐失败', error);
             showToast('添加音乐失败', 'error');
         }
     }
@@ -716,16 +726,16 @@ class MusicBoxApp extends EventEmitter {
             this.filteredLibrary = [...this.library];
             this.updateTrackList('refresh');
         } catch (error) {
-            console.error('Failed to refresh library:', error);
+            console.error('❌ [App] refreshLibrary 失败:', error);
         }
     }
 
     updateTrackList(source = 'unknown') {
-        console.log('🔄 updateTrackList 被调用，来源:', source, '当前视图:', this.currentView);
+        console.log('🔄 [App] updateTrackList 被调用，来源:', source, '当前视图:', this.currentView);
 
         // 如果是播放时长更新触发的调用，且当前不在音乐库页面，则跳过更新
         if (source === 'duration-update' && this.currentView !== 'library') {
-            console.log('📝 跳过播放时长更新触发的音乐列表更新，当前视图:', this.currentView);
+            console.log('📝 [App] 跳过播放时长更新触发的音乐列表更新，当前视图:', this.currentView);
             return;
         }
 
@@ -1153,7 +1163,7 @@ class MusicBoxApp extends EventEmitter {
             switch (e.key) {
                 case 'o':
                     e.preventDefault();
-                    await this.openFileDialog();
+                    await this.addMusicFiles();
                     break;
                 case 'O':
                     e.preventDefault();
@@ -1396,8 +1406,6 @@ class MusicBoxApp extends EventEmitter {
     }
 
     addFileMenuItems() {
-        // This would add menu items to the Electron menu
-        // For now, we'll just add some UI hints
         const searchInput = document.getElementById('search-input');
         if (searchInput) {
             searchInput.placeholder = '搜索... (Ctrl+O 添加音乐, Ctrl+Shift+O 添加音乐目录)';

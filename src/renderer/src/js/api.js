@@ -723,6 +723,21 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
+    async addTrackToLibrary(audioFile) {
+        try {
+            const result = await window.electronAPI.library.addTrackToLibrary(audioFile);
+            if (result && result.success) {
+                // 关键步骤：与扫描文件夹功能保持一致，重新获取最新数据
+                const tracks = await this.getTracks();
+                this.emit('libraryUpdated', tracks);
+            }
+            return result;
+        } catch (error) {
+            console.error('❌ [API] 添加文件到音乐库失败:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
     // 音乐库缓存方法
     async loadCachedTracks() {
         try {
