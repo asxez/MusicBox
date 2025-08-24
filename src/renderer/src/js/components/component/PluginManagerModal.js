@@ -244,7 +244,6 @@ class PluginManagerModal extends Component {
             return;
         }
         this.filterAndDisplayPlugins();
-        console.log(`🔌 PluginManagerModal: 刷新插件列表 ${this.allPlugins.length}`);
     }
 
     filterAndDisplayPlugins() {

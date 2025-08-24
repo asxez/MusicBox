@@ -88,15 +88,12 @@ async function initializePluginSystem() {
             }
         };
         
-        console.log('✅ 插件系统初始化完成');
-        
         // 触发初始化完成事件
         document.dispatchEvent(new CustomEvent('pluginSystemReady', {
             detail: { plugins: window.plugins }
         }));
         
         return true;
-        
     } catch (error) {
         console.error('❌ 插件系统初始化失败:', error);
         return false;
@@ -274,14 +271,13 @@ function checkPluginSystemStatus() {
         enabledCount: Array.from(window.pluginManager?.pluginStates.entries() || [])
             .filter(([_, enabled]) => enabled).length
     };
-    
+
     console.log('🔌 插件系统状态:', status);
     return status;
 }
 
 // 导出状态检查函数
 window.checkPluginSystemStatus = checkPluginSystemStatus;
-console.log('🔌 插件系统模块加载完成');
 // 如果在开发环境，自动启用开发工具
 if (window.location.hostname === 'localhost' || window.location.protocol === 'file:') {
     setTimeout(() => {
