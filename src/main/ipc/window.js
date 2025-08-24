@@ -125,6 +125,31 @@ function registerWindowIpcHandlers({ipcMain}) {
         if (win) return win.getSize();
         return [1440, 900];
     });
+
+    // 设置窗口大小
+    ipcMain.handle('window:setSize', (event, width, height) => {
+        const win = getMainWindow();
+        if (win && !win.isMaximized()) {
+            try {
+                const minWidth = 1080;
+                const minHeight = 720;
+                const maxWidth = 3840;
+                const maxHeight = 2160;
+
+                const validWidth = Math.max(minWidth, Math.min(maxWidth, Math.round(width)));
+                const validHeight = Math.max(minHeight, Math.min(maxHeight, Math.round(height)));
+
+                win.setSize(validWidth, validHeight);
+                return { success: true, width: validWidth, height: validHeight };
+            } catch (error) {
+                console.error('❌ 设置窗口尺寸失败:', error);
+                return { success: false, error: error.message };
+            }
+        } else if (win && win.isMaximized()) {
+            return { success: false, error: '窗口已最大化' };
+        }
+        return { success: false, error: '窗口不存在' };
+    });
 }
 
 module.exports = {
