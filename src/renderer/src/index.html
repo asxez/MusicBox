@@ -545,6 +545,45 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">启用系统托盘</label>
+                                <p class="item-description">在系统托盘显示应用图标，可通过托盘控制播放和窗口显示</p>
+                            </div>
+                            <div class="item-control">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="system-tray-toggle" class="toggle-input">
+                                    <label for="system-tray-toggle" class="toggle-label"></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-item" id="tray-close-behavior-item">
+                            <div class="item-info">
+                                <label class="item-label">关闭应用</label>
+                                <p class="item-description">选择关闭按钮行为</p>
+                            </div>
+                            <div class="item-control">
+                                <select class="settings-select" id="tray-close-behavior-select">
+                                    <option value="exit">直接退出</option>
+                                    <option value="minimize">最小化到托盘</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="settings-item" id="tray-start-minimized-item">
+                            <div class="item-info">
+                                <label class="item-label">静默启动</label>
+                                <p class="item-description">应用启动时直接最小化到系统托盘</p>
+                            </div>
+                            <div class="item-control">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="tray-start-minimized-toggle" class="toggle-input">
+                                    <label for="tray-start-minimized-toggle" class="toggle-label"></label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 音频设置 -->
