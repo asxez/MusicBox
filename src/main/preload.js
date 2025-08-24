@@ -318,5 +318,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
             ipcRenderer.on('track:changed', (event, trackInfo) => callback(trackInfo));
             return () => ipcRenderer.removeListener('track:changed', callback);
         }
+    },
+
+    // 系统托盘
+    tray: {
+        create: () => ipcRenderer.invoke('tray:create'),
+        destroy: () => ipcRenderer.invoke('tray:destroy'),
+        updateSettings: (settings) => ipcRenderer.invoke('tray:updateSettings', settings),
+        getSettings: () => ipcRenderer.invoke('tray:getSettings'),
+        // 监听托盘退出事件
+        onQuit: (callback) => {
+            ipcRenderer.on('tray:quit', callback);
+            return () => ipcRenderer.removeListener('tray:quit', callback);
+        }
     }
 });

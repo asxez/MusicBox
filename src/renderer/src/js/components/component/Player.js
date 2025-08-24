@@ -112,18 +112,24 @@ class Player extends Component {
         });
 
         // Volume slider
-        this.volumeSlider.addEventListener('mousedown', (e) => {
+        this.volumeSlider.addEventListener('mousedown', async (e) => {
             this.isDraggingVolume = true;
             this.updateVolume(e);
+            const volume = parseFloat(this.volumeFill.style.width) / 100;
+            await api.setVolume(volume);
         });
 
-        this.volumeSlider.addEventListener('input', (e) => {
+        this.volumeSlider.addEventListener('input', async (e) => {
             this.updateVolume(e.target.value);
+            const volume = parseFloat(this.volumeFill.style.width) / 100;
+            await api.setVolume(volume);
         });
 
-        document.addEventListener('mousemove', (e) => {
+        document.addEventListener('mousemove', async (e) => {
             if (this.isDraggingVolume) {
                 this.updateVolume(e);
+                const volume = parseFloat(this.volumeFill.style.width) / 100;
+                await api.setVolume(volume);
             }
         });
 

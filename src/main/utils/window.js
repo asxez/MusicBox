@@ -188,8 +188,28 @@ async function createWindow() {
         }
     }
 
-    mainWindow.once('ready-to-show', () => {
-        mainWindow.show();
+    mainWindow.once('ready-to-show', async () => {
+        // 检查是否需要启动时最小化到托盘
+        let shouldStartMinimized = false;
+        try {
+            // 读取设置文件检查启动时最小化选项
+            const {app} = require('electron');
+            const userDataPath = app.getPath('userData');
+            const settingsPath = path.join(userDataPath, 'tray-settings.json');
+
+            if (fs.existsSync(settingsPath)) {
+                const settingsData = await fs.promises.readFile(settingsPath, 'utf8');
+                const settings = JSON.parse(settingsData);
+                shouldStartMinimized = settings.enabled && settings.startMinimized;
+            }
+        } catch (error) {}
+
+        if (shouldStartMinimized) {
+            // 启动时最小化到托盘，不显示窗口
+            console.log('🔔 启动时最小化到托盘');
+        } else {
+            mainWindow.show();
+        }
     });
 
     // 监听窗口尺寸变化
@@ -211,6 +231,20 @@ async function createWindow() {
                 await saveWindowConfig(config);
             }
         }, 1000);
+    });
+
+    // 窗口关闭事件处理
+    mainWindow.on('close', (event) => {
+        // 检查托盘设置，决定是关闭还是隐藏到托盘
+        try {
+            const {getTraySettings} = require('../ipc/tray');
+            const traySettings = getTraySettings();
+
+            if (traySettings.enabled && traySettings.closeToTray) {
+                event.preventDefault();
+                mainWindow.hide();
+            }
+        } catch (error) {}
     });
 
     mainWindow.on('closed', () => {

@@ -36,6 +36,13 @@ class Settings extends EventEmitter {
         this.albumsPageToggle = this.element.querySelector('#albums-page-toggle');
         this.showTrackCoversToggle = this.element.querySelector('#show-track-covers-toggle');
         this.gaplessPlaybackToggle = this.element.querySelector('#gapless-playback-toggle');
+
+        // 系统托盘相关元素
+        this.systemTrayToggle = this.element.querySelector('#system-tray-toggle');
+        this.trayCloseBehaviorSelect = this.element.querySelector('#tray-close-behavior-select');
+        this.trayStartMinimizedToggle = this.element.querySelector('#tray-start-minimized-toggle');
+        this.trayCloseBehaviorItem = this.element.querySelector('#tray-close-behavior-item');
+        this.trayStartMinimizedItem = this.element.querySelector('#tray-start-minimized-item');
         this.autoScanToggle = this.element.querySelector('#auto-scan-toggle');
         this.selectFolderBtn = this.element.querySelector('#select-folder-btn');
         this.selectLyricsFolderBtn = this.element.querySelector('#select-lyrics-folder-btn');
@@ -221,6 +228,41 @@ class Settings extends EventEmitter {
 
         this.autoScanToggle.addEventListener('change', (e) => {
             this.updateSetting('autoScan', e.target.checked);
+        });
+
+        // 系统托盘设置
+        this.systemTrayToggle.addEventListener('change', async (e) => {
+            this.updateSetting('systemTray', e.target.checked);
+            this.toggleTraySettings(e.target.checked);
+
+            // 更新托盘状态
+            if (window.electronAPI && window.electronAPI.tray) {
+                await window.electronAPI.tray.updateSettings({
+                    enabled: e.target.checked
+                });
+            }
+        });
+
+        this.trayCloseBehaviorSelect.addEventListener('change', async (e) => {
+            this.updateSetting('trayCloseBehavior', e.target.value);
+
+            // 更新托盘设置
+            if (window.electronAPI && window.electronAPI.tray) {
+                await window.electronAPI.tray.updateSettings({
+                    closeToTray: e.target.value === 'minimize'
+                });
+            }
+        });
+
+        this.trayStartMinimizedToggle.addEventListener('change', async (e) => {
+            this.updateSetting('trayStartMinimized', e.target.checked);
+
+            // 更新托盘设置
+            if (window.electronAPI && window.electronAPI.tray) {
+                await window.electronAPI.tray.updateSettings({
+                    startMinimized: e.target.checked
+                });
+            }
         });
 
         // 按钮事件
@@ -481,6 +523,12 @@ class Settings extends EventEmitter {
         this.gaplessPlaybackToggle.checked = this.settings.hasOwnProperty('gaplessPlayback') ? this.settings.gaplessPlayback : true;
         this.autoScanToggle.checked = this.settings.autoScan || false;
 
+        // 初始化系统托盘设置
+        this.systemTrayToggle.checked = this.settings.hasOwnProperty('systemTray') ? this.settings.systemTray : true;
+        this.trayCloseBehaviorSelect.value = this.settings.trayCloseBehavior || 'exit';
+        this.trayStartMinimizedToggle.checked = this.settings.trayStartMinimized || false;
+        this.toggleTraySettings(this.systemTrayToggle.checked);
+
         // 初始化本地歌词目录
         const lyricsDirectory = this.settings.lyricsDirectory;
         if (lyricsDirectory) {
@@ -555,6 +603,14 @@ class Settings extends EventEmitter {
         this.updateSetting('musicDirectory', path);
         console.log(`✅ Settings: 音乐文件夹路径已更新为 ${path}`);
         // 这里可以添加UI更新逻辑，比如显示选中的路径
+    }
+
+    // 切换托盘设置显示
+    toggleTraySettings(enabled) {
+        if (this.trayCloseBehaviorItem && this.trayStartMinimizedItem) {
+            this.trayCloseBehaviorItem.style.display = enabled ? 'flex' : 'none';
+            this.trayStartMinimizedItem.style.display = enabled ? 'flex' : 'none';
+        }
     }
 
     // 缓存管理方法

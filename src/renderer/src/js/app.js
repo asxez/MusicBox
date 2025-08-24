@@ -383,6 +383,9 @@ class MusicBoxApp extends EventEmitter {
         // 初始化窗口状态管理
         this.initWindowStateManagement();
 
+        // 初始化系统托盘
+        await this.initSystemTray();
+
         // 初始化统一的快捷键管理器
         this.initKeyboardShortcuts();
 
@@ -1741,6 +1744,39 @@ class MusicBoxApp extends EventEmitter {
             width >= minWidth && width <= maxWidth &&
             height >= minHeight && height <= maxHeight
         );
+    }
+
+    // 初始化系统托盘
+    async initSystemTray() {
+        try {
+            // 获取托盘设置
+            const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+            const trayEnabled = settings.hasOwnProperty('systemTray') ? settings.systemTray : true;
+
+            if (trayEnabled) {
+                // 创建托盘
+                await window.electronAPI.tray.create();
+
+                // 更新托盘设置
+                await window.electronAPI.tray.updateSettings({
+                    enabled: true,
+                    closeToTray: settings.trayCloseBehavior === 'minimize',
+                    startMinimized: settings.trayStartMinimized || false
+                });
+            }
+            this.setupTrayEventListeners();
+        } catch (error) {
+            console.error('❌ 系统托盘初始化失败:', error);
+        }
+    }
+
+    // 设置托盘事件监听器
+    setupTrayEventListeners() {
+        // 退出应用
+        window.electronAPI.tray.onQuit(() => {
+            this.forceQuit = true;
+            window.close();
+        });
     }
 }
 
