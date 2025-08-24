@@ -230,6 +230,16 @@ class Settings extends EventEmitter {
             this.updateSetting('autoScan', e.target.checked);
         });
 
+        // 自动播放设置
+        this.autoplayToggle.addEventListener('change', (e) => {
+            this.updateSetting('autoplay', e.target.checked);
+        });
+
+        // 记住播放位置设置
+        this.rememberPositionToggle.addEventListener('change', (e) => {
+            this.updateSetting('rememberPosition', e.target.checked);
+        });
+
         // 系统托盘设置
         this.systemTrayToggle.addEventListener('change', async (e) => {
             this.updateSetting('systemTray', e.target.checked);

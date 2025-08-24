@@ -66,7 +66,6 @@ async function initializePluginSystem() {
             manager: window.pluginManager,
             loader: window.pluginLoader,
             api: window.pluginAPI,
-            devServer: window.pluginDevServer,
 
             // 便捷方法
             install: (pluginData) => window.pluginManager.installPlugin(pluginData),
@@ -76,16 +75,6 @@ async function initializePluginSystem() {
             reload: (pluginId) => window.pluginLoader.reloadPluginScript(pluginId),
             getAll: () => window.pluginManager.getAllPlugins(),
             get: (pluginId) => window.pluginManager.plugins.get(pluginId),
-
-            // 开发工具方法
-            dev: {
-                start: () => window.pluginDevServer.start(),
-                stop: () => window.pluginDevServer.stop(),
-                create: (id, code) => window.pluginDevServer.createDevPlugin(id, code),
-                remove: (id) => window.pluginDevServer.removeDevPlugin(id),
-                status: () => window.pluginDevServer.getDevStatus(),
-                panel: () => window.pluginDevServer.showDevPanel()
-            }
         };
         
         // 触发初始化完成事件
