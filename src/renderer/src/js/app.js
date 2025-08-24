@@ -1784,49 +1784,90 @@ class MusicBoxApp extends EventEmitter {
 
             // 如果启用了记住播放位置且有保存的状态
             if (settings.rememberPosition && playbackState) {
-                const { currentTrack, position, isPlaying } = playbackState;
+                const { currentTrack, position, isPlaying, playlist, currentIndex, playMode } = playbackState;
 
                 console.log('🎵 App: 尝试恢复播放状态:', {
                     hasTrack: !!currentTrack,
                     trackTitle: currentTrack?.title,
                     position: position,
-                    wasPlaying: isPlaying
+                    wasPlaying: isPlaying,
+                    hasPlaylist: !!playlist,
+                    playlistLength: playlist?.length || 0,
+                    currentIndex: currentIndex,
+                    playMode: playMode
                 });
 
-                if (currentTrack) {
-                    console.log('💾 App: 恢复上次播放的歌曲:', currentTrack.title);
+                // 恢复播放模式
+                if (playMode) {
+                    api.setPlayMode(playMode);
+                }
 
-                    // 加载上次播放的歌曲
-                    console.log('📂 App: 调用 api.loadTrack...');
-                    const loadResult = await api.loadTrack(currentTrack.filePath);
-                    console.log('📂 App: loadTrack 结果:', loadResult);
+                // 恢复播放列表
+                if (playlist && playlist.length > 0) {
+                    // 验证播放列表中的文件是否存在
+                    const validTracks = [];
+                    let validCurrentIndex = -1;
 
-                    if (loadResult) {
-                        // 恢复播放位置
-                        if (position > 0) {
-                            console.log('⏰ App: 恢复播放位置:', position, '秒');
-                            console.log('⏰ App: 调用 api.setPosition...');
-                            const setPositionResult = await api.setPosition(position);
-                            console.log('⏰ App: setPosition 结果:', setPositionResult);
+                    for (let i = 0; i < playlist.length; i++) {
+                        const track = playlist[i];
+                        if (track && track.filePath) {
+                            validTracks.push(track);
+                            // 如果这是当前播放的歌曲，记录新的索引
+                            if (i === currentIndex) {
+                                validCurrentIndex = validTracks.length - 1;
+                            }
+                        }
+                    }
+
+                    if (validTracks.length > 0) {
+                        // 设置播放列表到API和UI组件
+                        await api.setPlaylist(validTracks, validCurrentIndex);
+
+                        if (this.components.playlist) {
+                            this.components.playlist.setTracks(validTracks, validCurrentIndex);
                         }
 
-                        // 如果启用了自动播放且上次是播放状态
-                        if (settings.autoplay && isPlaying) {
-                            console.log('▶️ App: 自动开始播放（从保存状态）');
-                            setTimeout(async () => {
-                                console.log('▶️ App: 延迟播放开始...');
-                                const playResult = await api.play();
-                                console.log('▶️ App: 播放结果:', playResult);
-                            }, 1000); // 增加延迟确保音频引擎准备就绪
+                        // 如果有当前播放的歌曲，加载它
+                        if (validCurrentIndex >= 0 && validTracks[validCurrentIndex]) {
+                            const trackToLoad = validTracks[validCurrentIndex];
+                            const loadResult = await api.loadTrack(trackToLoad.filePath);
+                            if (loadResult) {
+                                // 恢复播放位置
+                                if (position > 0) {
+                                    const setPositionResult = await api.setPosition(position);
+                                    console.log('App: setPosition 结果:', setPositionResult);
+                                }
+
+                                // 如果启用了自动播放且上次是播放状态
+                                if (settings.autoplay && isPlaying) {
+                                    setTimeout(async () => {
+                                        await api.play();
+                                    }, 1000);
+                                }
+                            }
                         }
                     } else {
-                        console.warn('⚠️ App: 加载歌曲失败，尝试自动播放第一首');
+                        console.warn('⚠️ App: 播放列表中没有有效歌曲');
                         if (settings.autoplay) {
                             await this.autoplayFirstTrack();
                         }
                     }
+                } else if (currentTrack) {
+                    // 兼容旧版本
+                    console.log('💾 App: 恢复单个歌曲（兼容模式）:', currentTrack.title);
+                    const loadResult = await api.loadTrack(currentTrack.filePath);
+                    if (loadResult) {
+                        if (position > 0) {
+                            await api.setPosition(position);
+                        }
+                        if (settings.autoplay && isPlaying) {
+                            setTimeout(async () => {
+                                await api.play();
+                            }, 1000);
+                        }
+                    }
                 } else {
-                    console.warn('⚠️ App: 没有保存的歌曲信息');
+                    console.warn('⚠️ App: 没有保存的播放信息');
                     if (settings.autoplay) {
                         await this.autoplayFirstTrack();
                     }
@@ -1846,22 +1887,14 @@ class MusicBoxApp extends EventEmitter {
     // 自动播放第一首歌曲
     async autoplayFirstTrack() {
         try {
-            console.log('🎵 App: 开始自动播放第一首歌曲...');
-
             setTimeout(async () => {
-                console.log('📚 App: 获取音乐库...');
                 const tracks = await api.getTracks();
-                console.log('📚 App: 音乐库歌曲数量:', tracks?.length || 0);
-
                 if (tracks && tracks.length > 0) {
                     console.log('🎵 App: 加载第一首歌曲:', tracks[0].title);
                     const loadResult = await api.loadTrack(tracks[0].filePath);
                     console.log('📂 App: 加载结果:', loadResult);
-
                     if (loadResult) {
-                        console.log('▶️ App: 开始播放...');
-                        const playResult = await api.play();
-                        console.log('▶️ App: 播放结果:', playResult);
+                        await api.play();
                     }
                 } else {
                     console.warn('⚠️ App: 音乐库为空，无法自动播放');
@@ -1885,25 +1918,20 @@ class MusicBoxApp extends EventEmitter {
                 const currentTrack = api.currentTrack;
                 const position = api.position;
                 const isPlaying = api.isPlaying;
-
-                console.log('🎵 App: 当前播放信息:', {
-                    hasTrack: !!currentTrack,
-                    trackTitle: currentTrack?.title,
-                    position: position,
-                    isPlaying: isPlaying
-                });
+                const playlist = api.playlist;
+                const currentIndex = api.currentIndex;
+                const playMode = api.playMode;
 
                 const playbackState = {
                     currentTrack,
                     position,
                     isPlaying,
+                    playlist,
+                    currentIndex,
+                    playMode,
                     timestamp: Date.now()
                 };
-
                 window.cacheManager.setLocalCache('playback-state', playbackState);
-                console.log('✅ App: 播放状态已保存', playbackState);
-            } else {
-                console.log('ℹ️ App: 未启用记住播放位置，跳过保存');
             }
         } catch (error) {
             console.error('❌ App: 保存播放状态失败:', error);
