@@ -28,28 +28,28 @@ class PluginLoader extends EventEmitter {
     async loadPluginScript(config) {
         const pluginId = config.id;
         const scriptPath = config.main || `plugins/${pluginId}/index.js`;
-        
+
         try {
             console.log(`🔌 PluginLoader: 开始加载插件脚本 ${scriptPath}`);
-            
+
             // 检查是否已加载
             if (this.loadedScripts.has(pluginId)) {
                 console.log(`🔌 PluginLoader: 插件 ${pluginId} 脚本已加载，使用缓存`);
                 return this.pluginModules.get(pluginId);
             }
-            
+
             // 动态加载脚本
             const module = await this.dynamicImport(scriptPath, pluginId);
-            
+
             // 缓存模块
             this.pluginModules.set(pluginId, module);
             this.loadedScripts.set(pluginId, scriptPath);
-            
+
             // 设置热重载监听
             if (this.isHotReloadEnabled) {
                 this.watchFile(pluginId, scriptPath);
             }
-            
+
             console.log(`✅ PluginLoader: 插件脚本 ${scriptPath} 加载成功`);
             return module;
         } catch (error) {
@@ -499,7 +499,8 @@ class PluginLoader extends EventEmitter {
                             constructor: value
                         });
                     }
-                } catch (error) {}
+                } catch (error) {
+                }
             }
         }
 
@@ -684,7 +685,7 @@ class PluginLoader extends EventEmitter {
 
             // 尝试创建一个测试实例来验证类的有效性
             try {
-                const testContext = { test: true };
+                const testContext = {test: true};
                 const testInstance = new PluginClass(testContext);
                 if (testInstance && typeof testInstance === 'object') {
                     result.isValid = true;
@@ -801,12 +802,12 @@ class PluginLoader extends EventEmitter {
         // 通过继承关系查找
         const inheritanceClasses = this.findClassesByInheritance();
         console.log(`🔍 PluginLoader: 通过继承关系找到的类 (${inheritanceClasses.length}):`,
-                   inheritanceClasses.map(c => c.name));
+            inheritanceClasses.map(c => c.name));
 
         // 通过命名模式查找
         const namingClasses = this.findClassesByNamingPattern(pluginId);
         console.log(`🔍 PluginLoader: 通过命名模式找到的类 (${namingClasses.length}):`,
-                   namingClasses.map(c => c.name));
+            namingClasses.map(c => c.name));
 
         // 检查PluginBase的可用性
         console.log(`🔍 PluginLoader: PluginBase状态:`, {
@@ -855,9 +856,8 @@ class PluginLoader extends EventEmitter {
         } catch (error) {
             console.error(`❌ PluginLoader: UTF-8 Base64 解码失败:`, error);
 
-            // 如果 UTF-8 解码失败，尝试标准解码作为备用
+            // 如果 UTF-8 解码失败，尝试标准解码
             try {
-                console.log(`🔧 PluginLoader: 尝试标准 atob 解码作为备用`);
                 return atob(base64String);
             } catch (fallbackError) {
                 console.error(`❌ PluginLoader: 备用解码也失败:`, fallbackError);
@@ -971,7 +971,7 @@ class PluginLoader extends EventEmitter {
             const commaCount = (content.match(/,/g) || []).length;
             const numberPattern = /^\d+(?:,\d+)*$/;
             analysis.isNumericArray = numberPattern.test(content.trim()) ||
-                                     (analysis.hasCommas && commaCount > 100);
+                (analysis.hasCommas && commaCount > 100);
 
             // 检查是否是JavaScript代码
             const jsKeywords = ['class', 'function', 'const', 'let', 'var', 'async', 'await'];
@@ -1067,8 +1067,8 @@ class PluginLoader extends EventEmitter {
             validation.hasPluginBase = code.includes('PluginBase');
             validation.hasExtends = code.includes('extends');
             validation.hasExport = code.includes('window.PluginClass') ||
-                                  code.includes('module.exports') ||
-                                  code.includes('export');
+                code.includes('module.exports') ||
+                code.includes('export');
             validation.hasActivate = code.includes('activate');
 
             // 检查必需元素
@@ -1155,11 +1155,6 @@ class PluginLoader extends EventEmitter {
         try {
             const lines = code.split('\n');
             console.log(`🔍 PluginLoader: 代码总行数: ${lines.length}`);
-
-            // 显示前几行和后几行
-            const previewLines = 3;
-            console.log(`🔍 PluginLoader: 前${previewLines}行:`, lines.slice(0, previewLines));
-            console.log(`🔍 PluginLoader: 后${previewLines}行:`, lines.slice(-previewLines));
 
             // 查找关键行
             const classLine = lines.find(line => line.trim().startsWith('class '));
@@ -1262,14 +1257,11 @@ class PluginLoader extends EventEmitter {
             // 移除缓存
             this.pluginModules.delete(pluginId);
             this.loadedScripts.delete(pluginId);
-            
+
             // 停止文件监听
             if (this.watchedFiles.has(pluginId)) {
                 this.unwatchFile(pluginId);
             }
-            
-            console.log(`✅ PluginLoader: 插件脚本 ${pluginId} 已卸载`);
-            
         } catch (error) {
             console.error(`❌ PluginLoader: 卸载插件脚本失败 ${pluginId}:`, error);
         }
@@ -1279,24 +1271,22 @@ class PluginLoader extends EventEmitter {
     async reloadPluginScript(pluginId) {
         try {
             console.log(`🔥 PluginLoader: 开始热重载插件 ${pluginId}`);
-            
+
             // 获取配置
             const config = window.pluginManager?.pluginConfigs.get(pluginId);
             if (!config) {
                 throw new Error(`插件配置不存在: ${pluginId}`);
             }
-            
+
             // 先卸载
             this.unloadPluginScript(pluginId);
-            
+
             // 重新加载
             const module = await this.loadPluginScript(config);
-            
-            this.emit('pluginReloaded', { pluginId, module });
+
+            this.emit('pluginReloaded', {pluginId, module});
             console.log(`✅ PluginLoader: 插件 ${pluginId} 热重载成功`);
-            
             return module;
-            
         } catch (error) {
             console.error(`❌ PluginLoader: 热重载插件失败 ${pluginId}:`, error);
             throw error;
@@ -1306,14 +1296,14 @@ class PluginLoader extends EventEmitter {
     // 监听文件变化（热重载）
     watchFile(pluginId, filePath) {
         if (!this.isHotReloadEnabled) return;
-        
+
         // 暂时用简单的文件监听实现
         const watchInfo = {
             pluginId,
             filePath,
             lastModified: Date.now()
         };
-        
+
         this.watchedFiles.set(pluginId, watchInfo);
         console.log(`👁️ PluginLoader: 开始监听文件 ${filePath}`);
     }
@@ -1327,7 +1317,7 @@ class PluginLoader extends EventEmitter {
     // 检查文件变化
     checkFileChanges() {
         if (!this.isHotReloadEnabled) return;
-        
+
         for (const [pluginId, watchInfo] of this.watchedFiles) {
             // 实现文件变化检测逻辑
         }
@@ -1337,21 +1327,21 @@ class PluginLoader extends EventEmitter {
     validatePlugin(config) {
         const required = ['id', 'name', 'version', 'main'];
         const missing = required.filter(field => !config[field]);
-        
+
         if (missing.length > 0) {
             throw new Error(`插件配置缺少必需字段: ${missing.join(', ')}`);
         }
-        
+
         // 验证版本格式
         if (!/^\d+\.\d+\.\d+/.test(config.version)) {
             throw new Error('插件版本格式无效，应为 x.y.z 格式');
         }
-        
+
         // 验证插件ID格式
         if (!/^[a-zA-Z0-9_-]+$/.test(config.id)) {
             throw new Error('插件ID只能包含字母、数字、下划线和连字符');
         }
-        
+
         return true;
     }
 
@@ -1381,7 +1371,7 @@ class PluginLoader extends EventEmitter {
         for (const pluginId of this.loadedScripts.keys()) {
             this.unloadPluginScript(pluginId);
         }
-        
+
         // 清理缓存
         this.loadedScripts.clear();
         this.pluginModules.clear();

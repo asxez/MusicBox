@@ -26,7 +26,6 @@ class PluginManager extends EventEmitter {
     // 初始化插件管理器
     async initialize() {
         if (this.isInitialized) {
-            console.warn('🔌 PluginManager: 已经初始化过了');
             return;
         }
 
@@ -34,15 +33,6 @@ class PluginManager extends EventEmitter {
             // 获取已创建的插件加载器和API实例
             this.loader = window.pluginLoader;
             this.api = window.pluginAPI;
-
-            // 验证依赖组件
-            if (!this.loader) {
-                throw new Error('PluginLoader 未初始化');
-            }
-
-            if (!this.api) {
-                throw new Error('PluginAPI 未初始化');
-            }
 
             // 创建插件API上下文
             this.createPluginContext();
@@ -55,8 +45,6 @@ class PluginManager extends EventEmitter {
 
             this.isInitialized = true;
             this.emit('initialized');
-            console.log('✅ PluginManager: 插件管理器初始化完成');
-
         } catch (error) {
             console.error('❌ PluginManager: 初始化失败:', error);
             throw error;
@@ -66,7 +54,6 @@ class PluginManager extends EventEmitter {
     // 应用完全初始化后的回调
     onAppReady(app) {
         try {
-            console.log('🔌 PluginManager: 收到应用就绪通知');
             console.log('🔌 PluginManager: 应用组件状态:', {
                 componentsCount: Object.keys(app.components || {}).length,
                 availableComponents: Object.keys(app.components || {}),
@@ -76,7 +63,6 @@ class PluginManager extends EventEmitter {
             // 更新插件上下文
             if (this.api && typeof this.api.createPluginContext === 'function') {
                 this.pluginContext = this.api.createPluginContext('system');
-                console.log('🔌 PluginManager: 插件上下文已更新');
             }
 
             // 触发应用就绪事件
@@ -84,7 +70,6 @@ class PluginManager extends EventEmitter {
 
             // 若有等待应用就绪的插件，则激活它们
             this.processWaitingPlugins();
-
         } catch (error) {
             console.error('❌ PluginManager: 处理应用就绪通知失败:', error);
         }
@@ -149,8 +134,6 @@ class PluginManager extends EventEmitter {
                 os: window.electronAPI.os || null
             }
         };
-        
-        console.log('🔌 PluginManager: 插件API上下文创建完成');
     }
 
     // 加载插件配置
@@ -165,7 +148,6 @@ class PluginManager extends EventEmitter {
             }
             
             console.log(`🔌 PluginManager: 加载了 ${this.pluginConfigs.size} 个插件配置`);
-            
         } catch (error) {
             console.error('❌ PluginManager: 加载插件配置失败:', error);
         }

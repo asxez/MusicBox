@@ -283,8 +283,6 @@ class Settings extends EventEmitter {
                     if (window.localLyricsManager) {
                         window.localLyricsManager.setLyricsDirectory(selectedPath);
                     }
-
-                    console.log(`✅ Settings: 本地歌词目录已设置为 ${selectedPath}`);
                 }
             } catch (error) {
                 console.error('❌ Settings: 选择歌词目录失败:', error);
@@ -304,8 +302,6 @@ class Settings extends EventEmitter {
                     if (window.localCoverManager) {
                         window.localCoverManager.setCoverDirectory(selectedPath);
                     }
-
-                    console.log(`✅ Settings: 封面缓存目录已设置为 ${selectedPath}`);
                 }
             } catch (error) {
                 console.error('❌ Settings: 选择封面缓存目录失败:', error);
@@ -353,16 +349,13 @@ class Settings extends EventEmitter {
         this.networkDriveToggle.addEventListener('change', (e) => {
             this.updateSetting('networkDriveEnabled', e.target.checked);
             this.toggleNetworkDriveConfig(e.target.checked);
-            console.log(`🌐 Settings: 网络磁盘功能${e.target.checked ? '启用' : '禁用'}`);
         });
 
         // 添加网络磁盘按钮
         if (this.addNetworkDriveBtn) {
             this.addNetworkDriveBtn.addEventListener('click', () => {
-                console.log('🖱️ Settings: 点击添加网络磁盘按钮');
                 this.showNetworkDriveModal();
             });
-            console.log('✅ Settings: 添加网络磁盘按钮事件监听器已绑定');
         } else {
             console.error('❌ Settings: 找不到添加网络磁盘按钮元素');
         }
@@ -375,20 +368,16 @@ class Settings extends EventEmitter {
         // 模态框关闭事件
         if (this.networkDriveModalClose) {
             this.networkDriveModalClose.addEventListener('click', () => {
-                console.log('🖱️ Settings: 点击关闭模态框按钮');
                 this.hideNetworkDriveModal();
             });
-            console.log('✅ Settings: 模态框关闭按钮事件监听器已绑定');
         } else {
             console.error('❌ Settings: 找不到模态框关闭按钮元素');
         }
 
         if (this.networkDriveCancel) {
             this.networkDriveCancel.addEventListener('click', () => {
-                console.log('🖱️ Settings: 点击取消按钮');
                 this.hideNetworkDriveModal();
             });
-            console.log('✅ Settings: 取消按钮事件监听器已绑定');
         } else {
             console.error('❌ Settings: 找不到取消按钮元素');
         }
@@ -397,20 +386,16 @@ class Settings extends EventEmitter {
         if (this.networkDriveModal) {
             this.networkDriveModal.addEventListener('click', (e) => {
                 if (e.target === this.networkDriveModal) {
-                    console.log('🖱️ Settings: 点击模态框背景');
                     this.hideNetworkDriveModal();
                 }
             });
-            console.log('✅ Settings: 模态框背景点击事件监听器已绑定');
         }
 
         // 协议选择事件
         if (this.driveProtocolSelect) {
             this.driveProtocolSelect.addEventListener('change', (e) => {
-                console.log('🖱️ Settings: 协议选择改变:', e.target.value);
                 this.toggleProtocolConfig(e.target.value);
             });
-            console.log('✅ Settings: 协议选择事件监听器已绑定');
         } else {
             console.error('❌ Settings: 找不到协议选择元素');
         }
@@ -418,10 +403,8 @@ class Settings extends EventEmitter {
         // 测试连接按钮
         if (this.testConnectionBtn) {
             this.testConnectionBtn.addEventListener('click', async () => {
-                console.log('🖱️ Settings: 点击测试连接按钮');
                 await this.testNetworkConnection();
             });
-            console.log('✅ Settings: 测试连接按钮事件监听器已绑定');
         } else {
             console.error('❌ Settings: 找不到测试连接按钮元素');
         }
@@ -430,10 +413,8 @@ class Settings extends EventEmitter {
         if (this.networkDriveForm) {
             this.networkDriveForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                console.log('📝 Settings: 提交网络磁盘表单');
                 await this.addNetworkDrive();
             });
-            console.log('✅ Settings: 表单提交事件监听器已绑定');
         } else {
             console.error('❌ Settings: 找不到网络磁盘表单元素');
         }
@@ -441,12 +422,10 @@ class Settings extends EventEmitter {
         // 监听网络磁盘事件
         if (window.electronAPI && window.electronAPI.networkDrive) {
             window.electronAPI.networkDrive.onConnected(async (event, driveId, config) => {
-                console.log(`🔗 网络磁盘已连接: ${config.displayName}`);
                 await this.refreshMountedDrivesList();
             });
 
             window.electronAPI.networkDrive.onDisconnected(async (event, driveId, config) => {
-                console.log(`🔌 网络磁盘已断开: ${config.displayName}`);
                 await this.refreshMountedDrivesList();
             });
 
@@ -454,7 +433,6 @@ class Settings extends EventEmitter {
                 console.error(`❌ 网络磁盘错误: ${driveId} - ${error}`);
                 this.showNotification(`网络磁盘错误: ${error}`, 'error');
             });
-            console.log('✅ Settings: 网络磁盘事件监听器已设置');
         } else {
             console.warn('⚠️ Settings: 网络磁盘API不可用');
         }
@@ -478,7 +456,6 @@ class Settings extends EventEmitter {
 
         // 加载缓存统计信息
         await this.showCacheStatistics();
-        console.log('🎵 Settings: 显示设置页面');
     }
 
     hide() {
@@ -497,8 +474,6 @@ class Settings extends EventEmitter {
                 document.getElementById('main-content').style.display = 'block';
             }
         }, 300);
-
-        console.log('🎵 Settings: 隐藏设置页面');
     }
 
     async toggle() {
@@ -601,8 +576,7 @@ class Settings extends EventEmitter {
     // 更新音乐文件夹路径显示
     updateMusicFolderPath(path) {
         this.updateSetting('musicDirectory', path);
-        console.log(`✅ Settings: 音乐文件夹路径已更新为 ${path}`);
-        // 这里可以添加UI更新逻辑，比如显示选中的路径
+        // TODO
     }
 
     // 切换托盘设置显示
@@ -632,7 +606,7 @@ class Settings extends EventEmitter {
                 showToast('获取缓存统计失败', 'error');
             }
         } catch (error) {
-            console.error('获取缓存统计失败:', error);
+            console.error('❌ 获取缓存统计失败:', error);
             showToast('获取缓存统计失败', 'error');
         } finally {
             this.viewCacheStatsBtn.disabled = false;
@@ -806,16 +780,6 @@ class Settings extends EventEmitter {
     }
 
     initializeShortcuts() {
-        if (!window.shortcutConfig) {
-            console.warn('快捷键配置管理器未加载');
-            return;
-        }
-
-        // 确保配置已正确加载
-        if (window.cacheManager) {
-            window.shortcutConfig.reloadConfig();
-        }
-
         const config = window.shortcutConfig.getConfig();
 
         // 设置全局快捷键开关状态
@@ -905,11 +869,6 @@ class Settings extends EventEmitter {
     }
 
     startRecordingShortcut(type, id, element) {
-        if (!window.shortcutRecorder) {
-            console.warn('快捷键录制器未加载');
-            return;
-        }
-
         // 开始录制
         window.shortcutRecorder.startRecording(element);
 
@@ -1057,7 +1016,6 @@ class Settings extends EventEmitter {
             }
             return false;
         } else {
-            console.log('✅ Settings: 网络磁盘功能完全可用');
             return true;
         }
     }
@@ -1073,26 +1031,18 @@ class Settings extends EventEmitter {
 
     // 显示网络磁盘配置模态框
     showNetworkDriveModal() {
-        console.log('🔧 Settings: 显示网络磁盘配置模态框');
-
         if (!this.networkDriveModal) {
             console.error('❌ Settings: 网络磁盘模态框元素不存在');
             return;
         }
-
-        console.log('🔧 Settings: 重置表单');
         this.resetNetworkDriveForm();
-
-        console.log('🔧 Settings: 显示模态框');
         this.networkDriveModal.style.display = 'flex';
 
         if (this.driveNameInput) {
-            console.log('🔧 Settings: 聚焦到名称输入框');
             this.driveNameInput.focus();
         } else {
             console.warn('⚠️ Settings: 名称输入框元素不存在');
         }
-        console.log('✅ Settings: 网络磁盘模态框已显示');
     }
 
     // 隐藏网络磁盘配置模态框
@@ -1225,7 +1175,6 @@ class Settings extends EventEmitter {
             }
 
             if (success) {
-                console.log(`✅ 网络磁盘添加成功: ${config.displayName}`);
                 this.hideNetworkDriveModal();
                 await this.refreshMountedDrivesList();
                 this.showNotification(`网络磁盘 "${config.displayName}" 添加成功`, 'success');
@@ -1306,13 +1255,11 @@ class Settings extends EventEmitter {
     // 扫描网络磁盘
     async scanNetworkDrive(driveId) {
         try {
-            console.log(`🌐 开始扫描网络磁盘: ${driveId}`);
             this.showNotification('正在扫描网络磁盘...', 'info');
 
             // 使用API层的统一方法
             const success = await window.api.scanNetworkDrive(driveId, '/');
             if (success) {
-                console.log(`✅ 网络磁盘扫描成功: ${driveId}`);
                 this.showNotification('网络磁盘扫描完成', 'success');
             } else {
                 this.showNotification('网络磁盘扫描失败', 'error');
@@ -1328,7 +1275,6 @@ class Settings extends EventEmitter {
         try {
             const success = await window.electronAPI.networkDrive.unmount(driveId);
             if (success) {
-                console.log(`✅ 网络磁盘卸载成功: ${driveId}`);
                 await this.refreshMountedDrivesList();
                 this.showNotification('网络磁盘卸载成功', 'success');
             } else {
@@ -1343,7 +1289,6 @@ class Settings extends EventEmitter {
     // 刷新网络磁盘状态
     async refreshNetworkDrivesStatus() {
         try {
-            console.log('🔄 刷新网络磁盘连接状态');
             this.refreshDrivesBtn.disabled = true;
             this.refreshDrivesBtn.textContent = '刷新中...';
 
