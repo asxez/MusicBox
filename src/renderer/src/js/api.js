@@ -14,6 +14,9 @@ class MusicBoxAPI extends EventEmitter {
         // 进度跟踪
         this.progressInterval = null;
 
+        // 播放位置保存节流
+        this.savePositionTimeout = null;
+
         this.webAudioEngine = null;
 
         if (!window.electronAPI) {
@@ -118,6 +121,8 @@ class MusicBoxAPI extends EventEmitter {
                 this.emit('trackChanged', track);
                 // 同步到桌面歌词
                 this.syncToDesktopLyrics('track', track);
+                // 保存当前播放状态
+                this.saveCurrentPlaybackState();
             };
 
             this.webAudioEngine.onPlaybackStateChanged = (isPlaying) => {
@@ -126,6 +131,8 @@ class MusicBoxAPI extends EventEmitter {
                 this.emit('playbackStateChanged', isPlaying ? 'playing' : 'paused');
                 // 同步到桌面歌词
                 this.syncToDesktopLyrics('playbackState', {isPlaying, position: this.position});
+                // 保存播放状态
+                this.saveCurrentPlaybackState();
             };
 
             this.webAudioEngine.onPositionChanged = (position) => {
@@ -133,6 +140,8 @@ class MusicBoxAPI extends EventEmitter {
                 this.emit('positionChanged', position);
                 // 同步到桌面歌词
                 this.syncToDesktopLyrics('position', position);
+                // 保存播放位置（节流保存，避免频繁写入）
+                this.throttledSavePosition(position);
             };
 
             this.webAudioEngine.onVolumeChanged = (volume) => {
@@ -349,9 +358,16 @@ class MusicBoxAPI extends EventEmitter {
             }
             return result;
         } catch (error) {
-            console.error('Failed to seek:', error);
+            console.error('❌ API: seek 失败:', error);
             return false;
         }
+    }
+
+    // 设置播放位置
+    // seek的别名
+    async setPosition(position) {
+        console.log('API: setPosition 被调用，位置:', position);
+        return await this.seek(position);
     }
 
     // 快进
@@ -1366,6 +1382,57 @@ class MusicBoxAPI extends EventEmitter {
         } catch (error) {
             console.error('❌ 切换桌面歌词失败:', error);
             return {success: false, error: error.message};
+        }
+    }
+
+    // 节流保存播放位置
+    throttledSavePosition(position) {
+        const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+
+        // 只有启用记住播放位置时才保存
+        if (!settings.rememberPosition) return;
+
+        // 清除之前的定时器
+        if (this.savePositionTimeout) {
+            clearTimeout(this.savePositionTimeout);
+        }
+
+        // 设置新的定时器，2秒后保存
+        this.savePositionTimeout = setTimeout(() => {
+            try {
+                const playbackState = {
+                    currentTrack: this.currentTrack,
+                    position: position,
+                    isPlaying: this.isPlaying,
+                    timestamp: Date.now()
+                };
+
+                window.cacheManager.setLocalCache('playback-state', playbackState);
+            } catch (error) {
+                console.error('❌ API: 保存播放位置失败:', error);
+            }
+        }, 2000);
+    }
+
+    // 立即保存当前播放状态
+    saveCurrentPlaybackState() {
+        const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+
+        // 只有启用记住播放位置时才保存
+        if (!settings.rememberPosition) {
+            return;
+        }
+
+        try {
+            const playbackState = {
+                currentTrack: this.currentTrack,
+                position: this.position,
+                isPlaying: this.isPlaying,
+                timestamp: Date.now()
+            };
+            window.cacheManager.setLocalCache('playback-state', playbackState);
+        } catch (error) {
+            console.error('❌ API: 保存播放状态失败:', error);
         }
     }
 
