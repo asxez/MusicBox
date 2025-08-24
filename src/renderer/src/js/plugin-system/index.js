@@ -48,13 +48,6 @@ async function initializePluginSystem() {
             window.pluginAPI.setPluginManager(window.pluginManager);
         }
 
-        // 5. 创建开发服务器（依赖其他组件）
-        if (window.PluginDevServer) {
-            window.pluginDevServer = new window.PluginDevServer();
-        } else {
-            throw new Error('PluginDevServer 类未定义');
-        }
-
         // 更新插件管理器的上下文
         window.pluginManager.pluginContext = window.pluginAPI.createPluginContext('system');
         
