@@ -5,10 +5,103 @@
 
 const {BrowserWindow, shell} = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 // 窗口实例引用
 let mainWindow = null;
 let desktopLyricsWindow = null;
+
+// 窗口配置文件路径
+let windowConfigPath = null;
+
+// 初始化窗口配置文件路径
+function initWindowConfigPath() {
+    try {
+        const {app} = require('electron');
+        const userDataPath = app.getPath('userData');
+        windowConfigPath = path.join(userDataPath, 'window-config.json');
+    } catch (error) {
+        windowConfigPath = path.join(process.cwd(), 'window-config.json');
+    }
+}
+
+// 加载窗口配置
+async function loadWindowConfig() {
+    try {
+        if (!windowConfigPath) {
+            initWindowConfigPath();
+        }
+
+        if (!fs.existsSync(windowConfigPath)) {
+            return getDefaultWindowConfig();
+        }
+
+        const configData = await fs.promises.readFile(windowConfigPath, 'utf8');
+        const config = JSON.parse(configData);
+
+        if (isValidWindowConfig(config)) {
+            return config;
+        } else {
+            return getDefaultWindowConfig();
+        }
+    } catch (error) {
+        console.error('❌ 加载窗口配置失败:', error);
+        return getDefaultWindowConfig();
+    }
+}
+
+// 保存窗口配置
+async function saveWindowConfig(config) {
+    try {
+        if (!windowConfigPath) {
+            initWindowConfigPath();
+        }
+
+        if (!isValidWindowConfig(config)) {
+            return false;
+        }
+
+        const configData = {
+            ...config,
+            lastUpdated: Date.now(),
+        };
+        await fs.promises.writeFile(windowConfigPath, JSON.stringify(configData, null, 2), 'utf8');
+        return true;
+    } catch (error) {
+        console.error('❌ 保存窗口配置失败:', error);
+        return false;
+    }
+}
+
+// 获取默认窗口配置
+function getDefaultWindowConfig() {
+    return {
+        width: 1440,
+        height: 900,
+        minWidth: 1080,
+        minHeight: 720
+    };
+}
+
+// 验证窗口配置有效性
+function isValidWindowConfig(config) {
+    if (!config || typeof config !== 'object') {
+        return false;
+    }
+
+    const {width, height} = config;
+    const minWidth = 1080;
+    const minHeight = 720;
+    const maxWidth = 3840;
+    const maxHeight = 2160;
+
+    return (
+        typeof width === 'number' &&
+        typeof height === 'number' &&
+        width >= minWidth && width <= maxWidth &&
+        height >= minHeight && height <= maxHeight
+    );
+}
 
 /**
  * 设置窗口实例引用
@@ -42,14 +135,16 @@ function getDesktopLyricsWindow() {
  */
 async function createWindow() {
     const {app} = require('electron');
-    const fs = require('fs');
     const isDev = process.env.NODE_ENV === 'development';
 
+    // 加载窗口配置
+    const windowConfig = await loadWindowConfig();
+
     mainWindow = new BrowserWindow({
-        width: 1440,
-        height: 900,
-        minWidth: 1080,
-        minHeight: 720,
+        width: windowConfig.width,
+        height: windowConfig.height,
+        minWidth: windowConfig.minWidth || 1080,
+        minHeight: windowConfig.minHeight || 720,
         titleBarStyle: false,
         frame: false,
         show: false,
@@ -97,7 +192,31 @@ async function createWindow() {
         mainWindow.show();
     });
 
+    // 监听窗口尺寸变化
+    let saveTimeout = null;
+    mainWindow.on('resize', () => {
+        if (saveTimeout) {
+            clearTimeout(saveTimeout);
+        }
+
+        saveTimeout = setTimeout(async () => {
+            if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isMaximized()) {
+                const [width, height] = mainWindow.getSize();
+                const config = {
+                    width,
+                    height,
+                    minWidth: 1080,
+                    minHeight: 720
+                };
+                await saveWindowConfig(config);
+            }
+        }, 1000);
+    });
+
     mainWindow.on('closed', () => {
+        if (saveTimeout) {
+            clearTimeout(saveTimeout);
+        }
         mainWindow = null;
         if (desktopLyricsWindow) desktopLyricsWindow.close();
     });
@@ -248,5 +367,9 @@ module.exports = {
     hideDesktopLyrics,
     closeDesktopLyrics,
     isDesktopLyricsVisible,
-    sendToDesktopLyrics
+    sendToDesktopLyrics,
+    loadWindowConfig,
+    saveWindowConfig,
+    getDefaultWindowConfig,
+    isValidWindowConfig
 };

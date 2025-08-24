@@ -380,6 +380,9 @@ class MusicBoxApp extends EventEmitter {
             await this.cleanup();
         });
 
+        // 初始化窗口状态管理
+        this.initWindowStateManagement();
+
         // 初始化统一的快捷键管理器
         this.initKeyboardShortcuts();
 
@@ -1557,7 +1560,7 @@ class MusicBoxApp extends EventEmitter {
 
     // 处理歌曲信息更新
     async handleTrackInfoUpdated(data) {
-        const { track, updatedData } = data;
+        const {track, updatedData} = data;
 
         // 确保cover字段是URL字符串
         if (updatedData.cover && typeof updatedData.cover !== 'string') {
@@ -1646,6 +1649,98 @@ class MusicBoxApp extends EventEmitter {
             console.error('❌ 更新歌曲信息失败:', error);
             this.showError('更新歌曲信息失败，请重试');
         }
+    }
+
+    // 初始化窗口状态管理
+    initWindowStateManagement() {
+        try {
+            // 窗口尺寸变化监听
+            let resizeTimeout = null;
+            window.addEventListener('resize', () => {
+                if (resizeTimeout) {
+                    clearTimeout(resizeTimeout);
+                }
+
+                resizeTimeout = setTimeout(async () => {
+                    await this.saveWindowSize();
+                }, 1500);
+            });
+
+            // 窗口最大化状态变化监听
+            if (window.electronAPI && window.electronAPI.window.onMaximizedChanged) {
+                window.electronAPI.window.onMaximizedChanged((isMaximized) => {
+                    if (!isMaximized) {
+                        setTimeout(async () => {
+                            await this.restoreWindowSize();
+                        }, 100);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('❌ 窗口状态管理初始化失败:', error);
+        }
+    }
+
+    // 保存窗口尺寸
+    async saveWindowSize() {
+        try {
+            const isMaximized = await window.electronAPI.window.isMaximized();
+            if (isMaximized) {
+                return;
+            }
+
+            const size = await window.electronAPI.window.getSize();
+            if (size && size.length === 2) {
+                const [width, height] = size;
+                if (this.isValidWindowSize(width, height)) {
+                    const sizeData = {
+                        width,
+                        height,
+                        timestamp: Date.now()
+                    };
+                    window.cacheManager.setLocalCache('mainWindow-size', sizeData);
+                }
+            }
+        } catch (error) {
+            console.error('❌ 保存窗口尺寸失败:', error);
+        }
+    }
+
+    // 恢复窗口尺寸
+    async restoreWindowSize() {
+        try {
+            const savedSize = window.cacheManager.getLocalCache('mainWindow-size');
+            if (!savedSize) {
+                return;
+            }
+
+            const {width, height} = savedSize;
+            if (this.isValidWindowSize(width, height)) {
+                const result = await window.electronAPI.window.setSize(width, height);
+                if (!result || !result.success) {
+                    window.cacheManager.removeLocalCache('mainWindow-size');
+                }
+            } else {
+                window.cacheManager.removeLocalCache('mainWindow-size');
+            }
+        } catch (error) {
+            console.error('❌ 恢复窗口尺寸失败:', error);
+        }
+    }
+
+    // 验证窗口尺寸有效性
+    isValidWindowSize(width, height) {
+        const minWidth = 1080;
+        const minHeight = 720;
+        const maxWidth = 3840;
+        const maxHeight = 2160;
+
+        return (
+            typeof width === 'number' &&
+            typeof height === 'number' &&
+            width >= minWidth && width <= maxWidth &&
+            height >= minHeight && height <= maxHeight
+        );
     }
 }
 
