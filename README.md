@@ -200,6 +200,7 @@ Q: 如何使用插件？
 
 A：设置中打开插件管理，导入插件即可，目前只支持单个的 JS 文件。
 
+**注意：插件间可能存在不兼容问题**
 - [主题切换器-示例插件](src/renderer/src/js/plugin-system/examples/ThemeSwitcherPlugin.js) 描述：提供多种预设主题，支持实时切换
 - [MusicBox实时状态接口](src/renderer/src/js/plugin-system/examples/RealtimeStatusAPIPlugin.js) 描述：提供 HTTP 接口获取 MusicBox 实时状态信息
 - [背景图修改器](src/renderer/src/js/plugin-system/examples/BackgroundModifyPlugin.js) 描述：可修改应用的背景图片，支持单张图片和文件夹
