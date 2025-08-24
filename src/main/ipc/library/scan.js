@@ -188,6 +188,15 @@ function registerLibraryScanIpcHandlers(
 
             const cacheTrack = libraryCacheManager.addTrack(trackData, audioFile.filePath, stats);
             await libraryCacheManager.saveCache();
+
+            // 更新音频引擎状态
+            const tracks = libraryCacheManager.cache.tracks;
+            audioEngineState.scannedTracks = tracks;
+
+            // 触发音乐库更新事件
+            if (mainWindow) {
+                mainWindow.webContents.send('library:updated', tracks);
+            }
             return { success: true, track: cacheTrack, isNew: true };
         } catch (error) {
             console.error('❌ 添加音频文件到音乐库失败:', error);

@@ -614,7 +614,7 @@ class HomePage extends Component {
         if (addFilesBtn) {
             addFilesBtn.addEventListener('click', async () => {
                 try {
-                    await app.openFileDialog();
+                    await app.addMusicFiles();
                     this.tracks = await api.getTracks();
                     this.render();
                 } catch (error) {
