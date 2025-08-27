@@ -7,6 +7,10 @@ class MusicBoxApp extends EventEmitter {
         this.filteredLibrary = [];
         this.components = {};
 
+        // 事件监听器管理
+        this.eventListeners = [];
+        this.apiEventListeners = [];
+
         this.init().then((res) => {
             if (!res.status) console.error('Failed to initialize MusicBox:', res.error);
         });
@@ -43,11 +47,9 @@ class MusicBoxApp extends EventEmitter {
 
             // 通知插件系统应用已完全初始化
             this.notifyPluginSystemReady();
-
             return {
                 status: true
             };
-
         } catch (error) {
             this.showError('应用初始化失败');
             return {
@@ -67,13 +69,6 @@ class MusicBoxApp extends EventEmitter {
     // 初始化插件系统
     async initializePluginSystem() {
         try {
-            console.log('🔌 App: 开始初始化插件系统...');
-            console.log('🔌 App: 当前组件状态:', {
-                componentsCount: Object.keys(this.components).length,
-                availableComponents: Object.keys(this.components),
-                appInitialized: this.isInitialized
-            });
-
             // 检查插件系统是否可用
             if (typeof window.initializePluginSystem === 'function') {
                 const success = await window.initializePluginSystem();
@@ -87,8 +82,6 @@ class MusicBoxApp extends EventEmitter {
                             window.pluginManager.pluginContext = window.pluginAPI.createPluginContext('system');
                         }
                     }
-
-                    console.log('✅ App: 插件系统初始化成功');
                 } else {
                     console.warn('⚠️ App: 插件系统初始化失败，但应用将继续运行');
                 }
@@ -98,19 +91,17 @@ class MusicBoxApp extends EventEmitter {
 
         } catch (error) {
             console.error('❌ App: 插件系统初始化失败:', error);
-            // 不抛出错误，让应用继续运行
         }
     }
 
     // 通知插件系统应用已完全初始化
     notifyPluginSystemReady() {
         try {
-            console.log('🔌 App: 通知插件系统应用已完全初始化');
-            console.log('🔌 App: 最终组件状态:', {
-                componentsCount: Object.keys(this.components).length,
-                availableComponents: Object.keys(this.components),
-                appInitialized: this.isInitialized
-            });
+            // console.log('🔌 App: 最终组件状态:', {
+            //     componentsCount: Object.keys(this.components).length,
+            //     availableComponents: Object.keys(this.components),
+            //     appInitialized: this.isInitialized
+            // });
 
             // 触发应用就绪事件
             document.dispatchEvent(new CustomEvent('appReady', {
@@ -125,7 +116,6 @@ class MusicBoxApp extends EventEmitter {
             if (window.pluginManager && typeof window.pluginManager.onAppReady === 'function') {
                 window.pluginManager.onAppReady(this);
             }
-
         } catch (error) {
             console.error('❌ App: 通知插件系统失败:', error);
         }
@@ -377,9 +367,21 @@ class MusicBoxApp extends EventEmitter {
         });
     }
 
+    // 添加管理的事件监听器
+    addManagedEventListener(element, event, handler, options) {
+        element.addEventListener(event, handler, options);
+        this.eventListeners.push({element, event, handler, options});
+    }
+
+    // 添加管理的API事件监听器
+    addManagedAPIEventListener(event, handler) {
+        api.on(event, handler);
+        this.apiEventListeners.push({event, handler});
+    }
+
     async setupEventListeners() {
         // Window events
-        window.addEventListener('beforeunload', async () => {
+        this.addManagedEventListener(window, 'beforeunload', async () => {
             await this.cleanup();
         });
 
@@ -398,7 +400,7 @@ class MusicBoxApp extends EventEmitter {
         // 添加播放列表按钮
         const addPlaylistBtn = document.getElementById('add-playlist-btn');
         if (addPlaylistBtn) {
-            addPlaylistBtn.addEventListener('click', () => {
+            this.addManagedEventListener(addPlaylistBtn, 'click', () => {
                 this.showCreatePlaylistDialog();
             });
         }
@@ -406,12 +408,12 @@ class MusicBoxApp extends EventEmitter {
         // 文件加载功能
         this.setupFileLoading();
 
-        // API events
-        api.on('libraryUpdated', async (data) => {
+        // API events - 使用管理的API事件监听器
+        this.addManagedAPIEventListener('libraryUpdated', async (data) => {
             await this.refreshLibrary();
         });
 
-        api.on('playlistChanged', (tracks) => {
+        this.addManagedAPIEventListener('playlistChanged', (tracks) => {
             console.log('🎵 API播放列表改变:', tracks.length, '首歌曲');
             // 确保播放列表组件与API同步
             if (this.components.playlist && tracks.length > 0) {
@@ -419,26 +421,25 @@ class MusicBoxApp extends EventEmitter {
             }
         });
 
-        api.on('libraryTrackDurationUpdated', ({filePath, duration}) => {
+        this.addManagedAPIEventListener('libraryTrackDurationUpdated', ({filePath, duration}) => {
             console.log('🎵 更新音乐库歌曲时长:', filePath, duration.toFixed(2) + 's');
             this.updateLibraryTrackDuration(filePath, duration);
         });
 
-        api.on('playModeChanged', (mode) => {
-            console.log('🎵 播放模式改变:', mode);
+        this.addManagedAPIEventListener('playModeChanged', (mode) => {
             this.components.player.updatePlayModeDisplay(mode);
         });
 
         // Update lyrics page when track changes
-        api.on('trackChanged', (track) => {
-            if (this.components.lyrics.isVisible) {
-                this.components.lyrics.show(track);
+        this.addManagedAPIEventListener('trackChanged', async (track) => {
+            if (this.components.lyrics && this.components.lyrics.isVisible) {
+                await this.components.lyrics.show(track);
             }
         });
 
         // Update lyrics page progress
-        api.on('positionChanged', (position) => {
-            if (this.components.lyrics.isVisible) {
+        this.addManagedAPIEventListener('positionChanged', (position) => {
+            if (this.components.lyrics && this.components.lyrics.isVisible) {
                 // 使用当前歌曲的时长以避免使用可能过期的全局 api.duration
                 const duration = (api.currentTrack && api.currentTrack.duration) ? api.currentTrack.duration : api.duration;
                 this.components.lyrics.updateProgress(position, duration);
@@ -446,8 +447,8 @@ class MusicBoxApp extends EventEmitter {
         });
 
         // Update lyrics page play button
-        api.on('playbackStateChanged', (state) => {
-            if (this.components.lyrics.isVisible) {
+        this.addManagedAPIEventListener('playbackStateChanged', (state) => {
+            if (this.components.lyrics && this.components.lyrics.isVisible) {
                 this.components.lyrics.updatePlayButton(state === 'playing');
             }
         });
@@ -1133,7 +1134,7 @@ class MusicBoxApp extends EventEmitter {
                     } else {
                         const currentTrack = api.getCurrentTrack();
                         if (currentTrack) {
-                            this.components.lyrics.show(currentTrack);
+                            await this.components.lyrics.show(currentTrack);
                         }
                     }
                 }
@@ -1290,25 +1291,49 @@ class MusicBoxApp extends EventEmitter {
     }
 
     async cleanup() {
-        console.log('🧹 App: 开始清理应用...');
-
-        // 保存播放状态
-        console.log('💾 App: 保存播放状态...');
+        // 保存播放状态和音量
         await this.savePlaybackState();
-
         if (this.components.player) {
-            console.log('🔊 App: 保存音量设置...');
             await api.setSetting('volume', this.components.player.volume);
         }
 
-        console.log('🗑️ App: 销毁组件...');
+        // 清理DOM事件监听器
+        this.eventListeners.forEach(({element, event, handler}) => {
+            try {
+                element.removeEventListener(event, handler);
+            } catch (error) {
+                console.warn('Failed to remove event listener:', error);
+            }
+        });
+        this.eventListeners = [];
+
+        // 清理API事件监听器
+        this.apiEventListeners.forEach(({event, handler}) => {
+            try {
+                api.off(event, handler);
+            } catch (error) {
+                console.warn('Failed to remove API event listener:', error);
+            }
+        });
+        this.apiEventListeners = [];
+
+        // 销毁组件
         Object.values(this.components).forEach(component => {
-            if (component.destroy) {
-                component.destroy();
+            if (component && typeof component.destroy === 'function') {
+                try {
+                    component.destroy();
+                } catch (error) {
+                    console.warn('Failed to destroy component:', error);
+                }
             }
         });
 
-        console.log('✅ App: 应用清理完成');
+        // 清理组件引用
+        this.components = {};
+
+        // 清理数据
+        this.library = [];
+        this.filteredLibrary = [];
     }
 
     // 文件加载方法
@@ -1784,7 +1809,7 @@ class MusicBoxApp extends EventEmitter {
 
             // 如果启用了记住播放位置且有保存的状态
             if (settings.rememberPosition && playbackState) {
-                const { currentTrack, position, isPlaying, playlist, currentIndex, playMode } = playbackState;
+                const {currentTrack, position, isPlaying, playlist, currentIndex, playMode} = playbackState;
 
                 console.log('🎵 App: 尝试恢复播放状态:', {
                     hasTrack: !!currentTrack,

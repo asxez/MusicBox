@@ -12,6 +12,36 @@ class TrackList extends Component {
         this.setupCoverUpdateListener();
     }
 
+    show() {
+        if (this.element) {
+            this.element.style.display = 'block';
+        }
+    }
+
+    hide() {
+        if (this.element) {
+            this.element.style.display = 'none';
+        }
+    }
+
+    destroy() {
+        // 清理封面更新订阅
+        if (this.coverUpdateUnsubscribe) {
+            this.coverUpdateUnsubscribe();
+            this.coverUpdateUnsubscribe = null;
+        }
+
+        // 清理数据
+        this.tracks = [];
+        this.filteredTracks = [];
+        this.currentTrackIndex = -1;
+
+        // 重置状态
+        this.isVisible = true;
+        this.sortBy = 'title';
+        super.destroy();
+    }
+
     getShowCoversSettings() {
         const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
         return settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
@@ -37,11 +67,9 @@ class TrackList extends Component {
 
     setupCoverUpdateListener() {
         // 监听封面更新事件
-        if (window.coverUpdateManager) {
-            this.coverUpdateUnsubscribe = window.coverUpdateManager.onCoverUpdate((data) => {
-                this.handleCoverUpdate(data);
-            });
-        }
+        this.coverUpdateUnsubscribe = window.coverUpdateManager.onCoverUpdate(async (data) => {
+            await this.handleCoverUpdate(data);
+        });
     }
 
     setTracks(tracks) {
@@ -291,18 +319,6 @@ class TrackList extends Component {
         });
     }
 
-    show() {
-        if (this.element) {
-            this.element.style.display = 'block';
-        }
-    }
-
-    hide() {
-        if (this.element) {
-            this.element.style.display = 'none';
-        }
-    }
-
     // 处理封面更新事件
     async handleCoverUpdate(data) {
         const { filePath, title, artist, type } = data;
@@ -339,12 +355,6 @@ class TrackList extends Component {
             }
         } catch (error) {
             console.error('TrackList封面刷新失败:', error);
-        }
-    }
-
-    destroy() {
-        if (this.coverUpdateUnsubscribe) {
-            this.coverUpdateUnsubscribe();
         }
     }
 }

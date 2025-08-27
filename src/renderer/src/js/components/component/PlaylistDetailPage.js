@@ -15,41 +15,7 @@ class PlaylistDetailPage extends Component {
         this.showCovers = this.getShowCoversSettings();
 
         this.setupElements();
-        this.setupEventListeners();
         this.setupSettingsListener();
-    }
-
-    setupElements() {
-        this.container = this.element;
-    }
-
-    getShowCoversSettings() {
-        const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
-        return settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
-    }
-
-    setupSettingsListener() {
-        // 延迟设置监听器，确保app.components.settings已初始化
-        const setupListener = () => {
-            if (window.app && window.app.components && window.app.components.settings) {
-                window.app.components.settings.on('showTrackCoversEnabled', (enabled) => {
-                    this.showCovers = enabled;
-                    if (this.isVisible) {
-                        this.render(); // 重新渲染列表
-                    }
-                    console.log(`🖼️ PlaylistDetailPage: 封面显示设置已更新为 ${enabled ? '启用' : '禁用'}`);
-                });
-                console.log('🖼️ PlaylistDetailPage: 设置监听器已设置');
-            } else {
-                // 如果还没有初始化，延迟重试
-                setTimeout(setupListener, 100);
-            }
-        };
-        setupListener();
-    }
-
-    setupEventListeners() {
-        // 事件监听将在render方法中动态添加
     }
 
     async show(playlist) {
@@ -64,7 +30,6 @@ class PlaylistDetailPage extends Component {
         }
 
         // 每次显示新歌单时都需要重新绑定事件监听器
-
         await this.loadPlaylistCover();
         await this.loadPlaylistTracks();
         this.render();
@@ -95,7 +60,33 @@ class PlaylistDetailPage extends Component {
         if (this.container) {
             this.container.innerHTML = '';
         }
-        console.log('🎵 PlaylistDetailPage: 隐藏歌单详情');
+    }
+
+    setupElements() {
+        this.container = this.element;
+    }
+
+    getShowCoversSettings() {
+        const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+        return settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
+    }
+
+    setupSettingsListener() {
+        // 延迟设置监听器，确保app.components.settings已初始化
+        const setupListener = () => {
+            if (window.app && window.app.components && window.app.components.settings) {
+                window.app.components.settings.on('showTrackCoversEnabled', (enabled) => {
+                    this.showCovers = enabled;
+                    if (this.isVisible) {
+                        this.render(); // 重新渲染列表
+                    }
+                });
+            } else {
+                // 如果还没有初始化，延迟重试
+                setTimeout(setupListener, 100);
+            }
+        };
+        setupListener();
     }
 
     render() {
