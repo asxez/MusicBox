@@ -2,15 +2,13 @@
  * 重命名歌单对话框组件
  */
 
-class RenamePlaylistDialog extends EventEmitter {
+class RenamePlaylistDialog extends Component {
     constructor() {
-        super();
+        super(null, false);
         this.isVisible = false;
         this.currentPlaylist = null;
 
         this.setupElements();
-        this.setupEventListeners();
-        console.log('🎵 RenamePlaylistDialog: 组件初始化完成');
     }
 
     setupElements() {
@@ -24,24 +22,24 @@ class RenamePlaylistDialog extends EventEmitter {
     }
 
     setupEventListeners() {
-        this.closeBtn.addEventListener('click', () => this.hide());
-        this.cancelBtn.addEventListener('click', () => this.hide());
-        this.confirmBtn.addEventListener('click', () => this.renamePlaylist());
-        this.nameInput.addEventListener('input', () => this.validateInput());
-        this.nameInput.addEventListener('keydown', (e) => {
+        this.addEventListenerManaged(this.closeBtn, 'click', () => this.hide());
+        this.addEventListenerManaged(this.cancelBtn, 'click', () => this.hide());
+        this.addEventListenerManaged(this.confirmBtn, 'click', () => this.renamePlaylist());
+        this.addEventListenerManaged(this.nameInput, 'input', () => this.validateInput());
+        this.addEventListenerManaged(this.nameInput, 'keydown', (e) => {
             if (e.key === 'Enter' && !this.confirmBtn.disabled) {
                 this.renamePlaylist();
             }
         });
 
         // 点击遮罩层关闭
-        this.overlay.addEventListener('click', (e) => {
+        this.addEventListenerManaged(this.overlay, 'click', (e) => {
             if (e.target === this.overlay) {
                 this.hide();
             }
         });
 
-        document.addEventListener('keydown', (e) => {
+        this.addEventListenerManaged(document, 'keydown', (e) => {
             if (e.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
@@ -49,6 +47,10 @@ class RenamePlaylistDialog extends EventEmitter {
     }
 
     show(playlist) {
+        if (!this.listenersSetup) {
+            this.setupEventListeners();
+            this.listenersSetup = true;
+        }
         this.isVisible = true;
         this.currentPlaylist = playlist;
         this.overlay.style.display = 'flex';
@@ -61,14 +63,17 @@ class RenamePlaylistDialog extends EventEmitter {
             this.nameInput.focus();
             this.nameInput.select();
         }, 100);
-        console.log('🎵 RenamePlaylistDialog: 显示重命名歌单对话框', playlist.name);
     }
 
     hide() {
         this.isVisible = false;
         this.overlay.style.display = 'none';
         this.currentPlaylist = null;
-        console.log('🎵 RenamePlaylistDialog: 隐藏重命名歌单对话框');
+    }
+
+    destroy() {
+        this.listenersSetup = false;
+        return super.destroy();
     }
 
     validateInput() {
@@ -110,8 +115,6 @@ class RenamePlaylistDialog extends EventEmitter {
             const result = await window.electronAPI.library.renamePlaylist(this.currentPlaylist.id, newName);
 
             if (result.success) {
-                console.log('✅ 歌单重命名成功:', result.playlist);
-
                 // 触发重命名成功事件
                 this.emit('playlistRenamed', result.playlist);
                 this.hide();
@@ -123,7 +126,6 @@ class RenamePlaylistDialog extends EventEmitter {
                 this.showError(result.error || '重命名失败');
             }
         } catch (error) {
-            console.error('❌ 重命名歌单失败:', error);
             this.showError('重命名失败，请重试');
         } finally {
             this.confirmBtn.disabled = false;

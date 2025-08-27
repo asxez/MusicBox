@@ -2,19 +2,16 @@
  * 音乐库选择对话框组件
  */
 
-class MusicLibrarySelectionDialog extends EventEmitter {
+class MusicLibrarySelectionDialog extends Component {
     constructor() {
-        super();
+        super(null, false);
         this.isVisible = false;
         this.currentPlaylist = null;
         this.allTracks = [];
         this.filteredTracks = [];
         this.selectedTracks = new Set();
-
+        this.listenersSetup = false; // 事件监听器是否已设置
         this.setupElements();
-        this.setupEventListeners();
-
-        console.log('🎵 MusicLibrarySelectionDialog: 组件初始化完成');
     }
 
     setupElements() {
@@ -31,23 +28,23 @@ class MusicLibrarySelectionDialog extends EventEmitter {
     }
 
     setupEventListeners() {
-        this.closeBtn.addEventListener('click', () => this.hide());
-        this.cancelBtn.addEventListener('click', () => this.hide());
-        this.confirmBtn.addEventListener('click', () => this.addSelectedTracks());
-        this.searchInput.addEventListener('input', () => this.handleSearch());
+        this.addEventListenerManaged(this.closeBtn, 'click', () => this.hide());
+        this.addEventListenerManaged(this.cancelBtn, 'click', () => this.hide());
+        this.addEventListenerManaged(this.confirmBtn, 'click', () => this.addSelectedTracks());
+        this.addEventListenerManaged(this.searchInput, 'input', () => this.handleSearch());
 
         // 全选和清除选择按钮
-        this.selectAllBtn.addEventListener('click', () => this.selectAllTracks());
-        this.clearSelectionBtn.addEventListener('click', () => this.clearSelection());
+        this.addEventListenerManaged(this.selectAllBtn, 'click', () => this.selectAllTracks());
+        this.addEventListenerManaged(this.clearSelectionBtn, 'click', () => this.clearSelection());
 
         // 点击遮罩层关闭
-        this.overlay.addEventListener('click', (e) => {
+        this.addEventListenerManaged(this.overlay, 'click', (e) => {
             if (e.target === this.overlay) {
                 this.hide();
             }
         });
 
-        document.addEventListener('keydown', (e) => {
+        this.addEventListenerManaged(document, 'keydown', (e) => {
             if (e.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
@@ -55,6 +52,10 @@ class MusicLibrarySelectionDialog extends EventEmitter {
     }
 
     async show(playlist) {
+        if (!this.listenersSetup) {
+            this.setupEventListeners();
+            this.listenersSetup = true;
+        }
         this.isVisible = true;
         this.currentPlaylist = playlist;
         this.overlay.style.display = 'flex';
@@ -64,7 +65,6 @@ class MusicLibrarySelectionDialog extends EventEmitter {
         this.searchInput.value = '';
         this.updateSelectedCount();
         await this.loadMusicLibrary();
-        console.log('🎵 MusicLibrarySelectionDialog: 显示音乐库选择对话框');
     }
 
     hide() {
@@ -72,7 +72,11 @@ class MusicLibrarySelectionDialog extends EventEmitter {
         this.overlay.style.display = 'none';
         this.currentPlaylist = null;
         this.selectedTracks.clear();
-        console.log('🎵 MusicLibrarySelectionDialog: 隐藏音乐库选择对话框');
+    }
+
+    destroy() {
+        this.listenersSetup = false;
+        return super.destroy();
     }
 
     async loadMusicLibrary() {

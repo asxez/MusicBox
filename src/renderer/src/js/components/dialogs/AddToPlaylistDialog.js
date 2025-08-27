@@ -2,17 +2,14 @@
  * 添加到歌单对话框组件
  */
 
-class AddToPlaylistDialog extends EventEmitter {
+class AddToPlaylistDialog extends Component {
     constructor() {
-        super();
+        super(null, false);
         this.isVisible = false;
         this.currentTrack = null;
         this.playlists = [];
-
+        this.listenersSetup = false; // 事件监听器是否已设置
         this.setupElements();
-        this.setupEventListeners();
-
-        console.log('🎵 AddToPlaylistDialog: 组件初始化完成');
     }
 
     setupElements() {
@@ -25,23 +22,23 @@ class AddToPlaylistDialog extends EventEmitter {
     }
 
     setupEventListeners() {
-        this.closeBtn.addEventListener('click', () => this.hide());
-        this.cancelBtn.addEventListener('click', () => this.hide());
+        this.addEventListenerManaged(this.closeBtn, 'click', () => this.hide());
+        this.addEventListenerManaged(this.cancelBtn, 'click', () => this.hide());
         // 创建新歌单按钮
-        this.createNewBtn.addEventListener('click', () => {
+        this.addEventListenerManaged(this.createNewBtn, 'click', () => {
             this.hide();
             this.emit('createNewPlaylist', this.currentTrack);
         });
 
         // 点击遮罩层关闭
-        this.overlay.addEventListener('click', (e) => {
+        this.addEventListenerManaged(this.overlay, 'click', (e) => {
             if (e.target === this.overlay) {
                 this.hide();
             }
         });
 
         // ESC键关闭
-        document.addEventListener('keydown', (e) => {
+        this.addEventListenerManaged(document, 'keydown', (e) => {
             if (e.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
@@ -49,20 +46,27 @@ class AddToPlaylistDialog extends EventEmitter {
     }
 
     async show(track) {
+        if (!this.listenersSetup) {
+            this.setupEventListeners();
+            this.listenersSetup = true;
+        }
         this.isVisible = true;
         this.currentTrack = track;
         this.overlay.style.display = 'flex';
 
         // 加载歌单列表
         await this.loadPlaylists();
-        console.log('🎵 AddToPlaylistDialog: 显示添加到歌单对话框');
     }
 
     hide() {
         this.isVisible = false;
         this.overlay.style.display = 'none';
         this.currentTrack = null;
-        console.log('🎵 AddToPlaylistDialog: 隐藏添加到歌单对话框');
+    }
+
+    destroy() {
+        this.listenersSetup = false;
+        return super.destroy();
     }
 
     async loadPlaylists() {

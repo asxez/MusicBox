@@ -1,5 +1,5 @@
 class Component extends EventEmitter {
-    constructor(element) {
+    constructor(element=null, has=true) {
         super();
         this.element = typeof element === 'string' ? document.querySelector(element) : element;
         this.isDestroyed = false;
@@ -11,7 +11,7 @@ class Component extends EventEmitter {
         this.observers = [];
         this.disposables = [];
 
-        if (!this.element) {
+        if (has && !this.element) {
             console.error('❌ Component element not found');
             return;
         }
