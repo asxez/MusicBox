@@ -2,16 +2,13 @@
  * 创建歌单对话框组件
  */
 
-class CreatePlaylistDialog extends EventEmitter {
+class CreatePlaylistDialog extends Component {
     constructor() {
-        super();
+        super(null, false);
         this.isVisible = false;
         this.currentTrackToAdd = null; // 用于记录要添加到新歌单的歌曲
-
+        this.listenersSetup = false; // 事件监听器是否已设置
         this.setupElements();
-        this.setupEventListeners();
-
-        console.log('🎵 CreatePlaylistDialog: 组件初始化完成');
     }
 
     setupElements() {
@@ -26,26 +23,26 @@ class CreatePlaylistDialog extends EventEmitter {
     }
 
     setupEventListeners() {
-        this.closeBtn.addEventListener('click', () => this.hide());
-        this.cancelBtn.addEventListener('click', () => this.hide());
-        this.confirmBtn.addEventListener('click', () => this.createPlaylist());
+        this.addEventListenerManaged(this.closeBtn, 'click', () => this.hide());
+        this.addEventListenerManaged(this.cancelBtn, 'click', () => this.hide());
+        this.addEventListenerManaged(this.confirmBtn, 'click', () => this.createPlaylist());
 
         // 输入框事件
-        this.nameInput.addEventListener('input', () => this.validateInput());
-        this.nameInput.addEventListener('keydown', (e) => {
+        this.addEventListenerManaged(this.nameInput, 'input', () => this.validateInput());
+        this.addEventListenerManaged(this.nameInput, 'keydown', (e) => {
             if (e.key === 'Enter' && !this.confirmBtn.disabled) {
                 this.createPlaylist();
             }
         });
 
         // 点击遮罩层关闭
-        this.overlay.addEventListener('click', (e) => {
+        this.addEventListenerManaged(this.overlay, 'click', (e) => {
             if (e.target === this.overlay) {
                 this.hide();
             }
         });
 
-        document.addEventListener('keydown', (e) => {
+        this.addEventListenerManaged(document, 'keydown', (e) => {
             if (e.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
@@ -53,6 +50,10 @@ class CreatePlaylistDialog extends EventEmitter {
     }
 
     show(trackToAdd = null) {
+        if (!this.listenersSetup) {
+            this.setupEventListeners();
+            this.listenersSetup = true;
+        }
         this.isVisible = true;
         this.currentTrackToAdd = trackToAdd;
         this.overlay.style.display = 'flex';
@@ -67,15 +68,17 @@ class CreatePlaylistDialog extends EventEmitter {
         setTimeout(() => {
             this.nameInput.focus();
         }, 100);
-
-        console.log('🎵 CreatePlaylistDialog: 显示创建歌单对话框');
     }
 
     hide() {
         this.isVisible = false;
         this.overlay.style.display = 'none';
         this.currentTrackToAdd = null;
-        console.log('🎵 CreatePlaylistDialog: 隐藏创建歌单对话框');
+    }
+
+    destroy() {
+        this.listenersSetup = false;
+        return super.destroy();
     }
 
     validateInput() {

@@ -2,44 +2,16 @@
  * 编辑歌曲信息对话框组件
  */
 
-class EditTrackInfoDialog extends EventEmitter {
+class EditTrackInfoDialog extends Component {
     constructor() {
-        super();
+        super(null, false);
         this.isVisible = false;
         this.currentTrack = null;
         this.selectedCoverFile = null;
         this.originalData = null;
         this.coverObjectUrls = new Set(); // 用于跟踪创建的Object URLs
-
+        this.listenersSetup = false; // 事件监听器是否已设置
         this.setupElements();
-        this.setupEventListeners();
-        this.checkAPIAvailability();
-
-        console.log('🎵 EditTrackInfoDialog: 组件初始化完成');
-    }
-
-    // 检查API可用性
-    checkAPIAvailability() {
-        const apiStatus = {
-            electronAPI: !!window.electronAPI,
-            dialog: !!(window.electronAPI && window.electronAPI.dialog),
-            fs: !!(window.electronAPI && window.electronAPI.fs),
-            showOpenDialog: !!(window.electronAPI && window.electronAPI.dialog && window.electronAPI.dialog.showOpenDialog),
-            stat: !!(window.electronAPI && window.electronAPI.fs && window.electronAPI.fs.stat),
-            readFile: !!(window.electronAPI && window.electronAPI.fs && window.electronAPI.fs.readFile)
-        };
-        console.log('🔍 EditTrackInfoDialog: API可用性检查', apiStatus);
-
-        if (!apiStatus.electronAPI) {
-            console.error('❌ EditTrackInfoDialog: electronAPI 不可用');
-        }
-        if (!apiStatus.dialog) {
-            console.error('❌ EditTrackInfoDialog: dialog API 不可用');
-        }
-        if (!apiStatus.fs) {
-            console.error('❌ EditTrackInfoDialog: fs API 不可用');
-        }
-        return apiStatus;
     }
 
     setupElements() {
@@ -47,7 +19,7 @@ class EditTrackInfoDialog extends EventEmitter {
         this.closeBtn = document.getElementById('edit-track-info-close');
         this.cancelBtn = document.getElementById('edit-track-info-cancel');
         this.confirmBtn = document.getElementById('edit-track-info-confirm');
-        
+
         // 表单元素
         this.coverPreview = document.getElementById('edit-track-cover');
         this.selectCoverBtn = document.getElementById('select-cover-btn');
@@ -66,30 +38,30 @@ class EditTrackInfoDialog extends EventEmitter {
 
     setupEventListeners() {
         // 关闭按钮
-        this.closeBtn.addEventListener('click', () => this.hide());
-        this.cancelBtn.addEventListener('click', () => this.hide());
+        this.addEventListenerManaged(this.closeBtn, 'click', () => this.hide());
+        this.addEventListenerManaged(this.cancelBtn, 'click', () => this.hide());
 
         // 确认保存
-        this.confirmBtn.addEventListener('click', () => this.saveChanges());
+        this.addEventListenerManaged(this.confirmBtn, 'click', () => this.saveChanges());
 
         // 封面操作
-        this.selectCoverBtn.addEventListener('click', () => this.selectCover());
-        this.removeCoverBtn.addEventListener('click', () => this.removeCover());
+        this.addEventListenerManaged(this.selectCoverBtn, 'click', () => this.selectCover());
+        this.addEventListenerManaged(this.removeCoverBtn, 'click', () => this.removeCover());
 
         // 输入验证
-        this.titleInput.addEventListener('input', () => this.validateForm());
-        this.artistInput.addEventListener('input', () => this.validateForm());
-        this.albumInput.addEventListener('input', () => this.validateForm());
+        this.addEventListenerManaged(this.titleInput, 'input', () => this.validateForm());
+        this.addEventListenerManaged(this.artistInput, 'input', () => this.validateForm());
+        this.addEventListenerManaged(this.albumInput, 'input', () => this.validateForm());
 
         // 点击遮罩关闭
-        this.dialog.addEventListener('click', (e) => {
+        this.addEventListenerManaged(this.dialog, 'click', (e) => {
             if (e.target === this.dialog) {
                 this.hide();
             }
         });
 
         // ESC键关闭
-        document.addEventListener('keydown', (e) => {
+        this.addEventListenerManaged(document, 'keydown', (e) => {
             if (e.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
@@ -97,6 +69,10 @@ class EditTrackInfoDialog extends EventEmitter {
     }
 
     async show(track) {
+        if (!this.listenersSetup) {
+            this.setupEventListeners();
+            this.listenersSetup = true;
+        }
         if (!track) {
             console.error('❌ EditTrackInfoDialog: 无效的歌曲数据');
             return;
@@ -117,16 +93,6 @@ class EditTrackInfoDialog extends EventEmitter {
             year: track.year || '',
             genre: track.genre || ''
         };
-
-        // 调试：输出歌曲封面信息
-        console.log('🔍 EditTrackInfoDialog: 歌曲封面数据分析', {
-            hasCover: !!track.cover,
-            coverType: typeof track.cover,
-            coverIsString: typeof track.cover === 'string',
-            coverIsObject: typeof track.cover === 'object',
-            coverConstructor: track.cover ? track.cover.constructor.name : 'N/A',
-            coverValue: track.cover ? (typeof track.cover === 'string' ? track.cover.substring(0, 100) + '...' : JSON.stringify(track.cover)) : null
-        });
 
         // 填充表单数据（先显示基本信息）
         this.populateForm();
@@ -161,8 +127,11 @@ class EditTrackInfoDialog extends EventEmitter {
         this.clearForm();
         this.clearErrors();
         this.cleanupCoverUrls(); // 清理Object URLs
+    }
 
-        console.log('🎵 EditTrackInfoDialog: 隐藏编辑对话框');
+    destroy() {
+        this.listenersSetup = false;
+        return super.destroy();
     }
 
     // 清理创建的Object URLs
@@ -251,8 +220,8 @@ class EditTrackInfoDialog extends EventEmitter {
                     type: typeof this.currentTrack.cover,
                     constructor: this.currentTrack.cover.constructor.name,
                     value: typeof this.currentTrack.cover === 'string' ?
-                           this.currentTrack.cover.substring(0, 100) + '...' :
-                           JSON.stringify(this.currentTrack.cover)
+                        this.currentTrack.cover.substring(0, 100) + '...' :
+                        JSON.stringify(this.currentTrack.cover)
                 });
                 this.processCoverData(this.currentTrack.cover);
             } else {
@@ -279,8 +248,8 @@ class EditTrackInfoDialog extends EventEmitter {
                 isUndefined: coverData === undefined,
                 constructor: coverData ? coverData.constructor.name : 'N/A',
                 value: typeof coverData === 'string' ?
-                       coverData.substring(0, 100) + '...' :
-                       (coverData ? JSON.stringify(coverData) : coverData)
+                    coverData.substring(0, 100) + '...' :
+                    (coverData ? JSON.stringify(coverData) : coverData)
             });
 
             // 首先检查是否为null或undefined
@@ -524,7 +493,7 @@ class EditTrackInfoDialog extends EventEmitter {
 
             // 创建Blob
             const mimeType = format.toLowerCase();
-            const blob = new Blob([imageData], { type: mimeType });
+            const blob = new Blob([imageData], {type: mimeType});
 
             // 验证Blob
             if (blob.size === 0) {
@@ -582,7 +551,7 @@ class EditTrackInfoDialog extends EventEmitter {
                 result = await window.electronAPI.dialog.showOpenDialog({
                     title: '选择专辑封面',
                     filters: [
-                        { name: '图片文件', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'] }
+                        {name: '图片文件', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']}
                     ],
                     properties: ['openFile']
                 });
@@ -626,7 +595,7 @@ class EditTrackInfoDialog extends EventEmitter {
 
                         // 创建File对象
                         const uint8Array = new Uint8Array(fileData);
-                        this.selectedCoverFile = new File([uint8Array], 'cover.jpg', { type: 'image/jpeg' });
+                        this.selectedCoverFile = new File([uint8Array], 'cover.jpg', {type: 'image/jpeg'});
 
                         this.updateCoverPreview();
                         this.validateForm();
@@ -712,7 +681,7 @@ class EditTrackInfoDialog extends EventEmitter {
 
         // 检查是否有更改
         const hasChanges = this.hasChanges();
-        
+
         // 更新确认按钮状态
         this.confirmBtn.disabled = !isValid || !hasChanges;
 
