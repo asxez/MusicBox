@@ -8,14 +8,33 @@ class EqualizerComponent extends Component {
         this.equalizer = null;
         this.isEnabled = false;
         this.currentPreset = 'flat';
-
         this.setupElements();
         this.setupEventListeners();
         this.initializeEqualizer().then(r => {
         });
-
         // 设置全局引用，供HTML中的onclick事件使用
         window.equalizerComponent = this;
+    }
+
+    show() {
+        this.modal.style.display = 'flex';
+        setTimeout(() => {
+            this.modal.classList.add('show');
+        }, 10);
+        this.updateUI();
+    }
+
+    hide() {
+        this.modal.classList.remove('show');
+        setTimeout(() => {
+            this.modal.style.display = 'none';
+        }, 300);
+        this.saveSettings();
+    }
+
+    destroy() {
+        this.saveSettings();
+        super.destroy();
     }
 
     setupElements() {
@@ -54,41 +73,41 @@ class EqualizerComponent extends Component {
     }
 
     setupEventListeners() {
-        this.openBtn?.addEventListener('click', () => this.show());
-        this.closeBtn?.addEventListener('click', () => this.hide());
-        this.modal?.addEventListener('click', (e) => {
+        this.addEventListenerManaged(this.openBtn, 'click', () => this.show());
+        this.addEventListenerManaged(this.closeBtn, 'click', () => this.hide());
+        this.addEventListenerManaged(this.modal, 'click', (e) => {
             if (e.target === this.modal) {
                 this.hide();
             }
         });
 
-        this.equalizerToggle?.addEventListener('change', (e) => {
+        this.addEventListenerManaged(this.equalizerToggle, 'change', (e) => {
             this.setEnabled(e.target.checked);
         });
 
         // 预设选择
-        this.presetSelect?.addEventListener('change', (e) => {
+        this.addEventListenerManaged(this.presetSelect, 'change', (e) => {
             this.applyPreset(e.target.value);
         });
 
         // 自定义预设管理
-        this.managePresetsBtn?.addEventListener('click', () => {
+        this.addEventListenerManaged(this.managePresetsBtn, 'click', () => {
             this.toggleCustomPresetsPanel();
         });
 
-        this.closePresetsPanelBtn?.addEventListener('click', () => {
+        this.addEventListenerManaged(this.closePresetsPanelBtn, 'click', () => {
             this.hideCustomPresetsPanel();
         });
 
-        this.savePresetBtn?.addEventListener('click', () => {
+        this.addEventListenerManaged(this.savePresetBtn, 'click', () => {
             this.saveCustomPreset();
         });
 
-        this.newPresetNameInput?.addEventListener('input', () => {
+        this.addEventListenerManaged(this.newPresetNameInput, 'input', () => {
             this.updateSaveButtonState();
         });
 
-        this.newPresetNameInput?.addEventListener('keypress', (e) => {
+        this.addEventListenerManaged(this.newPresetNameInput, 'keypress', (e) => {
             if (e.key === 'Enter') {
                 this.saveCustomPreset();
             }
@@ -97,17 +116,17 @@ class EqualizerComponent extends Component {
         // 频段滑块
         this.bandSliders.forEach((slider, index) => {
             if (slider) {
-                slider.addEventListener('input', (e) => {
+                this.addEventListenerManaged(slider, 'input', (e) => {
                     this.updateBandGain(index, parseFloat(e.target.value));
                 });
             }
         });
 
         // 控制按钮
-        this.resetBtn?.addEventListener('click', () => this.reset());
-        this.applyBtn?.addEventListener('click', () => this.hide());
+        this.addEventListenerManaged(this.resetBtn, 'click', () => this.reset());
+        this.addEventListenerManaged(this.applyBtn, 'click', () => this.hide());
 
-        document.addEventListener('keydown', (e) => {
+        this.addEventListenerManaged(document, 'keydown', (e) => {
             if (e.key === 'Escape' && this.isVisible()) {
                 this.hide();
             }
@@ -118,7 +137,6 @@ class EqualizerComponent extends Component {
         // 等待API初始化
         if (window.api && window.api.getEqualizer) {
             this.equalizer = window.api.getEqualizer();
-            console.log('🎛️ 获取到的均衡器实例:', this.equalizer);
             if (this.equalizer) {
                 if (window.cacheManager) {
                     this.reloadConfig();
@@ -133,25 +151,8 @@ class EqualizerComponent extends Component {
                 setTimeout(() => this.initializeEqualizer(), 100);
             }
         } else {
-            // console.log('⏳ API或getEqualizer方法不可用，延迟重试...');
             setTimeout(() => this.initializeEqualizer(), 100);
         }
-    }
-
-    show() {
-        this.modal.style.display = 'flex';
-        setTimeout(() => {
-            this.modal.classList.add('show');
-        }, 10);
-        this.updateUI();
-    }
-
-    hide() {
-        this.modal.classList.remove('show');
-        setTimeout(() => {
-            this.modal.style.display = 'none';
-        }, 300);
-        this.saveSettings();
     }
 
     isVisible() {
@@ -182,7 +183,6 @@ class EqualizerComponent extends Component {
 
         // 立即保存设置到缓存
         this.saveSettingsImmediate();
-        // console.log(`✅ 均衡器${enabled ? '已启用' : '已禁用'}`);
     }
 
     // 更新UI状态，避免触发事件
@@ -306,12 +306,6 @@ class EqualizerComponent extends Component {
 
     loadSettings() {
         try {
-            if (!window.cacheManager) {
-                console.warn('🎛️ CacheManager未加载，使用默认均衡器设置');
-                this.useDefaultSettings();
-                return;
-            }
-
             const settings = window.cacheManager.getLocalCache('musicbox-equalizer-settings') || {};
             console.log('📋 从缓存加载的设置:', settings);
             const customPresets = window.cacheManager.getLocalCache('musicbox-equalizer-custom-presets') || {};
@@ -418,11 +412,6 @@ class EqualizerComponent extends Component {
 
     saveSettings() {
         try {
-            if (!window.cacheManager) {
-                console.error('❌ CacheManager未加载，无法保存均衡器设置');
-                return false;
-            }
-
             // 保存主要设置
             const settings = {
                 enabled: this.isEnabled,
@@ -443,15 +432,6 @@ class EqualizerComponent extends Component {
                 }
             } catch (error) {
                 console.warn('⚠️ 同步自定义预设到缓存失败:', error);
-            }
-
-            // 验证保存是否成功
-            const saved = window.cacheManager.getLocalCache('musicbox-equalizer-settings');
-            if (saved) {
-                return true;
-            } else {
-                console.error('❌ 均衡器设置保存验证失败');
-                return false;
             }
         } catch (error) {
             console.error('❌ 保存均衡器设置失败:', error);
@@ -687,11 +667,6 @@ class EqualizerComponent extends Component {
     // 立即保存设置
     saveSettingsImmediate() {
         this.saveSettings();
-    }
-
-    destroy() {
-        this.saveSettings();
-        super.destroy();
     }
 }
 

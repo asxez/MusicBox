@@ -6,26 +6,15 @@ class RecentPage extends Component {
     constructor(container) {
         super(container);
         this.recentTracks = [];
+        this.listenersSetup = false; // 事件监听器是否已设置
         this.setupElements();
-        this.setupEventListeners();
-        console.log('🕒 RecentPage: 组件初始化完成');
-    }
-
-    setupElements() {
-        this.container = this.element;
-    }
-
-    setupEventListeners() {
-        // 监听播放历史更新
-        api.on('trackChanged', (track) => {
-            this.updatePlayHistory(track);
-            if (this.isVisible) {
-                this.render();
-            }
-        });
     }
 
     async show() {
+        if (!this.listenersSetup) {
+            this.setupAPIListeners();
+            this.listenersSetup = true;
+        }
         if (this.element) {
             this.element.style.display = 'block';
         }
@@ -39,6 +28,22 @@ class RecentPage extends Component {
         if (this.container) {
             this.container.innerHTML = '';
         }
+    }
+
+    destroy() {
+        this.listenersSetup = false;
+        return super.destroy();
+    }
+
+    setupElements() {
+        this.container = this.element;
+    }
+
+    setupAPIListeners() {
+        // 监听播放历史更新
+        this.addAPIEventListenerManaged('trackChanged', (track) => {
+            this.updatePlayHistory(track);
+        });
     }
 
     loadPlayHistory() {
@@ -59,13 +64,9 @@ class RecentPage extends Component {
         if (!track || !track.filePath) return;
 
         let history = [];
-        try {
-            const stored = window.cacheManager.getLocalCache('musicbox-play-history')
-            if (stored) {
-                history = stored;
-            }
-        } catch (error) {
-            console.error('读取播放历史失败:', error);
+        const stored = window.cacheManager.getLocalCache('musicbox-play-history')
+        if (stored) {
+            history = stored;
         }
 
         // 移除重复项
@@ -79,13 +80,8 @@ class RecentPage extends Component {
 
         // 限制历史记录数量
         history = history.slice(0, 100);
-
-        try {
-            window.cacheManager.setLocalCache('musicbox-play-history', history);
-            this.recentTracks = history;
-        } catch (error) {
-            console.error('保存播放历史失败:', error);
-        }
+        window.cacheManager.setLocalCache('musicbox-play-history', history);
+        this.recentTracks = history;
     }
 
     // 清空播放历史
@@ -94,7 +90,6 @@ class RecentPage extends Component {
             window.cacheManager.removeLocalCache('musicbox-play-history');
             this.recentTracks = [];
             this.render();
-            console.log('🕒 RecentPage: 播放历史已清空');
         } catch (error) {
             console.error('❌ RecentPage: 清空播放历史失败:', error);
         }
@@ -109,26 +104,9 @@ class RecentPage extends Component {
             window.cacheManager.setLocalCache('musicbox-play-history', history);
             this.recentTracks = history;
             this.render();
-
-            console.log('🕒 RecentPage: 已移除历史记录:', trackPath);
         } catch (error) {
             console.error('❌ RecentPage: 移除历史记录失败:', error);
         }
-    }
-
-    // 获取播放历史统计
-    getHistoryStats() {
-        const stats = {
-            totalTracks: this.recentTracks.length,
-            uniqueTracks: new Set(this.recentTracks.map(t => t.filePath)).size,
-            totalDuration: this.recentTracks.reduce((sum, track) => sum + (track.duration || 0), 0),
-            oldestPlay: this.recentTracks.length > 0 ?
-                Math.min(...this.recentTracks.map(t => t.playTime || Date.now())) : null,
-            newestPlay: this.recentTracks.length > 0 ?
-                Math.max(...this.recentTracks.map(t => t.playTime || Date.now())) : null
-        };
-
-        return stats;
     }
 
     render() {

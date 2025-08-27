@@ -5,24 +5,24 @@
 class Search extends Component {
     constructor() {
         super('#search-input');
+        this.debouncedSearch = null;
         this.setupEventListeners();
     }
 
     setupEventListeners() {
-        const debouncedSearch = debounce((query) => {
-            this.performSearch(query);
+        this.debouncedSearch = debounce(async (query) => {
+            await this.performSearch(query);
         }, 200);
 
-        this.element.addEventListener('input', (e) => {
+        this.addEventListenerManaged(this.element, 'input', (e) => {
             const query = e.target.value.trim();
             if (query.length > 0) {
-                debouncedSearch(query);
+                this.debouncedSearch(query);
             } else if (query.length === 0) {
                 this.clearSearch();
             }
         });
-
-        this.element.addEventListener('keydown', (e) => {
+        this.addEventListenerManaged(this.element, 'keydown', (e) => {
             if (e.key === 'Escape') {
                 this.element.value = '';
                 this.clearSearch();
@@ -42,6 +42,21 @@ class Search extends Component {
 
     clearSearch() {
         this.emit('searchCleared');
+    }
+
+    destroy() {
+        // 清理防抖函数
+        if (this.debouncedSearch && typeof this.debouncedSearch.cancel === 'function') {
+            this.debouncedSearch.cancel();
+        }
+        this.debouncedSearch = null;
+
+        // 清空搜索框
+        if (this.element && !this.isDestroyed) {
+            this.element.value = '';
+        }
+
+        super.destroy();
     }
 }
 

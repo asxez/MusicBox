@@ -30,6 +30,8 @@ class PluginBase {
         this.disposables = [];
         this.styleElements = [];
         this.eventListeners = [];
+        this.timers = new Set(); // 管理定时器
+        this.observers = []; // 管理观察者
     }
 
     // 插件激活 - 子类必须实现
@@ -49,29 +51,89 @@ class PluginBase {
 
     // 清理插件资源
     dispose() {
+        console.log(`🧹 Plugin ${this.id}: 开始清理资源...`);
+
         // 移除事件监听器
+        let removedListeners = 0;
         this.eventListeners.forEach(({element, event, handler}) => {
-            element.removeEventListener(event, handler);
+            try {
+                element.removeEventListener(event, handler);
+                removedListeners++;
+            } catch (error) {
+                console.warn(`⚠️ Plugin ${this.id}: 移除事件监听器失败:`, error);
+            }
         });
         this.eventListeners = [];
 
         // 移除样式
+        let removedStyles = 0;
         this.styleElements.forEach(style => {
-            if (style.parentNode) {
-                style.parentNode.removeChild(style);
+            try {
+                if (style.parentNode) {
+                    style.parentNode.removeChild(style);
+                    removedStyles++;
+                }
+            } catch (error) {
+                console.warn(`⚠️ Plugin ${this.id}: 移除样式失败:`, error);
             }
         });
         this.styleElements = [];
 
         // 清理其他资源
+        let disposedResources = 0;
         this.disposables.forEach(disposable => {
-            if (typeof disposable === 'function') {
-                disposable();
-            } else if (disposable && typeof disposable.dispose === 'function') {
-                disposable.dispose();
+            try {
+                if (typeof disposable === 'function') {
+                    disposable();
+                    disposedResources++;
+                } else if (disposable && typeof disposable.dispose === 'function') {
+                    disposable.dispose();
+                    disposedResources++;
+                }
+            } catch (error) {
+                console.warn(`⚠️ Plugin ${this.id}: 清理资源失败:`, error);
             }
         });
         this.disposables = [];
+
+        // 清理定时器
+        this.clearAllTimers();
+
+        // 清理观察者
+        this.disconnectAllObservers();
+
+        console.log(`✅ Plugin ${this.id}: 资源清理完成 (监听器: ${removedListeners}, 样式: ${removedStyles}, 资源: ${disposedResources})`);
+    }
+
+    // 清理定时器
+    clearAllTimers() {
+        if (this.timers && this.timers.size > 0) {
+            this.timers.forEach(timerId => {
+                try {
+                    clearTimeout(timerId);
+                    clearInterval(timerId);
+                } catch (error) {
+                    console.warn(`⚠️ Plugin ${this.id}: 清理定时器失败:`, error);
+                }
+            });
+            this.timers.clear();
+        }
+    }
+
+    // 断开观察者
+    disconnectAllObservers() {
+        if (this.observers && this.observers.length > 0) {
+            this.observers.forEach(observer => {
+                try {
+                    if (observer && typeof observer.disconnect === 'function') {
+                        observer.disconnect();
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ Plugin ${this.id}: 断开观察者失败:`, error);
+                }
+            });
+            this.observers = [];
+        }
     }
 
     // --- 提供快捷方法 ---
@@ -185,6 +247,71 @@ class PluginBase {
         element.addEventListener(event, handler);
         this.eventListeners.push({element, event, handler});
         return () => element.removeEventListener(event, handler);
+    }
+
+    // 添加管理的定时器
+    addTimer(timerId) {
+        this.timers.add(timerId);
+        return timerId;
+    }
+
+    // 创建管理的setTimeout
+    setTimeout(callback, delay) {
+        const timerId = setTimeout(() => {
+            callback();
+            this.timers.delete(timerId);
+        }, delay);
+        this.timers.add(timerId);
+        return timerId;
+    }
+
+    // 创建管理的setInterval
+    setInterval(callback, interval) {
+        const timerId = setInterval(callback, interval);
+        this.timers.add(timerId);
+        return timerId;
+    }
+
+    // 清除特定定时器
+    clearTimer(timerId) {
+        if (this.timers.has(timerId)) {
+            clearTimeout(timerId);
+            clearInterval(timerId);
+            this.timers.delete(timerId);
+        }
+    }
+
+    // 添加管理的观察者
+    addObserver(observer) {
+        this.observers.push(observer);
+        return observer;
+    }
+
+    // 创建管理的MutationObserver
+    createMutationObserver(callback) {
+        const observer = new MutationObserver(callback);
+        this.observers.push(observer);
+        return observer;
+    }
+
+    // 创建管理的ResizeObserver
+    createResizeObserver(callback) {
+        if (window.ResizeObserver) {
+            const observer = new ResizeObserver(callback);
+            this.observers.push(observer);
+            return observer;
+        }
+        return null;
+    }
+
+    // 创建管理的IntersectionObserver
+    createIntersectionObserver(callback, options) {
+        if (window.IntersectionObserver) {
+            const observer = new IntersectionObserver(callback, options);
+            this.observers.push(observer);
+            return observer;
+        }
+        return null;
     }
 
     // 显示通知

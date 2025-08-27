@@ -371,12 +371,6 @@ class Player extends Component {
         }
     }
 
-    destroy() {
-        if (this.coverUpdateUnsubscribe) {
-            this.coverUpdateUnsubscribe();
-        }
-    }
-
     updatePlayButton() {
         console.log('🔄 Player: 更新播放按钮，当前状态:', this.isPlaying);
 
@@ -605,6 +599,22 @@ class Player extends Component {
         } catch (error) {
             console.error('❌ Player: 初始化桌面歌词按钮状态失败:', error);
         }
+    }
+
+    destroy() {
+        // 清理封面更新订阅
+        if (this.coverUpdateUnsubscribe) {
+            this.coverUpdateUnsubscribe();
+            this.coverUpdateUnsubscribe = null;
+        }
+
+        // 重置播放状态
+        this.isPlaying = false;
+        this.currentTime = 0;
+        this.duration = 0;
+        this.isDraggingProgress = false;
+        this.isDraggingVolume = false;
+        super.destroy();
     }
 }
 

@@ -26,6 +26,26 @@ class PluginManagerModal extends Component {
         window.app.components.pluginManager = this; // 保持向后兼容
     }
 
+    show() {
+        this.modal.style.display = 'flex';
+        setTimeout(() => this.modal.classList.add('show'), 10);
+        // 焦点管理
+        this.prevFocus = document.activeElement;
+        this.closeBtn?.focus();
+        // 刷新数据
+        this.updatePluginStatus();
+        this.refreshPluginList();
+    }
+
+    hide() {
+        this.modal.classList.remove('show');
+        setTimeout(() => {
+            this.modal.style.display = 'none';
+            this.prevFocus?.focus?.();
+        }, 300);
+        this.hideInstallPanel();
+    }
+
     setupElements() {
         this.modal = this.element;
         this.closeBtn = this.element.querySelector('#plugin-manager-close');
@@ -180,26 +200,6 @@ class PluginManagerModal extends Component {
             }
         }
         console.log(`🔌 PluginManagerModal: 开发模式${enabled ? '启用' : '禁用'}`);
-    }
-
-    show() {
-        this.modal.style.display = 'flex';
-        setTimeout(() => this.modal.classList.add('show'), 10);
-        // 焦点管理
-        this.prevFocus = document.activeElement;
-        this.closeBtn?.focus();
-        // 刷新数据
-        this.updatePluginStatus();
-        this.refreshPluginList();
-    }
-
-    hide() {
-        this.modal.classList.remove('show');
-        setTimeout(() => {
-            this.modal.style.display = 'none';
-            this.prevFocus?.focus?.();
-        }, 300);
-        this.hideInstallPanel();
     }
 
     isVisible() {

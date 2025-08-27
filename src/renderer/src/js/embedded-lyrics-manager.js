@@ -6,7 +6,7 @@
 class EmbeddedLyricsManager {
     constructor() {
         this.cache = new Map();
-        this.maxCacheSize = 10;
+        this.maxCacheSize = 5;
     }
 
     /**
