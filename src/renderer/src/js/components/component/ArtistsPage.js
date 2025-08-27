@@ -9,26 +9,15 @@ class ArtistsPage extends Component {
         this.artists = [];
         this.selectedArtist = null;
         this.viewMode = 'grid'; // grid or list
+        this.listenersSetup = false; // 事件监听器是否已设置
         this.setupElements();
-        this.setupEventListeners();
-    }
-
-    setupElements() {
-        this.container = this.element;
-    }
-
-    setupEventListeners() {
-        // 监听音乐库更新
-        api.on('libraryUpdated', (tracks) => {
-            this.tracks = tracks;
-            this.processArtists();
-            if (this.isVisible) {
-                this.render();
-            }
-        });
     }
 
     async show() {
+        if (!this.listenersSetup) {
+            this.setupAPIListeners();
+            this.listenersSetup = true;
+        }
         if (this.element) {
             this.element.style.display = 'block';
         }
@@ -46,9 +35,25 @@ class ArtistsPage extends Component {
         }
     }
 
+    destroy() {
+        this.listenersSetup = false;
+        return super.destroy();
+    }
+
+    setupElements() {
+        this.container = this.element;
+    }
+
+    setupAPIListeners() {
+        // 监听音乐库更新
+        this.addAPIEventListenerManaged('libraryUpdated', (tracks) => {
+            this.tracks = tracks;
+            this.processArtists();
+        });
+    }
+
     processArtists() {
         const artistMap = new Map();
-
         this.tracks.forEach(track => {
             const artistName = track.artist || '未知艺术家';
 

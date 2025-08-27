@@ -113,8 +113,6 @@ class MusicBoxAPI extends EventEmitter {
     setupEventListeners() {
         // Web Audio Engine events
         if (this.webAudioEngine) {
-            console.log('🔄 API: 设置Web Audio Engine事件监听器');
-
             this.webAudioEngine.onTrackChanged = (track) => {
                 console.log('🎵 API: Web Audio Engine 歌曲变化:', track);
                 this.currentTrack = track;
@@ -959,7 +957,7 @@ class MusicBoxAPI extends EventEmitter {
         try {
             window.cacheManager.setLocalCache(key, value);
         } catch (error) {
-            console.error('Failed to set setting:', error);
+            console.error('❌ Failed to set setting:', error);
             return false;
         }
     }
@@ -968,7 +966,7 @@ class MusicBoxAPI extends EventEmitter {
         try {
             return await window.electronAPI.getVersion();
         } catch (error) {
-            console.error('Failed to get app version:', error);
+            console.error('❌ Failed to get app version:', error);
             return 'Unknown';
         }
     }
@@ -977,7 +975,7 @@ class MusicBoxAPI extends EventEmitter {
         try {
             return await window.electronAPI.getPlatform();
         } catch (error) {
-            console.error('Failed to get platform:', error);
+            console.error('❌ Failed to get platform:', error);
             return 'unknown';
         }
     }

@@ -71,34 +71,33 @@ class Navigation extends Component {
     }
 
     setupEventListeners() {
-        this.themeToggle.addEventListener('click', () => {
+        this.addEventListenerManaged(this.themeToggle, 'click', () => {
             theme.toggle();
             this.updateThemeIcon();
         });
 
-        this.settingsBtn.addEventListener('click', () => {
+        this.addEventListenerManaged(this.settingsBtn, 'click', () => {
             this.emit('showSettings');
         });
 
         theme.on('change', () => {
             this.updateThemeIcon();
         });
-        this.updateThemeIcon();
 
         // 窗口控制按钮事件监听器
-        this.minimizeBtn.addEventListener('click', async () => {
+        this.addEventListenerManaged(this.minimizeBtn, 'click', async () => {
             await this.minimizeWindow();
         });
 
-        this.maximizeBtn.addEventListener('click', async () => {
+        this.addEventListenerManaged(this.maximizeBtn, 'click', async () => {
             await this.toggleMaximizeWindow();
         });
 
-        this.closeBtn.addEventListener('click', async () => {
+        this.addEventListenerManaged(this.closeBtn, 'click', async () => {
             await this.closeWindow();
         });
 
-        this.navbarContent.addEventListener('dblclick', async () => {
+        this.addEventListenerManaged(this.navbarContent, 'dblclick', async () => {
             await this.toggleMaximizeWindow();
         });
 
@@ -113,7 +112,7 @@ class Navigation extends Component {
         this.setupWindowDrag();
 
         // 侧边栏切换按钮
-        this.sidebarToggleBtn.addEventListener('click', () => {
+        this.addEventListenerManaged(this.sidebarToggleBtn, 'click', () => {
             this.toggleSidebar();
         });
 
@@ -771,6 +770,24 @@ class Navigation extends Component {
             item.element = null; // 清除旧的元素引用
             this.renderPluginItem(item);
         });
+    }
+
+    destroy() {
+        // 清理插件导航项
+        this.pluginItems.forEach((item, itemId) => {
+            this.removePluginItem(itemId);
+        });
+        this.pluginItems.clear();
+
+        // 清理用户歌单数据
+        this.userPlaylists = [];
+
+        // 重置状态
+        this.currentView = null;
+        this.sidebarCollapsed = false;
+        this.pluginItemIdCounter = 0;
+
+        super.destroy();
     }
 }
 

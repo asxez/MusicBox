@@ -25,14 +25,6 @@ class AlbumsPage extends Component {
         this._bindLibraryEvents();
     }
 
-    _bindLibraryEvents() {
-        api.on('libraryUpdated', (tracks) => {
-            this.tracks = tracks || [];
-            this.processAlbums();
-            if (this.isVisible) this.render();
-        });
-    }
-
     async show() {
         if (this.element) this.element.style.display = 'block';
         this.isVisible = true;
@@ -50,6 +42,18 @@ class AlbumsPage extends Component {
         this.isVisible = false;
         this.selectedAlbum = null;
         if (this.container) this.container.innerHTML = '';
+    }
+
+    destroy() {
+        return super.destroy();
+    }
+
+    _bindLibraryEvents() {
+        api.on('libraryUpdated', (tracks) => {
+            this.tracks = tracks || [];
+            this.processAlbums();
+            if (this.isVisible) this.render();
+        });
     }
 
     // 归并专辑

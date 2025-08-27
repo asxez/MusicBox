@@ -2,9 +2,9 @@
  * 播放列表组件
  */
 
-class Playlist extends EventEmitter {
+class Playlist extends Component {
     constructor(element) {
-        super();
+        super(element);
         this.element = element;
         this.isVisible = false;
         this.tracks = [];
@@ -12,8 +12,38 @@ class Playlist extends EventEmitter {
 
         this.setupElements();
         this.setupEventListeners();
+    }
 
-        console.log('🎵 Playlist: 组件初始化完成');
+    show() {
+        this.isVisible = true;
+        this.panel.style.display = 'flex';
+        this.panel.classList.add('show');
+
+        // 自动滚动到当前播放的歌曲
+        this.scrollToCurrentTrack();
+    }
+
+    hide() {
+        this.isVisible = false;
+        this.panel.classList.remove('show');
+        setTimeout(() => {
+            if (!this.isVisible) {
+                this.panel.style.display = 'none';
+            }
+        }, 300);
+    }
+
+    destroy() {
+        // 清理播放列表数据
+        this.tracks = [];
+        this.currentTrackIndex = -1;
+
+        // 清理DOM内容
+        if (this.tracksContainer) {
+            this.tracksContainer.innerHTML = '';
+        }
+
+        super.destroy();
     }
 
     setupElements() {
@@ -46,25 +76,6 @@ class Playlist extends EventEmitter {
                 this.hide();
             }
         });
-    }
-
-    show() {
-        this.isVisible = true;
-        this.panel.style.display = 'flex';
-        this.panel.classList.add('show');
-
-        // 自动滚动到当前播放的歌曲
-        this.scrollToCurrentTrack();
-    }
-
-    hide() {
-        this.isVisible = false;
-        this.panel.classList.remove('show');
-        setTimeout(() => {
-            if (!this.isVisible) {
-                this.panel.style.display = 'none';
-            }
-        }, 300);
     }
 
     toggle() {

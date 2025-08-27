@@ -267,19 +267,6 @@ class LocalCoverManager {
     }
 
     /**
-     * 获取缓存统计信息
-     * @returns {Object} 缓存统计信息
-     */
-    getCacheStats() {
-        return {
-            size: this.cache.size,
-            maxSize: this.maxCacheSize,
-            directory: this.coverDirectory,
-            supportedFormats: this.supportedFormats
-        };
-    }
-
-    /**
      * 预加载常用封面文件
      * @param {Array} trackList - 歌曲列表
      */

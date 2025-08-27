@@ -1254,6 +1254,25 @@ class PluginLoader extends EventEmitter {
     // 卸载插件脚本
     unloadPluginScript(pluginId) {
         try {
+            console.log(`🗑️ PluginLoader: 卸载插件脚本 ${pluginId}`);
+
+            // 获取插件模块信息
+            const moduleInfo = this.pluginModules.get(pluginId);
+
+            // 清理插件特定的全局变量
+            if (moduleInfo && moduleInfo.exportedGlobals) {
+                moduleInfo.exportedGlobals.forEach(globalName => {
+                    try {
+                        if (window[globalName] && !this.isSystemFunction(window[globalName], globalName)) {
+                            delete window[globalName];
+                            console.log(`🧹 PluginLoader: 清理插件全局变量 ${globalName}`);
+                        }
+                    } catch (error) {
+                        console.warn(`⚠️ PluginLoader: 清理插件全局变量失败 ${globalName}:`, error);
+                    }
+                });
+            }
+
             // 移除缓存
             this.pluginModules.delete(pluginId);
             this.loadedScripts.delete(pluginId);
@@ -1262,8 +1281,43 @@ class PluginLoader extends EventEmitter {
             if (this.watchedFiles.has(pluginId)) {
                 this.unwatchFile(pluginId);
             }
+
+            // 清理可能的插件DOM元素
+            this.cleanupPluginDOMElements(pluginId);
+
         } catch (error) {
             console.error(`❌ PluginLoader: 卸载插件脚本失败 ${pluginId}:`, error);
+        }
+    }
+
+    // 清理插件DOM元素
+    cleanupPluginDOMElements(pluginId) {
+        try {
+            // 查找并移除插件相关的DOM元素
+            const pluginElements = document.querySelectorAll(`[data-plugin-id="${pluginId}"]`);
+            pluginElements.forEach(element => {
+                try {
+                    element.remove();
+                } catch (error) {
+                    console.warn(`⚠️ PluginLoader: 移除插件DOM元素失败:`, error);
+                }
+            });
+
+            // 查找并移除插件样式
+            const pluginStyles = document.querySelectorAll(`style[data-plugin="${pluginId}"]`);
+            pluginStyles.forEach(style => {
+                try {
+                    style.remove();
+                } catch (error) {
+                    console.warn(`⚠️ PluginLoader: 移除插件样式失败:`, error);
+                }
+            });
+
+            if (pluginElements.length > 0 || pluginStyles.length > 0) {
+                console.log(`🧹 PluginLoader: 清理了插件 ${pluginId} 的 ${pluginElements.length} 个DOM元素和 ${pluginStyles.length} 个样式`);
+            }
+        } catch (error) {
+            console.warn(`⚠️ PluginLoader: 清理插件DOM元素失败 ${pluginId}:`, error);
         }
     }
 
@@ -1367,15 +1421,59 @@ class PluginLoader extends EventEmitter {
 
     // 清理所有资源
     cleanup() {
+        console.log('🧹 PluginLoader: 开始清理所有资源...');
+
         // 卸载所有插件脚本
-        for (const pluginId of this.loadedScripts.keys()) {
-            this.unloadPluginScript(pluginId);
+        const pluginIds = Array.from(this.loadedScripts.keys());
+        for (const pluginId of pluginIds) {
+            try {
+                this.unloadPluginScript(pluginId);
+            } catch (error) {
+                console.warn(`⚠️ PluginLoader: 卸载插件脚本失败 ${pluginId}:`, error);
+            }
         }
 
         // 清理缓存
         this.loadedScripts.clear();
         this.pluginModules.clear();
         this.watchedFiles.clear();
+
+        // 清理全局变量污染
+        this.cleanupGlobalVariables();
+
+        console.log('✅ PluginLoader: 资源清理完成');
+    }
+
+    // 清理全局变量污染
+    cleanupGlobalVariables() {
+        try {
+            // 清理插件相关的全局变量
+            const globalKeys = Object.keys(window);
+            const pluginGlobals = globalKeys.filter(key =>
+                key.includes('Plugin') ||
+                key.startsWith('plugin_') ||
+                key.endsWith('_plugin')
+            );
+
+            let cleanedCount = 0;
+            pluginGlobals.forEach(key => {
+                try {
+                    // 检查是否为系统函数
+                    if (!this.isSystemFunction(window[key], key)) {
+                        delete window[key];
+                        cleanedCount++;
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ PluginLoader: 清理全局变量失败 ${key}:`, error);
+                }
+            });
+
+            if (cleanedCount > 0) {
+                console.log(`🧹 PluginLoader: 清理了 ${cleanedCount} 个插件全局变量`);
+            }
+        } catch (error) {
+            console.warn('⚠️ PluginLoader: 全局变量清理失败:', error);
+        }
     }
 }
 

@@ -2,16 +2,15 @@
  * 菜单组件
  */
 
-class ContextMenu extends EventEmitter {
+class ContextMenu extends Component {
     constructor(element) {
-        super();
+        super(element);
         this.element = element;
         this.isVisible = false;
         this.currentTrack = null;
         this.currentIndex = -1;
-
+        this.listenersSetup = false; // 事件监听器是否已设置
         this.setupElements();
-        this.setupEventListeners();
     }
 
     setupElements() {
@@ -24,40 +23,40 @@ class ContextMenu extends EventEmitter {
     }
 
     setupEventListeners() {
-        this.playItem.addEventListener('click', () => {
+        this.addEventListenerManaged(this.playItem, 'click', () => {
             this.emit('play', {track: this.currentTrack, index: this.currentIndex});
             this.hide();
         });
 
-        this.addToPlaylistItem.addEventListener('click', () => {
+        this.addEventListenerManaged(this.addToPlaylistItem, 'click', () => {
             this.emit('addToPlaylist', {track: this.currentTrack, index: this.currentIndex});
             this.hide();
         });
 
-        this.addToCustomPlaylistItem.addEventListener('click', () => {
+        this.addEventListenerManaged(this.addToCustomPlaylistItem, 'click', () => {
             this.emit('addToCustomPlaylist', {track: this.currentTrack, index: this.currentIndex});
             this.hide();
         });
 
-        this.editInfoItem.addEventListener('click', () => {
+        this.addEventListenerManaged(this.editInfoItem, 'click', () => {
             this.emit('editInfo', {track: this.currentTrack, index: this.currentIndex});
             this.hide();
         });
 
-        this.deleteItem.addEventListener('click', () => {
+        this.addEventListenerManaged(this.deleteItem, 'click', () => {
             this.emit('delete', {track: this.currentTrack, index: this.currentIndex});
             this.hide();
         });
 
-        // Close on outside click
-        document.addEventListener('click', (e) => {
+        // 点击其他区域
+        this.addEventListenerManaged(document, 'click', (e) => {
             if (this.isVisible && !this.menu.contains(e.target)) {
                 this.hide();
             }
         });
 
-        // Close on escape key
-        document.addEventListener('keydown', (e) => {
+        // ESC
+        this.addEventListenerManaged(document, 'keydown', (e) => {
             if (e.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
@@ -65,16 +64,21 @@ class ContextMenu extends EventEmitter {
     }
 
     show(x, y, track, index) {
+        if (!this.listenersSetup) {
+            this.setupEventListeners();
+            this.listenersSetup = true;
+        }
+
         this.currentTrack = track;
         this.currentIndex = index;
         this.isVisible = true;
 
-        // Position the menu
+        // 菜单位置
         this.menu.style.left = `${x}px`;
         this.menu.style.top = `${y}px`;
         this.menu.style.display = 'block';
 
-        // Adjust position if menu goes off screen
+        // 若菜单离开屏幕，则调整位置
         const rect = this.menu.getBoundingClientRect();
         const windowWidth = window.innerWidth;
         const windowHeight = window.innerHeight;
@@ -82,7 +86,6 @@ class ContextMenu extends EventEmitter {
         if (rect.right > windowWidth) {
             this.menu.style.left = `${windowWidth - rect.width - 10}px`;
         }
-
         if (rect.bottom > windowHeight) {
             this.menu.style.top = `${windowHeight - rect.height - 10}px`;
         }
@@ -93,6 +96,11 @@ class ContextMenu extends EventEmitter {
         this.menu.style.display = 'none';
         this.currentTrack = null;
         this.currentIndex = -1;
+    }
+
+    destroy() {
+        this.listenersSetup = false;
+        return super.destroy();
     }
 }
 
