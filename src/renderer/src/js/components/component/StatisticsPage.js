@@ -8,28 +8,15 @@ class StatisticsPage extends Component {
         this.tracks = [];
         this.recentTracks = [];
         this.playStats = {};
+        this.listenersSetup = false; // 事件监听器是否已设置
         this.setupElements();
-        this.setupEventListeners();
-    }
-
-    setupElements() {
-        this.container = this.element;
-    }
-
-    setupEventListeners() {
-        // 监听音乐库更新
-        api.on('libraryUpdated', (tracks) => {
-            this.tracks = tracks;
-            this.render();
-        });
-
-        // 监听播放历史更新
-        api.on('trackChanged', (track) => {
-            this.updatePlayHistory(track);
-        });
     }
 
     async show() {
+        if (!this.listenersSetup) {
+            this.setupAPIListeners();
+            this.listenersSetup = true;
+        }
         if (this.element) {
             this.element.style.display = 'block';
         }
@@ -43,6 +30,27 @@ class StatisticsPage extends Component {
         if (this.container) {
             this.container.innerHTML = '';
         }
+    }
+
+    destroy() {
+        this.listenersSetup = false;
+        return super.destroy();
+    }
+
+    setupElements() {
+        this.container = this.element;
+    }
+
+    setupAPIListeners() {
+        // 监听音乐库更新
+        this.addAPIEventListenerManaged('libraryUpdated', (tracks) => {
+            this.tracks = tracks;
+        });
+
+        // 监听播放历史更新
+        this.addAPIEventListenerManaged('trackChanged', (track) => {
+            this.updatePlayHistory(track);
+        });
     }
 
     loadPlayHistory() {

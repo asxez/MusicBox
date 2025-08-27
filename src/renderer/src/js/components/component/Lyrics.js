@@ -2,9 +2,9 @@
  * 歌词页组件
  */
 
-class Lyrics extends EventEmitter {
+class Lyrics extends Component {
     constructor(element) {
-        super();
+        super(element);
         this.isPlaying = false;
         this.element = element;
         this.isVisible = false;
@@ -12,11 +12,62 @@ class Lyrics extends EventEmitter {
         this.lyrics = [];
         this.currentLyricIndex = -1;
         this.isLoading = false;
+        this.listenersSetup = false; // 事件监听器是否已设置
 
         this.setupElements();
-        this.setupEventListeners();
-        this.setupAPIListeners();
-        console.log('🎵 Lyrics: 组件初始化完成');
+    }
+
+    async show(track) {
+        this.isVisible = true;
+
+        // 只在首次显示或事件监听器被清理后才设置
+        if (!this.listenersSetup) {
+            this.setupEventListeners();
+            this.setupAPIListeners();
+            this.listenersSetup = true;
+        }
+
+        // 动画显示
+        this.page.style.display = 'block';
+        setTimeout(() => {
+            this.page.classList.add('show');
+        }, 10);
+
+        this.updateFullscreenState();
+        await this.updateTrackInfo(track || api.currentTrack);
+        await this.initializeControls();
+
+        // 确保歌词显示区域滚动到顶部
+        setTimeout(() => {
+            if (this.lyricsDisplay) {
+                this.lyricsDisplay.scrollTop = 0;
+            }
+        }, 50);
+    }
+
+    hide() {
+        this.isVisible = false;
+        this.page.classList.remove('show');
+        setTimeout(() => {
+            if (!this.isVisible) {
+                this.page.style.display = 'none';
+            }
+        }, 300);
+    }
+
+    destroy() {
+        // 清理歌词数据
+        this.lyrics = [];
+        this.currentTrack = null;
+        this.currentLyricIndex = -1;
+
+        // 重置状态
+        this.isVisible = false;
+        this.isPlaying = false;
+        this.isLoading = false;
+        this.listenersSetup = false;
+
+        super.destroy();
     }
 
     setupElements() {
@@ -78,90 +129,92 @@ class Lyrics extends EventEmitter {
     }
 
     setupEventListeners() {
-        this.closeBtn.addEventListener('click', () => {
+        // 使用基类的管理事件监听器方法
+        this.addEventListenerManaged(this.closeBtn, 'click', () => {
             this.hide();
         });
 
-        this.fullscreenBtn.addEventListener('click', () => {
+        this.addEventListenerManaged(this.fullscreenBtn, 'click', () => {
             this.toggleFullscreen();
         });
 
-        this.playBtn.addEventListener('click', async () => {
+        this.addEventListenerManaged(this.playBtn, 'click', async () => {
             await this.togglePlayPause();
         });
 
-        this.prevBtn.addEventListener('click', async () => {
+        this.prevBtnHandler = async () => {
+            console.log('🎵 Lyrics: 上一首按钮被点击');
             await api.previousTrack();
-        });
+        };
+        this.addEventListenerManaged(this.prevBtn, 'click', this.prevBtnHandler);
 
-        this.nextBtn.addEventListener('click', async () => {
+        this.nextBtnHandler = async () => {
+            console.log('🎵 Lyrics: 下一首按钮被点击');
             await api.nextTrack();
-        });
+        };
+        this.addEventListenerManaged(this.nextBtn, 'click', this.nextBtnHandler);
 
         // 音量控制事件
-        this.volumeBtn.addEventListener('click', async () => {
+        this.addEventListenerManaged(this.volumeBtn, 'click', async () => {
             await this.toggleVolumeMute();
         });
 
         // 音量条点击和拖拽事件
-        this.volumeSliderContainer.addEventListener('mousedown', async (e) => {
+        this.addEventListenerManaged(this.volumeSliderContainer, 'mousedown', async (e) => {
             this.isDraggingVolume = true;
             await this.updateVolumeFromEvent(e);
         });
-
-        this.volumeSliderContainer.addEventListener('click', async (e) => {
+        this.addEventListenerManaged(this.volumeSliderContainer, 'click', async (e) => {
             if (!this.isDraggingVolume) {
                 await this.updateVolumeFromEvent(e);
             }
         });
-
-        document.addEventListener('mousemove', async (e) => {
+        this.addEventListenerManaged(document, 'mousemove', async (e) => {
             if (this.isDraggingVolume) {
                 await this.updateVolumeFromEvent(e);
             }
         });
-
-        document.addEventListener('mouseup', () => {
+        this.addEventListenerManaged(document, 'mouseup', () => {
             if (this.isDraggingVolume) {
                 this.isDraggingVolume = false;
             }
         });
 
         // 播放模式切换事件
-        this.playModeBtn.addEventListener('click', () => {
+        this.playModeBtnHandler = () => {
+            console.log('🎵 Lyrics: 播放模式按钮被点击');
             const newMode = api.togglePlayMode();
             this.updatePlayModeDisplay(newMode);
-        });
+        };
+        this.addEventListenerManaged(this.playModeBtn, 'click', this.playModeBtnHandler);
 
         // 进度条交互事件
-        this.progressBar.addEventListener('click', async (e) => {
+        this.addEventListenerManaged(this.progressBar, 'click', async (e) => {
             await this.seekToPosition(e);
         });
-
-        this.progressBar.addEventListener('mousedown', (e) => {
+        this.addEventListenerManaged(this.progressBar, 'mousedown', (e) => {
             this.startProgressDrag(e);
         });
-
-        document.addEventListener('mousemove', (e) => {
+        this.addEventListenerManaged(document, 'mousemove', (e) => {
             if (this.isDraggingProgress) {
                 this.updateProgressDrag(e);
             }
         });
-
-        document.addEventListener('mouseup', async () => {
+        this.addEventListenerManaged(document, 'mouseup', async () => {
             if (this.isDraggingProgress) {
                 await this.endProgressDrag();
             }
         });
 
         // 监听全屏状态变化
-        document.addEventListener('fullscreenchange', () => {
+        this.addEventListenerManaged(document, 'fullscreenchange', () => {
             this.updateFullscreenState();
         });
 
+        // 鼠标隐藏逻辑
         const HIDE_DELAY = 2000;
         let mouseTimer = null;
-        this.element.addEventListener('mousemove', () => {
+        this.elementMouseMoveHandler = () => {
             if (this.isVisible && this.isFullscreen) {
                 this.element.classList.remove('hide-cursor');
                 clearTimeout(mouseTimer);
@@ -171,28 +224,40 @@ class Lyrics extends EventEmitter {
                     }
                 }, HIDE_DELAY);
             }
-        });
-        const clearHideTimer = () => {
+        };
+        this.addEventListenerManaged(this.element, 'mousemove', this.elementMouseMoveHandler);
+
+        this.clearHideTimer = () => {
             clearTimeout(mouseTimer);
             mouseTimer = null;
             this.element.classList.remove('hide-cursor');
         };
-        document.addEventListener('fullscreenchange', () => {
-            if (!this.isFullscreen) clearHideTimer();
+        this.addEventListenerManaged(document, 'fullscreenchange', () => {
+            if (!this.isFullscreen) this.clearHideTimer();
+        });
+    }
+
+    setupAPIListeners() {
+        // 监听播放进度变化，用于歌词同步
+        this.addAPIEventListenerManaged('positionChanged', (position) => {
+            this.updateLyricHighlight(position);
         });
 
-
-        api.on('playbackStateChanged', (state) => {
+        this.addAPIEventListenerManaged('playbackStateChanged', (state) => {
             this.isPlaying = state === 'playing';
             this.updatePlayButton();
         });
 
-        api.on('trackChanged', async (track) => {
+        this.addAPIEventListenerManaged('trackLoaded', async (track) => {
+            await this.updateTrackInfo(track);
+        });
+
+        this.addAPIEventListenerManaged('trackChanged', async (track) => {
             await this.updateTrackInfo(track);
         });
 
         // 监听时长变化事件，确保总时长正确显示
-        api.on('durationChanged', (duration) => {
+        this.addAPIEventListenerManaged('durationChanged', (duration) => {
             if (this.durationEl && duration > 0) {
                 this.durationEl.textContent = this.formatTime(duration);
                 console.log('🎵 Lyrics: 时长更新:', this.formatTime(duration));
@@ -200,72 +265,17 @@ class Lyrics extends EventEmitter {
         });
     }
 
-    setupAPIListeners() {
-        // 监听播放进度变化，用于歌词同步
-        api.on('positionChanged', (position) => {
-            this.updateLyricHighlight(position);
-        });
-
-        api.on('playbackStateChanged', (state) => {
-            console.log('🎵 Player: 收到播放状态变化事件:', state);
-            this.isPlaying = state === 'playing';
-            this.updatePlayButton();
-        });
-
-        api.on('trackLoaded', async (track) => {
-            console.log('Track loaded in lyrics:', track);
-            await this.updateTrackInfo(track);
-        });
-    }
-
-    show(track) {
-        this.currentTrack = track;
-        this.isVisible = true;
-        this.isPlaying = api.isPlaying;
-        // 动画显示
-        this.page.style.display = 'block';
-        setTimeout(() => {
-            this.page.classList.add('show');
-        }, 10);
-
-        // 初始化全屏状态
-        this.updateFullscreenState();
-
-        // 初始化控件状态
-        this.initializeControls().then(() => {
-        });
-
-        // 确保歌词显示区域滚动到顶部
-        setTimeout(() => {
-            if (this.lyricsDisplay) {
-                this.lyricsDisplay.scrollTop = 0;
-            }
-        }, 50);
-    }
-
-    hide() {
-        this.isVisible = false;
-        this.page.classList.remove('show');
-
-        setTimeout(() => {
-            if (!this.isVisible) {
-                this.page.style.display = 'none';
-            }
-        }, 300);
-    }
-
-    toggle(track) {
+    async toggle(track) {
         if (this.isVisible) {
             this.hide();
         } else {
-            this.show(track);
+            await this.show(track);
         }
     }
 
     async togglePlayPause() {
         // 防止重复调用的锁定机制
         if (this._toggleInProgress) {
-            console.log('🚫 Lyrics: 播放状态切换正在进行中，忽略重复调用');
             return;
         }
 
@@ -274,13 +284,13 @@ class Lyrics extends EventEmitter {
 
         try {
             if (this.isPlaying) {
-                console.log('🔄 Lyrics: 请求暂停');
+                // console.log('🔄 Lyrics: 请求暂停');
                 const result = await api.pause();
                 if (!result) {
                     console.error('❌ Lyrics: 暂停失败');
                 }
             } else {
-                console.log('🔄 Lyrics: 请求播放');
+                // console.log('🔄 Lyrics: 请求播放');
                 const result = await api.play();
                 if (!result) {
                     console.error('❌ Lyrics: 播放失败');
@@ -313,15 +323,12 @@ class Lyrics extends EventEmitter {
     }
 
     updatePlayButton() {
-        console.log('🔄 Player: 更新播放按钮，当前状态:', this.isPlaying);
         if (this.isPlaying) {
             this.playIcon.style.display = 'none';
             this.pauseIcon.style.display = 'block';
-            console.log('✅ Player: 显示暂停图标');
         } else {
             this.playIcon.style.display = 'block';
             this.pauseIcon.style.display = 'none';
-            console.log('✅ Player: 显示播放图标');
         }
     }
 
@@ -340,7 +347,7 @@ class Lyrics extends EventEmitter {
             // 正确更新总时长显示
             if (this.durationEl && track.duration) {
                 this.durationEl.textContent = this.formatTime(track.duration);
-                console.log('🎵 Lyrics: 更新总时长显示:', this.formatTime(track.duration));
+                // console.log('🎵 Lyrics: 更新总时长显示:', this.formatTime(track.duration));
             }
 
             // 更新封面和歌词
@@ -357,7 +364,7 @@ class Lyrics extends EventEmitter {
 
         // 检查是否已有内嵌的歌词
         if (track.lyrics) {
-            console.log('🎵 Lyrics: 使用内嵌歌词');
+            // console.log('🎵 Lyrics: 使用内嵌歌词');
             this.lyrics = track.lyrics;
             this.renderLyrics();
 
@@ -414,8 +421,8 @@ class Lyrics extends EventEmitter {
                     type: typeof track.cover,
                     constructor: track.cover.constructor.name,
                     value: typeof track.cover === 'string' ?
-                           track.cover.substring(0, 100) + '...' :
-                           JSON.stringify(track.cover)
+                        track.cover.substring(0, 100) + '...' :
+                        JSON.stringify(track.cover)
                 });
 
                 if (typeof track.cover !== 'string') {
@@ -640,12 +647,13 @@ class Lyrics extends EventEmitter {
 
     // 初始化控件状态
     async initializeControls() {
+        this.isPlaying = api.isPlaying;
+
         const currentVolume = api.getVolume ? (await api.getVolume() * 100) : 50;
         await this.setVolume(currentVolume);
-
         const currentMode = api.getPlayMode ? api.getPlayMode() : 'repeat';
         this.updatePlayModeDisplay(currentMode);
-        console.log('🎵 Lyrics: 控件状态初始化完成');
+        this.updatePlayButton();
     }
 
     // 音量控制方法

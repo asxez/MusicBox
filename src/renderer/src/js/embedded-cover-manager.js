@@ -6,7 +6,7 @@
 class EmbeddedCoverManager {
     constructor() {
         this.cache = new Map();
-        this.maxCacheSize = 50; // 封面缓存比歌词需要更多空间
+        this.maxCacheSize = 12;
         this.objectUrls = new Set(); // 跟踪创建的Object URLs
         this.urlReferences = new Map(); // URL引用计数
         this.pendingReleases = new Map(); // 待释放的URL
@@ -153,7 +153,7 @@ class EmbeddedCoverManager {
                     constructor: imageData.constructor ? imageData.constructor.name : 'unknown',
                     hasLength: 'length' in imageData
                 });
-                
+
                 if (imageData.length && typeof imageData.length === 'number') {
                     imageData = new Uint8Array(imageData);
                     console.log('✅ EmbeddedCoverManager: 降级转换成功');
@@ -171,7 +171,7 @@ class EmbeddedCoverManager {
 
             // 创建Blob
             const mimeType = `image/${format.toLowerCase()}`;
-            const blob = new Blob([imageData], { type: mimeType });
+            const blob = new Blob([imageData], {type: mimeType});
 
             // 验证Blob
             if (blob.size === 0) {
@@ -232,26 +232,26 @@ class EmbeddedCoverManager {
      */
     isBufferLike(obj) {
         if (!obj) return false;
-        
+
         // 检查是否有Buffer的特征
-        if (typeof obj === 'object' && 
-            typeof obj.length === 'number' && 
+        if (typeof obj === 'object' &&
+            typeof obj.length === 'number' &&
             typeof obj.constructor === 'function') {
-            
+
             // 检查构造函数名称
             const constructorName = obj.constructor.name;
             if (constructorName === 'Buffer') {
                 return true;
             }
-            
+
             // 检查是否有Buffer的方法
-            if (typeof obj.slice === 'function' && 
+            if (typeof obj.slice === 'function' &&
                 typeof obj.toString === 'function' &&
                 obj.length >= 0) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -273,13 +273,13 @@ class EmbeddedCoverManager {
         if (this.cache.size >= this.maxCacheSize) {
             const firstKey = this.cache.keys().next().value;
             const oldData = this.cache.get(firstKey);
-            
+
             // 清理旧的Object URL
             if (oldData && oldData.url && this.objectUrls.has(oldData.url)) {
                 URL.revokeObjectURL(oldData.url);
                 this.objectUrls.delete(oldData.url);
             }
-            
+
             this.cache.delete(firstKey);
         }
 
@@ -370,7 +370,7 @@ class EmbeddedCoverManager {
     }
 
     /**
-     * 清理特定文件的封面缓存（安全版本）
+     * 清理特定文件的封面缓存
      * @param {string} filePath - 文件路径
      */
     clearCacheForFile(filePath) {
@@ -393,12 +393,12 @@ class EmbeddedCoverManager {
     }
 
     /**
-     * 强制刷新特定文件的封面（安全版本）
+     * 强制刷新特定文件的封面
      * @param {string} filePath - 文件路径
      * @returns {Promise<Object>} 刷新结果
      */
     async refreshCoverForFile(filePath) {
-        console.log(`🔄 EmbeddedCoverManager: 安全刷新封面 - ${filePath}`);
+        console.log(`🔄 EmbeddedCoverManager: 刷新封面 - ${filePath}`);
 
         try {
             // 1. 先获取新的封面
@@ -417,7 +417,6 @@ class EmbeddedCoverManager {
             }
 
             return newResult;
-
         } catch (error) {
             console.error('❌ EmbeddedCoverManager: 安全刷新失败:', error);
             return {
@@ -470,59 +469,3 @@ class EmbeddedCoverManager {
 }
 
 window.embeddedCoverManager = new EmbeddedCoverManager();
-
-// 封面数据验证和转换
-window.validateAndConvertCoverData = function(coverData) {
-    try {
-        // 如果已经是有效的URL字符串
-        if (typeof coverData === 'string') {
-            const validPrefixes = ['data:', 'blob:', 'file:', 'http:', 'https:'];
-            if (validPrefixes.some(prefix => coverData.startsWith(prefix))) {
-                return coverData;
-            }
-        }
-
-        // 如果是对象格式，尝试转换
-        if (coverData && typeof coverData === 'object' && coverData.data) {
-            if (window.embeddedCoverManager) {
-                const result = window.embeddedCoverManager.convertCoverToUrl(coverData);
-                if (result.success && typeof result.url === 'string') {
-                    return result.url;
-                }
-            }
-        }
-
-        return null;
-    } catch (error) {
-        console.error('封面数据验证失败:', error);
-        return null;
-    }
-};
-
-// 安全设置track.cover
-window.safeSetTrackCover = function(track, coverData) {
-    try {
-        if (coverData === null || coverData === undefined) {
-            track.cover = null;
-            return true;
-        }
-
-        if (typeof coverData === 'string') {
-            const validPrefixes = ['data:', 'blob:', 'file:', 'http:', 'https:'];
-            if (validPrefixes.some(prefix => coverData.startsWith(prefix))) {
-                track.cover = coverData;
-                return true;
-            }
-        }
-
-        // 拒绝对象或其他类型
-        track.cover = null;
-        return false;
-    } catch (error) {
-        console.error('设置封面失败:', error);
-        track.cover = null;
-        return false;
-    }
-};
-
-

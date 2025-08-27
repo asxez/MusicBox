@@ -2,9 +2,9 @@
  * 设置组件
  */
 
-class Settings extends EventEmitter {
+class Settings extends Component {
     constructor(element) {
-        super();
+        super(element);
         this.element = element;
         this.isVisible = false;
         this.settings = this.loadSettings();
@@ -17,6 +17,56 @@ class Settings extends EventEmitter {
         this.setupEventListeners();
         this.initializeSettings();
         this.initializePluginContainer();
+    }
+
+    async show() {
+        this.isVisible = true;
+        this.page.style.display = 'block';
+
+        // 隐藏其他页面元素
+        document.getElementById('sidebar').style.display = 'none';
+        document.getElementById('main-content').style.display = 'none';
+
+        // 使用 requestAnimationFrame 确保动画正常播放
+        requestAnimationFrame(() => {
+            this.page.classList.add('show');
+        });
+
+        // 加载缓存统计信息
+        await this.showCacheStatistics();
+    }
+
+    hide() {
+        this.isVisible = false;
+        this.page.classList.remove('show');
+        this.page.classList.add('hiding');
+
+        // 等待动画完成后隐藏页面
+        setTimeout(() => {
+            if (!this.isVisible) {
+                this.page.style.display = 'none';
+                this.page.classList.remove('hiding');
+
+                // 恢复其他页面元素
+                document.getElementById('sidebar').style.display = 'block';
+                document.getElementById('main-content').style.display = 'block';
+            }
+        }, 300);
+    }
+
+    destroy() {
+        // 清理插件设置区域
+        this.pluginSections.forEach((pluginId, sectionId) => {
+            this.removePluginSection(pluginId, sectionId);
+        });
+        this.pluginSections.clear();
+
+        // 重置状态
+        this.isVisible = false;
+        this.settings = null;
+        this.pluginSectionIdCounter = 0;
+
+        super.destroy();
     }
 
     setupElements() {
@@ -214,7 +264,6 @@ class Settings extends EventEmitter {
 
             // 通知主界面更新歌曲列表封面显示状态
             this.emit('showTrackCoversEnabled', e.target.checked);
-            console.log(`🖼️ Settings: 歌曲封面显示功能${e.target.checked ? '启用' : '禁用'}`);
         });
 
         // 无间隙播放设置
@@ -223,7 +272,6 @@ class Settings extends EventEmitter {
 
             // 通知音频引擎更新无间隙播放状态
             this.emit('gaplessPlaybackEnabled', e.target.checked);
-            console.log(`🎵 Settings: 无间隙播放功能${e.target.checked ? '启用' : '禁用'}`);
         });
 
         this.autoScanToggle.addEventListener('change', (e) => {
@@ -449,41 +497,6 @@ class Settings extends EventEmitter {
 
         // 检查网络磁盘功能是否完全可用
         this.checkNetworkDriveAvailability();
-    }
-
-    async show() {
-        this.isVisible = true;
-        this.page.style.display = 'block';
-
-        // 隐藏其他页面元素
-        document.getElementById('sidebar').style.display = 'none';
-        document.getElementById('main-content').style.display = 'none';
-
-        // 使用 requestAnimationFrame 确保动画正常播放
-        requestAnimationFrame(() => {
-            this.page.classList.add('show');
-        });
-
-        // 加载缓存统计信息
-        await this.showCacheStatistics();
-    }
-
-    hide() {
-        this.isVisible = false;
-        this.page.classList.remove('show');
-        this.page.classList.add('hiding');
-
-        // 等待动画完成后隐藏页面
-        setTimeout(() => {
-            if (!this.isVisible) {
-                this.page.style.display = 'none';
-                this.page.classList.remove('hiding');
-
-                // 恢复其他页面元素
-                document.getElementById('sidebar').style.display = 'block';
-                document.getElementById('main-content').style.display = 'block';
-            }
-        }, 300);
     }
 
     async toggle() {

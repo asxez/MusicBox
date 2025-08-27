@@ -18,8 +18,8 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/asxez/MusicBox)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#-安装)
-[![Electron](https://img.shields.io/badge/Electron-31.0.0-47848f.svg)](https://electronjs.org/)
-[![Node](https://img.shields.io/badge/Node-%3E%3D20.0.0-green.svg)](https://nodejs.org/)
+[![Electron](https://img.shields.io/badge/Electron-37.3.1-47848f.svg)](https://electronjs.org/)
+[![Node](https://img.shields.io/badge/Node-%3E%3D22.18.0-green.svg)](https://nodejs.org/)
 
 ---
 
@@ -81,7 +81,7 @@
 
 #### 环境要求
 
-- Node.js >= 20.0.0
+- Node.js >= 22.18.0
 - python >= 3.8
 
 从源码构建 MusicBox，请按照以下步骤操作：

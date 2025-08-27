@@ -8,7 +8,6 @@ class LocalLyricsManager {
         this.lyricsDirectory = null;
         this.cache = new Map();
         this.maxCacheSize = 10;
-        console.log('🎵 LocalLyricsManager: 本地歌词管理器初始化完成');
     }
 
     /**
@@ -39,7 +38,7 @@ class LocalLyricsManager {
     async getLyrics(title, artist, album = '') {
         try {
             if (!this.lyricsDirectory) {
-                return { success: false, error: '未设置本地歌词目录' };
+                return {success: false, error: '未设置本地歌词目录'};
             }
 
             const cacheKey = this.generateCacheKey(title, artist, album);
@@ -55,7 +54,7 @@ class LocalLyricsManager {
             );
 
             if (!searchResult.success) {
-                const result = { success: false, error: searchResult.error };
+                const result = {success: false, error: searchResult.error};
                 this.setCache(cacheKey, result);
                 return result;
             }
@@ -63,7 +62,7 @@ class LocalLyricsManager {
             // 读取歌词文件内容
             const readResult = await window.electronAPI.lyrics.readLocalFile(searchResult.filePath);
             if (!readResult.success) {
-                const result = { success: false, error: readResult.error };
+                const result = {success: false, error: readResult.error};
                 this.setCache(cacheKey, result);
                 return result;
             }
@@ -147,18 +146,6 @@ class LocalLyricsManager {
     }
 
     /**
-     * 获取缓存统计信息
-     * @returns {Object} 缓存统计信息
-     */
-    getCacheStats() {
-        return {
-            size: this.cache.size,
-            maxSize: this.maxCacheSize,
-            directory: this.lyricsDirectory
-        };
-    }
-
-    /**
      * 预加载常用歌词文件
      * @param {Array} trackList - 歌曲列表
      */
@@ -167,13 +154,14 @@ class LocalLyricsManager {
             return;
         }
         console.log(`🔄 LocalLyricsManager: 开始预加载 ${trackList.length} 首歌曲的歌词`);
-        
+
         let loadedCount = 0;
         for (const track of trackList.slice(0, 10)) { // 限制预加载数量
             try {
                 await this.getLyrics(track.title, track.artist, track.album);
                 loadedCount++;
-            } catch (error) {}
+            } catch (error) {
+            }
         }
         console.log(`✅ LocalLyricsManager: 预加载完成，成功加载 ${loadedCount} 首歌曲的歌词`);
     }

@@ -10,10 +10,6 @@ class HomePage extends Component {
         this.setupElements();
     }
 
-    setupElements() {
-        this.container = this.element;
-    }
-
     async show() {
         if (this.element) {
             this.element.style.display = 'block';
@@ -26,6 +22,14 @@ class HomePage extends Component {
         if (this.container) {
             this.container.innerHTML = '';
         }
+    }
+
+    destroy() {
+        return super.destroy();
+    }
+
+    setupElements() {
+        this.container = this.element;
     }
 
     // 沉浸式功能事件监听器
