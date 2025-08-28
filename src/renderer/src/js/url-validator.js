@@ -173,7 +173,7 @@ class URLValidator {
 
             if (isValid) {
                 imgElement.src = url;
-                console.log(`✅ URLValidator: 安全设置图片源 - ${url.substring(0, 50)}...`);
+                // console.log(`✅ URLValidator: 安全设置图片源 - ${url.substring(0, 50)}...`);
                 return true;
             } else {
                 console.warn(`⚠️ URLValidator: URL无效，使用备用方案 - ${url.substring(0, 50)}...`);
@@ -197,23 +197,16 @@ class URLValidator {
     // 清理验证缓存
     clearCache() {
         this.validationCache.clear();
-        console.log('🧹 URLValidator: 验证缓存已清理');
     }
 
     // 清理过期的缓存项
     cleanupExpiredCache() {
         const now = Date.now();
-        let cleanedCount = 0;
 
         for (const [key, value] of this.validationCache.entries()) {
             if (now - value.timestamp > this.cacheTimeout) {
                 this.validationCache.delete(key);
-                cleanedCount++;
             }
-        }
-
-        if (cleanedCount > 0) {
-            console.log(`🧹 URLValidator: 清理了 ${cleanedCount} 个过期缓存项`);
         }
     }
 }
@@ -223,4 +216,4 @@ setInterval(() => {
     if (window.urlValidator) {
         window.urlValidator.cleanupExpiredCache();
     }
-}, 60000);
+}, 15000);
