@@ -66,10 +66,7 @@ class LibraryCacheManager {
 
             // 验证和修复缓存数据结构
             this.cache = this.validateAndFixCacheData(parsedCache);
-
-
             return this.cache;
-
         } catch (error) {
             console.error('❌ LibraryCacheManager: 缓存加载失败:', error);
             return this.cache;
@@ -156,7 +153,6 @@ class LibraryCacheManager {
     // 验证音乐文件是否仍然有效
     async validateTrack(track) {
         try {
-
             // 检查是否为网络路径
             if (this.isNetworkPath(track.filePath)) {
                 return await this.validateNetworkTrack(track);
@@ -232,8 +228,6 @@ class LibraryCacheManager {
         const invalidTracks = [];
         const modifiedTracks = [];
 
-
-
         for (let i = 0; i < this.cache.tracks.length; i++) {
             const track = this.cache.tracks[i];
             const validation = await this.validateTrack(track);
@@ -261,7 +255,6 @@ class LibraryCacheManager {
             }
         }
 
-
         return {
             valid: validTracks,
             invalid: invalidTracks,
@@ -279,6 +272,8 @@ class LibraryCacheManager {
             lastModified = Math.floor(lastModified / 1000) * 1000;
         }
 
+        // 创建缓存数据，排除封面二进制数据以节省内存
+        const {cover, ...trackDataWithoutCover} = trackData;
         const cacheTrack = {
             fileId,
             filePath,
@@ -286,14 +281,15 @@ class LibraryCacheManager {
             fileSize: stats.size,
             lastModified: lastModified,
             addedToCache: Date.now(),
-            ...trackData
+            ...trackDataWithoutCover,
+            // 只保存封面存在的标记，不保存二进制数据
+            hasCover: !!(cover && cover.data)
         };
 
         // 检查是否已存在
         const existingIndex = this.cache.tracks.findIndex(track => track.filePath === filePath);
         if (existingIndex !== -1) {
             this.cache.tracks[existingIndex] = cacheTrack;
-
         } else {
             this.cache.tracks.push(cacheTrack);
             console.log(`➕ LibraryCacheManager: 添加缓存文件 - ${trackData.title}`);
@@ -369,14 +365,19 @@ class LibraryCacheManager {
                 scanDuration: 0
             }
         };
-
-
         return this.saveCache();
     }
 
     // 获取所有缓存的音乐文件
     getAllTracks() {
-        return [...this.cache.tracks];
+        return this.cache.tracks.map(track => {
+            const cleanTrack = {...track};
+            // 移除封面二进制数据，只保留基本信息
+            if (cleanTrack.cover && typeof cleanTrack.cover === 'object') {
+                cleanTrack.cover = null;
+            }
+            return cleanTrack;
+        });
     }
 
     // 更新缓存中的歌曲信息

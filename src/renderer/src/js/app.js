@@ -148,7 +148,7 @@ class MusicBoxApp extends EventEmitter {
         // 初始化插件管理组件
         this.components.pluginManagerModal = new PluginManagerModal();
 
-        // 初始化新页面组件
+        // 初始化页面组件
         this.components.homePage = new HomePage('#content-area');
         this.components.recentPage = new RecentPage('#content-area');
         this.components.artistsPage = new ArtistsPage('#content-area');
@@ -515,7 +515,8 @@ class MusicBoxApp extends EventEmitter {
             }
             // 预加载前12首歌曲的封面，避免阻塞UI
             // 为啥是12首？因为全屏状态下，一页最多显示12首歌😋
-            const tracksToPreload = this.library.slice(0, 12);
+            // 坏了兄弟们，预加载12首似乎有点占内存，砍一半吧🥵
+            const tracksToPreload = this.library.slice(0, 6);
             await window.localCoverManager.preloadCovers(tracksToPreload);
         } catch (error) {
             console.warn('⚠️ App: 封面预加载失败:', error);

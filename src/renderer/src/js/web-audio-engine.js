@@ -167,7 +167,6 @@ class WebAudioEngine {
                 return true;
             }
 
-
             // 停止当前播放
             if (this.sourceNode) {
                 try {
@@ -619,6 +618,7 @@ class WebAudioEngine {
         if (this.gaplessPlaybackEnabled && this.nextAudioBuffer && this.nextTrackInfo && this.nextTrackInfo.filePath === filePath) {
             console.log('🎵 使用预加载的音频缓冲区进行无间隙播放');
             this.stop();
+            this.audioBuffer = null;
 
             // 使用预加载的缓冲区
             this.audioBuffer = this.nextAudioBuffer;
