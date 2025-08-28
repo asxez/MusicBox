@@ -9,11 +9,11 @@ class StatisticsPage extends Component {
         this.recentTracks = [];
         this.playStats = {};
         this.listenersSetup = false; // 事件监听器是否已设置
-        this.setupElements();
     }
 
     async show() {
         if (!this.listenersSetup) {
+            this.setupElements();
             this.setupAPIListeners();
             this.listenersSetup = true;
         }
@@ -33,6 +33,9 @@ class StatisticsPage extends Component {
     }
 
     destroy() {
+        this.tracks = [];
+        this.recentTracks = [];
+        this.playStats = {};
         this.listenersSetup = false;
         return super.destroy();
     }

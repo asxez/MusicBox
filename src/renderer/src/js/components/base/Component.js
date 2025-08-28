@@ -25,7 +25,7 @@ class Component extends EventEmitter {
     // 添加事件监听器
     addEventListenerManaged(element, event, handler, options) {
         element.addEventListener(event, handler, options);
-        this.eventListeners.push({ element, event, handler, options });
+        // this.eventListeners.push({ element, event, handler, options });
         return () => this.removeEventListenerManaged(element, event, handler);
     }
 
@@ -41,7 +41,7 @@ class Component extends EventEmitter {
     addAPIEventListenerManaged(event, handler) {
         if (typeof api !== 'undefined' && api && api.on) {
             api.on(event, handler);
-            this.apiEventListeners.push({ event, handler });
+            // this.apiEventListeners.push({ event, handler });
         } else {
             console.warn(`⚠️ Component: API对象不可用，无法添加事件监听器 ${event}`);
         }

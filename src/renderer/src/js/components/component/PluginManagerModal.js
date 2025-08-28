@@ -21,9 +21,9 @@ class PluginManagerModal extends Component {
         this.initialize();
 
         // 全局引用
-        if (!window.app?.components) window.app = {components: {}};
-        window.app.components.pluginManagerModal = this;
-        window.app.components.pluginManager = this; // 保持向后兼容
+        // if (!window.app?.components) window.app = {components: {}};
+        // window.app.components.pluginManagerModal = this;
+        // window.app.components.pluginManager = this; // 保持向后兼容
     }
 
     show() {
@@ -44,6 +44,11 @@ class PluginManagerModal extends Component {
             this.prevFocus?.focus?.();
         }, 300);
         this.hideInstallPanel();
+    }
+
+    destroy() {
+        this.pluginSections = null;
+        return super.destroy();
     }
 
     setupElements() {

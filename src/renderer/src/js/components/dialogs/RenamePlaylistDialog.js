@@ -7,8 +7,39 @@ class RenamePlaylistDialog extends Component {
         super(null, false);
         this.isVisible = false;
         this.currentPlaylist = null;
+        this.listenersSetup = false; // 事件监听器是否已设置
+    }
 
-        this.setupElements();
+    show(playlist) {
+        if (!this.listenersSetup) {
+            this.setupElements();
+            this.setupEventListeners();
+            this.listenersSetup = true;
+        }
+        this.isVisible = true;
+        this.currentPlaylist = playlist;
+        this.overlay.style.display = 'flex';
+        this.nameInput.value = playlist.name;
+        this.hideError();
+        this.validateInput();
+
+        // 聚焦到输入框并选中文本
+        setTimeout(() => {
+            this.nameInput.focus();
+            this.nameInput.select();
+        }, 100);
+    }
+
+    hide() {
+        this.isVisible = false;
+        this.overlay.style.display = 'none';
+        this.currentPlaylist = null;
+    }
+
+    destroy() {
+        this.currentPlaylist = null;
+        this.listenersSetup = false;
+        return super.destroy();
     }
 
     setupElements() {
@@ -44,36 +75,6 @@ class RenamePlaylistDialog extends Component {
                 this.hide();
             }
         });
-    }
-
-    show(playlist) {
-        if (!this.listenersSetup) {
-            this.setupEventListeners();
-            this.listenersSetup = true;
-        }
-        this.isVisible = true;
-        this.currentPlaylist = playlist;
-        this.overlay.style.display = 'flex';
-        this.nameInput.value = playlist.name;
-        this.hideError();
-        this.validateInput();
-
-        // 聚焦到输入框并选中文本
-        setTimeout(() => {
-            this.nameInput.focus();
-            this.nameInput.select();
-        }, 100);
-    }
-
-    hide() {
-        this.isVisible = false;
-        this.overlay.style.display = 'none';
-        this.currentPlaylist = null;
-    }
-
-    destroy() {
-        this.listenersSetup = false;
-        return super.destroy();
     }
 
     validateInput() {

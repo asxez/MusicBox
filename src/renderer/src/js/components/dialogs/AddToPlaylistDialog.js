@@ -9,7 +9,33 @@ class AddToPlaylistDialog extends Component {
         this.currentTrack = null;
         this.playlists = [];
         this.listenersSetup = false; // 事件监听器是否已设置
-        this.setupElements();
+    }
+
+    async show(track) {
+        if (!this.listenersSetup) {
+            this.setupElements();
+            this.setupEventListeners();
+            this.listenersSetup = true;
+        }
+        this.isVisible = true;
+        this.currentTrack = track;
+        this.overlay.style.display = 'flex';
+
+        // 加载歌单列表
+        await this.loadPlaylists();
+    }
+
+    hide() {
+        this.isVisible = false;
+        this.overlay.style.display = 'none';
+        this.currentTrack = null;
+    }
+
+    destroy() {
+        this.currentTrack = null;
+        this.playlists = [];
+        this.listenersSetup = false;
+        return super.destroy();
     }
 
     setupElements() {
@@ -43,30 +69,6 @@ class AddToPlaylistDialog extends Component {
                 this.hide();
             }
         });
-    }
-
-    async show(track) {
-        if (!this.listenersSetup) {
-            this.setupEventListeners();
-            this.listenersSetup = true;
-        }
-        this.isVisible = true;
-        this.currentTrack = track;
-        this.overlay.style.display = 'flex';
-
-        // 加载歌单列表
-        await this.loadPlaylists();
-    }
-
-    hide() {
-        this.isVisible = false;
-        this.overlay.style.display = 'none';
-        this.currentTrack = null;
-    }
-
-    destroy() {
-        this.listenersSetup = false;
-        return super.destroy();
     }
 
     async loadPlaylists() {

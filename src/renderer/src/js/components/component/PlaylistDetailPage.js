@@ -42,8 +42,6 @@ class PlaylistDetailPage extends Component {
                 this.element.style.transform = 'translateY(0)';
             });
         }
-
-        console.log('🎵 PlaylistDetailPage: 显示歌单详情', playlist.name);
     }
 
     hide() {
@@ -298,11 +296,7 @@ class PlaylistDetailPage extends Component {
                     menuDropdown.classList.remove('show');
                     await this.clearPlaylist();
                 });
-            } else {
-                console.warn('⚠️ 未找到清空歌单按钮元素');
             }
-        } else {
-            console.warn('⚠️ 未找到菜单按钮或下拉菜单元素');
         }
 
         // setupTrackListEvents() 已在 render() 方法中调用，这里不需要重复调用
