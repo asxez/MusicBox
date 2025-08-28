@@ -268,8 +268,6 @@ class Lyrics extends Component {
         }
 
         this._toggleInProgress = true;
-        console.log('🔄 Lyrics: 切换播放状态，当前状态:', this.isPlaying);
-
         try {
             if (this.isPlaying) {
                 // console.log('🔄 Lyrics: 请求暂停');
@@ -366,7 +364,6 @@ class Lyrics extends Component {
         this.showLoading();
 
         try {
-            console.log('🎵 Lyrics: 从window.api获取歌词');
             const lyricsResult = await api.getLyrics(track.title, track.artist, track.album, track.filePath);
             if (lyricsResult.success) {
                 this.lyrics = api.parseLRC(lyricsResult.lrc);
@@ -375,7 +372,6 @@ class Lyrics extends Component {
                     track.lyrics = this.lyrics;
                     track.lrcText = lyricsResult.lrc;
                     this.renderLyrics();
-                    console.log('✅ Lyrics: 歌词加载成功');
 
                     // 同步歌词到桌面歌词窗口
                     if (api && api.syncToDesktopLyrics) {
@@ -396,19 +392,23 @@ class Lyrics extends Component {
     }
 
     async updateCoverArt(track) {
-        // 首先设置默认封面
+        // 首先设置默认封面和背景
         this.trackCover.src = 'assets/images/default-cover.svg';
         this.trackCover.classList.add('loading');
+        await this.setBackgroundImage(null); // 清空背景
+
         try {
+            let finalImageUrl = null;
+
             // 检查是否已有本地封面
             if (track.cover) {
-                console.log('🖼️ Lyrics: 使用本地封面', {
-                    type: typeof track.cover,
-                    constructor: track.cover.constructor.name,
-                    value: typeof track.cover === 'string' ?
-                        track.cover.substring(0, 100) + '...' :
-                        JSON.stringify(track.cover)
-                });
+                // console.log('🖼️ Lyrics: 使用本地封面', {
+                //     type: typeof track.cover,
+                //     constructor: track.cover.constructor.name,
+                //     value: typeof track.cover === 'string' ?
+                //         track.cover.substring(0, 100) + '...' :
+                //         JSON.stringify(track.cover)
+                // });
 
                 if (typeof track.cover !== 'string') {
                     console.error('❌ Lyrics: track.cover不是字符串，无法设置为src', {
@@ -417,35 +417,27 @@ class Lyrics extends Component {
                     });
                     this.trackCover.src = 'assets/images/default-cover.svg';
                     this.trackCover.classList.remove('loading');
-                    this.background.style.backgroundImage = 'none';
                     return;
                 }
 
                 console.log('🔄 Lyrics: 即将设置trackCover.src =', track.cover.substring(0, 100) + '...');
-                this.trackCover.src = track.cover;
-                this.trackCover.classList.remove('loading');
-                this.background.style.backgroundImage = `url(${track.cover})`;
-                return;
+                finalImageUrl = track.cover;
             }
 
-            // 尝试从API获取封面
-            if (track.title && track.artist) {
-                console.log('🖼️ Lyrics: 从API获取封面');
+            // 如果没有本地封面，尝试从API获取
+            if (!finalImageUrl && track.title && track.artist) {
                 const coverResult = await api.getCover(track.title, track.artist, track.album, track.filePath);
 
                 if (coverResult.success && coverResult.imageUrl) {
-                    console.log('✅ Lyrics: 封面获取成功', {
-                        source: coverResult.source,
-                        type: coverResult.type,
-                        urlType: typeof coverResult.imageUrl
-                    });
+                    // console.log('✅ Lyrics: 封面获取成功', {
+                    //     source: coverResult.source,
+                    //     type: coverResult.type,
+                    //     urlType: typeof coverResult.imageUrl
+                    // });
 
                     // 验证URL格式
                     if (typeof coverResult.imageUrl === 'string') {
-                        this.trackCover.src = coverResult.imageUrl;
-                        this.background.style.backgroundImage = `url(${coverResult.imageUrl})`;
-                        console.log('✅ Lyrics: 封面更新成功');
-
+                        finalImageUrl = coverResult.imageUrl;
                         // 缓存封面URL到track对象
                         track.cover = coverResult.imageUrl;
                     } else {
@@ -458,16 +450,136 @@ class Lyrics extends Component {
                     console.log('❌ Lyrics: 封面获取失败，使用默认封面', coverResult.error);
                 }
             }
-            // 设置背景图像
-            if (track.cover) {
-                this.background.style.backgroundImage = `url(${track.cover})`;
-            } else {
-                this.background.style.backgroundImage = 'none';
+
+            // 统一设置封面和背景
+            if (finalImageUrl) {
+                await this.setCoverAndBackground(finalImageUrl);
             }
         } catch (error) {
-            console.error('❌ Player: 封面更新失败:', error);
+            console.error('❌ Lyrics: 封面更新失败:', error);
         } finally {
             this.trackCover.classList.remove('loading');
+        }
+    }
+
+    // 设置背景图片的辅助方法
+    async setBackgroundImage(imageUrl) {
+        if (!this.background) return;
+
+        if (imageUrl) {
+            try {
+                // 处理不同类型的URL
+                const processedUrl = await this.processImageUrl(imageUrl);
+                if (processedUrl) {
+                    this.background.style.backgroundImage = `url("${processedUrl}")`;
+                } else {
+                    this.background.style.backgroundImage = 'none';
+                }
+            } catch (error) {
+                console.error('❌ Lyrics: 背景图片设置失败:', error);
+                this.background.style.backgroundImage = 'none';
+            }
+        } else {
+            this.background.style.backgroundImage = 'none';
+        }
+    }
+
+    // 处理图片URL，将file://协议转换为可用格式
+    async processImageUrl(url) {
+        if (!url || typeof url !== 'string') return null;
+
+        // 如果是data URL或blob URL，直接返回
+        if (url.startsWith('data:') || url.startsWith('blob:')) {
+            return url;
+        }
+
+        // 如果是HTTP/HTTPS URL，直接返回
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            return url;
+        }
+
+        // 如果是file://协议，转换为blob URL
+        if (url.startsWith('file://')) {
+            return await this.convertFileUrlToBlobUrl(url);
+        }
+
+        // 其他情况，尝试作为本地文件路径处理
+        return await this.convertLocalPathToBlobUrl(url);
+    }
+
+    // 将file://协议的URL转换为blob URL
+    async convertFileUrlToBlobUrl(fileUrl) {
+        try {
+            // 提取文件路径
+            let filePath = fileUrl.replace('file://', '');
+
+            // Windows路径处理
+            if (filePath.startsWith('/') && filePath.includes(':')) {
+                filePath = filePath.substring(1); // 移除开头的/
+            }
+
+            return await this.convertLocalPathToBlobUrl(filePath);
+        } catch (error) {
+            console.error('❌ Lyrics: file://协议转换失败:', error);
+            return null;
+        }
+    }
+
+    // 将本地文件路径转换为blob URL
+    async convertLocalPathToBlobUrl(filePath) {
+        try {
+            // 读取文件数据
+            const fileData = await window.electronAPI.fs.readFile(filePath);
+            if (!fileData || fileData.length === 0) {
+                console.error('❌ Lyrics: 文件数据为空');
+                return null;
+            }
+
+            // 根据文件扩展名确定MIME类型
+            const mimeType = this.getMimeTypeFromPath(filePath);
+
+            // 创建Blob
+            const uint8Array = new Uint8Array(fileData);
+            const blob = new Blob([uint8Array], { type: mimeType });
+
+            // 创建blob URL
+            return URL.createObjectURL(blob);
+        } catch (error) {
+            console.error('❌ Lyrics: 本地文件转换失败:', error);
+            return null;
+        }
+    }
+
+    // 根据文件路径获取MIME类型
+    getMimeTypeFromPath(filePath) {
+        const ext = filePath.toLowerCase().split('.').pop();
+        const mimeTypes = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+            'bmp': 'image/bmp',
+            'svg': 'image/svg+xml'
+        };
+        return mimeTypes[ext] || 'image/jpeg';
+    }
+
+    // 统一设置封面和背景的方法
+    async setCoverAndBackground(imageUrl) {
+        try {
+            // 使用urlValidator安全设置封面图片
+            const success = await window.urlValidator.safeSetImageSrc(this.trackCover, imageUrl);
+            if (!success) {
+                this.trackCover.src = 'assets/images/default-cover.svg';
+            }
+
+            // 设置背景图片
+            await this.setBackgroundImage(imageUrl);
+        } catch (error) {
+            console.error('❌ Lyrics: 封面和背景设置失败:', error);
+            this.trackCover.src = 'assets/images/default-cover.svg';
+            await this.setBackgroundImage(null);
         }
     }
 
@@ -524,7 +636,6 @@ class Lyrics extends Component {
 
         // 重置当前歌词索引
         this.currentLyricIndex = -1;
-        console.log('🎵 Lyrics: 歌词渲染完成，滚动位置已重置');
     }
 
     updateLyricHighlight(currentTime) {
@@ -626,8 +737,6 @@ class Lyrics extends Component {
             this.fullscreenIcon.style.display = 'block';
             this.fullscreenExitIcon.style.display = 'none';
         }
-
-        console.log('🎵 Lyrics: 全屏状态更新:', this.isFullscreen ? '全屏' : '窗口');
     }
 
     // 初始化控件状态
@@ -696,7 +805,7 @@ class Lyrics extends Component {
 
     updatePlayModeDisplay(mode) {
         if (!this.modeSequenceIcon || !this.modeShuffleIcon || !this.modeRepeatOneIcon) {
-            console.warn('🎵 Player: 播放模式图标元素不存在');
+            console.warn(' Player: 播放模式图标元素不存在');
             return;
         }
         this.modeSequenceIcon.style.display = 'none';
@@ -721,7 +830,6 @@ class Lyrics extends Component {
                 if (this.playModeBtn) this.playModeBtn.title = '顺序播放';
                 break;
         }
-        console.log('🎵 Player: 播放模式显示更新为:', mode);
     }
 
     // 进度条交互方法
