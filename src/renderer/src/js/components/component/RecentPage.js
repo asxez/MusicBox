@@ -7,11 +7,11 @@ class RecentPage extends Component {
         super(container);
         this.recentTracks = [];
         this.listenersSetup = false; // 事件监听器是否已设置
-        this.setupElements();
     }
 
     async show() {
         if (!this.listenersSetup) {
+            this.setupElements();
             this.setupAPIListeners();
             this.listenersSetup = true;
         }
@@ -31,6 +31,7 @@ class RecentPage extends Component {
     }
 
     destroy() {
+        this.recentTracks = [];
         this.listenersSetup = false;
         return super.destroy();
     }
@@ -276,8 +277,6 @@ class RecentPage extends Component {
 
     async loadTrackCoverAsync(track) {
         try {
-            if (!window.localCoverManager) return;
-
             // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
             const loadCover = async () => {
                 const coverResult = await window.api.getCover(

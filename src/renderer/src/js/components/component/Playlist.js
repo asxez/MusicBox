@@ -9,12 +9,16 @@ class Playlist extends Component {
         this.isVisible = false;
         this.tracks = [];
         this.currentTrackIndex = -1;
+        this.listenersSetup = false; // 事件监听器是否已设置
 
         this.setupElements();
-        this.setupEventListeners();
     }
 
     show() {
+        if (!this.listenersSetup) {
+            this.setupEventListeners();
+            this.listenersSetup = true;
+        }
         this.isVisible = true;
         this.panel.style.display = 'flex';
         this.panel.classList.add('show');
@@ -36,7 +40,7 @@ class Playlist extends Component {
     destroy() {
         // 清理播放列表数据
         this.tracks = [];
-        this.currentTrackIndex = -1;
+        this.listenersSetup = false;
 
         // 清理DOM内容
         if (this.tracksContainer) {
@@ -127,7 +131,6 @@ class Playlist extends Component {
         this.currentTrackIndex = -1;
         this.render();
         this.emit('playlistCleared');
-        console.log('🎵 Playlist: 清空播放列表');
     }
 
     setTracks(tracks, currentIndex = -1) {

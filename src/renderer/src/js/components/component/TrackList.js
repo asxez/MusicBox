@@ -27,7 +27,6 @@ class TrackList extends Component {
     destroy() {
         // 清理封面更新订阅
         if (this.coverUpdateUnsubscribe) {
-            this.coverUpdateUnsubscribe();
             this.coverUpdateUnsubscribe = null;
         }
 
@@ -35,10 +34,6 @@ class TrackList extends Component {
         this.tracks = [];
         this.filteredTracks = [];
         this.currentTrackIndex = -1;
-
-        // 重置状态
-        this.isVisible = true;
-        this.sortBy = 'title';
         super.destroy();
     }
 

@@ -8,7 +8,39 @@ class CreatePlaylistDialog extends Component {
         this.isVisible = false;
         this.currentTrackToAdd = null; // 用于记录要添加到新歌单的歌曲
         this.listenersSetup = false; // 事件监听器是否已设置
-        this.setupElements();
+    }
+
+    show(trackToAdd = null) {
+        if (!this.listenersSetup) {
+            this.setupElements();
+            this.setupEventListeners();
+            this.listenersSetup = true;
+        }
+        this.isVisible = true;
+        this.currentTrackToAdd = trackToAdd;
+        this.overlay.style.display = 'flex';
+
+        // 重置表单
+        this.nameInput.value = '';
+        this.descriptionInput.value = '';
+        this.hideError();
+        this.validateInput();
+
+        // 聚焦到输入框
+        setTimeout(() => {
+            this.nameInput.focus();
+        }, 100);
+    }
+
+    hide() {
+        this.isVisible = false;
+        this.overlay.style.display = 'none';
+        this.currentTrackToAdd = null;
+    }
+
+    destroy() {
+        this.listenersSetup = false;
+        return super.destroy();
     }
 
     setupElements() {
@@ -47,38 +79,6 @@ class CreatePlaylistDialog extends Component {
                 this.hide();
             }
         });
-    }
-
-    show(trackToAdd = null) {
-        if (!this.listenersSetup) {
-            this.setupEventListeners();
-            this.listenersSetup = true;
-        }
-        this.isVisible = true;
-        this.currentTrackToAdd = trackToAdd;
-        this.overlay.style.display = 'flex';
-
-        // 重置表单
-        this.nameInput.value = '';
-        this.descriptionInput.value = '';
-        this.hideError();
-        this.validateInput();
-
-        // 聚焦到输入框
-        setTimeout(() => {
-            this.nameInput.focus();
-        }, 100);
-    }
-
-    hide() {
-        this.isVisible = false;
-        this.overlay.style.display = 'none';
-        this.currentTrackToAdd = null;
-    }
-
-    destroy() {
-        this.listenersSetup = false;
-        return super.destroy();
     }
 
     validateInput() {

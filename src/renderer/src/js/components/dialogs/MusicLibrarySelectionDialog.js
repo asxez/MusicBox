@@ -11,7 +11,39 @@ class MusicLibrarySelectionDialog extends Component {
         this.filteredTracks = [];
         this.selectedTracks = new Set();
         this.listenersSetup = false; // 事件监听器是否已设置
-        this.setupElements();
+    }
+
+    async show(playlist) {
+        if (!this.listenersSetup) {
+            this.setupElements();
+            this.setupEventListeners();
+            this.listenersSetup = true;
+        }
+        this.isVisible = true;
+        this.currentPlaylist = playlist;
+        this.overlay.style.display = 'flex';
+
+        // 重置状态
+        this.selectedTracks.clear();
+        this.searchInput.value = '';
+        this.updateSelectedCount();
+        await this.loadMusicLibrary();
+    }
+
+    hide() {
+        this.isVisible = false;
+        this.overlay.style.display = 'none';
+        this.currentPlaylist = null;
+        this.selectedTracks.clear();
+    }
+
+    destroy() {
+        this.currentPlaylist = null;
+        this.allTracks = [];
+        this.filteredTracks = [];
+        this.selectedTracks = null;
+        this.listenersSetup = false;
+        return super.destroy();
     }
 
     setupElements() {
@@ -49,34 +81,6 @@ class MusicLibrarySelectionDialog extends Component {
                 this.hide();
             }
         });
-    }
-
-    async show(playlist) {
-        if (!this.listenersSetup) {
-            this.setupEventListeners();
-            this.listenersSetup = true;
-        }
-        this.isVisible = true;
-        this.currentPlaylist = playlist;
-        this.overlay.style.display = 'flex';
-
-        // 重置状态
-        this.selectedTracks.clear();
-        this.searchInput.value = '';
-        this.updateSelectedCount();
-        await this.loadMusicLibrary();
-    }
-
-    hide() {
-        this.isVisible = false;
-        this.overlay.style.display = 'none';
-        this.currentPlaylist = null;
-        this.selectedTracks.clear();
-    }
-
-    destroy() {
-        this.listenersSetup = false;
-        return super.destroy();
     }
 
     async loadMusicLibrary() {

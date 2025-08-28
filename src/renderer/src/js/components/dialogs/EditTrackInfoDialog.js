@@ -11,7 +11,74 @@ class EditTrackInfoDialog extends Component {
         this.originalData = null;
         this.coverObjectUrls = new Set(); // 用于跟踪创建的Object URLs
         this.listenersSetup = false; // 事件监听器是否已设置
-        this.setupElements();
+    }
+
+    async show(track) {
+        if (!this.listenersSetup) {
+            this.setupElements();
+            this.setupEventListeners();
+            this.listenersSetup = true;
+        }
+        if (!track) {
+            console.error('❌ EditTrackInfoDialog: 无效的歌曲数据');
+            return;
+        }
+
+        this.currentTrack = track;
+        this.selectedCoverFile = null;
+        this.isVisible = true;
+
+        // 清理之前的Object URLs
+        this.cleanupCoverUrls();
+
+        // 保存原始数据用于比较
+        this.originalData = {
+            title: track.title || '',
+            artist: track.artist || '',
+            album: track.album || '',
+            year: track.year || '',
+            genre: track.genre || ''
+        };
+
+        // 填充表单数据（先显示基本信息）
+        this.populateForm();
+
+        // 显示对话框
+        this.dialog.style.display = 'flex';
+
+        // 聚焦到第一个输入框
+        setTimeout(() => {
+            this.titleInput.focus();
+            this.titleInput.select();
+        }, 100);
+
+        // 异步加载封面（如果需要）
+        if (!track.cover && track.filePath) {
+            this.loadCoverFromAPI(track).then(success => {
+                if (success) {
+                    console.log('✅ EditTrackInfoDialog: 封面加载完成');
+                }
+            }).catch(error => {
+                console.error('❌ EditTrackInfoDialog: 异步加载封面失败', error);
+            });
+        }
+    }
+
+    hide() {
+        this.isVisible = false;
+        this.dialog.style.display = 'none';
+        this.clearForm();
+        this.clearErrors();
+        this.cleanupCoverUrls(); // 清理Object URLs
+    }
+
+    destroy() {
+        this.currentTrack = null;
+        this.selectedCoverFile = null;
+        this.originalData = null;
+        this.coverObjectUrls = null;
+        this.listenersSetup = false;
+        return super.destroy();
     }
 
     setupElements() {
@@ -66,72 +133,6 @@ class EditTrackInfoDialog extends Component {
                 this.hide();
             }
         });
-    }
-
-    async show(track) {
-        if (!this.listenersSetup) {
-            this.setupEventListeners();
-            this.listenersSetup = true;
-        }
-        if (!track) {
-            console.error('❌ EditTrackInfoDialog: 无效的歌曲数据');
-            return;
-        }
-
-        this.currentTrack = track;
-        this.selectedCoverFile = null;
-        this.isVisible = true;
-
-        // 清理之前的Object URLs
-        this.cleanupCoverUrls();
-
-        // 保存原始数据用于比较
-        this.originalData = {
-            title: track.title || '',
-            artist: track.artist || '',
-            album: track.album || '',
-            year: track.year || '',
-            genre: track.genre || ''
-        };
-
-        // 填充表单数据（先显示基本信息）
-        this.populateForm();
-
-        // 显示对话框
-        this.dialog.style.display = 'flex';
-
-        // 聚焦到第一个输入框
-        setTimeout(() => {
-            this.titleInput.focus();
-            this.titleInput.select();
-        }, 100);
-
-        console.log('🎵 EditTrackInfoDialog: 显示编辑对话框', track.title);
-
-        // 异步加载封面（如果需要）
-        if (!track.cover && track.filePath) {
-            console.log('🔍 EditTrackInfoDialog: 歌曲无封面数据，使用API获取封面');
-            this.loadCoverFromAPI(track).then(success => {
-                if (success) {
-                    console.log('✅ EditTrackInfoDialog: 封面加载完成');
-                }
-            }).catch(error => {
-                console.error('❌ EditTrackInfoDialog: 异步加载封面失败', error);
-            });
-        }
-    }
-
-    hide() {
-        this.isVisible = false;
-        this.dialog.style.display = 'none';
-        this.clearForm();
-        this.clearErrors();
-        this.cleanupCoverUrls(); // 清理Object URLs
-    }
-
-    destroy() {
-        this.listenersSetup = false;
-        return super.destroy();
     }
 
     // 清理创建的Object URLs

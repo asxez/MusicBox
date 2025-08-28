@@ -10,7 +10,47 @@ class ContextMenu extends Component {
         this.currentTrack = null;
         this.currentIndex = -1;
         this.listenersSetup = false; // 事件监听器是否已设置
-        this.setupElements();
+    }
+
+    show(x, y, track, index) {
+        if (!this.listenersSetup) {
+            this.setupElements();
+            this.setupEventListeners();
+            this.listenersSetup = true;
+        }
+
+        this.currentTrack = track;
+        this.currentIndex = index;
+        this.isVisible = true;
+
+        // 菜单位置
+        this.menu.style.left = `${x}px`;
+        this.menu.style.top = `${y}px`;
+        this.menu.style.display = 'block';
+
+        // 若菜单离开屏幕，则调整位置
+        const rect = this.menu.getBoundingClientRect();
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+
+        if (rect.right > windowWidth) {
+            this.menu.style.left = `${windowWidth - rect.width - 10}px`;
+        }
+        if (rect.bottom > windowHeight) {
+            this.menu.style.top = `${windowHeight - rect.height - 10}px`;
+        }
+    }
+
+    hide() {
+        this.isVisible = false;
+        this.menu.style.display = 'none';
+        this.currentTrack = null;
+        this.currentIndex = -1;
+    }
+
+    destroy() {
+        this.listenersSetup = false;
+        return super.destroy();
     }
 
     setupElements() {
@@ -61,46 +101,6 @@ class ContextMenu extends Component {
                 this.hide();
             }
         });
-    }
-
-    show(x, y, track, index) {
-        if (!this.listenersSetup) {
-            this.setupEventListeners();
-            this.listenersSetup = true;
-        }
-
-        this.currentTrack = track;
-        this.currentIndex = index;
-        this.isVisible = true;
-
-        // 菜单位置
-        this.menu.style.left = `${x}px`;
-        this.menu.style.top = `${y}px`;
-        this.menu.style.display = 'block';
-
-        // 若菜单离开屏幕，则调整位置
-        const rect = this.menu.getBoundingClientRect();
-        const windowWidth = window.innerWidth;
-        const windowHeight = window.innerHeight;
-
-        if (rect.right > windowWidth) {
-            this.menu.style.left = `${windowWidth - rect.width - 10}px`;
-        }
-        if (rect.bottom > windowHeight) {
-            this.menu.style.top = `${windowHeight - rect.height - 10}px`;
-        }
-    }
-
-    hide() {
-        this.isVisible = false;
-        this.menu.style.display = 'none';
-        this.currentTrack = null;
-        this.currentIndex = -1;
-    }
-
-    destroy() {
-        this.listenersSetup = false;
-        return super.destroy();
     }
 }
 

@@ -17,10 +17,6 @@ class Lyrics extends Component {
     }
 
     async show(track) {
-        this.currentTrack = track;
-        this.isVisible = true;
-        this.isPlaying = api.isPlaying;
-
         // 只在首次显示或事件监听器被清理后才设置
         if (!this.listenersSetup) {
             this.setupEventListeners();
@@ -28,6 +24,10 @@ class Lyrics extends Component {
             this.listenersSetup = true;
             await this.updateTrackInfo(track)
         }
+
+        this.currentTrack = track;
+        this.isVisible = true;
+        this.isPlaying = api.isPlaying;
 
         // 动画显示
         this.page.style.display = 'block';
@@ -66,7 +66,6 @@ class Lyrics extends Component {
         this.isVisible = false;
         this.isPlaying = false;
         this.listenersSetup = false;
-
         super.destroy();
     }
 
