@@ -13,15 +13,14 @@ class Component extends EventEmitter {
 
         if (has && !this.element) {
             console.error('❌ Component element not found');
-            return;
         }
 
-        this.init();
+        // this.init();
     }
 
-    init() {
-        // 子类实现
-    }
+    // init() {
+    //     // 子类实现
+    // }
 
     // 添加事件监听器
     addEventListenerManaged(element, event, handler, options) {
@@ -41,7 +40,6 @@ class Component extends EventEmitter {
     // 添加API事件监听器
     addAPIEventListenerManaged(event, handler) {
         if (typeof api !== 'undefined' && api && api.on) {
-            console.log(`🔗 Component: 添加API事件监听器 ${event}`);
             api.on(event, handler);
             this.apiEventListeners.push({ event, handler });
         } else {
@@ -96,8 +94,6 @@ class Component extends EventEmitter {
 
         // 清理其他资源
         this.disposeAllResources();
-
-        console.log(`🗑️ Component destroyed: ${this.constructor.name}`);
     }
 
     removeAllListeners() {
