@@ -93,12 +93,12 @@ linux:
         - x64
   category: AudioVideo
   synopsis: "本地音乐播放器"
-  description: "一款高颜值的本地音乐播放器"
+  description: "一款高颜值、插件化的本地音乐播放器"
   # 添加桌面文件配置
   desktop:
     Name: MusicBox
     Comment: 本地音乐播放器
-    Categories: AudioVideo;Audio;Player;
+    Categories: AudioVideo;Audio;Player;Plugin;Pluggable;
 
 # NSIS Windows 安装程序配置
 nsis:
