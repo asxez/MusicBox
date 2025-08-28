@@ -1,5 +1,5 @@
 /**
- * 基于Web Audio API的纯JavaScript音频引擎
+ * 基于 Web Audio API 的音频引擎
  */
 
 class WebAudioEngine {
@@ -61,8 +61,10 @@ class WebAudioEngine {
         try {
             this.stop();
 
-            let arrayBuffer;
+            // 清理旧的音频缓冲区以释放内存
+            this.clearCurrentAudioBuffer();
 
+            let arrayBuffer;
             if (window.electronAPI && window.electronAPI.readAudioFile) {
                 arrayBuffer = await window.electronAPI.readAudioFile(filePath);
             } else {
@@ -78,6 +80,8 @@ class WebAudioEngine {
             this.audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
             const webAudioDuration = this.audioBuffer.duration;
 
+            // 清理arrayBuffer引用以释放内存
+            arrayBuffer = null;
             const metadata = await this.getTrackMetadata(filePath);
             this.duration = (metadata.duration && metadata.duration > 0) ? metadata.duration : webAudioDuration;
 
@@ -150,7 +154,6 @@ class WebAudioEngine {
     async play() {
         try {
             if (!this.audioBuffer) {
-                console.warn('⚠️ 没有加载音频文件');
                 return false;
             }
 
@@ -161,7 +164,6 @@ class WebAudioEngine {
 
             // 如果已经在播放且未暂停，不重复播放
             if (this.isPlaying && !this.isPaused) {
-                console.log('⚠️ 音频已在播放中');
                 return true;
             }
 
@@ -354,14 +356,12 @@ class WebAudioEngine {
             }
         }
         this.coverObjectUrls.clear();
-        console.log('🧹 封面URL清理完成');
     }
 
     // 跳转到指定位置
     async seek(position) {
         try {
             if (!this.audioBuffer) {
-                console.warn('⚠️ 没有加载音频文件，无法跳转');
                 return false;
             }
 
@@ -494,6 +494,13 @@ class WebAudioEngine {
         return true;
     }
 
+    // 清理当前音频缓冲区
+    clearCurrentAudioBuffer() {
+        if (this.audioBuffer) {
+            this.audioBuffer = null;
+        }
+    }
+
     // 清理下一首歌曲的缓冲区
     clearNextTrackBuffer() {
         if (this.nextAudioBuffer) {
@@ -563,6 +570,9 @@ class WebAudioEngine {
 
             // 解码音频数据
             this.nextAudioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+
+            // 清理arrayBuffer引用以释放内存
+            arrayBuffer = null;
             this.nextTrackInfo = {
                 ...trackInfo,
                 filePath: filePath,
@@ -627,7 +637,8 @@ class WebAudioEngine {
             const playResult = await this.play();
 
             // 预加载下一首
-            if (playResult) {
+            // 无间隙播放模式下
+            if (playResult && this.gaplessPlaybackEnabled) {
                 setTimeout(() => this.preloadNextTrack(), 1000);
             }
 
@@ -639,7 +650,7 @@ class WebAudioEngine {
                 // 播放
                 const playResult = await this.play();
 
-                // 预加载下一首歌曲
+                // 无间隙播放模式下预加载下一首歌曲
                 if (playResult && this.gaplessPlaybackEnabled) {
                     setTimeout(() => this.preloadNextTrack(), 1000);
                 }
@@ -684,18 +695,12 @@ class WebAudioEngine {
         return false;
     }
 
-    // 从文件路径提取标题
-    extractTitleFromPath(filePath) {
-        const fileName = filePath.split(/[/\\]/).pop();
-        return fileName.replace(/\.[^/.]+$/, ''); // 移除扩展名
-    }
-
     async getTrackMetadata(filePath) {
         if (window.electronAPI && window.electronAPI.library) {
-            console.log('🔄 从主进程获取音频元数据...');
+            // console.log('🔄 从主进程获取音频元数据...');
             const metadata = await window.electronAPI.library.getTrackMetadata(filePath);
             if (metadata) {
-                console.log(`✅ 成功获取元数据: ${metadata.title} - ${metadata.artist}`);
+                // console.log(`✅ 成功获取元数据: ${metadata.title} - ${metadata.artist}`);
                 return {
                     title: metadata.title || '未知标题',
                     artist: metadata.artist || '未知艺术家',
@@ -715,7 +720,7 @@ class WebAudioEngine {
 
     // 歌曲播放结束处理
     onTrackEnded() {
-        console.log('🔚 歌曲播放结束');
+        // console.log('🔚 歌曲播放结束');
         this.isPlaying = false;
         this.isPaused = false;
 
@@ -759,15 +764,7 @@ class WebAudioEngine {
             console.error('❌ 音频上下文未初始化，无法创建均衡器');
             return;
         }
-
-        try {
-            this.equalizer = new AudioEqualizer(this.audioContext);
-            console.log('✅ 均衡器初始化成功');
-            console.log(`🎛️ 均衡器滤波器数量: ${this.equalizer.filters.length}`);
-        } catch (error) {
-            console.error('❌ 均衡器初始化失败:', error);
-            this.equalizer = null;
-        }
+        this.equalizer = new AudioEqualizer(this.audioContext);
     }
 
     // 获取均衡器实例
@@ -779,7 +776,7 @@ class WebAudioEngine {
     setEqualizerEnabled(enabled) {
         // 如果状态没有变化，直接返回
         if (this.equalizerEnabled === enabled) {
-            console.log(`ℹ️ 均衡器状态已经是 ${enabled}，无需更改`);
+            // console.log(`ℹ️ 均衡器状态已经是 ${enabled}，无需更改`);
             return;
         }
 
@@ -787,10 +784,8 @@ class WebAudioEngine {
 
         // 如果音频正在播放且sourceNode存在，立即重新连接音频链
         if (this.sourceNode && this.isPlaying) {
-            console.log('🔄 音频正在播放，立即重新连接音频链以应用均衡器状态变化');
+            // console.log('🔄 音频正在播放，立即重新连接音频链以应用均衡器状态变化');
             this.reconnectAudioChain();
-        } else {
-            console.log('🎛️ 音频未播放或sourceNode不存在，均衡器状态将在下次播放时生效');
         }
 
         if (this.onEqualizerChanged) {

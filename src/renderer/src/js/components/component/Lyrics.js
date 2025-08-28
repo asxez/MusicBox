@@ -11,20 +11,22 @@ class Lyrics extends Component {
         this.currentTrack = null;
         this.lyrics = [];
         this.currentLyricIndex = -1;
-        this.isLoading = false;
         this.listenersSetup = false; // 事件监听器是否已设置
 
         this.setupElements();
     }
 
     async show(track) {
+        this.currentTrack = track;
         this.isVisible = true;
+        this.isPlaying = api.isPlaying;
 
         // 只在首次显示或事件监听器被清理后才设置
         if (!this.listenersSetup) {
             this.setupEventListeners();
             this.setupAPIListeners();
             this.listenersSetup = true;
+            await this.updateTrackInfo(track)
         }
 
         // 动画显示
@@ -34,7 +36,6 @@ class Lyrics extends Component {
         }, 10);
 
         this.updateFullscreenState();
-        await this.updateTrackInfo(track || api.currentTrack);
         await this.initializeControls();
 
         // 确保歌词显示区域滚动到顶部
@@ -64,7 +65,6 @@ class Lyrics extends Component {
         // 重置状态
         this.isVisible = false;
         this.isPlaying = false;
-        this.isLoading = false;
         this.listenersSetup = false;
 
         super.destroy();
@@ -129,7 +129,6 @@ class Lyrics extends Component {
     }
 
     setupEventListeners() {
-        // 使用基类的管理事件监听器方法
         this.addEventListenerManaged(this.closeBtn, 'click', () => {
             this.hide();
         });
@@ -142,17 +141,13 @@ class Lyrics extends Component {
             await this.togglePlayPause();
         });
 
-        this.prevBtnHandler = async () => {
-            console.log('🎵 Lyrics: 上一首按钮被点击');
+        this.addEventListenerManaged(this.prevBtn, 'click', async () => {
             await api.previousTrack();
-        };
-        this.addEventListenerManaged(this.prevBtn, 'click', this.prevBtnHandler);
+        });
 
-        this.nextBtnHandler = async () => {
-            console.log('🎵 Lyrics: 下一首按钮被点击');
+        this.addEventListenerManaged(this.nextBtn, 'click', async () => {
             await api.nextTrack();
-        };
-        this.addEventListenerManaged(this.nextBtn, 'click', this.nextBtnHandler);
+        });
 
         // 音量控制事件
         this.addEventListenerManaged(this.volumeBtn, 'click', async () => {
@@ -169,24 +164,12 @@ class Lyrics extends Component {
                 await this.updateVolumeFromEvent(e);
             }
         });
-        this.addEventListenerManaged(document, 'mousemove', async (e) => {
-            if (this.isDraggingVolume) {
-                await this.updateVolumeFromEvent(e);
-            }
-        });
-        this.addEventListenerManaged(document, 'mouseup', () => {
-            if (this.isDraggingVolume) {
-                this.isDraggingVolume = false;
-            }
-        });
 
         // 播放模式切换事件
-        this.playModeBtnHandler = () => {
-            console.log('🎵 Lyrics: 播放模式按钮被点击');
+        this.addEventListenerManaged(this.playModeBtn, 'click', () => {
             const newMode = api.togglePlayMode();
             this.updatePlayModeDisplay(newMode);
-        };
-        this.addEventListenerManaged(this.playModeBtn, 'click', this.playModeBtnHandler);
+        });
 
         // 进度条交互事件
         this.addEventListenerManaged(this.progressBar, 'click', async (e) => {
@@ -195,20 +178,23 @@ class Lyrics extends Component {
         this.addEventListenerManaged(this.progressBar, 'mousedown', (e) => {
             this.startProgressDrag(e);
         });
-        this.addEventListenerManaged(document, 'mousemove', (e) => {
+
+        // document
+        this.addEventListenerManaged(document, 'mousemove', async (e) => {
             if (this.isDraggingProgress) {
                 this.updateProgressDrag(e);
+            }
+            if (this.isDraggingVolume) {
+                await this.updateVolumeFromEvent(e);
             }
         });
         this.addEventListenerManaged(document, 'mouseup', async () => {
             if (this.isDraggingProgress) {
                 await this.endProgressDrag();
             }
-        });
-
-        // 监听全屏状态变化
-        this.addEventListenerManaged(document, 'fullscreenchange', () => {
-            this.updateFullscreenState();
+            if (this.isDraggingVolume) {
+                this.isDraggingVolume = false;
+            }
         });
 
         // 鼠标隐藏逻辑
@@ -232,13 +218,15 @@ class Lyrics extends Component {
             mouseTimer = null;
             this.element.classList.remove('hide-cursor');
         };
+
         this.addEventListenerManaged(document, 'fullscreenchange', () => {
             if (!this.isFullscreen) this.clearHideTimer();
+            this.updateFullscreenState();
         });
     }
 
     setupAPIListeners() {
-        // 监听播放进度变化，用于歌词同步
+        // 监听播放进度变化，用于歌词同步和进度条更新
         this.addAPIEventListenerManaged('positionChanged', (position) => {
             this.updateLyricHighlight(position);
         });
@@ -256,7 +244,7 @@ class Lyrics extends Component {
             await this.updateTrackInfo(track);
         });
 
-        // 监听时长变化事件，确保总时长正确显示
+        // 时长变化事件
         this.addAPIEventListenerManaged('durationChanged', (duration) => {
             if (this.durationEl && duration > 0) {
                 this.durationEl.textContent = this.formatTime(duration);
@@ -375,7 +363,6 @@ class Lyrics extends Component {
             return;
         }
 
-        this.isLoading = true;
         this.showLoading();
 
         try {
@@ -405,8 +392,6 @@ class Lyrics extends Component {
         } catch (error) {
             console.error('❌ Lyrics: 歌词加载失败:', error);
             this.showNoLyrics();
-        } finally {
-            this.isLoading = false;
         }
     }
 
