@@ -124,13 +124,6 @@ class EmbeddedCoverManager {
                 throw new Error('封面数据无效');
             }
 
-            // console.log('🔍 开始封面URL转换:', {
-            //     format: coverData.format,
-            //     dataType: typeof coverData.data,
-            //     dataLength: coverData.data.length,
-            //     dataConstructor: coverData.data.constructor.name
-            // });
-
             let imageData = coverData.data;
             const format = coverData.format || 'jpeg';
 
@@ -199,23 +192,12 @@ class EmbeddedCoverManager {
             // 初始化引用计数
             this.urlReferences.set(objectUrl, 1);
 
-            const result = {
+            return {
                 success: true,
                 url: objectUrl,
                 mimeType: mimeType,
                 size: blob.size
             };
-
-            // // 最终验证
-            // console.log('🔍 EmbeddedCoverManager: convertCoverToUrl最终验证', {
-            //     success: result.success,
-            //     urlType: typeof result.url,
-            //     urlValid: typeof result.url === 'string' && result.url.startsWith('blob:'),
-            //     urlPreview: result.url.substring(0, 50) + '...'
-            // });
-
-            return result;
-
         } catch (error) {
             console.error('❌ EmbeddedCoverManager: 封面URL转换失败:', error);
             return {
@@ -304,18 +286,6 @@ class EmbeddedCoverManager {
     }
 
     /**
-     * 增加URL引用计数
-     * @param {string} url - blob URL
-     */
-    addUrlReference(url) {
-        if (!url || !url.startsWith('blob:')) return;
-
-        const currentCount = this.urlReferences.get(url) || 0;
-        this.urlReferences.set(url, currentCount + 1);
-        console.log(`📈 EmbeddedCoverManager: URL引用计数增加 - ${url.substring(0, 50)}... (${currentCount + 1})`);
-    }
-
-    /**
      * 减少URL引用计数，如果计数为0则安全释放
      * @param {string} url - blob URL
      */
@@ -343,7 +313,6 @@ class EmbeddedCoverManager {
         }
 
         console.log(`⏰ EmbeddedCoverManager: 安排URL延迟释放 - ${url.substring(0, 50)}...`);
-
         const timeoutId = setTimeout(() => {
             this.safeReleaseUrl(url);
             this.pendingReleases.delete(url);
@@ -424,47 +393,6 @@ class EmbeddedCoverManager {
                 error: error.message
             };
         }
-    }
-
-    /**
-     * 获取缓存统计信息
-     * @returns {Object} 缓存统计信息
-     */
-    getCacheStats() {
-        return {
-            size: this.cache.size,
-            maxSize: this.maxCacheSize,
-            objectUrls: this.objectUrls.size,
-            type: 'embedded_cover'
-        };
-    }
-
-    /**
-     * 检查文件是否包含内嵌封面
-     * @param {Object} trackMetadata - 音频文件元数据
-     * @returns {boolean} 是否包含内嵌封面
-     */
-    hasEmbeddedCover(trackMetadata) {
-        return !!(trackMetadata && trackMetadata.cover && trackMetadata.cover.data);
-    }
-
-    /**
-     * 获取内嵌封面的简要信息
-     * @param {Object} trackMetadata - 音频文件元数据
-     * @returns {Object|null} 封面简要信息
-     */
-    getEmbeddedCoverInfo(trackMetadata) {
-        if (!this.hasEmbeddedCover(trackMetadata)) {
-            return null;
-        }
-
-        const cover = trackMetadata.cover;
-        return {
-            format: cover.format,
-            dataType: typeof cover.data,
-            dataLength: cover.data ? cover.data.length : 0,
-            hasData: !!cover.data
-        };
     }
 }
 

@@ -1089,5 +1089,4 @@ class DesktopLyricsManager {
 
 document.addEventListener('DOMContentLoaded', () => {
     window.desktopLyricsManager = new DesktopLyricsManager();
-    console.log('桌面歌词管理器已初始化');
 });

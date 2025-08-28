@@ -275,12 +275,11 @@ class LocalCoverManager {
             return;
         }
         let loadedCount = 0;
-        for (const track of trackList.slice(0, 12)) { // 限制预加载数量
+        for (const track of trackList.slice(0, 6)) { // 预加载数量
             try {
                 await this.checkLocalCover(track.title, track.artist, track.album);
                 loadedCount++;
-            } catch (error) {
-            }
+            } catch (error) {}
         }
     }
 
