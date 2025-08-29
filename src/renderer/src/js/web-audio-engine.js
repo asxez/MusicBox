@@ -505,7 +505,6 @@ class WebAudioEngine {
         if (this.nextAudioBuffer) {
             this.nextAudioBuffer = null;
             this.nextTrackInfo = null;
-            console.log('🧹 WebAudioEngine: 清理下一首歌曲缓冲区');
         }
     }
 
@@ -555,20 +554,8 @@ class WebAudioEngine {
         try {
             console.log(`🔄 预加载下一首歌曲: ${trackInfo.title || filePath}`);
 
-            let arrayBuffer;
-            if (window.electronAPI && window.electronAPI.readAudioFile) {
-                arrayBuffer = await window.electronAPI.readAudioFile(filePath);
-            } else {
-                const fileUrl = filePath.startsWith('file://') ? filePath : `file:///${filePath.replace(/\\/g, '/')}`;
-                const response = await fetch(fileUrl);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch audio file: ${response.status}`);
-                }
-                arrayBuffer = await response.arrayBuffer();
-            }
-
-            // 解码音频数据
-            this.nextAudioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+            let arrayBuffer = await window.electronAPI.readAudioFile(filePath);
+            this.nextAudioBuffer = await this.audioContext.decodeAudioData(arrayBuffer); // 解码
 
             // 清理arrayBuffer引用以释放内存
             arrayBuffer = null;
@@ -696,25 +683,23 @@ class WebAudioEngine {
     }
 
     async getTrackMetadata(filePath) {
-        if (window.electronAPI && window.electronAPI.library) {
-            // console.log('🔄 从主进程获取音频元数据...');
-            const metadata = await window.electronAPI.library.getTrackMetadata(filePath);
-            if (metadata) {
-                // console.log(`✅ 成功获取元数据: ${metadata.title} - ${metadata.artist}`);
-                return {
-                    title: metadata.title || '未知标题',
-                    artist: metadata.artist || '未知艺术家',
-                    album: metadata.album || '未知专辑',
-                    duration: metadata.duration || 0,
-                    bitrate: metadata.bitrate || 0,
-                    sampleRate: metadata.sampleRate || 0,
-                    year: metadata.year,
-                    genre: metadata.genre,
-                    track: metadata.track,
-                    disc: metadata.disc,
-                    cover: metadata.cover
-                };
-            }
+        // console.log('🔄 从主进程获取音频元数据...');
+        const metadata = await window.electronAPI.library.getTrackMetadata(filePath);
+        if (metadata) {
+            // console.log(`✅ 成功获取元数据: ${metadata.title} - ${metadata.artist}`);
+            return {
+                title: metadata.title || '未知标题',
+                artist: metadata.artist || '未知艺术家',
+                album: metadata.album || '未知专辑',
+                duration: metadata.duration || 0,
+                bitrate: metadata.bitrate || 0,
+                sampleRate: metadata.sampleRate || 0,
+                year: metadata.year,
+                genre: metadata.genre,
+                track: metadata.track,
+                disc: metadata.disc,
+                cover: metadata.cover
+            };
         }
     }
 
