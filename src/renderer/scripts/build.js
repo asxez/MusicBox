@@ -21,36 +21,6 @@ subdirs.forEach(dir => {
     }
 });
 
-// Update HTML file for production
-function updateHTML() {
-    const htmlPath = path.join(publicDir, 'index.html');
-
-    if (fs.existsSync(htmlPath)) {
-        let content = fs.readFileSync(htmlPath, 'utf8');
-
-        // Update script tags to use bundled file
-        // 匹配旧的组件结构
-        content = content.replace(
-            /<script src="js\/utils\.js"><\/script>\s*<script src="js\/api\.js"><\/script>\s*<script src="js\/components\.js"><\/script>\s*<script src="js\/app\.js"><\/script>/,
-            '<script src="js/bundle.js"></script>'
-        );
-
-        // 匹配新的组件结构
-        const newComponentScriptPattern = /<script src="js\/utils\.js"><\/script>\s*<script src="js\/api\.js"><\/script>\s*<script src="js\/components\/base\/Component\.js"><\/script>[\s\S]*?<script src="js\/app\.js"><\/script>/;
-        if (newComponentScriptPattern.test(content)) {
-            content = content.replace(
-                newComponentScriptPattern,
-                '<script src="js/bundle.js"></script>'
-            );
-        }
-
-        fs.writeFileSync(htmlPath, content);
-        console.log('✓ Updated index.html for production');
-    } else {
-        console.log('ℹ index.html not found - will be created by main build process');
-    }
-}
-
 // Recursively collect all JavaScript files from a directory
 function collectJSFiles(dir, basePath = '') {
     const files = [];
@@ -285,26 +255,6 @@ function checkAssets() {
     } else {
         console.log('ℹ No assets directory found');
         return false;
-    }
-}
-
-// Utility function to copy directory recursively
-function copyDirectory(src, dest) {
-    if (!fs.existsSync(dest)) {
-        fs.mkdirSync(dest, { recursive: true });
-    }
-    
-    const entries = fs.readdirSync(src, { withFileTypes: true });
-    
-    for (const entry of entries) {
-        const srcPath = path.join(src, entry.name);
-        const destPath = path.join(dest, entry.name);
-        
-        if (entry.isDirectory()) {
-            copyDirectory(srcPath, destPath);
-        } else {
-            fs.copyFileSync(srcPath, destPath);
-        }
     }
 }
 
