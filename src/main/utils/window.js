@@ -204,10 +204,8 @@ async function createWindow() {
             }
         } catch (error) {}
 
-        if (shouldStartMinimized) {
-            // 启动时最小化到托盘，不显示窗口
-            console.log('🔔 启动时最小化到托盘');
-        } else {
+        if (!shouldStartMinimized) {
+            mainWindow.webContents.openDevTools({mode: 'detach'});
             mainWindow.show();
         }
     });

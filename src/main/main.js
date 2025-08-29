@@ -1,5 +1,8 @@
-const {app, BrowserWindow, ipcMain, dialog, shell} = require('electron');
-const fs = require('fs');
+// 引入 electron 之前设置垃圾回收标志
+process.argv.push('--expose-gc');
+
+const {app, BrowserWindow, ipcMain} = require('electron');
+app.commandLine.appendSwitch("js-flags", "--expose-gc");
 
 const LibraryCacheManager = require('./library-cache-manager');
 const NetworkDriveManager = require('./network-drive-manager');
@@ -145,7 +148,18 @@ async function createWindow() {
 
 // app事件处理程序
 app.whenReady().then(async () => {
-    console.log('应用启动中...');
+    if (typeof global.gc === 'function') {
+        console.log('✅ 主进程: 垃圾回收功能在 app.ready 后可用');
+    } else {
+        // 手动启用
+        try {
+            require('v8').setFlagsFromString('--expose_gc');
+            global.gc = require('vm').runInNewContext('gc');
+            console.log('🔧 主进程: 尝试手动启用垃圾回收功能');
+        } catch (manualError) {
+            console.warn('⚠️ 主进程: 手动启用垃圾回收失败:', manualError.message);
+        }
+    }
 
     const {initializeGlobalDriveRegistry} = require('./drive-registry');
     await initializeGlobalDriveRegistry();
@@ -279,6 +293,10 @@ registerTrayIpcHandlers({ipcMain});
 const {loadTraySettings} = require('./ipc/tray');
 loadTraySettings();
 
+// 注册内存管理IPC
+const {registerMemoryIpcHandlers} = require('./ipc/memory');
+registerMemoryIpcHandlers({ipcMain});
+
 // 注册HTTP服务器IPC
 registerHttpServerIpcHandlers({ipcMain});
 
@@ -287,6 +305,7 @@ registerSecurityIntegration({isDev});
 
 // 文件读取IPC处理程序
 ipcMain.handle('file:readAudio', async (event, filePath) => {
+    const fs = require('fs');
     try {
         console.log(`📖 读取音频文件: ${filePath}`);
 

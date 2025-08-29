@@ -1,6 +1,6 @@
 {
   "name": "musicbox",
-  "version": "0.2.0-beta",
+  "version": "0.2.1-beta",
   "description": "A visually stunning, plugin-based local music player.",
   "main": "src/main/main.js",
   "author": {
@@ -11,7 +11,8 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "dev:main": "chcp 65001 && electron src/main/main.js",
+    "start": "chcp 65001 && electron src/main/main.js --expose-gc",
+    "dev:main": "chcp 65001 && electron src/main/main.js --expose-gc",
     "dev:renderer": "cd src/renderer && npm run serve",
     "build": "npm run build:python && npm run build:renderer && npm run build:main",
     "build:renderer": "cd src/renderer && npm run build",
@@ -45,6 +46,7 @@
     "music-metadata": "^7.14.0",
     "node-id3": "^0.2.9",
     "node-smb2": "^1.3.3",
+    "pidusage": "^4.0.1",
     "webdav": "^5.8.0"
   }
 }

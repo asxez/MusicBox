@@ -247,7 +247,6 @@ class Lyrics extends Component {
         this.addAPIEventListenerManaged('durationChanged', (duration) => {
             if (this.durationEl && duration > 0) {
                 this.durationEl.textContent = this.formatTime(duration);
-                console.log('🎵 Lyrics: 时长更新:', this.formatTime(duration));
             }
         });
     }

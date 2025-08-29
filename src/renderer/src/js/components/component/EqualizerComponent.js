@@ -171,12 +171,8 @@ class EqualizerComponent extends Component {
         this.isEnabled = enabled;
 
         // 更新音频引擎
-        if (window.api && window.api.setEqualizerEnabled) {
-            window.api.setEqualizerEnabled(enabled);
-            // console.log(`🎛️ 音频引擎均衡器状态已更新: ${enabled}`);
-        } else {
-            console.warn('⚠️ 音频引擎API不可用，无法更新均衡器状态');
-        }
+        window.api.setEqualizerEnabled(enabled);
+        // console.log(`🎛️ 音频引擎均衡器状态已更新: ${enabled}`);
 
         // 更新UI状态（避免触发change事件）
         this.updateUIState(enabled);
@@ -405,37 +401,26 @@ class EqualizerComponent extends Component {
             this.equalizerSettings.classList.add('disabled');
         }
 
-        if (window.api && window.api.setEqualizerEnabled) {
-            window.api.setEqualizerEnabled(false);
-        }
+        window.api.setEqualizerEnabled(false);
     }
 
     saveSettings() {
-        try {
-            // 保存主要设置
-            const settings = {
-                enabled: this.isEnabled,
-                preset: this.currentPreset,
-                gains: this.equalizer?.getAllGains() || [],
-                lastModified: Date.now(),
-            };
+        // 保存主要设置
+        const settings = {
+            enabled: this.isEnabled,
+            preset: this.currentPreset,
+            gains: this.equalizer?.getAllGains() || [],
+            lastModified: Date.now(),
+        };
 
-            window.cacheManager.setLocalCache('musicbox-equalizer-settings', settings);
+        window.cacheManager.setLocalCache('musicbox-equalizer-settings', settings);
 
-            // 保存自定义预设
-            try {
-                const customPresetsFromStorage = window.cacheManager.getLocalCache('customEqualizerPresets');
-                if (customPresetsFromStorage) {
-                    const customPresets = customPresetsFromStorage;
-                    window.cacheManager.setLocalCache('musicbox-equalizer-custom-presets', customPresets);
-                    console.log(`💾 已同步 ${Object.keys(customPresets).length} 个自定义预设到缓存`);
-                }
-            } catch (error) {
-                console.warn('⚠️ 同步自定义预设到缓存失败:', error);
-            }
-        } catch (error) {
-            console.error('❌ 保存均衡器设置失败:', error);
-            return false;
+        // 保存自定义预设
+        const customPresetsFromStorage = window.cacheManager.getLocalCache('customEqualizerPresets');
+        if (customPresetsFromStorage) {
+            const customPresets = customPresetsFromStorage;
+            window.cacheManager.setLocalCache('musicbox-equalizer-custom-presets', customPresets);
+            console.log(`💾 已同步 ${Object.keys(customPresets).length} 个自定义预设到缓存`);
         }
     }
 

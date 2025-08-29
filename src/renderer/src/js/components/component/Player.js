@@ -162,32 +162,6 @@ class Player extends Component {
             });
         }
 
-        // API events
-        api.on('trackChanged', async (track) => {
-            await this.updateTrackInfo(track);
-        });
-
-        api.on('playbackStateChanged', (state) => {
-            this.isPlaying = state === 'playing';
-            this.updatePlayButton();
-        });
-
-        api.on('positionChanged', (position) => {
-            if (!this.isDraggingProgress) {
-                this.currentTime = position;
-                this.updateProgressDisplay();
-            }
-        });
-
-        api.on('volumeChanged', (volume) => {
-            this.volume = volume;
-            this.updateVolumeDisplay();
-        });
-
-        api.on('trackIndexChanged', (index) => {
-            this.emit('trackIndexChanged', index);
-        });
-
         // 监听封面更新事件
         if (window.coverUpdateManager) {
             this.coverUpdateUnsubscribe = window.coverUpdateManager.onCoverUpdate((data) => {
@@ -197,7 +171,6 @@ class Player extends Component {
     }
 
     setupAPIListeners() {
-        // 用于实时更新的增强型 API 事件监听
         api.on('trackLoaded', async (track) => {
             console.log('Track loaded in player:', track);
             await this.updateTrackInfo(track);
@@ -216,7 +189,6 @@ class Player extends Component {
         });
 
         api.on('playbackStateChanged', (state) => {
-            console.log('🎵 Player: 收到播放状态变化事件:', state);
             this.isPlaying = state === 'playing';
             this.updatePlayButton();
         });
@@ -224,6 +196,14 @@ class Player extends Component {
         api.on('volumeChanged', (volume) => {
             this.volume = volume;
             this.updateVolumeDisplay();
+        });
+
+        api.on('trackChanged', async (track) => {
+            await this.updateTrackInfo(track);
+        });
+
+        api.on('trackIndexChanged', (index) => {
+            this.emit('trackIndexChanged', index);
         });
     }
 

@@ -1,9 +1,7 @@
 // 音乐库 - 元数据 IPC
 
-const {BrowserWindow} = require('electron');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 
 /**
  * 注册音乐库元数据相关的 IPC
@@ -60,6 +58,7 @@ function registerLibraryMetadataIpcHandlers(
 
     // 更新歌曲元数据
     ipcMain.handle('library:updateTrackMetadata', async (event, updatedData) => {
+        const {BrowserWindow} = require('electron');
         const DEBUG_METADATA_UPDATE = true;
         try {
             console.log(`📝 更新音频文件元数据: ${updatedData.filePath}`);
@@ -265,6 +264,7 @@ function registerLibraryMetadataIpcHandlers(
 
 // 网络文件元数据更新
 async function updateNetworkFileMetadata(filePath, metadata, metadataHandler, networkFileAdapter) {
+    const os = require('os');
     const tempDir = os.tmpdir();
     const tempFileName = `musicbox_temp_${Date.now()}_${path.basename(filePath)}`;
     const tempFilePath = path.join(tempDir, tempFileName);

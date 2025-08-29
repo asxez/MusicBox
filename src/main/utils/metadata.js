@@ -5,7 +5,6 @@
 
 const path = require('path');
 const mm = require('music-metadata');
-const {fixStringEncoding} = require('./string');
 
 /**
  * 判断是否为歌词标签
@@ -204,7 +203,7 @@ function extractEmbeddedLyrics(metadata) {
     }
 
     let embeddedLyrics = null;
-    let allFoundTags = [];
+    // let allFoundTags = [];
 
     for (const [format, tags] of Object.entries(metadata.native)) {
         if (!Array.isArray(tags)) continue;
@@ -213,7 +212,7 @@ function extractEmbeddedLyrics(metadata) {
             const tagId = tag.id ? tag.id.toUpperCase() : '';
 
             if (isLyricsTag(tagId, format)) {
-                allFoundTags.push({format, tagId, tag});
+                // allFoundTags.push({format, tagId, tag});
 
                 if (tagId === 'USLT' || tagId === 'LYRICS' || tagId === 'UNSYNCED LYRICS' ||
                     tagId === 'UNSYNCEDLYRICS' || tagId === '©LYR' || tagId === 'LYR') {
@@ -292,6 +291,7 @@ function getMimeTypeFromExtension(filePath) {
  * @returns {object} 解析后的元数据对象
  */
 async function parseMetadata(filePath, networkFileAdapter = null) {
+    const {fixStringEncoding} = require('./string');
     try {
         // console.log(`🔍 解析音频元数据: ${filePath}`);
 
@@ -367,9 +367,6 @@ async function parseMetadata(filePath, networkFileAdapter = null) {
 
 module.exports = {
     extractEmbeddedLyrics,
-    isLyricsTag,
-    extractLyricsText,
-    extractSynchronizedLyrics,
     getMimeTypeFromExtension,
     parseMetadata
 };

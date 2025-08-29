@@ -1,5 +1,5 @@
 const os = require('os');
-const {OS_ALLOWED, PATH_ALLOWED, FS_ALLOWED} = require('../utils/allowed_func');
+const {OS_ALLOWED} = require('../utils/allowed_func');
 
 
 /**

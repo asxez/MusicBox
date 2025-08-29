@@ -1,5 +1,5 @@
 const path = require('path');
-const {OS_ALLOWED, PATH_ALLOWED, FS_ALLOWED} = require('../utils/allowed_func');
+const {PATH_ALLOWED} = require('../utils/allowed_func');
 
 /**
  * 注册文件系统相关的 IPC

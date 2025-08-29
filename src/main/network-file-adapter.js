@@ -1,7 +1,6 @@
 // 网络文件系统适配器
 
 const path = require('path');
-const fs = require('fs');
 
 class NetworkFileAdapter {
     constructor(networkDriveManager) {

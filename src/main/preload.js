@@ -331,5 +331,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
             ipcRenderer.on('tray:quit', callback);
             return () => ipcRenderer.removeListener('tray:quit', callback);
         }
+    },
+
+    // 内存管理
+    memory: {
+        forceGC: () => ipcRenderer.invoke('memory:forceGC'),
     }
 });
