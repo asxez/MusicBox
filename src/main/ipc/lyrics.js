@@ -2,11 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const chardet = require('chardet');
-const iconv = require('iconv-lite');
-const mm = require('music-metadata');
 
-const {generateLyricsSearchPatterns, findBestLyricsMatch} = require('../utils/file-search');
 const {getMimeTypeFromExtension, extractEmbeddedLyrics} = require('../utils/metadata');
 
 /**
@@ -20,6 +16,8 @@ function registerLyricsIpcHandlers({ipcMain, networkFileAdapter}) {
 
     // 读取本地歌词文件
     ipcMain.handle('lyrics:readLocalFile', async (event, filePath) => {
+        const chardet = require('chardet');
+        const iconv = require('iconv-lite');
         try {
             console.log(`📖 读取本地歌词文件: ${filePath}`);
             const buffer = fs.readFileSync(filePath);
@@ -36,6 +34,7 @@ function registerLyricsIpcHandlers({ipcMain, networkFileAdapter}) {
 
     // 获取内嵌歌词
     ipcMain.handle('lyrics:getEmbedded', async (event, filePath) => {
+        const mm = require('music-metadata');
         try {
             if (!filePath || typeof filePath !== 'string') {
                 console.error('❌ 内嵌歌词获取失败: 无效的文件路径参数');
@@ -108,6 +107,7 @@ function registerLyricsIpcHandlers({ipcMain, networkFileAdapter}) {
 
     // 搜索本地歌词文件
     ipcMain.handle('lyrics:searchLocalFiles', async (event, lyricsDir, title, artist, album) => {
+        const {generateLyricsSearchPatterns, findBestLyricsMatch} = require('../utils/file-search');
         try {
             console.log(`🔍 搜索本地歌词文件: ${title} - ${artist} 在目录 ${lyricsDir}`);
 

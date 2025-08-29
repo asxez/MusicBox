@@ -41,10 +41,16 @@ class WebAudioEngine {
         this.nextTrackInfo = null; // 下一首歌曲信息
         this.isPreloading = false; // 是否正在预加载
         this.preloadPromise = null; // 预加载Promise
+
+        // 窗口可见性监听和内存管理
+        this.isWindowVisible = true;
+        this.memoryCleanupTimer = null;
     }
 
     async initialize() {
         try {
+            // 初始化窗口可见性监听
+            this.initVisibilityListener();
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             this.gainNode = this.audioContext.createGain();
             this.gainNode.connect(this.audioContext.destination);
@@ -52,7 +58,7 @@ class WebAudioEngine {
             this.initializeEqualizer();
             return true;
         } catch (error) {
-            console.error('Web Audio Engine 初始化失败:', error);
+            console.error('❌ Web Audio Engine 初始化失败:', error);
             return false;
         }
     }
@@ -327,7 +333,10 @@ class WebAudioEngine {
 
             // 停止进度更新
             this.stopProgressTimer();
-            console.log('⏹️ 停止播放');
+            if (!this.isWindowVisible) {
+                this.cleanupCoverUrls();
+                this.clearCurrentAudioBuffer();
+            }
 
             // 触发事件
             if (this.onPlaybackStateChanged) {
@@ -338,6 +347,13 @@ class WebAudioEngine {
             if (this.onPositionChanged) {
                 this.onPositionChanged(0);
             }
+
+            // 在窗口隐藏时执行内存清理
+            if (!this.isWindowVisible) {
+                setTimeout(() => this.performMemoryCleanup(), 0);
+            }
+
+            console.log('⏹️ 停止播放');
             return true;
         } catch (error) {
             console.error('❌ 停止失败:', error);
@@ -497,6 +513,11 @@ class WebAudioEngine {
     clearCurrentAudioBuffer() {
         if (this.audioBuffer) {
             this.audioBuffer = null;
+
+            // 在窗口隐藏时强制垃圾回收
+            if (!this.isWindowVisible) {
+                setTimeout(() => this.forceGarbageCollection(), 0);
+            }
         }
     }
 
@@ -505,6 +526,11 @@ class WebAudioEngine {
         if (this.nextAudioBuffer) {
             this.nextAudioBuffer = null;
             this.nextTrackInfo = null;
+
+            // 在窗口隐藏时强制垃圾回收
+            if (!this.isWindowVisible) {
+                setTimeout(() => this.forceGarbageCollection(), 0);
+            }
         }
     }
 
@@ -586,6 +612,9 @@ class WebAudioEngine {
             console.warn('⚠️ 当前索引为-1，无法切换到下一首');
             return false;
         }
+
+        // 在切换歌曲前，主动清理当前音频资源
+        this.clearCurrentAudioBuffer();
 
         // 切换到下一首
         this.currentIndex = (this.currentIndex + 1) % this.playlist.length;
@@ -851,7 +880,6 @@ class WebAudioEngine {
         try {
             if (this.sourceNode) {
                 this.sourceNode.disconnect();
-                console.log('✅ sourceNode已断开');
             }
         } catch (error) {
             console.warn('⚠️ sourceNode断开失败:', error);
@@ -860,7 +888,6 @@ class WebAudioEngine {
         try {
             if (this.equalizer && this.equalizer.output) {
                 this.equalizer.output.disconnect();
-                console.log('✅ equalizer.output已断开');
             }
         } catch (error) {
             console.warn('⚠️ equalizer.output断开失败:', error);
@@ -871,7 +898,6 @@ class WebAudioEngine {
             // 先断开所有连接，然后重新建立到destination的连接
             this.gainNode.disconnect();
             this.gainNode.connect(this.audioContext.destination);
-            console.log('✅ gainNode重新连接到destination');
         } catch (error) {
             console.warn('⚠️ gainNode重连失败:', error);
         }
@@ -913,12 +939,106 @@ class WebAudioEngine {
         }
     }
 
+    // 初始化窗口可见性监听
+    initVisibilityListener() {
+        try {
+            // 监听页面可见性变化
+            document.addEventListener('visibilitychange', async () => {
+                await this.handleVisibilityChange();
+            });
+
+            // 监听窗口焦点变化
+            window.addEventListener('focus', async () => {
+                this.isWindowVisible = true;
+                await this.handleWindowVisible();
+            });
+
+            window.addEventListener('blur', () => {
+                this.isWindowVisible = false;
+                this.handleWindowHidden();
+            });
+        } catch (error) {
+            console.error('❌ WebAudioEngine: 初始化窗口可见性监听失败:', error);
+        }
+    }
+
+    // 处理窗口可见性变化
+    async handleVisibilityChange() {
+        if (document.hidden) {
+            this.isWindowVisible = false;
+            this.handleWindowHidden();
+        } else {
+            this.isWindowVisible = true;
+            await this.handleWindowVisible();
+        }
+    }
+
+    // 处理窗口隐藏（最小化或隐藏到托盘）
+    handleWindowHidden() {
+        this.scheduleMemoryCleanup();
+    }
+
+    // 处理窗口显示
+    async handleWindowVisible() {
+        this.cancelScheduledMemoryCleanup();
+        await this.forceGarbageCollection();
+    }
+
+    // 调度内存清理
+    scheduleMemoryCleanup() {
+        // 取消之前的清理任务
+        this.cancelScheduledMemoryCleanup();
+
+        // 5秒后执行内存清理，给窗口恢复留出时间
+        this.memoryCleanupTimer = setTimeout(async () => {
+            await this.performMemoryCleanup();
+        }, 5000);
+    }
+
+    // 取消调度的内存清理
+    cancelScheduledMemoryCleanup() {
+        if (this.memoryCleanupTimer) {
+            clearTimeout(this.memoryCleanupTimer);
+            this.memoryCleanupTimer = null;
+        }
+    }
+
+    // 执行内存清理
+    async performMemoryCleanup() {
+        if (this.isWindowVisible) {
+            return;
+        }
+        try {
+            // 清理封面URL
+            this.cleanupCoverUrls();
+
+            // 强制垃圾回收
+            await this.forceGarbageCollection();
+        } catch (error) {
+            console.error('❌ WebAudioEngine: 内存清理失败:', error);
+        }
+    }
+
+    // 强制垃圾回收
+    async forceGarbageCollection() {
+        if (typeof window.gc === 'function') {
+            window.gc();
+        }
+    }
+
     destroy() {
         this.stop();
         this.stopProgressTimer();
 
+        // 取消内存清理任务
+        this.cancelScheduledMemoryCleanup();
+
         // 清理封面URL
         this.cleanupCoverUrls();
+
+        // 清理所有音频缓冲区
+        this.clearCurrentAudioBuffer();
+        this.clearNextTrackBuffer();
 
         if (this.equalizer) {
             this.equalizer.destroy();
@@ -928,6 +1048,11 @@ class WebAudioEngine {
         if (this.audioContext) {
             this.audioContext.close();
         }
+
+        // 移除事件监听器
+        document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+        window.removeEventListener('focus', this.handleWindowVisible);
+        window.removeEventListener('blur', this.handleWindowHidden);
     }
 }
 

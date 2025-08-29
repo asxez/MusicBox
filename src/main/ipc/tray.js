@@ -244,14 +244,6 @@ function createTrayIcon() {
 
 module.exports = {
     registerTrayIpcHandlers,
-    createTray,
-    destroyTray,
-    updateTrayMenu,
-    toggleMainWindow,
-    showMainWindow,
-    hideMainWindow,
-    getTray,
     getTraySettings,
-    setTraySettings,
     loadTraySettings
 };

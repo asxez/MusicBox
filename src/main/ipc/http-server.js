@@ -2,8 +2,6 @@
  * HTTP服务器 IPC
  */
 
-const http = require('http');
-const url = require('url');
 
 const httpServers = new Map();
 let serverIdCounter = 0;
@@ -34,6 +32,7 @@ function registerHttpServerIpcHandlers({ipcMain}) {
 
     // 创建HTTP服务器
     ipcMain.handle('httpServer:create', async (event, config) => {
+        const http = require('http');
         try {
             const serverId = `server_${++serverIdCounter}`;
             const serverConfig = {
@@ -284,6 +283,7 @@ function registerHttpServerIpcHandlers({ipcMain}) {
 
 // 处理HTTP请求
 async function handleHttpRequest(req, res, serverInfo, webContents) {
+    const url = require('url');
     const parsedUrl = url.parse(req.url, true);
     const pathname = parsedUrl.pathname;
     const method = req.method;

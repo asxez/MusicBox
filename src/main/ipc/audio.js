@@ -1,7 +1,5 @@
 // 音频引擎 IPC
 
-const {parseMetadata} = require('../utils/metadata')
-
 /**
  * 注册音频引擎相关的 IPC
  * @param {object} deps 依赖注入对象
@@ -26,6 +24,7 @@ function registerAudioIpcHandlers({ipcMain, audioEngineState}) {
 
     // 加载歌曲
     ipcMain.handle('audio:loadTrack', async (event, filePath) => {
+        const {parseMetadata} = require('../utils/metadata')
         try {
             console.log(`🔄 加载音频文件: ${filePath}`);
 
