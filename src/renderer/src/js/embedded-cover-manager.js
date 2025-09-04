@@ -6,10 +6,11 @@
 class EmbeddedCoverManager {
     constructor() {
         this.cache = new Map();
-        this.maxCacheSize = 12;
+        this.maxCacheSize = 5;
         this.objectUrls = new Set(); // 跟踪创建的Object URLs
         this.urlReferences = new Map(); // URL引用计数
         this.pendingReleases = new Map(); // 待释放的URL
+        this.processingFiles = new Set(); // 跟踪正在处理的文件，避免重复处理
     }
 
     /**
@@ -34,9 +35,37 @@ class EmbeddedCoverManager {
             // 检查缓存
             const cacheKey = this.generateCacheKey(filePath);
             if (this.cache.has(cacheKey)) {
-                return this.cache.get(cacheKey);
+                const cachedResult = this.cache.get(cacheKey);
+                // 对于成功的缓存结果，增加URL引用计数
+                if (cachedResult.success && cachedResult.url && cachedResult.url.startsWith('blob:')) {
+                    const currentCount = this.urlReferences.get(cachedResult.url) || 0;
+                    this.urlReferences.set(cachedResult.url, currentCount + 1);
+                }
+                return cachedResult;
             }
 
+            // 防止重复处理同一文件
+            if (this.processingFiles.has(filePath)) {
+                // console.log(`⏳ EmbeddedCoverManager: 文件正在处理中，等待结果 - ${filePath}`);
+                // 等待处理完成
+                return new Promise((resolve) => {
+                    const checkInterval = setInterval(() => {
+                        if (!this.processingFiles.has(filePath)) {
+                            clearInterval(checkInterval);
+                            // 递归调用获取缓存结果
+                            resolve(this.getEmbeddedCover(filePath));
+                        }
+                    }, 50);
+
+                    // 超时保护
+                    setTimeout(() => {
+                        clearInterval(checkInterval);
+                        resolve({success: false, error: '处理超时'});
+                    }, 5000);
+                });
+            }
+
+            this.processingFiles.add(filePath);
             // console.log(`🔍 EmbeddedCoverManager: 获取内嵌封面 - ${filePath}`);
 
             // 从主进程获取元数据（包括封面）
@@ -45,12 +74,14 @@ class EmbeddedCoverManager {
             if (!metadata || typeof metadata !== 'object') {
                 const errorResult = {success: false, error: '主进程返回无效响应'};
                 this.setCache(cacheKey, errorResult);
+                this.processingFiles.delete(filePath);
                 return errorResult;
             }
 
             if (!metadata.cover) {
                 const errorResult = {success: false, error: '音频文件中未找到内嵌封面'};
                 this.setCache(cacheKey, errorResult);
+                this.processingFiles.delete(filePath);
                 return errorResult;
             }
 
@@ -58,6 +89,7 @@ class EmbeddedCoverManager {
             if (!metadata.cover.data || !metadata.cover.format) {
                 const errorResult = {success: false, error: '内嵌封面数据格式无效'};
                 this.setCache(cacheKey, errorResult);
+                this.processingFiles.delete(filePath);
                 return errorResult;
             }
 
@@ -66,6 +98,7 @@ class EmbeddedCoverManager {
             if (!convertedCover.success) {
                 const errorResult = {success: false, error: `封面格式转换失败: ${convertedCover.error}`};
                 this.setCache(cacheKey, errorResult);
+                this.processingFiles.delete(filePath);
                 return errorResult;
             }
 
@@ -73,6 +106,7 @@ class EmbeddedCoverManager {
             if (typeof convertedCover.url !== 'string') {
                 const errorResult = {success: false, error: '封面URL格式无效'};
                 this.setCache(cacheKey, errorResult);
+                this.processingFiles.delete(filePath);
                 return errorResult;
             }
 
@@ -83,15 +117,18 @@ class EmbeddedCoverManager {
                 format: metadata.cover.format,
                 size: convertedCover.size,
                 source: 'embedded',
-                originalData: metadata.cover
+                // originalData: metadata.cover
             };
 
             // 缓存结果
             this.setCache(cacheKey, finalResult);
+            this.processingFiles.delete(filePath);
             return finalResult;
-
         } catch (error) {
             console.error('❌ EmbeddedCoverManager: 获取内嵌封面失败:', error);
+
+            // 清理处理状态
+            this.processingFiles.delete(filePath);
 
             // 提供更具体的错误信息
             let errorMessage = error.message || '未知错误';
@@ -135,7 +172,7 @@ class EmbeddedCoverManager {
                 imageData = new Uint8Array(imageData);
                 console.log('🔄 EmbeddedCoverManager: 转换Array为Uint8Array');
             } else if (imageData instanceof Uint8Array) {
-                // console.log('✅ EmbeddedCoverManager: 数据已是Uint8Array格式');
+                console.log('✅ EmbeddedCoverManager: 数据已是Uint8Array格式');
             } else if (this.isBufferLike(imageData)) {
                 imageData = new Uint8Array(imageData);
                 console.log('🔄 EmbeddedCoverManager: 转换Buffer-like对象为Uint8Array');
@@ -189,8 +226,8 @@ class EmbeddedCoverManager {
             // 记录URL用于后续清理
             this.objectUrls.add(objectUrl);
 
-            // 初始化引用计数
-            this.urlReferences.set(objectUrl, 1);
+            // 初始化引用计数为2，因为会被缓存和DOM同时引用
+            this.urlReferences.set(objectUrl, 2);
 
             return {
                 success: true,
@@ -256,10 +293,9 @@ class EmbeddedCoverManager {
             const firstKey = this.cache.keys().next().value;
             const oldData = this.cache.get(firstKey);
 
-            // 清理旧的Object URL
-            if (oldData && oldData.url && this.objectUrls.has(oldData.url)) {
-                URL.revokeObjectURL(oldData.url);
-                this.objectUrls.delete(oldData.url);
+            // 清理旧的Object URL - 使用引用计数安全释放
+            if (oldData && oldData.url && oldData.url.startsWith('blob:')) {
+                this.releaseUrlReference(oldData.url);
             }
 
             this.cache.delete(firstKey);
@@ -280,6 +316,14 @@ class EmbeddedCoverManager {
             URL.revokeObjectURL(url);
         });
         this.objectUrls.clear();
+        this.urlReferences.clear();
+        this.processingFiles.clear();
+
+        // 清理待释放的URL
+        this.pendingReleases.forEach(timeoutId => {
+            clearTimeout(timeoutId);
+        });
+        this.pendingReleases.clear();
 
         this.cache.clear();
         console.log('🗑️ EmbeddedCoverManager: 缓存已清空');
@@ -362,6 +406,19 @@ class EmbeddedCoverManager {
     }
 
     /**
+     * 检查blob URL是否仍然有效
+     * @param {string} url - blob URL
+     * @returns {boolean} URL是否有效
+     */
+    isBlobUrlValid(url) {
+        if (!url || !url.startsWith('blob:')) {
+            return false;
+        }
+
+        return this.objectUrls.has(url) && this.urlReferences.has(url);
+    }
+
+    /**
      * 强制刷新特定文件的封面
      * @param {string} filePath - 文件路径
      * @returns {Promise<Object>} 刷新结果
@@ -373,6 +430,9 @@ class EmbeddedCoverManager {
             // 1. 先获取新的封面
             const cacheKey = this.generateCacheKey(filePath);
             const oldCachedResult = this.cache.get(cacheKey);
+
+            // 清理处理状态
+            this.processingFiles.delete(filePath);
 
             // 临时清除缓存以强制重新获取
             this.cache.delete(cacheKey);

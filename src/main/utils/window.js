@@ -149,9 +149,10 @@ async function createWindow() {
         frame: false,
         show: false,
         webPreferences: {
-            nodeIntegration: false,
+            nodeIntegration: true,
             contextIsolation: true,
             enableRemoteModule: false,
+            webSecurity: false,
             preload: path.join(__dirname, '../preload.js')
         }
     });

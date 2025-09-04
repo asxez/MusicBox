@@ -56,25 +56,33 @@ class URLValidator {
         }
 
         try {
+            // 首先检查blob URL格式
+            if (!blobUrl.startsWith('blob:') || blobUrl.length < 10) {
+                console.warn('⚠️ URLValidator: blob URL格式无效', blobUrl);
+                return false;
+            }
+
             // 尝试创建一个Image对象来测试URL
             const isValid = await this.testImageLoad(blobUrl);
 
-            // 缓存结果
+            // 缓存结果，但对于失败的blob URL缓存时间更短
+            const cacheTimeout = isValid ? this.cacheTimeout : 5000; // 失败结果只缓存5秒
             this.validationCache.set(cacheKey, {
                 valid: isValid,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                timeout: cacheTimeout
             });
 
             return isValid;
         } catch (error) {
             console.warn('⚠️ URLValidator: blob URL验证失败:', error);
 
-            // 缓存失败结果
+            // 缓存失败结果，但时间较短
             this.validationCache.set(cacheKey, {
                 valid: false,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                timeout: 5000
             });
-
             return false;
         }
     }
@@ -131,11 +139,15 @@ class URLValidator {
     testImageLoad(url) {
         return new Promise((resolve) => {
             const img = new Image();
+            let resolved = false;
 
             const cleanup = () => {
+                if (resolved) return;
+                resolved = true;
                 img.onload = null;
                 img.onerror = null;
                 img.onabort = null;
+                // 不设置src为null，避免触发额外的错误
             };
 
             img.onload = () => {
@@ -143,7 +155,11 @@ class URLValidator {
                 resolve(true);
             };
 
-            img.onerror = () => {
+            img.onerror = (event) => {
+                console.warn('⚠️ URLValidator: 图片加载失败', {
+                    url: url.substring(0, 50) + '...',
+                    error: event.error || 'Unknown error'
+                });
                 cleanup();
                 resolve(false);
             };
@@ -153,12 +169,22 @@ class URLValidator {
                 resolve(false);
             };
 
-            setTimeout(() => {
+            const timeoutId = setTimeout(() => {
+                if (!resolved) {
+                    console.warn('⚠️ URLValidator: 图片加载超时', url.substring(0, 50) + '...');
+                    cleanup();
+                    resolve(false);
+                }
+            }, 5000);
+
+            try {
+                img.src = url;
+            } catch (error) {
+                console.warn('⚠️ URLValidator: 设置图片src失败', error);
+                clearTimeout(timeoutId);
                 cleanup();
                 resolve(false);
-            }, 3000);
-
-            img.src = url;
+            }
         });
     }
 
@@ -202,9 +228,9 @@ class URLValidator {
     // 清理过期的缓存项
     cleanupExpiredCache() {
         const now = Date.now();
-
         for (const [key, value] of this.validationCache.entries()) {
-            if (now - value.timestamp > this.cacheTimeout) {
+            const timeout = value.timeout || this.cacheTimeout;
+            if (now - value.timestamp > timeout) {
                 this.validationCache.delete(key);
             }
         }
