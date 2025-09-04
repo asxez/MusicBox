@@ -1206,8 +1206,8 @@ class MusicBoxAPI extends EventEmitter {
         try {
             console.log(`🎵 获取歌词: ${title} - ${artist}${filePath ? ` (${filePath})` : ''}`);
 
-            // 优先级1: 检查内嵌歌词（如果提供了文件路径）
-            if (filePath && window.embeddedLyricsManager) {
+            // 优先级1: 检查内嵌歌词
+            if (filePath) {
                 try {
                     const embeddedResult = await window.embeddedLyricsManager.getEmbeddedLyrics(filePath);
                     if (embeddedResult.success) {

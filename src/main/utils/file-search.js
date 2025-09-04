@@ -6,7 +6,9 @@
 const path = require('path');
 const {
     cleanFileName,
+    cleanCoverFileName,
     generateTextVariants,
+    generateCoverTextVariants,
     calculateStringSimilarity,
     calculateWordMatch,
     parseFileNamePattern
@@ -171,14 +173,15 @@ function findBestLyricsMatch(files, patterns) {
 function generateCoverSearchPatterns(title, artist, album) {
     const patterns = [];
 
-    // 清理文件名中的特殊字符
-    const cleanTitle = cleanFileName(title);
-    const cleanArtist = cleanFileName(artist);
-    const cleanAlbum = cleanFileName(album);
+    // 使用与渲染器进程一致的封面文件名清理逻辑
+    const cleanTitle = cleanCoverFileName(title);
+    const cleanArtist = cleanCoverFileName(artist);
+    const cleanAlbum = cleanCoverFileName(album);
 
     // 生成不同的变体
-    const titleVariants = generateTextVariants(cleanTitle);
-    const artistVariants = generateTextVariants(cleanArtist);
+    // 使用封面专用的变体生成函数
+    const titleVariants = generateCoverTextVariants(cleanTitle);
+    const artistVariants = generateCoverTextVariants(cleanArtist);
 
     // 常见的封面文件命名格式（按优先级排序）
     if (cleanTitle && cleanArtist) {

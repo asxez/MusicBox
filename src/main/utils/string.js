@@ -131,6 +131,70 @@ function cleanFileName(str) {
 }
 
 /**
+ * 清理封面文件名中的特殊字符
+ * @param {string} str - 原始字符串
+ * @returns {string} 清理后的字符串
+ */
+function cleanCoverFileName(str) {
+    if (!str) return '';
+    return str.replace(/[<>:"/\\|?*]/g, '_')
+        .replace(/\s+/g, '_')
+        .trim();
+}
+
+/**
+ * 生成封面文件名的文本变体（用于封面匹配）
+ * @param {string} text - 原始文本
+ * @returns {string[]} 文本变体数组
+ */
+function generateCoverTextVariants(text) {
+    if (!text) return [''];
+
+    const variants = new Set();
+    const cleaned = cleanCoverFileName(text);
+
+    // 原始文本
+    variants.add(cleaned);
+
+    // 移除括号内容 (feat. xxx), [xxx], 等
+    const withoutBrackets = cleaned.replace(/[(\[{].*?[)\]}]/g, '').trim();
+    if (withoutBrackets && withoutBrackets !== cleaned) {
+        variants.add(withoutBrackets);
+    }
+
+    // 移除常见后缀
+    const suffixesToRemove = [
+        'feat\\.',
+        'ft\\.',
+        'featuring',
+        'remix',
+        'remaster',
+        'remastered',
+        'acoustic',
+        'live',
+        'radio_edit',
+        'extended',
+        'instrumental'
+    ];
+
+    for (const suffix of suffixesToRemove) {
+        const regex = new RegExp(`_*\\(?${suffix}.*?\\)?$`, 'gi');
+        const withoutSuffix = cleaned.replace(regex, '').trim();
+        if (withoutSuffix && withoutSuffix !== cleaned) {
+            variants.add(withoutSuffix);
+        }
+    }
+
+    // 处理数字和特殊字符（保持下划线）
+    const withoutSpecialChars = cleaned.replace(/[^\w\s\u4e00-\u9fff_]/g, '_').replace(/_+/g, '_').trim();
+    if (withoutSpecialChars && withoutSpecialChars !== cleaned) {
+        variants.add(withoutSpecialChars);
+    }
+
+    return Array.from(variants).filter(v => v.length > 0);
+}
+
+/**
  * 计算词匹配度
  * @param {string} str1 - 第一个字符串
  * @param {string} str2 - 第二个字符串
@@ -204,7 +268,9 @@ module.exports = {
     fixStringEncoding,
     calculateStringSimilarity,
     generateTextVariants,
+    generateCoverTextVariants,
     cleanFileName,
+    cleanCoverFileName,
     calculateWordMatch,
     parseFileNamePattern
 };
