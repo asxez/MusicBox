@@ -1071,24 +1071,20 @@ class MusicBoxAPI extends EventEmitter {
         try {
             // 如果强制刷新，先清理缓存
             if (forceRefresh) {
-                if (filePath && window.embeddedCoverManager) {
+                if (filePath ) {
                     window.embeddedCoverManager.clearCacheForFile(filePath);
-                }
-                if (window.localCoverManager) {
                     window.localCoverManager.clearCacheForTrack(title, artist, album);
                 }
             }
 
             // 优先级1: 检查内嵌封面
-            if (filePath && window.embeddedCoverManager) {
+            if (filePath) {
                 try {
                     const embeddedResult = await window.embeddedCoverManager.getEmbeddedCover(filePath);
                     if (embeddedResult.success && embeddedResult.url) {
-                        // 验证URL有效性
-                        const isValidUrl = window.urlValidator ?
-                            await window.urlValidator.isValidUrl(embeddedResult.url) : true;
-
-                        if (isValidUrl) {
+                        // 对于blob URL，跳过验证以避免过早释放
+                        // URL验证会在DOM加载时自然进行
+                        if (embeddedResult.url.startsWith('blob:')) {
                             return {
                                 success: true,
                                 imageUrl: embeddedResult.url,
@@ -1099,7 +1095,20 @@ class MusicBoxAPI extends EventEmitter {
                                 mimeType: embeddedResult.mimeType
                             };
                         } else {
-                            console.warn('⚠️ API: 内嵌封面URL无效，跳过');
+                            // 对于非blob URL，进行验证
+                            const isValidUrl = window.urlValidator ?
+                                await window.urlValidator.isValidUrl(embeddedResult.url) : true;
+                            if (isValidUrl) {
+                                return {
+                                    success: true,
+                                    imageUrl: embeddedResult.url,
+                                    type: 'embedded',
+                                    source: 'embedded-cover',
+                                    format: embeddedResult.format,
+                                    size: embeddedResult.size,
+                                    mimeType: embeddedResult.mimeType
+                                };
+                            }
                         }
                     }
                 } catch (embeddedError) {

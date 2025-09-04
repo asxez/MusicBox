@@ -37,12 +37,8 @@ class CoverUpdateManager {
 
         try {
             // 清理相关缓存
-            if (window.embeddedCoverManager) {
-                window.embeddedCoverManager.clearCacheForFile(filePath);
-            }
-            if (window.localCoverManager) {
-                window.localCoverManager.clearCacheForTrack(title, artist, album);
-            }
+            window.embeddedCoverManager.clearCacheForFile(filePath);
+            window.localCoverManager.clearCacheForTrack(title, artist, album);
 
             // 通知组件更新
             this.notifyCallbacks({

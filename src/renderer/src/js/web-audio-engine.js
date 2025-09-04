@@ -1246,7 +1246,6 @@ class AudioEqualizer {
                 console.warn(`⚠️ 滤波器 ${index} 断开失败:`, error);
             }
         });
-        console.log('🔌 均衡器所有连接断开完成');
     }
 
     destroy() {
@@ -1254,7 +1253,6 @@ class AudioEqualizer {
         this.filters = [];
         this.input = null;
         this.output = null;
-        console.log('🗑️ 音频均衡器已销毁');
     }
 }
 

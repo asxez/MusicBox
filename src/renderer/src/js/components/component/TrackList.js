@@ -8,6 +8,7 @@ class TrackList extends Component {
         this.tracks = [];
         this.selectedTracks = new Set();
         this.showCovers = this.getShowCoversSettings();
+        this.loadingCovers = new Set(); // 跟踪正在加载的封面，避免重复请求
         this.setupSettingsListener();
         this.setupCoverUpdateListener();
     }
@@ -34,6 +35,7 @@ class TrackList extends Component {
         this.tracks = [];
         this.filteredTracks = [];
         this.currentTrackIndex = -1;
+        this.loadingCovers.clear();
         super.destroy();
     }
 
@@ -49,9 +51,7 @@ class TrackList extends Component {
                 window.app.components.settings.on('showTrackCoversEnabled', (enabled) => {
                     this.showCovers = enabled;
                     this.render(); // 重新渲染列表
-                    console.log(`🖼️ TrackList: 封面显示设置已更新为 ${enabled ? '启用' : '禁用'}`);
                 });
-                console.log('🖼️ TrackList: 设置监听器已设置');
             } else {
                 // 如果还没有初始化，延迟重试
                 setTimeout(setupListener, 100);
@@ -69,20 +69,25 @@ class TrackList extends Component {
 
     setTracks(tracks) {
         this.tracks = tracks;
+
+        // 清理之前的加载状态
+        this.loadingCovers.clear();
+
         this.render();
 
-        // 异步加载封面
+        // 加载封面，延迟执行避免与render冲突
         if (this.showCovers) {
-            this.preloadVisibleCovers();
+            setTimeout(() => {
+                this.preloadVisibleCovers();
+            }, 100);
         }
     }
 
     // 预加载可见区域的封面
     preloadVisibleCovers() {
         const tracksToPreload = this.tracks.slice(0, 12);
-
         tracksToPreload.forEach((track) => {
-            if (!track.cover && track.filePath) {
+            if (!track.cover && track.filePath && !this.loadingCovers.has(track.filePath)) {
                 this.loadTrackCoverAsync(track);
             }
         });
@@ -162,14 +167,6 @@ class TrackList extends Component {
 
     getTrackCover(track) {
         if (track.cover) {
-            // console.log('🔍 TrackList: getTrackCover检查封面数据', {
-            //     type: typeof track.cover,
-            //     constructor: track.cover.constructor.name,
-            //     value: typeof track.cover === 'string' ?
-            //            track.cover.substring(0, 100) + '...' :
-            //            JSON.stringify(track.cover)
-            // });
-
             if (typeof track.cover !== 'string') {
                 console.error('❌ TrackList: track.cover不是字符串，返回默认封面', {
                     type: typeof track.cover,
@@ -181,47 +178,53 @@ class TrackList extends Component {
             return track.cover;
         }
 
-        // 异步获取封面，先返回默认封面
-        this.loadTrackCoverAsync(track);
+        // 获取封面，先返回默认封面
+        if (!this.loadingCovers.has(track.filePath)) {
+            this.loadTrackCoverAsync(track);
+        }
         return 'assets/images/default-cover.svg';
     }
 
     async loadTrackCoverAsync(track) {
+        if (!track.filePath) return;
+        if (this.loadingCovers.has(track.filePath)) return;
+
+        this.loadingCovers.add(track.filePath);
+
         try {
             // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
             const loadCover = async () => {
-                const coverResult = await window.api.getCover(
-                    track.title, track.artist, track.album, track.filePath
-                );
+                try {
+                    const coverResult = await window.api.getCover(
+                        track.title, track.artist, track.album, track.filePath
+                    );
 
-                if (coverResult.success && coverResult.imageUrl && typeof coverResult.imageUrl === 'string') {
-                    let coverUrl = coverResult.imageUrl;
+                    if (coverResult.success && coverResult.imageUrl && typeof coverResult.imageUrl === 'string') {
+                        let coverUrl = coverResult.imageUrl;
 
-                    // 处理本地文件路径格式
-                    if (coverResult.type === 'local-file' && coverResult.filePath) {
-                        if (!coverUrl.startsWith('file://')) {
-                            coverUrl = coverResult.filePath.replace(/\\/g, '/');
-                            if (!coverUrl.startsWith('/')) {
-                                coverUrl = '/' + coverUrl;
-                            }
-                            coverUrl = `file://${coverUrl}`;
-                        }
-                    }
-
-                    track.cover = coverUrl;
-
-                    // 更新DOM
-                    requestAnimationFrame(() => {
-                        const trackItems = this.element.querySelectorAll('.track-item');
-                        trackItems.forEach((item) => {
-                            if (parseInt(item.dataset.index) === this.tracks.indexOf(track)) {
-                                const coverImg = item.querySelector('.track-cover');
-                                if (coverImg) {
-                                    coverImg.src = track.cover;
+                        // 处理本地文件路径格式
+                        if (coverResult.type === 'local-file' && coverResult.filePath) {
+                            if (!coverUrl.startsWith('file://')) {
+                                coverUrl = coverResult.filePath.replace(/\\/g, '/');
+                                if (!coverUrl.startsWith('/')) {
+                                    coverUrl = '/' + coverUrl;
                                 }
+                                coverUrl = `file://${coverUrl}`;
                             }
+                        }
+
+                        track.cover = coverUrl;
+
+                        // 更新DOM - 修复选择器问题
+                        requestAnimationFrame(() => {
+                            this.updateTrackCoverInDOM(track);
                         });
-                    });
+                    }
+                } catch (error) {
+                    console.warn('TrackList: 封面加载失败:', error);
+                } finally {
+                    // 清理加载状态
+                    this.loadingCovers.delete(track.filePath);
                 }
             };
 
@@ -232,7 +235,8 @@ class TrackList extends Component {
                 setTimeout(loadCover, 0);
             }
         } catch (error) {
-            console.warn('TrackList: 加载封面失败:', error);
+            console.warn('⚠️ TrackList: 加载封面失败:', error);
+            this.loadingCovers.delete(track.filePath);
         }
     }
 
@@ -242,16 +246,9 @@ class TrackList extends Component {
             const trackItems = this.element.querySelectorAll('.track-item');
             trackItems.forEach((item, index) => {
                 if (this.tracks[index] === track) {
-                    const coverImg = item.querySelector('.track-cover img');
+                    // 查找.track-cover元素（img标签）
+                    const coverImg = item.querySelector('.track-cover');
                     if (coverImg && track.cover) {
-                        console.log('🔄 TrackList: 更新DOM中的封面', {
-                            title: track.title,
-                            coverType: typeof track.cover,
-                            coverValue: typeof track.cover === 'string' ?
-                                       track.cover.substring(0, 100) + '...' :
-                                       JSON.stringify(track.cover)
-                        });
-
                         // 严格的类型检查
                         if (typeof track.cover !== 'string') {
                             console.error('❌ TrackList: track.cover不是字符串，无法设置为src', {
@@ -262,12 +259,27 @@ class TrackList extends Component {
                             return;
                         }
 
-                        console.log('🔄 TrackList: 即将设置coverImg.src =', track.cover.substring(0, 100) + '...');
+                        // 设置封面前先验证URL
+                        // 特别是blob URL
+                        if (track.cover.startsWith('blob:')) {
+                            // 对于blob URL，添加额外的错误处理
+                            coverImg.onerror = () => {
+                                console.warn('⚠️ TrackList: Blob封面加载失败，使用默认封面', {
+                                    blobUrl: track.cover.substring(0, 50) + '...',
+                                    trackTitle: track.title
+                                });
+                                coverImg.src = 'assets/images/default-cover.svg';
+                                // 清理失效的封面引用
+                                track.cover = null;
+                            };
+                        } else {
+                            coverImg.onerror = () => {
+                                console.warn('⚠️ TrackList: 封面加载失败，使用默认封面');
+                                coverImg.src = 'assets/images/default-cover.svg';
+                            };
+                        }
+
                         coverImg.src = track.cover;
-                        coverImg.onerror = () => {
-                            console.warn('⚠️ TrackList: 封面加载失败，使用默认封面');
-                            coverImg.src = 'assets/images/default-cover.svg';
-                        };
                     }
                 }
             });
@@ -330,6 +342,11 @@ class TrackList extends Component {
         );
 
         if (matchingTrack) {
+            // 清除加载状态
+            if (matchingTrack.filePath) {
+                this.loadingCovers.delete(matchingTrack.filePath);
+            }
+
             // 清除缓存并重新获取封面
             if (matchingTrack.cover) {
                 delete matchingTrack.cover;
