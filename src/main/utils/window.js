@@ -206,7 +206,7 @@ async function createWindow() {
         } catch (error) {}
 
         if (!shouldStartMinimized) {
-            mainWindow.webContents.openDevTools({mode: 'detach'});
+            // mainWindow.webContents.openDevTools({mode: 'detach'});
             mainWindow.show();
         }
     });

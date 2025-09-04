@@ -61,7 +61,7 @@ function registerCoversIpcHandlers({ipcMain}) {
 
     // 检查本地封面缓存是否存在
     ipcMain.handle('covers:checkLocalCover', async (event, coverDir, title, artist, album, isAlbum = false) => {
-        const {cleanFileName} = require('../utils/string');
+        const {cleanCoverFileName} = require('../utils/string');
         const {generateCoverSearchPatterns, findBestCoverMatch} = require('../utils/file-search');
         try {
             // console.log(`🔍 检查本地封面缓存: ${title} - ${artist} 在目录 ${coverDir} (isAlbum=${!!isAlbum})`);
@@ -78,16 +78,24 @@ function registerCoversIpcHandlers({ipcMain}) {
 
             // 专辑精确匹配模式：仅匹配 艺术家_专辑__ALBUM.扩展名
             if (isAlbum) {
-                const cleanArtist = cleanFileName(artist).replace(/\s+/g, '_');
-                const cleanAlbum = cleanFileName(album).replace(/\s+/g, '_');
+                // 使用与渲染器进程一致的文件名清理逻辑
+                const cleanArtist = cleanCoverFileName(artist);
+                const cleanAlbum = cleanCoverFileName(album);
                 const expectedBase = `${cleanArtist}_${cleanAlbum}__ALBUM`.toLowerCase();
-                const matched = imageFiles.find(file => path.parse(file).name.toLowerCase() === expectedBase);
+
+                console.log(`🔍 [Album-only] 查找专辑封面: ${expectedBase}`);
+
+                const matched = imageFiles.find(file => {
+                    const fileBase = path.parse(file).name.toLowerCase();
+                    return fileBase === expectedBase;
+                });
+
                 if (matched) {
                     const fullPath = path.join(coverDir, matched);
-                    // console.log(`✅ [Album-only] 找到匹配的封面文件: ${matched}`);
+                    console.log(`✅ [Album-only] 找到匹配的封面文件: ${matched}`);
                     return {success: true, filePath: fullPath, fileName: matched};
                 }
-                console.log('❌ [Album-only] 未找到严格匹配的专辑封面');
+                console.log(`❌ [Album-only] 未找到严格匹配的专辑封面，期望: ${expectedBase}`);
                 return {success: false, error: '未找到匹配的专辑封面'};
             }
 

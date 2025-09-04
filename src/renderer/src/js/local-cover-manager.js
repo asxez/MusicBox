@@ -7,7 +7,7 @@ class LocalCoverManager {
     constructor() {
         this.coverDirectory = null;
         this.cache = new Map();
-        this.maxCacheSize = 10;
+        this.maxCacheSize = 5;
         this.supportedFormats = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
     }
 
@@ -18,7 +18,6 @@ class LocalCoverManager {
     setCoverDirectory(directory) {
         this.coverDirectory = directory;
         this.cache.clear(); // 清空缓存
-        console.log(`📁 LocalCoverManager: 设置封面缓存目录为 ${directory}`);
     }
 
     /**
@@ -102,7 +101,14 @@ class LocalCoverManager {
                 };
             }
 
-            // console.log(`🔍 LocalCoverManager: 检查本地封面缓存 - ${title} by ${artist}`);
+            // console.log(`🔍 LocalCoverManager: 检查本地封面缓存`, {
+            //     title: title || '(专辑模式)',
+            //     artist,
+            //     album,
+            //     isAlbum: !title,
+            //     cacheKey,
+            //     coverDirectory: this.coverDirectory
+            // });
 
             // 搜索匹配的封面文件
             const isAlbum = !title;
@@ -129,7 +135,12 @@ class LocalCoverManager {
                     source: 'local-cache'
                 };
             } else {
-                console.log(`❌ LocalCoverManager: 未找到本地封面缓存 - ${title}`);
+                console.log(`❌ LocalCoverManager: 未找到本地封面缓存`, {
+                    title: title || '(专辑模式)',
+                    artist,
+                    album,
+                    error: searchResult.error
+                });
                 return {success: false, error: '未找到本地封面缓存'};
             }
         } catch (error) {
@@ -257,8 +268,6 @@ class LocalCoverManager {
      * @returns {Promise<Object>} 刷新结果
      */
     async refreshCoverForTrack(title, artist, album = '') {
-        console.log(`🔄 LocalCoverManager: 强制刷新封面 - ${title} by ${artist}`);
-
         // 清理缓存
         this.clearCacheForTrack(title, artist, album);
 
