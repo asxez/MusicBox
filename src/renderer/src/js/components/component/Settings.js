@@ -17,6 +17,7 @@ class Settings extends Component {
         this.setupEventListeners();
         this.initializeSettings();
         this.initializePluginContainer();
+        this.initializeSectionDisplay();
     }
 
     async show() {
@@ -75,6 +76,11 @@ class Settings extends Component {
         // 关闭按钮
         this.closeBtn = this.element.querySelector('#settings-close-btn');
 
+        // 侧边栏导航元素
+        this.navButtons = this.element.querySelectorAll('.settings-nav-btn');
+        this.settingsSections = this.element.querySelectorAll('.settings-section');
+        this.currentSection = 'appearance'; // 默认显示外观设置
+
         // 设置控件元素
         this.languageSelect = this.element.querySelector('#language-select');
         this.autoplayToggle = this.element.querySelector('#autoplay-toggle');
@@ -125,15 +131,6 @@ class Settings extends Component {
         this.refreshDrivesBtn = this.element.querySelector('#refresh-drives-btn');
         this.mountedDrivesList = this.element.querySelector('#mounted-drives-list');
 
-        // 调试：检查网络磁盘元素是否正确找到
-        console.log('🔍 Settings: 网络磁盘元素检查:', {
-            networkDriveToggle: !!this.networkDriveToggle,
-            networkDriveConfig: !!this.networkDriveConfig,
-            addNetworkDriveBtn: !!this.addNetworkDriveBtn,
-            refreshDrivesBtn: !!this.refreshDrivesBtn,
-            mountedDrivesList: !!this.mountedDrivesList
-        });
-
         // 网络磁盘模态框元素
         this.networkDriveModal = document.querySelector('#network-drive-modal');
         this.networkDriveForm = document.querySelector('#network-drive-form');
@@ -160,21 +157,17 @@ class Settings extends Component {
 
         // 连接测试结果
         this.connectionTestResult = document.querySelector('#connection-test-result');
-
-        // 调试：检查模态框元素是否正确找到
-        console.log('🔍 Settings: 模态框元素检查:', {
-            networkDriveModal: !!this.networkDriveModal,
-            networkDriveForm: !!this.networkDriveForm,
-            networkDriveModalClose: !!this.networkDriveModalClose,
-            networkDriveCancel: !!this.networkDriveCancel,
-            networkDriveConfirm: !!this.networkDriveConfirm,
-            testConnectionBtn: !!this.testConnectionBtn,
-            driveNameInput: !!this.driveNameInput,
-            driveProtocolSelect: !!this.driveProtocolSelect
-        });
     }
 
     setupEventListeners() {
+        // 侧边栏导航事件
+        this.navButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const section = e.currentTarget.dataset.section;
+                this.switchToSection(section);
+            });
+        });
+
         // 关闭按钮事件
         this.closeBtn.addEventListener('click', () => {
             this.hide();
@@ -219,7 +212,6 @@ class Settings extends Component {
 
             // 通知主界面更新侧边栏按钮显示状态
             this.emit('statisticsEnabled', e.target.checked);
-            console.log(`📊 Settings: 统计信息功能${e.target.checked ? '启用' : '禁用'}`);
         });
 
         // 统计信息设置 - 控制侧边栏统计按钮显示/隐藏
@@ -228,7 +220,6 @@ class Settings extends Component {
 
             // 通知主界面更新侧边栏按钮显示状态
             this.emit('statisticsEnabled', e.target.checked);
-            console.log(`📊 Settings: 统计信息功能${e.target.checked ? '启用' : '禁用'}`);
         });
 
         // 最近播放设置 - 控制侧边栏最近播放按钮显示/隐藏
@@ -237,7 +228,6 @@ class Settings extends Component {
 
             // 通知主界面更新侧边栏按钮显示状态
             this.emit('recentPlayEnabled', e.target.checked);
-            console.log(`🕒 Settings: 最近播放功能${e.target.checked ? '启用' : '禁用'}`);
         });
 
         // 艺术家页面设置 - 控制侧边栏艺术家按钮显示/隐藏
@@ -246,7 +236,6 @@ class Settings extends Component {
 
             // 通知主界面更新侧边栏按钮显示状态
             this.emit('artistsPageEnabled', e.target.checked);
-            console.log(`🎨 Settings: 艺术家页面功能${e.target.checked ? '启用' : '禁用'}`);
         });
 
         // 专辑页面设置
@@ -255,7 +244,6 @@ class Settings extends Component {
 
             // 通知主界面更新侧边栏按钮显示状态
             this.emit('albumsPageEnabled', e.target.checked);
-            console.log(`🎶 Settings: 专辑页面功能${e.target.checked ? '启用' : '禁用'}`);
         });
 
         // 歌曲封面显示设置 - 控制歌曲列表中封面的显示/隐藏
@@ -1839,6 +1827,36 @@ class Settings extends Component {
         } catch (error) {
             console.error('❌ Settings: 绑定插件设置项事件失败:', error);
         }
+    }
+
+    // 切换到指定的设置区域
+    switchToSection(sectionName) {
+        // 更新当前区域
+        this.currentSection = sectionName;
+
+        // 更新导航按钮状态
+        this.navButtons.forEach(button => {
+            if (button.dataset.section === sectionName) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
+        });
+
+        // 显示/隐藏设置区域
+        this.settingsSections.forEach(section => {
+            if (section.dataset.section === sectionName) {
+                section.classList.add('active');
+            } else {
+                section.classList.remove('active');
+            }
+        });
+    }
+
+    // 初始化设置区域显示
+    initializeSectionDisplay() {
+        // 默认显示第一个区域（外观设置）
+        this.switchToSection(this.currentSection);
     }
 
     // HTML转义
