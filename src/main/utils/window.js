@@ -152,9 +152,9 @@ async function createWindow() {
             nodeIntegration: true,
             contextIsolation: true,
             enableRemoteModule: false,
-            webSecurity: false,
-            preload: path.join(__dirname, '../preload.js')
-        }
+            webSecurity: true,
+            preload: path.join(__dirname, '../preload.js'),
+        },
     });
 
     // 加载HTML文件
