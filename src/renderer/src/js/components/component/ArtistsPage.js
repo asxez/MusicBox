@@ -10,6 +10,7 @@ class ArtistsPage extends Component {
         this.selectedArtist = null;
         this.viewMode = 'grid'; // grid or list
         this.listenersSetup = false; // 事件监听器是否已设置
+        this._lastTracksHash = null; // 防重复机制
     }
 
     async show() {
@@ -22,9 +23,22 @@ class ArtistsPage extends Component {
             this.element.style.display = 'block';
         }
         this.isVisible = true;
-        this.tracks = await api.getTracks();
-        this.processArtists();
+
+        // 只有在没有tracks数据时才获取，避免重复调用
+        if (!this.tracks || this.tracks.length === 0) {
+            this.tracks = await api.getTracks();
+            this._lastTracksHash = this._generateTracksHash(this.tracks);
+            this.processArtists();
+        }
+
         this.render();
+    }
+
+    // 生成tracks的简单哈希值
+    _generateTracksHash(tracks) {
+        if (!tracks || tracks.length === 0) return 'empty';
+        const sample = tracks.slice(0, 3).map(t => t.filePath || t.title).join('|');
+        return `${tracks.length}_${sample}`;
     }
 
     hide() {

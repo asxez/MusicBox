@@ -765,7 +765,8 @@ class MusicBoxAPI extends EventEmitter {
 
             if (tracks && tracks.length > 0) {
                 this.emit('libraryLoaded', tracks);
-                this.emit('libraryUpdated', tracks);
+                // 注意：这里不触发libraryUpdated，避免重复的封面查找
+                // libraryUpdated事件应该只在真正的库更新时触发
                 return tracks;
             } else {
                 return [];
@@ -797,7 +798,8 @@ class MusicBoxAPI extends EventEmitter {
                 console.log(`✅ 缓存验证完成 - 有效: ${result.valid}, 无效: ${result.invalid}, 已修改: ${result.modified}`);
                 this.emit('cacheValidationCompleted', result);
 
-                if (result.tracks) {
+                // 只有在真正有变化时才触发libraryUpdated事件
+                if (result.tracks && result.invalid > 0) {
                     this.emit('libraryUpdated', result.tracks);
                 }
                 return result;

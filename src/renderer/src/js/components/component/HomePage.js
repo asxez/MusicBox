@@ -7,6 +7,7 @@ class HomePage extends Component {
         super(container);
         this.tracks = [];
         this.recentTracks = [];
+        this._lastTracksHash = null; // 防重复机制
         this.setupElements();
     }
 
@@ -14,8 +15,21 @@ class HomePage extends Component {
         if (this.element) {
             this.element.style.display = 'block';
         }
-        this.tracks = await api.getTracks();
+
+        // 只有在没有tracks数据时才获取，避免重复调用
+        if (!this.tracks || this.tracks.length === 0) {
+            this.tracks = await api.getTracks();
+            this._lastTracksHash = this._generateTracksHash(this.tracks);
+        }
+
         this.render();
+    }
+
+    // 生成tracks的简单哈希值
+    _generateTracksHash(tracks) {
+        if (!tracks || tracks.length === 0) return 'empty';
+        const sample = tracks.slice(0, 3).map(t => t.filePath || t.title).join('|');
+        return `${tracks.length}_${sample}`;
     }
 
     hide() {

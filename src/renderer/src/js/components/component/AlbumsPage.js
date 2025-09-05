@@ -22,14 +22,23 @@ class AlbumsPage extends Component {
         this._coverQueue = [];            // 待处理队列（存储专辑key）
         this._coverConcurrency = 0;
         this._coverMaxConcurrency = 5;
+        // 防重复机制
+        this._lastTracksHash = null;      // 上次tracks的哈希值
+        this._coversScheduled = false;    // 是否已经调度过封面获取
         this._bindLibraryEvents();
     }
 
     async show() {
         if (this.element) this.element.style.display = 'block';
         this.isVisible = true;
-        this.tracks = await api.getTracks();
-        this.processAlbums();
+
+        // 只有在没有tracks数据时才获取，避免重复调用
+        if (!this.tracks || this.tracks.length === 0) {
+            this.tracks = await api.getTracks();
+            this._lastTracksHash = this._generateTracksHash(this.tracks);
+            this.processAlbums();
+        }
+
         this.render();
 
         // 记忆共享元素转场所需信息
@@ -50,10 +59,28 @@ class AlbumsPage extends Component {
 
     _bindLibraryEvents() {
         api.on('libraryUpdated', (tracks) => {
+            const newTracksHash = this._generateTracksHash(tracks || []);
+
+            // 检查tracks是否真正发生了变化
+            if (this._lastTracksHash === newTracksHash) {
+                return;
+            }
+
+            console.log(`🖼️ AlbumsPage: tracks发生变化，更新专辑列表 (${this._lastTracksHash} → ${newTracksHash})`);
+            this._lastTracksHash = newTracksHash;
             this.tracks = tracks || [];
+            this._coversScheduled = false; // 重置封面调度状态
             this.processAlbums();
             if (this.isVisible) this.render();
         });
+    }
+
+    // 生成tracks的简单哈希值
+    _generateTracksHash(tracks) {
+        if (!tracks || tracks.length === 0) return 'empty';
+        // 使用tracks数量和前几个文件路径生成简单哈希
+        const sample = tracks.slice(0, 3).map(t => t.filePath || t.title).join('|');
+        return `${tracks.length}_${sample}`;
     }
 
     // 归并专辑
@@ -91,14 +118,27 @@ class AlbumsPage extends Component {
     // 将缺失封面的专辑加入获取队列
     scheduleCoversForMissing() {
         if (!this.albums || this.albums.length === 0) return;
+
+        // 防重复机制：检查是否已经调度过封面获取
+        if (this._coversScheduled) {
+            return;
+        }
+
+        let scheduledCount = 0;
+
         for (const album of this.albums) {
             if (!album.cover) {
                 const key = album.key;
                 if (this._coverRequests.has(key) || this._coverFailures.has(key)) continue;
                 this._coverQueue.push(key);
+                scheduledCount++;
             }
         }
-        this._drainCoverQueue();
+
+        if (scheduledCount > 0) {
+            this._coversScheduled = true;
+            this._drainCoverQueue();
+        }
     }
 
     async _drainCoverQueue() {
