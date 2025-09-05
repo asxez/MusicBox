@@ -13,6 +13,13 @@ class Lyrics extends Component {
         this.currentLyricIndex = -1;
         this.listenersSetup = false; // 事件监听器是否已设置
 
+        // 防重复加载机制
+        this._lastTrackPath = null; // 上次更新的歌曲路径
+        this._lastLoadedLyricsPath = null; // 上次加载歌词的歌曲路径
+        this._isLoadingLyrics = false; // 是否正在加载歌词
+        this._updateTrackInfoInProgress = false; // 是否正在更新歌曲信息
+        this._pendingUpdatePromise = null; // 当前正在执行的更新Promise
+
         this.setupElements();
     }
 
@@ -22,7 +29,15 @@ class Lyrics extends Component {
             this.setupEventListeners();
             this.setupAPIListeners();
             this.listenersSetup = true;
-            await this.updateTrackInfo(track)
+        }
+
+        // 检查是否需要更新歌曲信息
+        const trackPath = track ? (track.filePath || track.path || `${track.title}_${track.artist}`) : null;
+        const needsUpdate = !this.currentTrack ||
+            (this.currentTrack.filePath || this.currentTrack.path || `${this.currentTrack.title}_${this.currentTrack.artist}`) !== trackPath;
+
+        if (needsUpdate && track) {
+            await this.updateTrackInfo(track);
         }
 
         this.currentTrack = track;
@@ -49,6 +64,13 @@ class Lyrics extends Component {
     hide() {
         this.isVisible = false;
         this.page.classList.remove('show');
+
+        // 重置防重复状态
+        this._lastTrackPath = null;
+        this._lastLoadedLyricsPath = null;
+        this._isLoadingLyrics = false;
+        this._updateTrackInfoInProgress = false;
+        this._pendingUpdatePromise = null;
         setTimeout(() => {
             if (!this.isVisible) {
                 this.page.style.display = 'none';
@@ -235,14 +257,6 @@ class Lyrics extends Component {
             this.updatePlayButton();
         });
 
-        this.addAPIEventListenerManaged('trackLoaded', async (track) => {
-            await this.updateTrackInfo(track);
-        });
-
-        this.addAPIEventListenerManaged('trackChanged', async (track) => {
-            await this.updateTrackInfo(track);
-        });
-
         // 时长变化事件
         this.addAPIEventListenerManaged('durationChanged', (duration) => {
             if (this.durationEl && duration > 0) {
@@ -324,19 +338,57 @@ class Lyrics extends Component {
     }
 
     async updateTrackInfo(track) {
-        if (track) {
+        if (!track) return;
+
+        // 检查是否正在更新或是同一首歌
+        const trackPath = track.filePath || track.path || `${track.title}_${track.artist}`;
+
+        // 如果有正在执行的更新Promise，等待它完成
+        if (this._pendingUpdatePromise) {
+            await this._pendingUpdatePromise;
+        }
+
+        // 再次检查是否需要更新（可能在等待期间已经更新了相同的歌曲）
+        if (this._lastTrackPath === trackPath) {
+            return;
+        }
+
+        if (this._updateTrackInfoInProgress) {
+            return;
+        }
+
+        this._updateTrackInfoInProgress = true;
+        this._lastTrackPath = trackPath;
+
+        // 创建更新Promise
+        this._pendingUpdatePromise = this._doUpdateTrackInfo(track);
+
+        try {
+            await this._pendingUpdatePromise;
+        } finally {
+            this._pendingUpdatePromise = null;
+            this._updateTrackInfoInProgress = false;
+        }
+    }
+
+    async _doUpdateTrackInfo(track) {
+        try {
+            console.log('🎵 Lyrics: 开始更新歌曲信息', track.title, '时间戳:', Date.now());
+
             this.trackTitle.textContent = track.title || '未知歌曲';
             this.trackArtist.textContent = track.artist || '未知艺术家';
 
             // 正确更新总时长显示
             if (this.durationEl && track.duration) {
                 this.durationEl.textContent = this.formatTime(track.duration);
-                // console.log('🎵 Lyrics: 更新总时长显示:', this.formatTime(track.duration));
             }
 
             // 更新封面和歌词
             await this.loadLyrics(track);
             await this.updateCoverArt(track);
+        } catch (error) {
+            console.error('❌ Lyrics: 歌曲信息更新失败:', error);
+            throw error;
         }
     }
 
@@ -345,6 +397,17 @@ class Lyrics extends Component {
             this.showNoLyrics();
             return;
         }
+
+        // 防重复加载机制
+        const trackPath = track.filePath || track.path || `${track.title}_${track.artist}`;
+
+        // 检查是否正在加载或已经加载过相同歌曲
+        if (this._isLoadingLyrics || this._lastLoadedLyricsPath === trackPath) {
+            return;
+        }
+
+        this._isLoadingLyrics = true;
+        this._lastLoadedLyricsPath = trackPath;
 
         // 检查是否已有内嵌的歌词
         if (track.lyrics) {
@@ -386,6 +449,8 @@ class Lyrics extends Component {
         } catch (error) {
             console.error('❌ Lyrics: 歌词加载失败:', error);
             this.showNoLyrics();
+        } finally {
+            this._isLoadingLyrics = false;
         }
     }
 
@@ -538,7 +603,7 @@ class Lyrics extends Component {
 
             // 创建Blob
             const uint8Array = new Uint8Array(fileData);
-            const blob = new Blob([uint8Array], { type: mimeType });
+            const blob = new Blob([uint8Array], {type: mimeType});
 
             // 创建blob URL
             return URL.createObjectURL(blob);
