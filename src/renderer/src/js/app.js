@@ -6,6 +6,7 @@ class MusicBoxApp extends EventEmitter {
         this.library = [];
         this.filteredLibrary = [];
         this.components = {};
+        this.coversPreloadedByApp = false; // 防重复标志：封面预加载
 
         // 事件监听器管理
         this.eventListeners = [];
@@ -336,15 +337,14 @@ class MusicBoxApp extends EventEmitter {
 
         // 监听歌曲封面显示设置变化
         this.components.settings.on('showTrackCoversEnabled', async (enabled) => {
-            console.log(`🖼️ App: 歌曲封面显示设置已更新为 ${enabled ? '启用' : '禁用'}`);
-            if (enabled) {
+            if (enabled && this.isInitialized) {
+                // 只有在应用完全初始化后才预加载封面，避免启动时重复加载
                 await this.preloadTrackCovers();
             }
         });
 
         // 监听无间隙播放设置变化
         this.components.settings.on('gaplessPlaybackEnabled', (enabled) => {
-            console.log(`🎵 App: 无间隙播放设置已更新为 ${enabled ? '启用' : '禁用'}`);
             if (window.api) {
                 window.api.setGaplessPlayback(enabled);
             }
@@ -513,11 +513,19 @@ class MusicBoxApp extends EventEmitter {
             if (!showTrackCovers || !window.localCoverManager) {
                 return;
             }
+
+            // 防重复
+            // 检查是否已经预加载过
+            if (this.coversPreloadedByApp) {
+                return;
+            }
+
             // 预加载前12首歌曲的封面，避免阻塞UI
             // 为啥是12首？因为全屏状态下，一页最多显示12首歌😋
             // 坏了兄弟们，预加载12首似乎有点占内存，砍一半吧🥵
             const tracksToPreload = this.library.slice(0, 6);
             await window.localCoverManager.preloadCovers(tracksToPreload);
+            this.coversPreloadedByApp = true;
         } catch (error) {
             console.warn('⚠️ App: 封面预加载失败:', error);
         }
@@ -571,7 +579,7 @@ class MusicBoxApp extends EventEmitter {
                     if (result.tracks) {
                         this.library = result.tracks;
                         this.filteredLibrary = [...this.library];
-                        this.updateTrackList();
+                        this.updateTrackList('cache-validation');
                     }
                 }
             });

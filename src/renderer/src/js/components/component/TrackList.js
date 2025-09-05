@@ -9,6 +9,8 @@ class TrackList extends Component {
         this.selectedTracks = new Set();
         this.showCovers = this.getShowCoversSettings();
         this.loadingCovers = new Set(); // 跟踪正在加载的封面，避免重复请求
+        this.coversPreloaded = false; // 防重复标志：是否已经预加载过封面
+        this.lastTracksHash = null; // 上次tracks的哈希值，用于检测真正的变化
         this.setupSettingsListener();
         this.setupCoverUpdateListener();
     }
@@ -44,13 +46,31 @@ class TrackList extends Component {
         return settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
     }
 
+    // 生成tracks的简单哈希值
+    generateTracksHash(tracks) {
+        if (!tracks || tracks.length === 0) return 'empty';
+        // 使用tracks数量和前几个文件路径生成简单哈希
+        const sample = tracks.slice(0, 3).map(t => t.filePath || t.title).join('|');
+        return `${tracks.length}_${sample}`;
+    }
+
     setupSettingsListener() {
         // 延迟设置监听器，确保app.components.settings已初始化
         const setupListener = () => {
             if (window.app && window.app.components && window.app.components.settings) {
                 window.app.components.settings.on('showTrackCoversEnabled', (enabled) => {
                     this.showCovers = enabled;
+                    // 重置预加载状态，因为设置发生了变化
+                    this.coversPreloaded = false;
                     this.render(); // 重新渲染列表
+
+                    // 如果启用了封面显示，立即预加载
+                    if (enabled && this.tracks.length > 0) {
+                        setTimeout(() => {
+                            this.preloadVisibleCovers();
+                            this.coversPreloaded = true;
+                        }, 100);
+                    }
                 });
             } else {
                 // 如果还没有初始化，延迟重试
@@ -68,17 +88,23 @@ class TrackList extends Component {
     }
 
     setTracks(tracks) {
+        // 检测tracks是否真正发生了变化
+        const newTracksHash = this.generateTracksHash(tracks);
+        const tracksChanged = this.lastTracksHash !== newTracksHash;
+
         this.tracks = tracks;
+        this.lastTracksHash = newTracksHash;
 
         // 清理之前的加载状态
         this.loadingCovers.clear();
 
         this.render();
 
-        // 加载封面，延迟执行避免与render冲突
-        if (this.showCovers) {
+        // 只有在tracks真正变化或首次加载时才预加载封面
+        if (this.showCovers && (tracksChanged || !this.coversPreloaded)) {
             setTimeout(() => {
                 this.preloadVisibleCovers();
+                this.coversPreloaded = true;
             }, 100);
         }
     }
