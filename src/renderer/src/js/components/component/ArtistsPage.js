@@ -50,8 +50,10 @@ class ArtistsPage extends Component {
     }
 
     destroy() {
-        this.tracks = [];
-        this.artists = [];
+        this.tracks.length = 0;
+        this.artists.length = 0;
+        this.selectedArtist = null;
+        this._lastTracksHash = null;
         this.listenersSetup = false;
         return super.destroy();
     }
