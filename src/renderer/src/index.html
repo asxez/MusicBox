@@ -476,6 +476,11 @@
                                 </button>
                             </li>
                             <li class="settings-nav-item">
+                                <button class="settings-nav-btn" data-section="advanced">
+                                    <span class="nav-text">高级</span>
+                                </button>
+                            </li>
+                            <li class="settings-nav-item">
                                 <button class="settings-nav-btn" data-section="network">
                                     <span class="nav-text">网络磁盘</span>
                                 </button>
@@ -805,6 +810,20 @@
                         </div>
                     </div>
 
+                    <!-- 高级设置 -->
+                    <div class="settings-section" data-section="advanced">
+                        <h2 class="section-title">高级</h2>
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">test</label>
+                                <p class="item-description">test666</p>
+                            </div>
+                            <div class="item-control">
+                                <button class="settings-button">test</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 网络磁盘设置 -->
                     <div class="settings-section" data-section="network">
                         <h2 class="section-title">网络磁盘</h2>
@@ -935,7 +954,7 @@
                         <div class="settings-item">
                             <div class="item-info">
                                 <label class="item-label">版本信息</label>
-                                <p class="item-description">MusicBox v0.2.1-beta</p>
+                                <p class="item-description" id="app-version-info">MusicBox v0.2.1-beta</p>
                             </div>
                             <div class="item-control">
                                 <button class="settings-button secondary" id="check-updates-btn">检查更新</button>

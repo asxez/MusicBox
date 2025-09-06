@@ -18,9 +18,9 @@ class EqualizerComponent extends Component {
 
     show() {
         this.modal.style.display = 'flex';
-        setTimeout(() => {
+        requestAnimationFrame(() => {
             this.modal.classList.add('show');
-        }, 10);
+        });
         this.updateUI();
     }
 
