@@ -282,13 +282,11 @@ class Lyrics extends Component {
         this._toggleInProgress = true;
         try {
             if (this.isPlaying) {
-                // console.log('🔄 Lyrics: 请求暂停');
                 const result = await api.pause();
                 if (!result) {
                     console.error('❌ Lyrics: 暂停失败');
                 }
             } else {
-                // console.log('🔄 Lyrics: 请求播放');
                 const result = await api.play();
                 if (!result) {
                     console.error('❌ Lyrics: 播放失败');
@@ -465,14 +463,6 @@ class Lyrics extends Component {
 
             // 检查是否已有本地封面
             if (track.cover) {
-                // console.log('🖼️ Lyrics: 使用本地封面', {
-                //     type: typeof track.cover,
-                //     constructor: track.cover.constructor.name,
-                //     value: typeof track.cover === 'string' ?
-                //         track.cover.substring(0, 100) + '...' :
-                //         JSON.stringify(track.cover)
-                // });
-
                 if (typeof track.cover !== 'string') {
                     console.error('❌ Lyrics: track.cover不是字符串，无法设置为src', {
                         type: typeof track.cover,
@@ -482,8 +472,6 @@ class Lyrics extends Component {
                     this.trackCover.classList.remove('loading');
                     return;
                 }
-
-                console.log('🔄 Lyrics: 即将设置trackCover.src =', track.cover.substring(0, 100) + '...');
                 finalImageUrl = track.cover;
             }
 
@@ -492,12 +480,6 @@ class Lyrics extends Component {
                 const coverResult = await api.getCover(track.title, track.artist, track.album, track.filePath);
 
                 if (coverResult.success && coverResult.imageUrl) {
-                    // console.log('✅ Lyrics: 封面获取成功', {
-                    //     source: coverResult.source,
-                    //     type: coverResult.type,
-                    //     urlType: typeof coverResult.imageUrl
-                    // });
-
                     // 验证URL格式
                     if (typeof coverResult.imageUrl === 'string') {
                         finalImageUrl = coverResult.imageUrl;
@@ -762,12 +744,6 @@ class Lyrics extends Component {
             }).catch(err => {
                 console.error('❌ Lyrics: 进入全屏失败:', err);
             });
-        } else if (document.documentElement.webkitRequestFullscreen) {
-            // Safari 支持
-            document.documentElement.webkitRequestFullscreen();
-        } else if (document.documentElement.msRequestFullscreen) {
-            // IE/Edge 支持
-            document.documentElement.msRequestFullscreen();
         }
     }
 
@@ -778,12 +754,6 @@ class Lyrics extends Component {
             }).catch(err => {
                 console.error('❌ Lyrics: 退出全屏失败:', err);
             });
-        } else if (document.webkitExitFullscreen) {
-            // Safari 支持
-            document.webkitExitFullscreen();
-        } else if (document.msExitFullscreen) {
-            // IE/Edge 支持
-            document.msExitFullscreen();
         }
     }
 
@@ -818,7 +788,6 @@ class Lyrics extends Component {
         this.currentVolume = Math.max(0, Math.min(100, volume));
 
         // 更新音量条填充和滑块位置
-        const percentage = this.currentVolume / 100;
         if (this.volumeFill) {
             this.volumeFill.style.width = `${this.currentVolume}%`;
         }
@@ -842,7 +811,6 @@ class Lyrics extends Component {
 
         // 同步到主播放器
         await api.setVolume(this.currentVolume / 100);
-        console.log('🎵 Lyrics: 音量设置为', this.currentVolume + '%');
     }
 
     // 从鼠标事件更新音量
@@ -868,7 +836,6 @@ class Lyrics extends Component {
 
     updatePlayModeDisplay(mode) {
         if (!this.modeSequenceIcon || !this.modeShuffleIcon || !this.modeRepeatOneIcon) {
-            console.warn(' Player: 播放模式图标元素不存在');
             return;
         }
         this.modeSequenceIcon.style.display = 'none';
@@ -904,7 +871,7 @@ class Lyrics extends Component {
         const percentage = clickX / rect.width;
         const seekTime = percentage * duration;
         await api.seek(seekTime);
-        console.log('🎵 Lyrics: 跳转到', this.formatTime(seekTime));
+        // console.log('🎵 Lyrics: 跳转到', this.formatTime(seekTime));
     }
 
     startProgressDrag(e) {

@@ -473,7 +473,6 @@ class PlaylistDetailPage extends Component {
 
         // 对于空歌单，容器存在但没有歌曲行，这是正常情况
         if (this.tracks && this.tracks.length === 0) {
-            console.log('📝 PlaylistDetailPage: 歌单为空，跳过歌曲行事件绑定');
             return;
         }
 
@@ -505,8 +504,7 @@ class PlaylistDetailPage extends Component {
             // 双击播放
             item.addEventListener('dblclick', async (e) => {
                 if (!e.target.closest('.track-action-btn')) {
-                    await this.playAllTracks();
-                    // await this.playTrack(track, index);
+                    await this.playTrack(track, index);
                 }
             });
 
@@ -529,24 +527,20 @@ class PlaylistDetailPage extends Component {
             if (removeBtn) {
                 removeBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    console.log(`🔧 删除按钮点击: ${track.title} (索引: ${index})`);
                     if (this.selectedTracks.size > 1 && this.selectedTracks.has(index)) {
-                        console.log('🔧 执行批量删除');
                         await this.removeSelectedTracks();
                     } else {
-                        console.log('🔧 执行单首歌曲删除');
                         await this.removeTrackFromPlaylist(track, index);
                     }
                 });
-                console.log(`✅ 绑定删除按钮事件: ${track.title}`);
             }
         });
     }
 
     async playTrack(track, index) {
         try {
-            console.log('🎵 PlaylistDetailPage: 播放歌曲', track.title);
-            this.emit('trackPlayed', track, index);
+            window.app.components.playlist.setTracks(this.tracks, index);
+            await window.app.playTrackFromPlaylist(track, index);
         } catch (error) {
             console.error('❌ PlaylistDetailPage: 播放歌曲失败', error);
         }
