@@ -54,6 +54,12 @@ class AlbumsPage extends Component {
     }
 
     destroy() {
+        this.tracks.length = 0;
+        this.albums.length = 0;
+        this.selectedAlbum = null;
+        this._coverRequests.clear();
+        this._coverFailures.clear();
+        this._coverQueue.length = 0;
         return super.destroy();
     }
 

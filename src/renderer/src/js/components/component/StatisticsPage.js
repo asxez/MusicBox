@@ -33,8 +33,8 @@ class StatisticsPage extends Component {
     }
 
     destroy() {
-        this.tracks = [];
-        this.recentTracks = [];
+        this.tracks.length = 0;
+        this.recentTracks.length = 0;
         this.playStats = {};
         this.listenersSetup = false;
         return super.destroy();

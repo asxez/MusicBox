@@ -31,7 +31,7 @@ class RecentPage extends Component {
     }
 
     destroy() {
-        this.recentTracks = [];
+        this.recentTracks.length = 0;
         this.listenersSetup = false;
         return super.destroy();
     }

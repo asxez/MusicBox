@@ -103,12 +103,6 @@ class MusicBoxApp extends EventEmitter {
     // 通知插件系统应用已完全初始化
     notifyPluginSystemReady() {
         try {
-            // console.log('🔌 App: 最终组件状态:', {
-            //     componentsCount: Object.keys(this.components).length,
-            //     availableComponents: Object.keys(this.components),
-            //     appInitialized: this.isInitialized
-            // });
-
             // 触发应用就绪事件
             document.dispatchEvent(new CustomEvent('appReady', {
                 detail: {
@@ -157,12 +151,11 @@ class MusicBoxApp extends EventEmitter {
         // 初始化更新检查模态窗口
         this.components.updateModal = new UpdateModal();
 
-        // 初始化页面组件
+        // 初始化首页
         this.components.homePage = new HomePage('#content-area');
-        this.components.recentPage = new RecentPage('#content-area');
-        this.components.artistsPage = new ArtistsPage('#content-area');
-        this.components.albumsPage = new AlbumsPage('#content-area');
-        this.components.statisticsPage = new StatisticsPage('#content-area');
+
+        // 按需初始化页面组件
+        this.initializePageComponentsOnDemand();
 
         // 设置组件事件监听
         this.components.search.on('searchResults', (results) => {
@@ -325,12 +318,24 @@ class MusicBoxApp extends EventEmitter {
             if (this.components.navigation) {
                 this.components.navigation.updateStatisticsButtonVisibility(enabled);
             }
+
+            if (enabled) {
+                this.initializePageComponent('statisticsPage');
+            } else {
+                this.destroyPageComponent('statisticsPage');
+            }
         });
 
         // 监听最近播放设置变化
         this.components.settings.on('recentPlayEnabled', (enabled) => {
             if (this.components.navigation) {
                 this.components.navigation.updateRecentPlayButtonVisibility(enabled);
+            }
+
+            if (enabled) {
+                this.initializePageComponent('recentPage');
+            } else {
+                this.destroyPageComponent('recentPage');
             }
         });
 
@@ -339,12 +344,24 @@ class MusicBoxApp extends EventEmitter {
             if (this.components.navigation) {
                 this.components.navigation.updateArtistsPageButtonVisibility(enabled);
             }
+
+            if (enabled) {
+                this.initializePageComponent('artistsPage');
+            } else {
+                this.destroyPageComponent('artistsPage');
+            }
         });
 
         // 监听专辑页面设置变化
         this.components.settings.on('albumsPageEnabled', (enabled) => {
             if (this.components.navigation) {
                 this.components.navigation.updateAlbumsPageButtonVisibility(enabled);
+            }
+
+            if (enabled) {
+                this.initializePageComponent('albumsPage');
+            } else {
+                this.destroyPageComponent('albumsPage');
             }
         });
 
@@ -378,6 +395,107 @@ class MusicBoxApp extends EventEmitter {
         this.components.lyrics.on('nextTrack', () => {
             this.components.player.nextTrack();
         });
+    }
+
+    // 按需初始化页面组件
+    initializePageComponentsOnDemand() {
+        const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+
+        // 最近播放页面
+        const recentPlayEnabled = settings.hasOwnProperty('recentPlay') ? settings.recentPlay : true;
+        if (recentPlayEnabled) {
+            this.components.recentPage = new RecentPage('#content-area');
+        } else {
+            this.components.recentPage = null;
+        }
+
+        // 艺术家页面
+        const artistsPageEnabled = settings.hasOwnProperty('artistsPage') ? settings.artistsPage : true;
+        if (artistsPageEnabled) {
+            this.components.artistsPage = new ArtistsPage('#content-area');
+        } else {
+            this.components.artistsPage = null;
+        }
+
+        // 专辑页面
+        const albumsPageEnabled = settings.hasOwnProperty('albumsPage') ? settings.albumsPage : true;
+        if (albumsPageEnabled) {
+            this.components.albumsPage = new AlbumsPage('#content-area');
+        } else {
+            this.components.albumsPage = null;
+        }
+
+        // 统计页面
+        const statisticsEnabled = settings.hasOwnProperty('statistics') ? settings.statistics : true;
+        if (statisticsEnabled) {
+            this.components.statisticsPage = new StatisticsPage('#content-area');
+        } else {
+            this.components.statisticsPage = null;
+        }
+    }
+
+    // 动态初始化页面组件
+    initializePageComponent(componentName) {
+        switch (componentName) {
+            case 'recentPage':
+                if (!this.components.recentPage) {
+                    this.components.recentPage = new RecentPage('#content-area');
+                    this.setupPageComponentEvents('recentPage');
+                }
+                break;
+            case 'artistsPage':
+                if (!this.components.artistsPage) {
+                    this.components.artistsPage = new ArtistsPage('#content-area');
+                    this.setupPageComponentEvents('artistsPage');
+                }
+                break;
+            case 'albumsPage':
+                if (!this.components.albumsPage) {
+                    this.components.albumsPage = new AlbumsPage('#content-area');
+                    this.setupPageComponentEvents('albumsPage');
+                }
+                break;
+            case 'statisticsPage':
+                if (!this.components.statisticsPage) {
+                    this.components.statisticsPage = new StatisticsPage('#content-area');
+                    this.setupPageComponentEvents('statisticsPage');
+                }
+                break;
+            default:
+                console.warn('🎵 App: 未知的页面组件名称:', componentName);
+        }
+    }
+
+    // 销毁页面组件
+    destroyPageComponent(componentName) {
+        switch (componentName) {
+            case 'recentPage':
+                if (this.components.recentPage) {
+                    this.components.recentPage.destroy();
+                    this.components.recentPage = null;
+                }
+                break;
+            case 'artistsPage':
+                if (this.components.artistsPage) {
+                    this.components.artistsPage.destroy();
+                    this.components.artistsPage = null;
+                }
+                break;
+            case 'albumsPage':
+                if (this.components.albumsPage) {
+                    this.components.albumsPage.destroy();
+                    this.components.albumsPage = null;
+                }
+                break;
+            case 'statisticsPage':
+                if (this.components.statisticsPage) {
+                    this.components.statisticsPage.destroy();
+                    this.components.statisticsPage = null;
+                }
+                break;
+            default:
+                console.warn('🎵 App: 未知的页面组件名称:', componentName);
+        }
     }
 
     // 添加管理的事件监听器
@@ -578,11 +696,6 @@ class MusicBoxApp extends EventEmitter {
 
     async validateCacheInBackground() {
         try {
-            // 设置验证进度监听器
-            api.on('cacheValidationProgress', (progress) => {
-                // console.log(`🔍 缓存验证进度: ${progress.current}/${progress.total}`);
-            });
-
             api.on('cacheValidationCompleted', (result) => {
                 // 如果有无效文件被清理，更新UI
                 if (result.invalid > 0) {
@@ -780,8 +893,15 @@ class MusicBoxApp extends EventEmitter {
         this.updateTrackList('search-cleared');
     }
 
-    setupPageComponentEvents() {
-        // HomePage events
+    setupPageComponentEvents(componentName = null) {
+        // 如果指定了组件名，只设置该组件的事件
+        if (componentName) {
+            this.setupSinglePageComponentEvents(componentName);
+            return;
+        }
+
+        // 设置所有页面组件的事件
+        // HomePage events (始终存在)
         this.components.homePage.on('trackPlayed', async (track, index) => {
             await this.handleTrackPlayed(track, index);
         });
@@ -794,48 +914,85 @@ class MusicBoxApp extends EventEmitter {
             await this.handleSelectMusicFolder();
         });
 
-        // RecentPage events
-        this.components.recentPage.on('trackPlayed', async (track, index) => {
-            await this.handleTrackPlayed(track, index);
-        });
+        // 按需设置其他页面组件的事件
+        if (this.components.recentPage) {
+            this.setupSinglePageComponentEvents('recentPage');
+        }
 
-        this.components.recentPage.on('playAll', async (tracks) => {
-            await this.handlePlayAllTracks(tracks);
-        });
+        if (this.components.artistsPage) {
+            this.setupSinglePageComponentEvents('artistsPage');
+        }
 
-        this.components.recentPage.on('addToPlaylist', (track) => {
-            this.addToPlaylist(track);
-        });
+        if (this.components.albumsPage) {
+            this.setupSinglePageComponentEvents('albumsPage');
+        }
 
-        this.components.recentPage.on('viewChange', (view) => {
-            this.components.navigation.navigateToView(view);
-        });
+        if (this.components.statisticsPage) {
+            this.setupSinglePageComponentEvents('statisticsPage');
+        }
+    }
 
-        // ArtistsPage events
-        this.components.artistsPage.on('trackPlayed', async (track, index) => {
-            await this.handleTrackPlayed(track, index);
-        });
+    // 设置单个页面组件的事件监听
+    setupSinglePageComponentEvents(componentName) {
+        switch (componentName) {
+            case 'recentPage':
+                if (this.components.recentPage) {
+                    this.components.recentPage.on('trackPlayed', async (track, index) => {
+                        await this.handleTrackPlayed(track, index);
+                    });
 
-        this.components.artistsPage.on('playAll', async (tracks) => {
-            await this.handlePlayAllTracks(tracks);
-        });
+                    this.components.recentPage.on('playAll', async (tracks) => {
+                        await this.handlePlayAllTracks(tracks);
+                    });
 
-        this.components.artistsPage.on('addToPlaylist', (track) => {
-            this.addToPlaylist(track);
-        });
+                    this.components.recentPage.on('addToPlaylist', (track) => {
+                        this.addToPlaylist(track);
+                    });
 
-        // AlbumsPage events
-        this.components.albumsPage.on('trackPlayed', async (track, index) => {
-            await this.handleTrackPlayed(track, index);
-        });
+                    this.components.recentPage.on('viewChange', (view) => {
+                        this.components.navigation.navigateToView(view);
+                    });
+                }
+                break;
 
-        this.components.albumsPage.on('playAll', async (tracks) => {
-            await this.handlePlayAllTracks(tracks);
-        });
+            case 'artistsPage':
+                if (this.components.artistsPage) {
+                    this.components.artistsPage.on('trackPlayed', async (track, index) => {
+                        await this.handleTrackPlayed(track, index);
+                    });
 
-        this.components.albumsPage.on('addToPlaylist', (track) => {
-            this.addToPlaylist(track);
-        });
+                    this.components.artistsPage.on('playAll', async (tracks) => {
+                        await this.handlePlayAllTracks(tracks);
+                    });
+
+                    this.components.artistsPage.on('addToPlaylist', (track) => {
+                        this.addToPlaylist(track);
+                    });
+                }
+                break;
+
+            case 'albumsPage':
+                if (this.components.albumsPage) {
+                    this.components.albumsPage.on('trackPlayed', async (track, index) => {
+                        await this.handleTrackPlayed(track, index);
+                    });
+
+                    this.components.albumsPage.on('playAll', async (tracks) => {
+                        await this.handlePlayAllTracks(tracks);
+                    });
+
+                    this.components.albumsPage.on('addToPlaylist', (track) => {
+                        this.addToPlaylist(track);
+                    });
+                }
+                break;
+
+            case 'statisticsPage':
+                // StatisticsPage 目前不需要特殊的事件监听
+                break;
+            default:
+                console.warn('🎵 App: 未知的页面组件名称:', componentName);
+        }
     }
 
     async handlePlayAllTracks(tracks) {
@@ -849,10 +1006,7 @@ class MusicBoxApp extends EventEmitter {
             }
             await this.playTrackFromPlaylist(tracks[0], 0);
         } catch (error) {
-            console.error('❌ 播放全部歌曲失败:', error);
-            if (this.showError) {
-                this.showError('播放失败，请重试');
-            }
+            this.showError('播放失败，请重试');
         }
     }
 
@@ -860,7 +1014,8 @@ class MusicBoxApp extends EventEmitter {
         this.hideAllPages();
         this.currentView = view;
 
-        // 更新侧边栏选中状态（除了歌单详情页面，因为它有特殊处理）
+        // 更新侧边栏选中状态
+        // 除了歌单详情页面，因为它有特殊处理
         if (view !== 'playlist-detail') {
             this.updateSidebarSelection(view);
         }
@@ -870,21 +1025,28 @@ class MusicBoxApp extends EventEmitter {
                 await this.components.homePage.show();
                 break;
             case 'library':
-                console.log('📚 显示音乐库页面');
                 this.components.trackList.show();
                 this.updateTrackList('navigation');
                 break;
             case 'recent':
-                await this.components.recentPage.show();
+                if (this.components.recentPage) {
+                    await this.components.recentPage.show();
+                }
                 break;
             case 'artists':
-                await this.components.artistsPage.show();
+                if (this.components.artistsPage) {
+                    await this.components.artistsPage.show();
+                }
                 break;
             case 'albums':
-                await this.components.albumsPage.show();
+                if (this.components.albumsPage) {
+                    await this.components.albumsPage.show();
+                }
                 break;
             case 'statistics':
-                await this.components.statisticsPage.show();
+                if (this.components.statisticsPage) {
+                    await this.components.statisticsPage.show();
+                }
                 break;
             case 'playlist-detail':
                 // 歌单详情页面由handlePlaylistSelected方法处理
