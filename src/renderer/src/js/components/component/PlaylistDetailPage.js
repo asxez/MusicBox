@@ -454,9 +454,7 @@ class PlaylistDetailPage extends Component {
         }
 
         const trackRows = trackListContainer.querySelectorAll('.track-row');
-        console.log(`🔧 PlaylistDetailPage: 设置歌曲列表事件监听器，共 ${trackRows.length} 首歌曲`);
-
-        // 防重复绑定：检查是否已经绑定过事件
+        // 检查是否已经绑定过事件
         if (trackRows.length > 0 && trackRows[0].hasAttribute('data-events-bound')) {
             return;
         }
@@ -533,9 +531,7 @@ class PlaylistDetailPage extends Component {
 
     async playAllTracks() {
         if (this.tracks.length === 0) {
-            if (window.app && window.app.showInfo) {
-                window.app.showInfo('歌单为空，无法播放');
-            }
+            window.app.showInfo('歌单为空，无法播放');
             return;
         }
         this.emit('playAllTracks', this.tracks);
@@ -543,9 +539,7 @@ class PlaylistDetailPage extends Component {
 
     async shufflePlayTracks() {
         if (this.tracks.length === 0) {
-            if (window.app && window.app.showInfo) {
-                window.app.showInfo('歌单为空，无法播放');
-            }
+            window.app.showInfo('歌单为空，无法播放');
             return;
         }
 

@@ -41,6 +41,7 @@ const COMPONENTS = {
         'Settings',            // 设置组件
         'StatisticsPage',      // 统计页组件
         'TrackList',           // 我的音乐页组件
+        'UpdateModal',         // 更新检查模态窗口组件
     ],
 
     // 对话框组件

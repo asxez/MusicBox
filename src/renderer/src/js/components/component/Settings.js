@@ -18,6 +18,7 @@ class Settings extends Component {
         this.initializeSettings();
         this.initializePluginContainer();
         this.initializeSectionDisplay();
+        this.updateVersionInfo();
     }
 
     async show() {
@@ -106,6 +107,7 @@ class Settings extends Component {
         this.selectCoverCacheFolderBtn = this.element.querySelector('#select-cover-cache-folder-btn');
         this.coverCacheFolderPath = this.element.querySelector('#cover-cache-folder-path');
         this.checkUpdatesBtn = this.element.querySelector('#check-updates-btn');
+        this.goToRepositoryBtn = this.element.querySelector('#MADE-BY');
 
         // 缓存管理元素
         this.viewCacheStatsBtn = this.element.querySelector('#view-cache-stats-btn');
@@ -356,6 +358,11 @@ class Settings extends Component {
 
         this.checkUpdatesBtn.addEventListener('click', () => {
             this.emit('checkUpdates');
+        });
+
+        // 前往仓库按钮事件
+        this.goToRepositoryBtn.addEventListener('click', () => {
+            this.openRepository();
         });
 
         // 缓存管理按钮事件
@@ -1857,6 +1864,25 @@ class Settings extends Component {
     initializeSectionDisplay() {
         // 默认显示第一个区域（外观设置）
         this.switchToSection(this.currentSection);
+    }
+
+    // 更新版本信息显示
+    async updateVersionInfo() {
+        try {
+            const versionElement = document.getElementById('app-version-info');
+            if (versionElement) {
+                const response = await fetch('../../../package.json');
+                const packageInfo = await response.json();
+                versionElement.textContent = `MusicBox v${packageInfo.version}`;
+            }
+        } catch (error) {
+            console.error('❌ Settings: 更新版本信息失败:', error);
+        }
+    }
+
+    openRepository() {
+        const repositoryUrl = 'https://github.com/asxez/MusicBox';
+        window.open(repositoryUrl, '_blank');
     }
 
     // HTML转义
