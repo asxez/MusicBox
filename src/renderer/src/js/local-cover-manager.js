@@ -49,6 +49,10 @@ class LocalCoverManager {
         const cleanArtist = cleanString(artist);
         const cleanAlbum = cleanString(album);
 
+        // Artist-only 命名：当没有标题和专辑时，使用 艺术家__ARTIST 做强区分
+        if (!cleanTitle && !cleanAlbum) {
+            return `${cleanArtist}__ARTIST`;
+        }
         // Album-only 命名：当没有标题时，使用 艺术家_专辑__ALBUM 做强区分
         if (!cleanTitle && cleanAlbum) {
             return `${cleanArtist}_${cleanAlbum}__ALBUM`;
@@ -70,6 +74,10 @@ class LocalCoverManager {
      */
     generateCacheKey(title, artist, album = '') {
         const s = (v) => (v == null ? '' : String(v)).toLowerCase();
+        if (!title && !album) {
+            // Artist-only 缓存键前缀，避免与单曲/专辑封面混淆
+            return `artist|${s(artist)}`;
+        }
         if (!title) {
             // Album-only 缓存键前缀，避免与单曲封面混淆
             return `album|${s(artist)}|${s(album)}`;
@@ -117,12 +125,14 @@ class LocalCoverManager {
             );
 
             if (searchResult.success && searchResult.filePath) {
-                // Album-only 查询时，仅接受专辑命名规范的文件，避免误命中单曲封面
+                // 当没有标题时，需要验证文件命名规范以避免误命中
                 if (!title) {
-                    const expectedBase = this.generateCoverFileName('', artist, album); // artist_album__ALBUM
+                    const expectedBase = this.generateCoverFileName('', artist, album);
                     const ok = searchResult.fileName && searchResult.fileName.startsWith(`${expectedBase}.`);
                     if (!ok) {
-                        return {success: false, error: '未找到本地封面缓存（album-only 过滤）'};
+                        // 根据是否有专辑名称确定错误类型
+                        const errorType = album ? 'album-only' : 'artist-only';
+                        return {success: false, error: `未找到本地封面缓存（${errorType} 过滤）`};
                     }
                 }
                 // 添加到内存缓存
@@ -288,7 +298,8 @@ class LocalCoverManager {
             try {
                 await this.checkLocalCover(track.title, track.artist, track.album);
                 loadedCount++;
-            } catch (error) {}
+            } catch (error) {
+            }
         }
     }
 
