@@ -4646,11 +4646,11 @@ a {
     width: 1px;
     height: 100%;
     background: linear-gradient(
-      to bottom,
-      transparent 0%,
-      rgba(0, 0, 0, 0.05) 20%,
-      rgba(0, 0, 0, 0.05) 80%,
-      transparent 100%
+                    to bottom,
+                    transparent 0%,
+                    rgba(0, 0, 0, 0.05) 20%,
+                    rgba(0, 0, 0, 0.05) 80%,
+                    transparent 100%
     );
     pointer-events: none;
   }
@@ -4952,11 +4952,11 @@ a {
   // 深色主题下的渐变分隔线
   .settings-sidebar::after {
     background: linear-gradient(
-      to bottom,
-      transparent 0%,
-      rgba(255, 255, 255, 0.08) 20%,
-      rgba(255, 255, 255, 0.08) 80%,
-      transparent 100%
+                    to bottom,
+                    transparent 0%,
+                    rgba(255, 255, 255, 0.08) 20%,
+                    rgba(255, 255, 255, 0.08) 80%,
+                    transparent 100%
     );
   }
 }
@@ -11869,8 +11869,12 @@ body.focus-mode {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* 暗色主题适配 */
