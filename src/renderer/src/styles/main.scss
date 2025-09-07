@@ -7638,38 +7638,200 @@ a {
   }
 }
 
-// 艺术家页面样式
-.artists-page {
-  .artists-controls {
+// 现代化艺术家页面样式
+.artists-page.modern-artists {
+  // 沉浸式英雄区域
+  .artists-hero-section {
+    position: relative;
+    height: 300px;
+    margin-bottom: var(--spacing-xl);
+    border-radius: var(--border-radius-xl);
+    overflow: hidden;
+    background: var(--gradient-primary);
+
+    .hero-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1;
+
+      .artists-visualizer {
+        width: 100%;
+        height: 100%;
+        opacity: 0.3;
+      }
+
+      .hero-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg,
+          rgba(var(--color-primary-rgb), 0.8) 0%,
+          rgba(var(--color-primary-rgb), 0.6) 100%);
+      }
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: var(--spacing-xl);
+      color: white;
+
+      .hero-title-container {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-lg);
+
+        .hero-icon {
+          width: 60px;
+          height: 60px;
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          backdrop-filter: blur(10px);
+
+          svg {
+            width: 32px;
+            height: 32px;
+            fill: currentColor;
+          }
+        }
+
+        .hero-text {
+          .hero-title {
+            font-size: 48px;
+            font-weight: 700;
+            margin: 0 0 var(--spacing-xs) 0;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+          }
+
+          .hero-subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+            margin: 0;
+          }
+        }
+      }
+
+      .hero-stats {
+        display: flex;
+        gap: var(--spacing-xl);
+
+        .stat-item {
+          text-align: center;
+          background: rgba(255, 255, 255, 0.15);
+          padding: var(--spacing-md);
+          border-radius: var(--border-radius-lg);
+          backdrop-filter: blur(10px);
+          min-width: 100px;
+
+          .stat-number {
+            display: block;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-xs);
+          }
+
+          .stat-label {
+            font-size: var(--font-size-sm);
+            opacity: 0.8;
+          }
+        }
+      }
+    }
+  }
+
+  // 现代化控制栏
+  .modern-controls {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    background: var(--color-secondary-bg);
+    border-radius: var(--border-radius-lg);
+    backdrop-filter: blur(20px);
 
-    .view-controls {
-      display: flex;
-      gap: var(--spacing-xs);
+    .search-container {
+      flex: 1;
+      max-width: 400px;
 
-      .view-btn {
-        width: 36px;
-        height: 36px;
-        border-radius: var(--radius-sm);
-        background: var(--color-secondary-bg);
-        border: none;
-        color: var(--color-text-secondary);
-        cursor: pointer;
+      .search-wrapper {
+        position: relative;
         display: flex;
         align-items: center;
-        justify-content: center;
-        transition: all var(--transition-fast);
+
+        .search-icon {
+          position: absolute;
+          left: var(--spacing-md);
+          width: 20px;
+          height: 20px;
+          fill: var(--color-text-secondary);
+          z-index: 2;
+        }
+
+        .modern-search-input {
+          width: 100%;
+          padding: var(--spacing-md) var(--spacing-md) var(--spacing-md) 48px;
+          border: 2px solid transparent;
+          border-radius: var(--border-radius-lg);
+          background: var(--color-surface);
+          color: var(--color-text);
+          font-size: var(--font-size-md);
+          transition: all var(--transition-smooth);
+
+          &:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 4px rgba(var(--color-primary-rgb), 0.1);
+          }
+
+          &::placeholder {
+            color: var(--color-text-secondary);
+          }
+        }
+      }
+    }
+
+    .view-mode-toggle {
+      display: flex;
+      gap: var(--spacing-sm);
+
+      .mode-btn {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        padding: var(--spacing-sm) var(--spacing-md);
+        border: 2px solid var(--color-border);
+        border-radius: var(--border-radius-lg);
+        background: var(--color-surface);
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        transition: all var(--transition-smooth);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
 
         &:hover {
-          background: var(--color-hover);
+          border-color: var(--color-primary);
+          color: var(--color-primary);
+          transform: translateY(-1px);
         }
 
         &.active {
+          border-color: var(--color-primary);
           background: var(--color-primary);
           color: white;
+          box-shadow: var(--shadow-medium);
         }
 
         svg {
@@ -7679,24 +7841,1865 @@ a {
         }
       }
     }
+  }
 
-    .sort-controls {
-      .sort-select {
-        padding: var(--spacing-xs) var(--spacing-sm);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        background: var(--color-secondary-bg);
-        color: var(--color-text);
-        font-size: var(--font-size-sm);
+  // 星河式艺术家展示
+  .artists-galaxy {
+    position: relative;
+    min-height: 600px;
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius-xl);
+    overflow: hidden;
+    transition: all 0.3s ease-in-out;
+
+    // 星座视图 - 网格布局 + 连线效果
+    &.constellation-view {
+      background: linear-gradient(135deg,
+        rgba(13, 13, 35, 0.9) 0%,
+        rgba(25, 25, 60, 0.8) 50%,
+        rgba(13, 13, 35, 0.9) 100%);
+
+      .constellation-lines {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: none;
+
+        .constellation-line {
+          stroke: rgba(var(--color-primary-rgb), 0.3);
+          stroke-width: 1;
+          opacity: 0;
+          animation: constellationLineAppear 2s ease-in-out forwards;
+          animation-delay: var(--delay, 0s);
+        }
+      }
+
+      .constellation-grid {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--spacing-xl);
+        align-items: start;
+      }
+    }
+
+    // 星系视图 - 环形轨道布局
+    &.galaxy-view {
+      background: radial-gradient(ellipse at center,
+        rgba(5, 5, 20, 0.95) 0%,
+        rgba(15, 15, 40, 0.9) 30%,
+        rgba(25, 25, 60, 0.8) 60%,
+        rgba(5, 5, 20, 0.95) 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 800px;
+
+      .galaxy-center {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+
+        .galaxy-core {
+          width: 100px;
+          height: 100px;
+          border-radius: 50%;
+          background: var(--gradient-primary);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          box-shadow: 0 0 40px rgba(var(--color-primary-rgb), 0.8);
+          animation: galaxyCoreRotate 20s linear infinite;
+
+          .core-glow {
+            position: absolute;
+            top: -20px;
+            left: -20px;
+            right: -20px;
+            bottom: -20px;
+            background: radial-gradient(circle,
+              rgba(var(--color-primary-rgb), 0.4) 0%,
+              transparent 70%);
+            border-radius: 50%;
+            animation: coreGlow 3s ease-in-out infinite alternate;
+          }
+
+          .core-text {
+            color: white;
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            text-align: center;
+            z-index: 2;
+          }
+        }
+      }
+
+      .galaxy-orbit {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: calc(var(--orbit-radius) * 2);
+        height: calc(var(--orbit-radius) * 2);
+        border: 1px solid rgba(var(--color-primary-rgb), 0.2);
+        border-radius: 50%;
+        animation: orbitRotate var(--orbit-speed, 30s) linear infinite;
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: -2px;
+          left: -2px;
+          right: -2px;
+          bottom: -2px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 50%;
+          animation: orbitGlow 4s ease-in-out infinite alternate;
+        }
+      }
+    }
+
+    // 星座视图中的星星
+    .constellation-star {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: all var(--transition-smooth);
+      padding: var(--spacing-lg);
+      border-radius: var(--border-radius-xl);
+      animation: constellationStarAppear 1s ease-out forwards;
+      animation-delay: var(--animation-delay, 0s);
+      opacity: 0;
+
+      &:hover {
+        transform: translateY(-8px) scale(1.05);
+      }
+
+      &.constellation-large {
+        .star-constellation-core {
+          width: 100px;
+          height: 100px;
+        }
+      }
+
+      &.constellation-medium {
+        .star-constellation-core {
+          width: 80px;
+          height: 80px;
+        }
+      }
+
+      &.constellation-small {
+        .star-constellation-core {
+          width: 60px;
+          height: 60px;
+        }
+      }
+
+      &.constellation-tiny {
+        .star-constellation-core {
+          width: 50px;
+          height: 50px;
+        }
+      }
+
+      .star-constellation-glow {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 150%;
+        height: 150%;
+        background: radial-gradient(circle,
+          rgba(255, 255, 255, 0.4) 0%,
+          rgba(var(--color-primary-rgb), 0.3) 50%,
+          transparent 70%);
+        border-radius: 50%;
+        z-index: 1;
+        opacity: 0.4;
+        transition: all var(--transition-smooth);
+      }
+
+      .star-constellation-core {
+        position: relative;
+        z-index: 2;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg,
+          rgba(255, 255, 255, 0.9) 0%,
+          rgba(var(--color-primary-rgb), 0.8) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        transition: all var(--transition-smooth);
+
+        .artist-avatar {
+          width: 70px;
+          height: 70px;
+          border-radius: 50%;
+          overflow: hidden;
+          border: 2px solid rgba(255, 255, 255, 0.5);
+
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+        }
+
+        .constellation-twinkle {
+          position: absolute;
+          top: -5px;
+          right: -5px;
+          width: 20px;
+          height: 20px;
+          background: radial-gradient(circle,
+            rgba(255, 255, 255, 0.9) 0%,
+            transparent 70%);
+          border-radius: 50%;
+          opacity: 0;
+        }
+      }
+
+      .constellation-info {
+        margin-top: var(--spacing-md);
+        text-align: center;
+        z-index: 2;
+
+        .artist-name {
+          font-size: var(--font-size-lg);
+          font-weight: 600;
+          color: white;
+          margin: 0 0 var(--spacing-xs) 0;
+          text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .artist-stats {
+          font-size: var(--font-size-sm);
+          color: rgba(255, 255, 255, 0.8);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--spacing-xs);
+        }
+      }
+
+      .constellation-actions {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        opacity: 0;
+        transition: all var(--transition-smooth);
+        z-index: 3;
+
+        .constellation-play-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: rgba(var(--color-primary-rgb), 0.9);
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          color: white;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          backdrop-filter: blur(10px);
+          transition: all var(--transition-smooth);
+
+          &:hover {
+            transform: scale(1.1);
+            background: var(--color-primary);
+            border-color: rgba(255, 255, 255, 0.6);
+          }
+
+          svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+          }
+        }
+      }
+
+      &:hover .constellation-actions {
+        opacity: 1;
+      }
+    }
+
+    // 星系视图中的行星
+    .galaxy-planet {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(var(--planet-angle)) translateX(var(--orbit-radius)) rotate(calc(-1 * var(--planet-angle)));
+      cursor: pointer;
+      transition: all var(--transition-smooth);
+      animation: planetAppear 1.5s ease-out forwards;
+      animation-delay: var(--animation-delay, 0s);
+      opacity: 0;
+
+      &.planet-large {
+        .planet-core {
+          width: 80px;
+          height: 80px;
+        }
+      }
+
+      &.planet-medium {
+        .planet-core {
+          width: 60px;
+          height: 60px;
+        }
+      }
+
+      &.planet-small {
+        .planet-core {
+          width: 50px;
+          height: 50px;
+        }
+      }
+
+      &.planet-tiny {
+        .planet-core {
+          width: 40px;
+          height: 40px;
+        }
+      }
+
+      .planet-orbit-trail {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 4px;
+        height: 4px;
+        background: rgba(var(--color-primary-rgb), 0.6);
+        border-radius: 50%;
+        opacity: 0;
+        transition: all var(--transition-smooth);
+      }
+
+      .planet-glow {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 120%;
+        height: 120%;
+        background: radial-gradient(circle,
+          rgba(var(--color-primary-rgb), 0.5) 0%,
+          transparent 70%);
+        border-radius: 50%;
+        z-index: 1;
+        opacity: 0.5;
+        transition: all var(--transition-smooth);
+      }
+
+      .planet-core {
+        position: relative;
+        z-index: 2;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: var(--gradient-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        transition: all var(--transition-smooth);
+
+        .artist-avatar {
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          overflow: hidden;
+          border: 2px solid rgba(255, 255, 255, 0.3);
+
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+        }
+
+        .planet-ring {
+          position: absolute;
+          top: -8px;
+          left: -8px;
+          right: -8px;
+          bottom: -8px;
+          border: 1px solid rgba(var(--color-primary-rgb), 0.4);
+          border-radius: 50%;
+          animation: planetRingRotate 10s linear infinite;
+        }
+      }
+
+      .planet-info {
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-top: var(--spacing-sm);
+        text-align: center;
+        opacity: 0;
+        transition: all var(--transition-smooth);
+        pointer-events: none;
+
+        .artist-name {
+          font-size: var(--font-size-sm);
+          font-weight: 600;
+          color: white;
+          margin: 0 0 var(--spacing-xs) 0;
+          text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+          white-space: nowrap;
+        }
+
+        .artist-stats {
+          font-size: 10px;
+          color: rgba(255, 255, 255, 0.7);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+        }
+      }
+
+      .planet-actions {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        opacity: 0;
+        transition: all var(--transition-smooth);
+        z-index: 3;
+
+        .planet-play-btn {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.9);
+          border: none;
+          color: var(--color-primary);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+          transition: all var(--transition-smooth);
+
+          &:hover {
+            transform: scale(1.2);
+            background: white;
+          }
+
+          svg {
+            width: 12px;
+            height: 12px;
+            fill: currentColor;
+          }
+        }
+      }
+
+      &:hover {
+        .planet-info {
+          opacity: 1;
+        }
+
+        .planet-actions {
+          opacity: 1;
+        }
+
+        .planet-orbit-trail {
+          opacity: 1;
+        }
+      }
+    }
+
+    .artist-star {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: all var(--transition-smooth);
+      padding: var(--spacing-lg);
+      border-radius: var(--border-radius-xl);
+
+      &:hover {
+        transform: translateY(-8px);
+      }
+
+      &.selected {
+        transform: scale(1.1);
+        z-index: 10;
+      }
+
+      // 星星大小变体
+      &.star-large {
+        .star-core {
+          width: 120px;
+          height: 120px;
+        }
+        .artist-avatar img {
+          width: 100px;
+          height: 100px;
+        }
+      }
+
+      &.star-medium {
+        .star-core {
+          width: 100px;
+          height: 100px;
+        }
+        .artist-avatar img {
+          width: 80px;
+          height: 80px;
+        }
+      }
+
+      &.star-small {
+        .star-core {
+          width: 80px;
+          height: 80px;
+        }
+        .artist-avatar img {
+          width: 60px;
+          height: 60px;
+        }
+      }
+
+      &.star-tiny {
+        .star-core {
+          width: 60px;
+          height: 60px;
+        }
+        .artist-avatar img {
+          width: 40px;
+          height: 40px;
+        }
+      }
+
+      .star-glow {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 150%;
+        height: 150%;
+        background: radial-gradient(circle,
+          rgba(var(--color-primary-rgb), var(--glow-intensity, 0.4)) 0%,
+          transparent 70%);
+        border-radius: 50%;
+        z-index: 1;
+        animation: starGlow 3s ease-in-out infinite alternate;
+      }
+
+      .star-core {
+        position: relative;
+        z-index: 2;
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: var(--gradient-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--shadow-heavy);
+        transition: all var(--transition-smooth);
+
+        .artist-avatar {
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          overflow: hidden;
+          border: 3px solid rgba(255, 255, 255, 0.3);
+
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+        }
+
+        .star-pulse {
+          position: absolute;
+          top: -10px;
+          left: -10px;
+          right: -10px;
+          bottom: -10px;
+          border: 2px solid rgba(var(--color-primary-rgb), 0.5);
+          border-radius: 50%;
+          opacity: 0;
+        }
+      }
+
+      .star-info {
+        margin-top: var(--spacing-md);
+        text-align: center;
+        z-index: 2;
+
+        .artist-name {
+          font-size: var(--font-size-lg);
+          font-weight: 600;
+          color: var(--color-text);
+          margin: 0 0 var(--spacing-xs) 0;
+          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .artist-stats {
+          font-size: var(--font-size-sm);
+          color: var(--color-text-secondary);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--spacing-xs);
+        }
+      }
+
+      .star-actions {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        opacity: 0;
+        transition: all var(--transition-smooth);
+        z-index: 3;
+
+        .star-play-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background: var(--color-primary);
+          border: none;
+          color: white;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: var(--shadow-medium);
+          transition: all var(--transition-smooth);
+
+          &:hover {
+            transform: scale(1.1);
+            box-shadow: var(--shadow-heavy);
+          }
+
+          svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+          }
+        }
+      }
+
+      &:hover .star-actions {
+        opacity: 1;
+      }
+    }
+  }
+
+  // 现代化空状态
+  .empty-state.modern-empty {
+    text-align: center;
+    padding: var(--spacing-xxl);
+
+    .empty-animation {
+      margin-bottom: var(--spacing-xl);
+
+      .empty-stars {
+        display: flex;
+        justify-content: center;
+        gap: var(--spacing-md);
+
+        .star {
+          width: 20px;
+          height: 20px;
+          background: var(--color-primary);
+          border-radius: 50%;
+          animation: starTwinkle 2s ease-in-out infinite;
+
+          &:nth-child(2) {
+            animation-delay: 0.5s;
+          }
+
+          &:nth-child(3) {
+            animation-delay: 1s;
+          }
+        }
+      }
+    }
+
+    .empty-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--color-text);
+      margin: 0 0 var(--spacing-md) 0;
+    }
+
+    .empty-description {
+      font-size: var(--font-size-lg);
+      color: var(--color-text-secondary);
+      margin: 0;
+    }
+  }
+}
+
+// 现代化艺术家详情页面
+.artist-detail.modern-detail {
+  // 沉浸式艺术家英雄区域
+  .artist-immersive-hero {
+    position: relative;
+    height: 500px;
+    margin-bottom: var(--spacing-xl);
+    border-radius: var(--border-radius-xl);
+    overflow: hidden;
+
+    .hero-background-blur {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1;
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: blur(20px) brightness(0.7);
+        transform: scale(1.1);
+      }
+
+      .blur-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg,
+          rgba(0, 0, 0, 0.6) 0%,
+          rgba(var(--color-primary-rgb), 0.4) 100%);
+      }
+    }
+
+    .hero-content-wrapper {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      padding: var(--spacing-xl);
+      display: flex;
+      flex-direction: column;
+      color: white;
+
+      .modern-back-btn {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        padding: var(--spacing-sm) var(--spacing-md);
+        border-radius: var(--border-radius-lg);
         cursor: pointer;
+        transition: all var(--transition-smooth);
+        backdrop-filter: blur(10px);
+        align-self: flex-start;
+        margin-bottom: var(--spacing-lg);
 
-        &:focus {
-          outline: none;
-          border-color: var(--color-primary);
+        &:hover {
+          background: rgba(255, 255, 255, 0.3);
+          transform: translateX(-4px);
+        }
+
+        svg {
+          width: 20px;
+          height: 20px;
+          fill: currentColor;
+        }
+
+        span {
+          font-size: var(--font-size-md);
+          font-weight: 500;
+        }
+      }
+
+      .artist-hero-main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xxl);
+        min-height: 300px;
+        padding: 0 var(--spacing-lg);
+
+        .artist-avatar-container {
+          position: relative;
+          flex-shrink: 0;
+          margin-right: var(--spacing-xl);
+
+          .avatar-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 280px;
+            height: 280px;
+            background: radial-gradient(circle,
+              rgba(255, 255, 255, var(--glow-intensity, 0.3)) 0%,
+              transparent 70%);
+            border-radius: 50%;
+            animation: avatarGlow 4s ease-in-out infinite alternate;
+          }
+
+          .artist-avatar-large {
+            position: relative;
+            z-index: 2;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            box-shadow: var(--shadow-heavy);
+
+            img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+            }
+          }
+
+          .avatar-pulse {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            animation: avatarPulse 3s ease-in-out infinite;
+          }
+        }
+
+        .artist-hero-info {
+          flex: 1;
+          min-width: 0; // 防止flex子项溢出
+          padding-left: var(--spacing-lg);
+
+          .artist-title-section {
+            margin-bottom: var(--spacing-xl);
+
+            .artist-title {
+              font-size: 56px;
+              font-weight: 700;
+              margin: 0;
+              text-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+              line-height: 1.1;
+              word-wrap: break-word;
+            }
+          }
+
+          .artist-stats-modern {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-xl);
+            flex-wrap: wrap;
+
+            .stat-card {
+              background: rgba(255, 255, 255, 0.15);
+              padding: var(--spacing-md) var(--spacing-lg);
+              border-radius: var(--border-radius-lg);
+              backdrop-filter: blur(10px);
+              text-align: center;
+              min-width: 100px;
+              flex: 1;
+              max-width: 140px;
+
+              .stat-number {
+                display: block;
+                font-size: 24px;
+                font-weight: 700;
+                margin-bottom: var(--spacing-xs);
+              }
+
+              .stat-label {
+                font-size: var(--font-size-sm);
+                opacity: 0.8;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+              }
+            }
+          }
+
+          .artist-actions-modern {
+            display: flex;
+            gap: var(--spacing-md);
+
+            .action-btn {
+              display: flex;
+              align-items: center;
+              gap: var(--spacing-sm);
+              padding: var(--spacing-md) var(--spacing-lg);
+              border: none;
+              border-radius: var(--border-radius-lg);
+              cursor: pointer;
+              transition: all var(--transition-smooth);
+              font-size: var(--font-size-md);
+              font-weight: 600;
+
+              &.primary-action {
+                background: var(--gradient-primary);
+                color: white;
+                box-shadow: var(--shadow-medium);
+
+                &:hover {
+                  transform: translateY(-2px);
+                  box-shadow: var(--shadow-heavy);
+                }
+              }
+
+              &.secondary-action {
+                background: rgba(255, 255, 255, 0.2);
+                color: white;
+                border: 2px solid rgba(255, 255, 255, 0.3);
+                backdrop-filter: blur(10px);
+
+                &:hover {
+                  background: rgba(255, 255, 255, 0.3);
+                  border-color: rgba(255, 255, 255, 0.5);
+                }
+              }
+
+              .btn-icon {
+                width: 20px;
+                height: 20px;
+
+                svg {
+                  width: 100%;
+                  height: 100%;
+                  fill: currentColor;
+                }
+              }
+            }
+          }
         }
       }
     }
   }
+
+  // 音乐轨道式专辑展示
+  .music-tracks-container {
+    .tracks-title {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--color-text);
+      margin: 0 0 var(--spacing-xl) 0;
+      text-align: center;
+    }
+
+    .album-tracks-modern {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xl);
+
+      .album-orbit {
+        background: var(--color-secondary-bg);
+        border-radius: var(--border-radius-xl);
+        padding: var(--spacing-lg);
+        transition: all var(--transition-smooth);
+
+        &:hover {
+          transform: translateY(-4px);
+          box-shadow: var(--shadow-card-hover);
+        }
+
+        .orbit-header {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-lg);
+          margin-bottom: var(--spacing-lg);
+          padding: var(--spacing-md);
+          background: var(--color-surface);
+          border-radius: var(--border-radius-lg);
+
+          .album-planet {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            flex-shrink: 0;
+
+            img {
+              width: 100%;
+              height: 100%;
+              border-radius: 50%;
+              object-fit: cover;
+              box-shadow: var(--shadow-medium);
+            }
+
+            .planet-ring {
+              position: absolute;
+              top: -8px;
+              left: -8px;
+              right: -8px;
+              bottom: -8px;
+              border: 2px solid var(--color-primary);
+              border-radius: 50%;
+              opacity: 0.3;
+              animation: planetRotate 10s linear infinite;
+            }
+          }
+
+          .orbit-info {
+            flex: 1;
+
+            .orbit-title {
+              font-size: var(--font-size-xl);
+              font-weight: 600;
+              color: var(--color-text);
+              margin: 0 0 var(--spacing-xs) 0;
+            }
+
+            .orbit-stats {
+              font-size: var(--font-size-sm);
+              color: var(--color-text-secondary);
+            }
+          }
+
+          .orbit-play-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--gradient-primary);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-smooth);
+            box-shadow: var(--shadow-medium);
+
+            &:hover {
+              transform: scale(1.1);
+              box-shadow: var(--shadow-heavy);
+            }
+
+            svg {
+              width: 24px;
+              height: 24px;
+              fill: currentColor;
+            }
+          }
+        }
+
+        .orbit-tracks {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+
+          .track-satellite {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-md);
+            border-radius: var(--border-radius-lg);
+            transition: all var(--transition-smooth);
+            cursor: pointer;
+
+            &:hover {
+              background: var(--color-hover);
+              transform: translateX(8px);
+
+              .satellite-play-btn {
+                opacity: 1;
+              }
+            }
+
+            .satellite-number {
+              width: 32px;
+              height: 32px;
+              border-radius: 50%;
+              background: var(--color-primary);
+              color: white;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: var(--font-size-sm);
+              font-weight: 600;
+              flex-shrink: 0;
+            }
+
+            .satellite-info {
+              flex: 1;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+
+              .track-title {
+                font-size: var(--font-size-md);
+                font-weight: 500;
+                color: var(--color-text);
+              }
+
+              .track-duration {
+                font-size: var(--font-size-sm);
+                color: var(--color-text-secondary);
+              }
+            }
+
+            .satellite-actions {
+              opacity: 0;
+              transition: all var(--transition-smooth);
+
+              .satellite-play-btn {
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                background: var(--color-primary);
+                border: none;
+                color: white;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all var(--transition-smooth);
+
+                &:hover {
+                  transform: scale(1.1);
+                }
+
+                svg {
+                  width: 16px;
+                  height: 16px;
+                  fill: currentColor;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// 现代化艺术家页面动画
+@keyframes starGlow {
+  0% {
+    opacity: 0.4;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0.8;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
+
+@keyframes starPulse {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+@keyframes starTwinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes avatarGlow {
+  0% {
+    opacity: 0.3;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+}
+
+@keyframes avatarPulse {
+  0% {
+    opacity: 0.4;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+  100% {
+    opacity: 0.4;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes planetRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// 新的动画关键帧
+@keyframes constellationLineAppear {
+  0% {
+    opacity: 0;
+    stroke-dasharray: 0, 1000;
+  }
+  100% {
+    opacity: 0.6;
+    stroke-dasharray: 1000, 0;
+  }
+}
+
+@keyframes constellationStarAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes constellationTwinkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes galaxyCoreRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes coreGlow {
+  0% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes orbitRotate {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes orbitGlow {
+  0% {
+    opacity: 0.1;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes planetAppear {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--planet-angle)) translateX(calc(var(--orbit-radius) * 0.5)) rotate(calc(-1 * var(--planet-angle))) scale(0.3);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--planet-angle)) translateX(var(--orbit-radius)) rotate(calc(-1 * var(--planet-angle))) scale(1);
+  }
+}
+
+@keyframes planetRingRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// 特效动画
+.constellation-burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(var(--color-primary-rgb), 0.6) 50%,
+    transparent 70%);
+  animation: constellationBurst 1s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes constellationBurst {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 1;
+  }
+  50% {
+    width: 100px;
+    height: 100px;
+    opacity: 0.8;
+  }
+  100% {
+    width: 200px;
+    height: 200px;
+    opacity: 0;
+  }
+}
+
+.galaxy-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(var(--color-primary-rgb), 0.6) 0%,
+    transparent 70%);
+  animation: galaxyPulse 1.5s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes galaxyPulse {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 1;
+  }
+  30% {
+    width: 80px;
+    height: 80px;
+    opacity: 0.8;
+  }
+  100% {
+    width: 300px;
+    height: 300px;
+    opacity: 0;
+  }
+}
+
+// 播放波纹效果
+.play-ripple {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(var(--color-primary-rgb), 0.3);
+  animation: playRipple 1s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes playRipple {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 1;
+  }
+  100% {
+    width: 200px;
+    height: 200px;
+    opacity: 0;
+  }
+}
+
+// 现代化艺术家页面响应式设计
+@media (max-width: 1024px) {
+  .artists-page.modern-artists {
+    .artists-hero-section {
+      height: 250px;
+
+      .hero-content {
+        .hero-title-container {
+          .hero-text .hero-title {
+            font-size: 36px;
+          }
+        }
+
+        .hero-stats {
+          gap: var(--spacing-md);
+
+          .stat-item {
+            min-width: 80px;
+            padding: var(--spacing-sm);
+
+            .stat-number {
+              font-size: 20px;
+            }
+          }
+        }
+      }
+    }
+
+    .modern-controls {
+      flex-direction: column;
+      gap: var(--spacing-md);
+
+      .search-container {
+        max-width: none;
+      }
+    }
+
+    .artists-galaxy {
+      &.constellation-view {
+        .constellation-grid {
+          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          gap: var(--spacing-md);
+        }
+
+        .constellation-star {
+          &.constellation-large .star-constellation-core {
+            width: 80px;
+            height: 80px;
+          }
+
+          &.constellation-medium .star-constellation-core {
+            width: 70px;
+            height: 70px;
+          }
+
+          &.constellation-small .star-constellation-core {
+            width: 60px;
+            height: 60px;
+          }
+
+          &.constellation-tiny .star-constellation-core {
+            width: 50px;
+            height: 50px;
+          }
+        }
+      }
+
+      &.galaxy-view {
+        min-height: 600px;
+
+        .galaxy-center .galaxy-core {
+          width: 80px;
+          height: 80px;
+        }
+
+        .galaxy-orbit {
+          width: calc(var(--orbit-radius) * 1.5);
+          height: calc(var(--orbit-radius) * 1.5);
+        }
+
+        .galaxy-planet {
+          &.planet-large .planet-core {
+            width: 60px;
+            height: 60px;
+          }
+
+          &.planet-medium .planet-core {
+            width: 50px;
+            height: 50px;
+          }
+
+          &.planet-small .planet-core {
+            width: 40px;
+            height: 40px;
+          }
+
+          &.planet-tiny .planet-core {
+            width: 35px;
+            height: 35px;
+          }
+        }
+      }
+    }
+  }
+
+  .artist-detail.modern-detail {
+    .artist-immersive-hero {
+      height: 400px;
+
+      .hero-content-wrapper {
+        .artist-hero-main {
+          flex-direction: column;
+          text-align: center;
+          gap: var(--spacing-lg);
+          padding: 0 var(--spacing-md);
+
+          .artist-avatar-container {
+            margin-right: 0;
+
+            .avatar-glow {
+              width: 200px;
+              height: 200px;
+            }
+
+            .artist-avatar-large {
+              width: 150px;
+              height: 150px;
+            }
+
+            .avatar-pulse {
+              width: 170px;
+              height: 170px;
+            }
+          }
+
+          .artist-hero-info {
+            padding-left: 0;
+
+            .artist-title-section .artist-title {
+              font-size: 48px;
+            }
+
+            .artist-stats-modern {
+              justify-content: center;
+              gap: var(--spacing-sm);
+
+              .stat-card {
+                min-width: 90px;
+                max-width: 120px;
+                padding: var(--spacing-sm) var(--spacing-md);
+
+                .stat-number {
+                  font-size: 20px;
+                }
+              }
+            }
+
+            .artist-actions-modern {
+              justify-content: center;
+            }
+          }
+        }
+      }
+    }
+
+    .music-tracks-container {
+      .album-tracks-modern {
+        .album-orbit {
+          .orbit-header {
+            flex-direction: column;
+            text-align: center;
+            gap: var(--spacing-md);
+
+            .album-planet {
+              width: 60px;
+              height: 60px;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .artists-page.modern-artists {
+    .artists-hero-section {
+      height: 200px;
+
+      .hero-content {
+        padding: var(--spacing-md);
+
+        .hero-title-container {
+          flex-direction: column;
+          text-align: center;
+          gap: var(--spacing-md);
+
+          .hero-icon {
+            width: 50px;
+            height: 50px;
+
+            svg {
+              width: 24px;
+              height: 24px;
+            }
+          }
+
+          .hero-text .hero-title {
+            font-size: 28px;
+          }
+        }
+
+        .hero-stats {
+          flex-direction: row;
+          justify-content: center;
+          gap: var(--spacing-sm);
+
+          .stat-item {
+            min-width: 60px;
+            padding: var(--spacing-xs);
+
+            .stat-number {
+              font-size: 16px;
+            }
+
+            .stat-label {
+              font-size: 10px;
+            }
+          }
+        }
+      }
+    }
+
+    .modern-controls {
+      padding: var(--spacing-md);
+
+      .view-mode-toggle {
+        .mode-btn {
+          padding: var(--spacing-xs) var(--spacing-sm);
+          font-size: 12px;
+
+          svg {
+            width: 14px;
+            height: 14px;
+          }
+        }
+      }
+    }
+
+    .artists-galaxy {
+      padding: var(--spacing-md);
+
+      &.constellation-view {
+        .constellation-grid {
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          gap: var(--spacing-sm);
+        }
+
+        .constellation-star {
+          padding: var(--spacing-sm);
+
+          .constellation-info {
+            .artist-name {
+              font-size: var(--font-size-md);
+            }
+
+            .artist-stats {
+              font-size: 10px;
+            }
+          }
+
+          &.constellation-large .star-constellation-core {
+            width: 60px;
+            height: 60px;
+          }
+
+          &.constellation-medium .star-constellation-core {
+            width: 50px;
+            height: 50px;
+          }
+
+          &.constellation-small .star-constellation-core {
+            width: 45px;
+            height: 45px;
+          }
+
+          &.constellation-tiny .star-constellation-core {
+            width: 40px;
+            height: 40px;
+          }
+        }
+      }
+
+      &.galaxy-view {
+        min-height: 400px;
+
+        .galaxy-center .galaxy-core {
+          width: 60px;
+          height: 60px;
+
+          .core-text {
+            font-size: 10px;
+          }
+        }
+
+        .galaxy-orbit {
+          width: calc(var(--orbit-radius) * 1.2);
+          height: calc(var(--orbit-radius) * 1.2);
+        }
+
+        .galaxy-planet {
+          &.planet-large .planet-core {
+            width: 45px;
+            height: 45px;
+          }
+
+          &.planet-medium .planet-core {
+            width: 40px;
+            height: 40px;
+          }
+
+          &.planet-small .planet-core {
+            width: 35px;
+            height: 35px;
+          }
+
+          &.planet-tiny .planet-core {
+            width: 30px;
+            height: 30px;
+          }
+
+          .planet-info {
+            .artist-name {
+              font-size: 10px;
+            }
+
+            .artist-stats {
+              font-size: 8px;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .artist-detail.modern-detail {
+    .artist-immersive-hero {
+      height: 300px;
+
+      .hero-content-wrapper {
+        padding: var(--spacing-md);
+
+        .artist-hero-main {
+          padding: 0 var(--spacing-sm);
+
+          .artist-avatar-container {
+            margin-right: 0;
+
+            .avatar-glow {
+              width: 160px;
+              height: 160px;
+            }
+
+            .artist-avatar-large {
+              width: 120px;
+              height: 120px;
+            }
+
+            .avatar-pulse {
+              width: 140px;
+              height: 140px;
+            }
+          }
+
+          .artist-hero-info {
+            padding-left: 0;
+
+            .artist-title-section .artist-title {
+              font-size: 32px;
+            }
+
+            .artist-stats-modern {
+              flex-direction: row;
+              justify-content: center;
+              gap: var(--spacing-xs);
+
+              .stat-card {
+                min-width: 70px;
+                max-width: 90px;
+                padding: var(--spacing-xs) var(--spacing-sm);
+                flex: 1;
+
+                .stat-number {
+                  font-size: 18px;
+                }
+
+                .stat-label {
+                  font-size: 10px;
+                }
+              }
+            }
+
+            .artist-actions-modern {
+              flex-direction: column;
+              gap: var(--spacing-sm);
+
+              .action-btn {
+                width: 100%;
+                justify-content: center;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .music-tracks-container {
+      .tracks-title {
+        font-size: 24px;
+      }
+
+      .album-tracks-modern {
+        .album-orbit {
+          padding: var(--spacing-md);
+
+          .orbit-tracks {
+            .track-satellite {
+              padding: var(--spacing-sm);
+
+              .satellite-number {
+                width: 24px;
+                height: 24px;
+                font-size: 10px;
+              }
+
+              .satellite-info {
+                .track-title {
+                  font-size: var(--font-size-sm);
+                }
+
+                .track-duration {
+                  font-size: 10px;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
 
   .artists-content {
     &.grid-view {
@@ -7883,7 +9886,7 @@ a {
       }
     }
   }
-}
+
 
 // 艺术家详情页面样式
 .artist-detail {
@@ -12047,5 +14050,47 @@ body.focus-mode {
       background: rgba(255, 255, 255, 0.1);
       border-color: var(--color-primary);
     }
+  }
+}
+
+// 艺术家详情页面飞入动画支持
+.artist-detail.modern-detail {
+  .detail-target-avatar {
+    // 确保目标头像有正确的边框半径用于动画
+    border-radius: 50%;
+    overflow: hidden;
+
+    img {
+      transition: opacity 0.14s ease-out;
+    }
+  }
+
+  // 详情页面内容初始状态（用于分层进入动画）
+  .artist-title,
+  .artist-stats-modern,
+  .artist-actions-modern,
+  .tracks-title,
+  .album-orbit {
+    // 这些元素会在JavaScript中动态设置初始状态
+    // 这里只是确保有正确的transition属性
+    transition: opacity 0.3s cubic-bezier(0.22, 0.61, 0.36, 1),
+                transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+}
+
+// 飞入动画的幽灵元素样式优化
+.artist-cover-ghost {
+  // 确保幽灵元素有最高的z-index
+  z-index: 10000 !important;
+
+  // 优化动画性能
+  will-change: transform, border-radius, opacity;
+
+  // 确保图片正确显示
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 }

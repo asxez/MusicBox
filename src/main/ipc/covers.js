@@ -76,14 +76,26 @@ function registerCoversIpcHandlers({ipcMain}) {
                 return ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext);
             });
 
-            // 专辑精确匹配模式：仅匹配 艺术家_专辑__ALBUM.扩展名
+            // 精确匹配：专辑或艺术家封面
             if (isAlbum) {
                 // 使用与渲染器进程一致的文件名清理逻辑
                 const cleanArtist = cleanCoverFileName(artist);
                 const cleanAlbum = cleanCoverFileName(album);
-                const expectedBase = `${cleanArtist}_${cleanAlbum}__ALBUM`.toLowerCase();
 
-                console.log(`🔍 [Album-only] 查找专辑封面: ${expectedBase}`);
+                let expectedBase;
+                let searchType;
+
+                if (!album) {
+                    // 艺术家封面：艺术家__ARTIST
+                    expectedBase = `${cleanArtist}__ARTIST`.toLowerCase();
+                    searchType = 'Artist-only';
+                } else {
+                    // 专辑封面：艺术家_专辑__ALBUM
+                    expectedBase = `${cleanArtist}_${cleanAlbum}__ALBUM`.toLowerCase();
+                    searchType = 'Album-only';
+                }
+
+                console.log(`🔍 [${searchType}] 查找封面: ${expectedBase}`);
 
                 const matched = imageFiles.find(file => {
                     const fileBase = path.parse(file).name.toLowerCase();
@@ -92,11 +104,11 @@ function registerCoversIpcHandlers({ipcMain}) {
 
                 if (matched) {
                     const fullPath = path.join(coverDir, matched);
-                    console.log(`✅ [Album-only] 找到匹配的封面文件: ${matched}`);
+                    console.log(`✅ [${searchType}] 找到匹配的封面文件: ${matched}`);
                     return {success: true, filePath: fullPath, fileName: matched};
                 }
-                console.log(`❌ [Album-only] 未找到严格匹配的专辑封面，期望: ${expectedBase}`);
-                return {success: false, error: '未找到匹配的专辑封面'};
+                console.log(`❌ [${searchType}] 未找到严格匹配的封面，期望: ${expectedBase}`);
+                return {success: false, error: `未找到匹配的${searchType === 'Artist-only' ? '艺术家' : '专辑'}封面`};
             }
 
             // 默认单曲/广义匹配逻辑
