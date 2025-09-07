@@ -25,10 +25,14 @@ class AlbumsPage extends Component {
         // 防重复机制
         this._lastTracksHash = null;      // 上次tracks的哈希值
         this._coversScheduled = false;    // 是否已经调度过封面获取
-        this._bindLibraryEvents();
+        this.listenersSetup = false; // 事件监听器是否已设置
     }
 
     async show() {
+        if (!this.listenersSetup) {
+            this._bindLibraryEvents();
+            this.listenersSetup = true;
+        }
         if (this.element) this.element.style.display = 'block';
         this.isVisible = true;
 
@@ -60,6 +64,10 @@ class AlbumsPage extends Component {
         this._coverRequests.clear();
         this._coverFailures.clear();
         this._coverQueue.length = 0;
+        this._lastSourceRect = null;
+        this._lastSourceKey = null;
+        this._lastTracksHash = null;
+        this.listenersSetup = false;
         return super.destroy();
     }
 
@@ -72,7 +80,6 @@ class AlbumsPage extends Component {
                 return;
             }
 
-            console.log(`🖼️ AlbumsPage: tracks发生变化，更新专辑列表 (${this._lastTracksHash} → ${newTracksHash})`);
             this._lastTracksHash = newTracksHash;
             this.tracks = tracks || [];
             this._coversScheduled = false; // 重置封面调度状态
@@ -223,7 +230,6 @@ class AlbumsPage extends Component {
             });
         });
     }
-
 
     sortAlbums(sortBy) {
         this.sortBy = sortBy;
