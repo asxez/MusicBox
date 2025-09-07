@@ -2,14 +2,14 @@
 
 const fs = require('fs');
 const path = require('path');
-const { minify } = require('terser');
+const {minify} = require('terser');
 
 const srcDir = path.join(__dirname, '..', 'src');
 const publicDir = path.join(__dirname, '..', 'public');
 
 // Ensure public directory exists
 if (!fs.existsSync(publicDir)) {
-    fs.mkdirSync(publicDir, { recursive: true });
+    fs.mkdirSync(publicDir, {recursive: true});
 }
 
 // Create subdirectories
@@ -17,7 +17,7 @@ const subdirs = ['js', 'styles'];
 subdirs.forEach(dir => {
     const dirPath = path.join(publicDir, dir);
     if (!fs.existsSync(dirPath)) {
-        fs.mkdirSync(dirPath, { recursive: true });
+        fs.mkdirSync(dirPath, {recursive: true});
     }
 });
 
@@ -29,7 +29,7 @@ function collectJSFiles(dir, basePath = '') {
         return files;
     }
 
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const entries = fs.readdirSync(dir, {withFileTypes: true});
 
     for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
@@ -75,8 +75,6 @@ async function bundleJS() {
         'plugin-system/PluginLoader.js',
         'plugin-system/PluginAPI.js',
         'plugin-system/PluginManager.js',
-        'plugin-system/PluginDevServer.js',
-        'plugin-system/PluginTester.js',
         'plugin-system/index.js',
 
         // 3. 页面组件
@@ -96,10 +94,12 @@ async function bundleJS() {
         'components/component/Settings.js',
         'components/component/StatisticsPage.js',
         'components/component/TrackList.js',
+        'components/component/UpdateModal.js',
 
         // 4. 对话框组件
         'components/dialogs/AddToPlaylistDialog.js',
         'components/dialogs/CreatePlaylistDialog.js',
+        'components/dialogs/EditTrackInfoDialog.js',
         'components/dialogs/MusicLibrarySelectionDialog.js',
         'components/dialogs/RenamePlaylistDialog.js',
 
@@ -118,8 +118,15 @@ async function bundleJS() {
         'local-cover-manager.js',
         'desktop-lyrics.js',
         'embedded-lyrics-manager.js',
-        'embedded-cover-manager.js'
+        'embedded-cover-manager.js',
+        'url-validator.js',
+        'cover-update-manager.js',
     ];
+
+    const excludeDirs = [
+        'plugin-system/examples',
+        'plugin-system/docs',
+    ]
 
     // Collect all JavaScript files
     const allFiles = collectJSFiles(jsDir);
@@ -137,7 +144,7 @@ async function bundleJS() {
         const file = allFiles.find(f => f.relativePath === fileName);
         if (file) {
             const content = fs.readFileSync(file.path, 'utf8');
-            console.log(`✓ Adding ${file.relativePath} (${content.length} chars)`);
+            console.log(`✓ 1 Adding ${file.relativePath} (${content.length} chars)`);
             bundledCode += `// === ${file.relativePath} ===\n${content}\n\n`;
 
             // 记录已处理的文件
@@ -159,7 +166,7 @@ async function bundleJS() {
 
         if (file) {
             const content = fs.readFileSync(file.path, 'utf8');
-            console.log(`✓ Adding ${file.relativePath} (${content.length} chars)`);
+            console.log(`✓ 2 Adding ${file.relativePath} (${content.length} chars)`);
             bundledCode += `// === ${file.relativePath} ===\n${content}\n\n`;
 
             // 记录已处理的文件
@@ -173,7 +180,7 @@ async function bundleJS() {
     const appFile = allFiles.find(f => f.relativePath === 'app.js');
     if (appFile) {
         const content = fs.readFileSync(appFile.path, 'utf8');
-        console.log(`✓ Adding ${appFile.relativePath} (${content.length} chars)`);
+        console.log(`✓ 3 Adding ${appFile.relativePath} (${content.length} chars)`);
         bundledCode += `// === ${appFile.relativePath} ===\n${content}\n\n`;
 
         // 记录已处理的文件
@@ -189,10 +196,11 @@ async function bundleJS() {
         if (
             !actuallyProcessedFiles.has(normalizedPath) &&
             !excludeFiles.includes(file.name) &&
-            !excludeFiles.includes(file.relativePath)
+            !excludeFiles.includes(file.relativePath) &&
+            excludeDirs.every(value => normalizedPath.indexOf(value) === -1)
         ) {
             const content = fs.readFileSync(file.path, 'utf8');
-            console.log(`✓ Adding ${file.relativePath} (${content.length} chars)`);
+            console.log(`✓ 4 Adding ${file.relativePath} (${content.length} chars)`);
             bundledCode += `// === ${file.relativePath} ===\n${content}\n\n`;
 
             // 标记为已处理
@@ -207,7 +215,7 @@ async function bundleJS() {
             console.log(`⚠ Skipping ${excludeFile} (loaded separately)`);
         }
     }
-    
+
     // Minify in production
     if (process.env.NODE_ENV === 'production') {
         try {
@@ -225,7 +233,7 @@ async function bundleJS() {
             // Continue with unminified code
         }
     }
-    
+
     // Write bundled file
     const outputPath = path.join(publicDir, 'js', 'bundle.js');
     fs.writeFileSync(outputPath, bundledCode);
@@ -281,4 +289,4 @@ if (require.main === module) {
     build();
 }
 
-module.exports = { build, bundleJS, checkCSS, checkAssets };
+module.exports = {build, bundleJS, checkCSS, checkAssets};
