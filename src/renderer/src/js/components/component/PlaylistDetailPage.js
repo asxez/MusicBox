@@ -237,47 +237,49 @@ class PlaylistDetailPage extends Component {
     setupDynamicEventListeners() {
         // 播放全部按钮
         const playAllBtn = this.container.querySelector('#playlist-play-all');
-        playAllBtn.addEventListener('click', () => this.playAllTracks());
+        if (playAllBtn) playAllBtn.addEventListener('click', () => this.playAllTracks());
 
         // 随机播放按钮
         const shuffleBtn = this.container.querySelector('#playlist-shuffle');
-        shuffleBtn.addEventListener('click', () => this.shufflePlayTracks());
+        if (shuffleBtn) shuffleBtn.addEventListener('click', () => this.shufflePlayTracks());
 
         // 添加歌曲按钮
         const addSongsBtn = this.container.querySelector('#playlist-add-songs');
-        addSongsBtn.addEventListener('click', () => this.showAddSongsDialog());
+        if (addSongsBtn) addSongsBtn.addEventListener('click', () => this.showAddSongsDialog());
 
         // 从文件夹添加音乐按钮
         const addFromFolderBtn = this.container.querySelector('#playlist-add-from-folder');
-        addFromFolderBtn.addEventListener('click', () => this.addFromFolder());
+        if (addFromFolderBtn) addFromFolderBtn.addEventListener('click', () => this.addFromFolder());
 
         // 全选按钮
         const selectAllBtn = this.container.querySelector('#select-all-tracks');
-        selectAllBtn.addEventListener('click', () => this.selectAllTracks());
+        if (selectAllBtn) selectAllBtn.addEventListener('click', () => this.selectAllTracks());
 
         // 清除选择按钮
         const clearSelectionBtn = this.container.querySelector('#clear-selection');
-        clearSelectionBtn.addEventListener('click', () => this.clearSelection());
+        if (clearSelectionBtn) clearSelectionBtn.addEventListener('click', () => this.clearSelection());
 
         // 菜单按钮
         const menuBtn = this.container.querySelector('#playlist-menu');
         const menuDropdown = this.container.querySelector('#playlist-menu-dropdown');
-        menuBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            menuDropdown.classList.toggle('show');
-        });
-
-        // 设置document点击监听器
-        // 每次都重新设置，因为DOM已重新生成
-        this.setupDocumentClickHandler(menuDropdown);
-
-        // 菜单项事件
-        const clearBtn = menuDropdown.querySelector('#playlist-clear');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', async () => {
-                menuDropdown.classList.remove('show');
-                await this.clearPlaylist();
+        if (menuBtn && menuDropdown) {
+            menuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menuDropdown.classList.toggle('show');
             });
+
+            // 设置document点击监听器
+            // 每次都重新设置，因为DOM已重新生成
+            this.setupDocumentClickHandler(menuDropdown);
+
+            // 菜单项事件
+            const clearBtn = menuDropdown.querySelector('#playlist-clear');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', async () => {
+                    menuDropdown.classList.remove('show');
+                    await this.clearPlaylist();
+                });
+            }
         }
 
         // setupTrackListEvents() 已在 render() 方法中调用，这里不需要重复调用
