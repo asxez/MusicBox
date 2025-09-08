@@ -251,7 +251,10 @@ async function createWindow() {
             clearTimeout(saveTimeout);
         }
         mainWindow = null;
-        if (desktopLyricsWindow) desktopLyricsWindow.close();
+        if (desktopLyricsWindow) {
+            desktopLyricsWindow.close();
+            desktopLyricsWindow = null;
+        }
     });
 
     mainWindow.webContents.setWindowOpenHandler(({url}) => {
