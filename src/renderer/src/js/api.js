@@ -1313,7 +1313,7 @@ class MusicBoxAPI extends EventEmitter {
                 lrc: lrcText.trim(),
                 source: 'network'
             };
-            if (window.cacheManager) window.cacheManager.setLyricsCache(title, artist, album, result);
+            window.cacheManager.setLyricsCache(title, artist, album, result);
 
             // 释放请求锁
             this._lyricsRequestLock.delete(lyricsKey);

@@ -135,7 +135,7 @@ class EqualizerComponent extends Component {
 
     async initializeEqualizer() {
         // 等待API初始化
-        if (window.api && window.api.getEqualizer) {
+        if (window.api.getEqualizer) {
             this.equalizer = window.api.getEqualizer();
             if (this.equalizer) {
                 if (window.cacheManager) {

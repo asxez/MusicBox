@@ -430,9 +430,7 @@ class Lyrics extends Component {
             this.renderLyrics();
 
             // 同步歌词到桌面歌词窗口
-            if (api && api.syncToDesktopLyrics) {
-                await api.syncToDesktopLyrics('lyrics', this.lyrics);
-            }
+            await api.syncToDesktopLyrics('lyrics', this.lyrics);
             return;
         }
 
@@ -449,9 +447,7 @@ class Lyrics extends Component {
                     this.renderLyrics();
 
                     // 同步歌词到桌面歌词窗口
-                    if (api && api.syncToDesktopLyrics) {
-                        await api.syncToDesktopLyrics('lyrics', this.lyrics);
-                    }
+                    await api.syncToDesktopLyrics('lyrics', this.lyrics);
                 } else {
                     this.showNoLyrics();
                     console.log('❌ Lyrics: 歌词解析失败');
@@ -775,9 +771,7 @@ class Lyrics extends Component {
     }
 
     updateFullscreenState() {
-        this.isFullscreen = !!(document.fullscreenElement ||
-            document.webkitFullscreenElement ||
-            document.msFullscreenElement);
+        this.isFullscreen = !!document.fullscreenElement;
 
         // 更新按钮图标
         if (this.isFullscreen) {

@@ -266,14 +266,6 @@ class Player extends Component {
         try {
             // 检查是否已有本地封面
             if (track.cover) {
-                console.log('🖼️ Player: 使用本地封面', {
-                    type: typeof track.cover,
-                    constructor: track.cover.constructor.name,
-                    value: typeof track.cover === 'string' ?
-                           track.cover.substring(0, 100) + '...' :
-                           JSON.stringify(track.cover)
-                });
-
                 if (typeof track.cover !== 'string') {
                     console.error('❌ Player: track.cover不是字符串，无法设置为src', {
                         type: typeof track.cover,
@@ -294,12 +286,6 @@ class Player extends Component {
             if (track.title && track.artist) {
                 const coverResult = await api.getCover(track.title, track.artist, track.album, track.filePath, true);
                 if (coverResult.success && coverResult.imageUrl) {
-                    console.log('✅ Player: 封面获取成功', {
-                        source: coverResult.source,
-                        type: coverResult.type,
-                        urlType: typeof coverResult.imageUrl
-                    });
-
                     if (typeof coverResult.imageUrl === 'string') {
                         // 使用安全的图片设置方法
                         if (window.urlValidator) {
@@ -363,16 +349,12 @@ class Player extends Component {
     }
 
     updatePlayButton() {
-        console.log('🔄 Player: 更新播放按钮，当前状态:', this.isPlaying);
-
         if (this.isPlaying) {
             this.playIcon.style.display = 'none';
             this.pauseIcon.style.display = 'block';
-            console.log('✅ Player: 显示暂停图标');
         } else {
             this.playIcon.style.display = 'block';
             this.pauseIcon.style.display = 'none';
-            console.log('✅ Player: 显示播放图标');
         }
     }
 
@@ -406,12 +388,6 @@ class Player extends Component {
     }
 
     updatePlayModeDisplay(mode) {
-        // 检查是否有这个模式
-        if (!this.modeSequenceIcon || !this.modeShuffleIcon || !this.modeRepeatOneIcon) {
-            console.warn('🎵 Player: 播放模式图标元素不存在');
-            return;
-        }
-
         this.modeSequenceIcon.style.display = 'none';
         this.modeShuffleIcon.style.display = 'none';
         this.modeRepeatOneIcon.style.display = 'none';
@@ -434,7 +410,6 @@ class Player extends Component {
                 if (this.playModeBtn) this.playModeBtn.title = '顺序播放';
                 break;
         }
-        console.log('🎵 Player: 播放模式显示更新为:', mode);
     }
 
     async updateUI() {
@@ -502,7 +477,6 @@ class Player extends Component {
     // 桌面歌词控制方法
     async toggleDesktopLyrics() {
         try {
-            console.log('🎵 Player: 切换桌面歌词');
             const result = await api.toggleDesktopLyrics();
 
             if (result.success) {
@@ -514,11 +488,9 @@ class Player extends Component {
                     showToast('桌面歌词已隐藏', 'info');
                 }
             } else {
-                console.error('❌ Player: 切换桌面歌词失败:', result.error);
                 showToast('桌面歌词操作失败', 'error');
             }
         } catch (error) {
-            console.error('❌ Player: 桌面歌词操作异常:', error);
             showToast('桌面歌词操作异常', 'error');
         }
     }
@@ -534,11 +506,8 @@ class Player extends Component {
 
     async updateDesktopLyricsButtonVisibility(enabled) {
         if (!this.desktopLyricsBtn) {
-            console.warn('🎵 Player: 桌面歌词按钮元素不存在');
             return;
         }
-
-        console.log(`🎵 Player: 更新桌面歌词按钮显示状态 - ${enabled ? '启用' : '禁用'}`);
 
         // 根据设置显示或隐藏按钮
         if (enabled) {
@@ -553,8 +522,6 @@ class Player extends Component {
             this.desktopLyricsBtn.style.display = 'none';
             this.desktopLyricsBtn.disabled = true;
         }
-
-        console.log(`🎵 Player: 桌面歌词按钮${enabled ? '显示' : '隐藏'}完成`);
     }
 
     // 检查桌面歌词窗口状态的独立方法
