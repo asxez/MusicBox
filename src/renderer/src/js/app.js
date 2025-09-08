@@ -151,6 +151,9 @@ class MusicBoxApp extends EventEmitter {
         // 初始化更新检查模态窗口
         this.components.updateModal = new UpdateModal();
 
+        // 网络磁盘模态框组件
+        this.components.networkDiskModal = null;
+
         // 初始化首页
         this.components.homePage = new HomePage('#content-area');
 
@@ -313,6 +316,15 @@ class MusicBoxApp extends EventEmitter {
             }
         });
 
+        // 监听网络磁盘设置变化
+        this.components.settings.on('networkDriveEnabled', (enabled) => {
+            if (enabled) {
+                this.initializeComponent('networkDiskModal');
+            } else {
+                this.destroyComponent('networkDiskModal');
+            }
+        });
+
         // 监听统计信息设置变化
         this.components.settings.on('statisticsEnabled', (enabled) => {
             if (this.components.navigation) {
@@ -320,9 +332,9 @@ class MusicBoxApp extends EventEmitter {
             }
 
             if (enabled) {
-                this.initializePageComponent('statisticsPage');
+                this.initializeComponent('statisticsPage');
             } else {
-                this.destroyPageComponent('statisticsPage');
+                this.destroyComponent('statisticsPage');
             }
         });
 
@@ -333,9 +345,9 @@ class MusicBoxApp extends EventEmitter {
             }
 
             if (enabled) {
-                this.initializePageComponent('recentPage');
+                this.initializeComponent('recentPage');
             } else {
-                this.destroyPageComponent('recentPage');
+                this.destroyComponent('recentPage');
             }
         });
 
@@ -346,9 +358,9 @@ class MusicBoxApp extends EventEmitter {
             }
 
             if (enabled) {
-                this.initializePageComponent('artistsPage');
+                this.initializeComponent('artistsPage');
             } else {
-                this.destroyPageComponent('artistsPage');
+                this.destroyComponent('artistsPage');
             }
         });
 
@@ -359,9 +371,9 @@ class MusicBoxApp extends EventEmitter {
             }
 
             if (enabled) {
-                this.initializePageComponent('albumsPage');
+                this.initializeComponent('albumsPage');
             } else {
-                this.destroyPageComponent('albumsPage');
+                this.destroyComponent('albumsPage');
             }
         });
 
@@ -380,8 +392,8 @@ class MusicBoxApp extends EventEmitter {
             }
         });
 
-        // 新页面组件事件监听
-        this.setupPageComponentEvents();
+        // 新组件事件监听
+        this.setupComponentEvents();
 
         // Lyrics events
         this.components.lyrics.on('togglePlay', () => {
@@ -432,42 +444,56 @@ class MusicBoxApp extends EventEmitter {
         } else {
             this.components.statisticsPage = null;
         }
+
+        // 网络磁盘模态框
+        const networkDriveEnabled = settings.hasOwnProperty('networkDriveEnabled') ? settings.networkDriveEnabled : false;
+        if (networkDriveEnabled) {
+            this.initializeComponent('networkDiskModal');
+        } else {
+            this.components.networkDiskModal = null;
+        }
     }
 
-    // 动态初始化页面组件
-    initializePageComponent(componentName) {
+    // 动态初始化组件（页面组件和模态框组件）
+    initializeComponent(componentName) {
         switch (componentName) {
             case 'recentPage':
                 if (!this.components.recentPage) {
                     this.components.recentPage = new RecentPage('#content-area');
-                    this.setupPageComponentEvents('recentPage');
+                    this.setupComponentEvents('recentPage');
                 }
                 break;
             case 'artistsPage':
                 if (!this.components.artistsPage) {
                     this.components.artistsPage = new ArtistsPage('#content-area');
-                    this.setupPageComponentEvents('artistsPage');
+                    this.setupComponentEvents('artistsPage');
                 }
                 break;
             case 'albumsPage':
                 if (!this.components.albumsPage) {
                     this.components.albumsPage = new AlbumsPage('#content-area');
-                    this.setupPageComponentEvents('albumsPage');
+                    this.setupComponentEvents('albumsPage');
                 }
                 break;
             case 'statisticsPage':
                 if (!this.components.statisticsPage) {
                     this.components.statisticsPage = new StatisticsPage('#content-area');
-                    this.setupPageComponentEvents('statisticsPage');
+                    this.setupComponentEvents('statisticsPage');
+                }
+                break;
+            case 'networkDiskModal':
+                if (!this.components.networkDiskModal) {
+                    this.components.networkDiskModal = new NetworkDiskModal();
+                    this.setupComponentEvents('networkDiskModal');
                 }
                 break;
             default:
-                console.warn('🎵 App: 未知的页面组件名称:', componentName);
+                console.warn('🎵 App: 未知的组件名称:', componentName);
         }
     }
 
-    // 销毁页面组件
-    destroyPageComponent(componentName) {
+    // 销毁组件（页面组件和模态框组件）
+    destroyComponent(componentName) {
         switch (componentName) {
             case 'recentPage':
                 if (this.components.recentPage) {
@@ -493,8 +519,15 @@ class MusicBoxApp extends EventEmitter {
                     this.components.statisticsPage = null;
                 }
                 break;
+            case 'networkDiskModal':
+                if (this.components.networkDiskModal) {
+                    this.components.networkDiskModal.hide();
+                    this.components.networkDiskModal.destroy();
+                    this.components.networkDiskModal = null;
+                }
+                break;
             default:
-                console.warn('🎵 App: 未知的页面组件名称:', componentName);
+                console.warn('🎵 App: 未知的组件名称:', componentName);
         }
     }
 
@@ -893,10 +926,10 @@ class MusicBoxApp extends EventEmitter {
         this.updateTrackList('search-cleared');
     }
 
-    setupPageComponentEvents(componentName = null) {
+    setupComponentEvents(componentName = null) {
         // 如果指定了组件名，只设置该组件的事件
         if (componentName) {
-            this.setupSinglePageComponentEvents(componentName);
+            this.setupSingleComponentEvents(componentName);
             return;
         }
 
@@ -914,26 +947,30 @@ class MusicBoxApp extends EventEmitter {
             await this.handleSelectMusicFolder();
         });
 
-        // 按需设置其他页面组件的事件
+        // 按需设置其他组件的事件
         if (this.components.recentPage) {
-            this.setupSinglePageComponentEvents('recentPage');
+            this.setupSingleComponentEvents('recentPage');
         }
 
         if (this.components.artistsPage) {
-            this.setupSinglePageComponentEvents('artistsPage');
+            this.setupSingleComponentEvents('artistsPage');
         }
 
         if (this.components.albumsPage) {
-            this.setupSinglePageComponentEvents('albumsPage');
+            this.setupSingleComponentEvents('albumsPage');
         }
 
         if (this.components.statisticsPage) {
-            this.setupSinglePageComponentEvents('statisticsPage');
+            this.setupSingleComponentEvents('statisticsPage');
+        }
+
+        if (this.components.networkDiskModal) {
+            this.setupSingleComponentEvents('networkDiskModal');
         }
     }
 
-    // 设置单个页面组件的事件监听
-    setupSinglePageComponentEvents(componentName) {
+    // 设置单个组件的事件监听
+    setupSingleComponentEvents(componentName) {
         switch (componentName) {
             case 'recentPage':
                 if (this.components.recentPage) {
@@ -990,8 +1027,18 @@ class MusicBoxApp extends EventEmitter {
             case 'statisticsPage':
                 // StatisticsPage 目前不需要特殊的事件监听
                 break;
+
+            case 'networkDiskModal':
+                if (this.components.networkDiskModal) {
+                    // 监听通知事件
+                    this.components.networkDiskModal.on('notification', (data) => {
+                        this.showSuccess(data.message);
+                    });
+                }
+                break;
+
             default:
-                console.warn('🎵 App: 未知的页面组件名称:', componentName);
+                console.warn('🎵 App: 未知的组件名称:', componentName);
         }
     }
 

@@ -231,7 +231,6 @@ class NetworkDriveManager extends EventEmitter {
                 return false;
             }
 
-
             // 停止连接监控
             this.stopConnectionMonitoring(driveId);
 
@@ -240,11 +239,25 @@ class NetworkDriveManager extends EventEmitter {
                 // SMB2客户端会自动关闭连接
             }
 
-            // 清理数据
+            // 清理内存数据
             this.mountedDrives.delete(driveId);
             this.connectionStatus.delete(driveId);
-            this.emit('driveDisconnected', driveId, driveInfo.config);
 
+            // 清理驱动器配置
+            this.driveConfigs.delete(driveId);
+
+            // 从全局驱动器注册表中注销
+            try {
+                const globalRegistry = getGlobalDriveRegistry();
+                await globalRegistry.unregisterDrive(driveId);
+            } catch (error) {
+                console.warn(`⚠️ NetworkDriveManager: 从全局注册表注销驱动器失败:`, error);
+            }
+
+            // 保存更新后的状态到文件
+            await this.saveDriveState();
+
+            this.emit('driveDisconnected', driveId, driveInfo.config);
             return true;
         } catch (error) {
             console.error(`❌ NetworkDriveManager: 卸载网络磁盘失败:`, error);
@@ -421,7 +434,6 @@ class NetworkDriveManager extends EventEmitter {
                     await this.attemptReconnect(driveId);
                 }, this.reconnectInterval);
             } else {
-                console.error(`❌ NetworkDriveManager: 磁盘重连失败，已达到最大重试次数 ${driveInfo.config.displayName}`);
                 this.emit('driveError', driveId, '连接失败，已达到最大重试次数');
             }
         }
@@ -543,6 +555,16 @@ class NetworkDriveManager extends EventEmitter {
             // 尝试重新挂载之前的驱动器
             if (driveState.mountedDrives && driveState.mountedDrives.length > 0) {
                 for (const driveInfo of driveState.mountedDrives) {
+                    // 验证驱动器信息的完整性
+                    if (!driveInfo.id || !driveInfo.config) {
+                        continue;
+                    }
+
+                    // 检查驱动器配置是否仍然存在（如果不存在说明已被卸载）
+                    if (!this.driveConfigs.has(driveInfo.id)) {
+                        continue;
+                    }
+
                     // 检查是否已经在重新挂载中
                     if (!this.remountingDrives.has(driveInfo.id)) {
                         console.log(`🔄 重新挂载: ${driveInfo.config.displayName} (${driveInfo.id})`);

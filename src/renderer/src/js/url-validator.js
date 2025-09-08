@@ -51,7 +51,7 @@ class URLValidator {
         // 检查缓存
         const cacheKey = blobUrl;
         const cached = this.validationCache.get(cacheKey);
-        if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
+        if (cached && (Date.now() - cached.timestamp) < cached.timeout) {
             return cached.valid;
         }
 
@@ -62,11 +62,11 @@ class URLValidator {
                 return false;
             }
 
-            // 尝试创建一个Image对象来测试URL
-            const isValid = await this.testImageLoad(blobUrl);
+            // 使用重试机制验证blob URL，特别用于网络磁盘文件的异步加载
+            const isValid = await this.testImageLoadWithRetry(blobUrl);
 
             // 缓存结果，但对于失败的blob URL缓存时间更短
-            const cacheTimeout = isValid ? this.cacheTimeout : 5000; // 失败结果只缓存5秒
+            const cacheTimeout = isValid ? this.cacheTimeout : 3000; // 失败结果只缓存3秒
             this.validationCache.set(cacheKey, {
                 valid: isValid,
                 timestamp: Date.now(),
@@ -81,7 +81,7 @@ class URLValidator {
             this.validationCache.set(cacheKey, {
                 valid: false,
                 timestamp: Date.now(),
-                timeout: 5000
+                timeout: 2000
             });
             return false;
         }
@@ -186,6 +186,25 @@ class URLValidator {
                 resolve(false);
             }
         });
+    }
+
+    // 图片加载测试
+    // 用于网络磁盘文件的异步加载
+    async testImageLoadWithRetry(url, maxRetries = 3, retryDelay = 500) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            const success = await this.testImageLoad(url);
+            if (success) return true;
+
+            // 若不是最后一次尝试，延迟重试
+            if (attempt < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                // 递增延迟时间，给网络磁盘文件更多时间准备
+                retryDelay = Math.min(retryDelay * 1.5, 2000);
+            }
+        }
+
+        console.warn(`❌ URLValidator: 图片加载失败，已重试${maxRetries}次`, url.substring(0, 50) + '...');
+        return false;
     }
 
     // 安全设置图片源
