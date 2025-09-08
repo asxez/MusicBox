@@ -108,6 +108,12 @@ class Player extends Component {
                 this.progressTooltip.style.opacity = '0';
                 const progress = parseFloat(this.progressFill.style.width) / 100;
                 await api.seek(this.duration * progress);
+
+                // 拖动结束后，强制同步当前播放状态
+                const currentTrack = api.getCurrentTrack();
+                if (currentTrack && currentTrack !== this.currentTrack) {
+                    await this.updateTrackInfo(currentTrack);
+                }
             }
         });
 
@@ -171,10 +177,8 @@ class Player extends Component {
     }
 
     setupAPIListeners() {
-        api.on('trackLoaded', async (track) => {
-            console.log('Track loaded in player:', track);
-            await this.updateTrackInfo(track);
-        });
+        // 添加更新锁，防止快速切换时UI更新冲突
+        this._updateLock = false;
 
         api.on('durationChanged', (duration) => {
             this.duration = duration;
@@ -199,7 +203,14 @@ class Player extends Component {
         });
 
         api.on('trackChanged', async (track) => {
-            await this.updateTrackInfo(track);
+            if (!this._updateLock) {
+                this._updateLock = true;
+                try {
+                    await this.updateTrackInfo(track);
+                } finally {
+                    this._updateLock = false;
+                }
+            }
         });
 
         api.on('trackIndexChanged', (index) => {

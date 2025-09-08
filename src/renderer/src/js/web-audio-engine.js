@@ -613,8 +613,12 @@ class WebAudioEngine {
             return false;
         }
 
-        // 在切换歌曲前，主动清理当前音频资源
+        // 在切换歌曲前，主动清理当前音频资源和预加载资源
         this.clearCurrentAudioBuffer();
+        this.clearNextTrackBuffer();
+
+        // 停止当前播放，确保音频资源完全释放
+        this.stop();
 
         // 切换到下一首
         this.currentIndex = (this.currentIndex + 1) % this.playlist.length;
@@ -644,13 +648,13 @@ class WebAudioEngine {
             // 清理预加载的资源
             this.clearNextTrackBuffer();
 
-            // 触发歌曲变更事件
-            if (this.onTrackChanged) {
-                this.onTrackChanged(this.currentTrack);
-            }
-
             // 播放
             const playResult = await this.play();
+
+            // 只有在播放成功后才触发歌曲变更事件，确保UI与实际播放同步
+            if (playResult && this.onTrackChanged) {
+                this.onTrackChanged(this.currentTrack);
+            }
 
             // 预加载下一首
             // 无间隙播放模式下
@@ -665,6 +669,11 @@ class WebAudioEngine {
             if (loadResult) {
                 // 播放
                 const playResult = await this.play();
+
+                // 只有在播放成功后才触发歌曲变更事件，确保UI与实际播放同步
+                if (playResult && this.onTrackChanged) {
+                    this.onTrackChanged(this.currentTrack);
+                }
 
                 // 无间隙播放模式下预加载下一首歌曲
                 if (playResult && this.gaplessPlaybackEnabled) {
@@ -689,6 +698,13 @@ class WebAudioEngine {
             return false;
         }
 
+        // 在切换歌曲前，主动清理当前音频资源和预加载资源
+        this.clearCurrentAudioBuffer();
+        this.clearNextTrackBuffer();
+
+        // 停止当前播放，确保音频资源完全释放
+        this.stop();
+
         // 切换到上一首
         this.currentIndex = this.currentIndex > 0 ? this.currentIndex - 1 : this.playlist.length - 1;
         const prevTrack = this.playlist[this.currentIndex];
@@ -706,7 +722,14 @@ class WebAudioEngine {
         const loadResult = await this.loadTrack(filePath);
         if (loadResult) {
             // 自动开始播放
-            return await this.play();
+            const playResult = await this.play();
+
+            // 只有在播放成功后才触发歌曲变更事件，确保UI与实际播放同步
+            if (playResult && this.onTrackChanged) {
+                this.onTrackChanged(this.currentTrack);
+            }
+
+            return playResult;
         }
         return false;
     }

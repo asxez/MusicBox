@@ -19,6 +19,13 @@ class MusicBoxAPI extends EventEmitter {
 
         this.webAudioEngine = null;
 
+        // 音频切换锁，防止快速切换时的竞态条件
+        this._trackSwitchLock = false;
+        this._pendingTrackSwitch = null;
+
+        // 歌词获取去重机制
+        this._lyricsRequestLock = new Set(); // 正在请求歌词的歌曲集合
+
         if (!window.electronAPI) {
             this.createMockAPI();
         }
@@ -233,7 +240,6 @@ class MusicBoxAPI extends EventEmitter {
                         }
                     }
 
-                    this.emit('trackLoaded', this.currentTrack);
                     this.emit('trackChanged', this.currentTrack);
                     this.emit('durationChanged', this.duration);
                     this.emit('positionChanged', 0);
@@ -252,7 +258,6 @@ class MusicBoxAPI extends EventEmitter {
                 this.duration = await window.electronAPI.audio.getDuration();
                 this.position = 0;
 
-                this.emit('trackLoaded', this.currentTrack);
                 this.emit('trackChanged', this.currentTrack);
                 this.emit('durationChanged', this.duration);
                 this.emit('positionChanged', 0);
@@ -499,21 +504,30 @@ class MusicBoxAPI extends EventEmitter {
 
     async nextTrack() {
         try {
-            if (this.playlist.length === 0) {
-                console.log('⚠️ 播放列表为空');
+            // 防止快速切换时的竞态条件
+            if (this._trackSwitchLock) {
                 return false;
             }
+
+            if (this.playlist.length === 0) {
+                return false;
+            }
+
+            // 设置切换锁
+            this._trackSwitchLock = true;
 
             // 根据播放模式获取下一首的索引
             const nextIndex = this.getNextTrackIndex();
             if (nextIndex === -1) {
                 console.log('⚠️ 无法获取下一首歌曲索引');
+                this._trackSwitchLock = false;
                 return false;
             }
 
             const nextTrack = this.playlist[nextIndex];
             if (!nextTrack) {
                 console.log('⚠️ 下一首歌曲不存在');
+                this._trackSwitchLock = false;
                 return false;
             }
 
@@ -532,6 +546,9 @@ class MusicBoxAPI extends EventEmitter {
                     this.emit('durationChanged', this.duration);
                     this.emit('positionChanged', 0);
                     this.emit('playbackStateChanged', this.isPlaying ? 'playing' : 'paused');
+
+                    // 释放切换锁
+                    this._trackSwitchLock = false;
                     return true;
                 }
             }
@@ -540,30 +557,44 @@ class MusicBoxAPI extends EventEmitter {
             this.currentTrack = nextTrack;
             this.emit('trackIndexChanged', this.currentIndex);
             this.emit('trackChanged', this.currentTrack);
+
+            // 释放切换锁
+            this._trackSwitchLock = false;
             return true;
         } catch (error) {
             console.error('Failed to go to next track:', error);
+            // 确保在异常情况下也释放锁
+            this._trackSwitchLock = false;
             return false;
         }
     }
 
     async previousTrack() {
         try {
-            if (this.playlist.length === 0) {
-                console.log('⚠️ 播放列表为空');
+            // 防止快速切换时的竞态条件
+            if (this._trackSwitchLock) {
                 return false;
             }
+
+            if (this.playlist.length === 0) {
+                return false;
+            }
+
+            // 设置切换锁
+            this._trackSwitchLock = true;
 
             // 根据播放模式获取上一首的索引
             const prevIndex = this.getPreviousTrackIndex();
             if (prevIndex === -1) {
                 console.log('⚠️ 无法获取上一首歌曲索引');
+                this._trackSwitchLock = false;
                 return false;
             }
 
             const prevTrack = this.playlist[prevIndex];
             if (!prevTrack) {
                 console.log('⚠️ 上一首歌曲不存在');
+                this._trackSwitchLock = false;
                 return false;
             }
 
@@ -582,6 +613,9 @@ class MusicBoxAPI extends EventEmitter {
                     this.emit('durationChanged', this.duration);
                     this.emit('positionChanged', 0);
                     this.emit('playbackStateChanged', this.isPlaying ? 'playing' : 'paused');
+
+                    // 释放切换锁
+                    this._trackSwitchLock = false;
                     return true;
                 }
             }
@@ -590,9 +624,14 @@ class MusicBoxAPI extends EventEmitter {
             this.currentTrack = prevTrack;
             this.emit('trackIndexChanged', this.currentIndex);
             this.emit('trackChanged', this.currentTrack);
+
+            // 释放切换锁
+            this._trackSwitchLock = false;
             return true;
         } catch (error) {
             console.error('Failed to go to previous track:', error);
+            // 确保在异常情况下也释放锁
+            this._trackSwitchLock = false;
             return false;
         }
     }
@@ -1205,7 +1244,17 @@ class MusicBoxAPI extends EventEmitter {
     }
 
     async getLyrics(title, artist, album, filePath = null) {
+        // 生成歌词请求的唯一标识
+        const lyricsKey = `${title}_${artist}_${album || ''}`;
+
         try {
+            // 检查是否已经在请求中，防止重复请求
+            if (this._lyricsRequestLock.has(lyricsKey)) {
+                return { success: false, error: '歌词获取已在进行中' };
+            }
+
+            // 添加到请求锁
+            this._lyricsRequestLock.add(lyricsKey);
             console.log(`🎵 获取歌词: ${title} - ${artist}${filePath ? ` (${filePath})` : ''}`);
 
             // 优先级1: 检查内嵌歌词
@@ -1213,6 +1262,8 @@ class MusicBoxAPI extends EventEmitter {
                 try {
                     const embeddedResult = await window.embeddedLyricsManager.getEmbeddedLyrics(filePath);
                     if (embeddedResult.success) {
+                        // 释放请求锁
+                        this._lyricsRequestLock.delete(lyricsKey);
                         return embeddedResult;
                     }
                 } catch (embeddedError) {
@@ -1225,6 +1276,8 @@ class MusicBoxAPI extends EventEmitter {
                 try {
                     const localResult = await window.localLyricsManager.getLyrics(title, artist, album);
                     if (localResult.success) {
+                        // 释放请求锁
+                        this._lyricsRequestLock.delete(lyricsKey);
                         return localResult;
                     }
                 } catch (localError) {
@@ -1236,6 +1289,8 @@ class MusicBoxAPI extends EventEmitter {
             if (window.cacheManager) {
                 const cached = window.cacheManager.getLyricsCache(title, artist, album);
                 if (cached) {
+                    // 释放请求锁
+                    this._lyricsRequestLock.delete(lyricsKey);
                     return cached;
                 }
             }
@@ -1259,9 +1314,15 @@ class MusicBoxAPI extends EventEmitter {
                 source: 'network'
             };
             if (window.cacheManager) window.cacheManager.setLyricsCache(title, artist, album, result);
+
+            // 释放请求锁
+            this._lyricsRequestLock.delete(lyricsKey);
             return result;
         } catch (error) {
             console.error(`❌ 歌词获取失败: ${title} - ${error.message}`);
+
+            // 异常情况释放锁
+            this._lyricsRequestLock.delete(lyricsKey);
             return {
                 success: false,
                 error: error.message,
