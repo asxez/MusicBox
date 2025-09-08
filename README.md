@@ -191,12 +191,12 @@ A：设置中打开插件管理，导入插件即可，目前只支持单个的 
 
 ## 📌 相关截图
 
-![MusicBox 应用截图](docs/images/5.png)
-![MusicBox 应用截图](docs/images/6.png)
-![MusicBox 应用截图](docs/images/7.png)
+![MusicBox 应用截图](docs/images/1.png)
 ![MusicBox 应用截图](docs/images/2.png)
 ![MusicBox 应用截图](docs/images/3.png)
 ![MusicBox 应用截图](docs/images/4.png)
+![MusicBox 应用截图](docs/images/5.png)
+![MusicBox 应用截图](docs/images/6.png)
 
 ---
 
