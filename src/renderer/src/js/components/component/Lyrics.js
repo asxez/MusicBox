@@ -16,6 +16,7 @@ class Lyrics extends Component {
         // 防重复加载机制
         this._lastTrackPath = null; // 上次更新的歌曲路径
         this._lastLoadedLyricsPath = null; // 上次加载歌词的歌曲路径
+        this._lastLoadedTrackId = null; // 上次加载的歌曲ID
         this._isLoadingLyrics = false; // 是否正在加载歌词
         this._updateTrackInfoInProgress = false; // 是否正在更新歌曲信息
         this._pendingUpdatePromise = null; // 当前正在执行的更新Promise
@@ -396,20 +397,27 @@ class Lyrics extends Component {
             return;
         }
 
-        // 防重复加载机制
+        // 增强的防重复加载机制
         const trackPath = track.filePath || track.path || `${track.title}_${track.artist}`;
+        const trackId = `${track.title}_${track.artist}_${track.album || ''}`;
 
         // 检查是否正在加载或已经加载过相同歌曲
         if (this._isLoadingLyrics || this._lastLoadedLyricsPath === trackPath) {
             return;
         }
 
+        // 检查是否是相同的歌曲
+        // 即使路径不同也检查
+        if (this._lastLoadedTrackId === trackId) {
+            return;
+        }
+
         this._isLoadingLyrics = true;
         this._lastLoadedLyricsPath = trackPath;
+        this._lastLoadedTrackId = trackId;
 
         // 检查是否已有内嵌的歌词
         if (track.lyrics) {
-            // console.log('🎵 Lyrics: 使用内嵌歌词');
             this.lyrics = track.lyrics;
             this.renderLyrics();
 
