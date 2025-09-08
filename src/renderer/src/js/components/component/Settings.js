@@ -164,8 +164,6 @@ class Settings extends Component {
         // 桌面歌词设置 - 控制按钮显示/隐藏
         this.desktopLyricsToggle.addEventListener('change', async (e) => {
             this.updateSetting('desktopLyrics', e.target.checked);
-
-            // 通知主界面更新按钮显示状态
             this.emit('desktopLyricsEnabled', e.target.checked);
 
             // 如果禁用功能，同时隐藏已打开的桌面歌词窗口
@@ -176,62 +174,47 @@ class Settings extends Component {
                     console.error('❌ Settings: 隐藏桌面歌词失败:', error);
                 }
             }
-            console.log(`🎵 Settings: 桌面歌词功能${e.target.checked ? '启用' : '禁用'}`);
         });
 
         // 艺术家页设置 - 控制侧边栏艺术家按钮显示/隐藏
         this.statisticsToggle.addEventListener('change', (e) => {
             this.updateSetting('statistics', e.target.checked);
-
-            // 通知主界面更新侧边栏按钮显示状态
             this.emit('statisticsEnabled', e.target.checked);
         });
 
         // 统计信息设置 - 控制侧边栏统计按钮显示/隐藏
         this.statisticsToggle.addEventListener('change', (e) => {
             this.updateSetting('statistics', e.target.checked);
-
-            // 通知主界面更新侧边栏按钮显示状态
             this.emit('statisticsEnabled', e.target.checked);
         });
 
         // 最近播放设置 - 控制侧边栏最近播放按钮显示/隐藏
         this.recentPlayToggle.addEventListener('change', (e) => {
             this.updateSetting('recentPlay', e.target.checked);
-
-            // 通知主界面更新侧边栏按钮显示状态
             this.emit('recentPlayEnabled', e.target.checked);
         });
 
         // 艺术家页面设置 - 控制侧边栏艺术家按钮显示/隐藏
         this.artistsPageToggle.addEventListener('change', (e) => {
             this.updateSetting('artistsPage', e.target.checked);
-
-            // 通知主界面更新侧边栏按钮显示状态
             this.emit('artistsPageEnabled', e.target.checked);
         });
 
         // 专辑页面设置
         this.albumsPageToggle.addEventListener('change', (e) => {
             this.updateSetting('albumsPage', e.target.checked);
-
-            // 通知主界面更新侧边栏按钮显示状态
             this.emit('albumsPageEnabled', e.target.checked);
         });
 
         // 歌曲封面显示设置 - 控制歌曲列表中封面的显示/隐藏
         this.showTrackCoversToggle.addEventListener('change', (e) => {
             this.updateSetting('showTrackCovers', e.target.checked);
-
-            // 通知主界面更新歌曲列表封面显示状态
             this.emit('showTrackCoversEnabled', e.target.checked);
         });
 
         // 无间隙播放设置
         this.gaplessPlaybackToggle.addEventListener('change', (e) => {
             this.updateSetting('gaplessPlayback', e.target.checked);
-
-            // 通知音频引擎更新无间隙播放状态
             this.emit('gaplessPlaybackEnabled', e.target.checked);
         });
 
@@ -253,35 +236,23 @@ class Settings extends Component {
         this.systemTrayToggle.addEventListener('change', async (e) => {
             this.updateSetting('systemTray', e.target.checked);
             this.toggleTraySettings(e.target.checked);
-
-            // 更新托盘状态
-            if (window.electronAPI && window.electronAPI.tray) {
-                await window.electronAPI.tray.updateSettings({
-                    enabled: e.target.checked
-                });
-            }
+            await window.electronAPI.tray.updateSettings({
+                enabled: e.target.checked
+            });
         });
 
         this.trayCloseBehaviorSelect.addEventListener('change', async (e) => {
             this.updateSetting('trayCloseBehavior', e.target.value);
-
-            // 更新托盘设置
-            if (window.electronAPI && window.electronAPI.tray) {
-                await window.electronAPI.tray.updateSettings({
-                    closeToTray: e.target.value === 'minimize'
-                });
-            }
+            await window.electronAPI.tray.updateSettings({
+                closeToTray: e.target.value === 'minimize'
+            });
         });
 
         this.trayStartMinimizedToggle.addEventListener('change', async (e) => {
             this.updateSetting('trayStartMinimized', e.target.checked);
-
-            // 更新托盘设置
-            if (window.electronAPI && window.electronAPI.tray) {
-                await window.electronAPI.tray.updateSettings({
-                    startMinimized: e.target.checked
-                });
-            }
+            await window.electronAPI.tray.updateSettings({
+                startMinimized: e.target.checked
+            });
         });
 
         // 按钮事件
@@ -299,9 +270,7 @@ class Settings extends Component {
                     this.lyricsFolderPath.classList.add('selected');
 
                     // 更新本地歌词管理器
-                    if (window.localLyricsManager) {
-                        window.localLyricsManager.setLyricsDirectory(selectedPath);
-                    }
+                    window.localLyricsManager.setLyricsDirectory(selectedPath);
                 }
             } catch (error) {
                 console.error('❌ Settings: 选择歌词目录失败:', error);
@@ -318,9 +287,7 @@ class Settings extends Component {
                     this.coverCacheFolderPath.classList.add('selected');
 
                     // 更新本地封面管理器
-                    if (window.localCoverManager) {
-                        window.localCoverManager.setCoverDirectory(selectedPath);
-                    }
+                    window.localCoverManager.setCoverDirectory(selectedPath);
                 }
             } catch (error) {
                 console.error('❌ Settings: 选择封面缓存目录失败:', error);
@@ -413,9 +380,7 @@ class Settings extends Component {
             this.lyricsFolderPath.classList.add('selected');
 
             // 设置本地歌词管理器
-            if (window.localLyricsManager) {
-                window.localLyricsManager.setLyricsDirectory(lyricsDirectory);
-            }
+            window.localLyricsManager.setLyricsDirectory(lyricsDirectory);
         } else {
             this.lyricsFolderPath.textContent = '未选择';
             this.lyricsFolderPath.classList.remove('selected');
@@ -428,9 +393,7 @@ class Settings extends Component {
             this.coverCacheFolderPath.classList.add('selected');
 
             // 设置本地封面管理器
-            if (window.localCoverManager) {
-                window.localCoverManager.setCoverDirectory(coverCacheDirectory);
-            }
+            window.localCoverManager.setCoverDirectory(coverCacheDirectory);
         } else {
             this.coverCacheFolderPath.textContent = '未选择';
             this.coverCacheFolderPath.classList.remove('selected');
@@ -576,10 +539,6 @@ class Settings extends Component {
             const filePath = filePaths[0];
             this.testEmbeddedLyricsBtn.textContent = '检测中...';
             console.log(`🎵 测试内嵌歌词: ${filePath}`);
-            if (!window.embeddedLyricsManager) {
-                showToast('内嵌歌词管理器不可用', 'error');
-                return;
-            }
 
             const debugResult = await window.embeddedLyricsManager.debugEmbeddedLyrics(filePath);
             let reportLines = [
@@ -848,7 +807,6 @@ class Settings extends Component {
                 this.globalShortcutsToggle.checked = !enabled;
             }
         } catch (error) {
-            console.error('❌ 切换全局快捷键失败:', error);
             showToast('全局快捷键设置失败', 'error');
             // 恢复开关状态
             this.globalShortcutsToggle.checked = !enabled;

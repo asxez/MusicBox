@@ -662,7 +662,6 @@ class MusicBoxApp extends EventEmitter {
             // 确保桌面歌词按钮状态与设置同步
             await this.syncDesktopLyricsButtonState();
         } catch (error) {
-            console.error('Failed to load initial data:', error);
             this.showError('加载音乐库失败');
         }
     }
@@ -702,7 +701,6 @@ class MusicBoxApp extends EventEmitter {
                 // 从设置中获取桌面歌词状态
                 const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
                 const desktopLyricsEnabled = settings.hasOwnProperty('desktopLyrics') ? settings.desktopLyrics : true;
-                console.log('🎵 App: 同步桌面歌词按钮状态:', desktopLyricsEnabled);
 
                 // 更新Player组件的按钮状态
                 await this.components.player.updateDesktopLyricsButtonVisibility(desktopLyricsEnabled);
@@ -825,7 +823,6 @@ class MusicBoxApp extends EventEmitter {
                 }
             }
         } catch (error) {
-            console.error('扫描目录失败：', error);
             showToast('音乐目录扫描失败', 'error');
         }
     }
@@ -1423,7 +1420,6 @@ class MusicBoxApp extends EventEmitter {
 
     }
 
-
     showCreatePlaylistDialog() {
         if (this.components.createPlaylistDialog) {
             this.components.createPlaylistDialog.show();
@@ -1614,7 +1610,6 @@ class MusicBoxApp extends EventEmitter {
                 }
             }
         } catch (error) {
-            console.error('Failed to open file dialog:', error);
             this.showError('无法打开文件选择框');
         }
     }
@@ -1626,7 +1621,6 @@ class MusicBoxApp extends EventEmitter {
                 await this.scanDirectory(directory);
             }
         } catch (error) {
-            console.error('Failed to open directory dialog:', error);
             this.showError('无法打开目录选择框');
         }
     }
@@ -1641,7 +1635,6 @@ class MusicBoxApp extends EventEmitter {
                 this.showError(`无法加载文件: ${filePath}`);
             }
         } catch (error) {
-            console.error('Failed to load and play file:', error);
             this.showError('无法加载音乐文件');
         }
     }
@@ -1922,7 +1915,6 @@ class MusicBoxApp extends EventEmitter {
                         genre: updatedData.genre
                     });
                     this.components.playlistDetailPage.render();
-                    console.log('✅ 已更新歌单详情页面中的歌曲信息');
                 }
             }
             this.showInfo(`歌曲信息已更新：${updatedData.title}`);
@@ -1948,15 +1940,13 @@ class MusicBoxApp extends EventEmitter {
             });
 
             // 窗口最大化状态变化监听
-            if (window.electronAPI && window.electronAPI.window.onMaximizedChanged) {
-                window.electronAPI.window.onMaximizedChanged((isMaximized) => {
-                    if (!isMaximized) {
-                        setTimeout(async () => {
-                            await this.restoreWindowSize();
-                        }, 100);
-                    }
-                });
-            }
+            window.electronAPI.window.onMaximizedChanged((isMaximized) => {
+                if (!isMaximized) {
+                    setTimeout(async () => {
+                        await this.restoreWindowSize();
+                    }, 100);
+                }
+            });
         } catch (error) {
             console.error('❌ 窗口状态管理初始化失败:', error);
         }
@@ -2027,31 +2017,12 @@ class MusicBoxApp extends EventEmitter {
     // 恢复播放状态
     async restorePlaybackState() {
         try {
-            console.log('🔄 App: 开始恢复播放状态...');
-
             const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
             const playbackState = window.cacheManager.getLocalCache('playback-state');
-
-            console.log('📋 App: 当前设置:', {
-                autoplay: settings.autoplay,
-                rememberPosition: settings.rememberPosition
-            });
-            console.log('💾 App: 保存的播放状态:', playbackState);
 
             // 如果启用了记住播放位置且有保存的状态
             if (settings.rememberPosition && playbackState) {
                 const {currentTrack, position, isPlaying, playlist, currentIndex, playMode} = playbackState;
-
-                console.log('🎵 App: 尝试恢复播放状态:', {
-                    hasTrack: !!currentTrack,
-                    trackTitle: currentTrack?.title,
-                    position: position,
-                    wasPlaying: isPlaying,
-                    hasPlaylist: !!playlist,
-                    playlistLength: playlist?.length || 0,
-                    currentIndex: currentIndex,
-                    playMode: playMode
-                });
 
                 // 恢复播放模式
                 if (playMode) {
@@ -2165,9 +2136,6 @@ class MusicBoxApp extends EventEmitter {
     async savePlaybackState() {
         try {
             const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
-
-            console.log('💾 App: 检查是否需要保存播放状态...');
-            console.log('📋 App: rememberPosition 设置:', settings.rememberPosition);
 
             // 只有启用记住播放位置时才保存
             if (settings.rememberPosition) {
