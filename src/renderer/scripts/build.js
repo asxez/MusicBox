@@ -85,6 +85,7 @@ async function bundleJS() {
         'components/component/HomePage.js',
         'components/component/Lyrics.js',
         'components/component/Navigation.js',
+        'components/component/NetworkDiskModal.js',
         'components/component/Player.js',
         'components/component/Playlist.js',
         'components/component/PlaylistDetailPage.js',

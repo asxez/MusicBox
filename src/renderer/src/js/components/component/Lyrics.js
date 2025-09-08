@@ -264,6 +264,14 @@ class Lyrics extends Component {
                 this.durationEl.textContent = this.formatTime(duration);
             }
         });
+
+        // 监听歌曲变化事件，更新封面和歌词信息
+        this.addAPIEventListenerManaged('trackChanged', async (track) => {
+            // 只有在歌词页面可见时才更新，避免不必要的资源消耗
+            if (this.isVisible && track) {
+                await this.updateTrackInfo(track);
+            }
+        });
     }
 
     async toggle(track) {
@@ -485,7 +493,8 @@ class Lyrics extends Component {
 
             // 如果没有本地封面，尝试从API获取
             if (!finalImageUrl && track.title && track.artist) {
-                const coverResult = await api.getCover(track.title, track.artist, track.album, track.filePath);
+                // 添加forceRefresh参数以确保首次播放时能正确获取封面，特别是网络磁盘文件
+                const coverResult = await api.getCover(track.title, track.artist, track.album, track.filePath, true);
 
                 if (coverResult.success && coverResult.imageUrl) {
                     // 验证URL格式
