@@ -80,13 +80,11 @@ class MusicBoxApp extends EventEmitter {
                 const success = await window.initializePluginSystem();
                 if (success) {
                     // 设置应用引用到插件系统
-                    if (window.pluginManager) {
-                        window.pluginManager.app = this;
+                    window.pluginManager.app = this;
 
-                        // 更新插件管理器的上下文，确保包含最新的组件
-                        if (window.pluginAPI && typeof window.pluginAPI.createPluginContext === 'function') {
-                            window.pluginManager.pluginContext = window.pluginAPI.createPluginContext('system');
-                        }
+                    // 更新插件管理器的上下文，确保包含最新的组件
+                    if (typeof window.pluginAPI.createPluginContext === 'function') {
+                        window.pluginManager.pluginContext = window.pluginAPI.createPluginContext('system');
                     }
                 } else {
                     console.warn('⚠️ App: 插件系统初始化失败，但应用将继续运行');
@@ -387,9 +385,7 @@ class MusicBoxApp extends EventEmitter {
 
         // 监听无间隙播放设置变化
         this.components.settings.on('gaplessPlaybackEnabled', (enabled) => {
-            if (window.api) {
-                window.api.setGaplessPlayback(enabled);
-            }
+            window.api.setGaplessPlayback(enabled);
         });
 
         // 新组件事件监听
@@ -672,8 +668,7 @@ class MusicBoxApp extends EventEmitter {
             // 检查是否启用了封面显示
             const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
             const showTrackCovers = settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
-
-            if (!showTrackCovers || !window.localCoverManager) {
+            if (!showTrackCovers) {
                 return;
             }
 

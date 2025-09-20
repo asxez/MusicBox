@@ -207,6 +207,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
         reset: () => ipcRenderer.invoke('settings:reset')
     },
 
+    // 硬件加速
+    hardwareAcceleration: {
+        getSettings: () => ipcRenderer.invoke('hardwareAcceleration:getSettings'),
+        updateSettings: (settings) => ipcRenderer.invoke('hardwareAcceleration:updateSettings', settings),
+        resetSettings: () => ipcRenderer.invoke('hardwareAcceleration:resetSettings')
+    },
+
+    // 应用控制
+    app: {
+        restart: () => ipcRenderer.invoke('app:restart'),
+        getVersion: () => ipcRenderer.invoke('app:getVersion'),
+        getPlatform: () => ipcRenderer.invoke('app:getPlatform')
+    },
+
     // 网络磁盘
     networkDrive: {
         mountSMB: (config) => ipcRenderer.invoke('network-drive:mountSMB', config),

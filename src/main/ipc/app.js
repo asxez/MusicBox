@@ -17,6 +17,12 @@ function registerAppIpcHandlers({ipcMain}) {
     ipcMain.handle('app:getPlatform', () => {
         return process.platform;
     });
+
+    ipcMain.handle('app:restart', async () => {
+        app.relaunch();
+        app.exit(0);
+        return {success: true};
+    });
 }
 
 module.exports = {
