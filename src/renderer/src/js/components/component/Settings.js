@@ -130,6 +130,9 @@ class Settings extends Component {
         this.networkDriveToggle = this.element.querySelector('#network-drive-toggle');
         this.networkDriveConfig = this.element.querySelector('#network-drive-config');
         this.addNetworkDriveBtn = this.element.querySelector('#add-network-drive-btn');
+
+        // 硬件加速配置元素
+        this.hardwareAccelerationToggle = this.element.querySelector('#hardware-acceleration-toggle');
     }
 
     setupEventListeners() {
@@ -331,6 +334,11 @@ class Settings extends Component {
             this.emit('networkDriveEnabled', e.target.checked);
         });
 
+        // 硬件加速功能开关
+        this.hardwareAccelerationToggle.addEventListener('change', async (e) => {
+            await this.handleHardwareAccelerationChange(e.target.checked);
+        });
+
         // 添加网络磁盘按钮
         if (this.addNetworkDriveBtn) {
             this.addNetworkDriveBtn.addEventListener('click', () => {
@@ -403,6 +411,9 @@ class Settings extends Component {
         this.networkDriveToggle.checked = this.settings.hasOwnProperty('networkDriveEnabled') ? this.settings.networkDriveEnabled : false;
         this.toggleNetworkDriveConfig(this.networkDriveToggle.checked);
 
+        // 初始化硬件加速设置
+        this.initializeHardwareAccelerationSettings();
+
         console.log('🎵 Settings: 设置值初始化完成', this.settings);
 
         // 初始化完成后，发出设置状态事件，确保相关组件同步
@@ -448,6 +459,87 @@ class Settings extends Component {
             this.trayCloseBehaviorItem.style.display = enabled ? 'flex' : 'none';
             this.trayStartMinimizedItem.style.display = enabled ? 'flex' : 'none';
         }
+    }
+
+    // 初始化硬件加速设置
+    async initializeHardwareAccelerationSettings() {
+        try {
+            const result = await window.electronAPI.hardwareAcceleration.getSettings();
+            if (result.success) {
+                this.hardwareAccelerationToggle.checked = result.settings.enabled !== false;
+            } else {
+                console.warn('⚠️ Settings: 加载硬件加速设置失败，使用默认值');
+                this.hardwareAccelerationToggle.checked = true; // 默认启用
+            }
+        } catch (error) {
+            console.error('❌ Settings: 初始化硬件加速设置失败:', error);
+            this.hardwareAccelerationToggle.checked = true; // 默认启用
+        }
+    }
+
+    // 处理硬件加速设置变更
+    async handleHardwareAccelerationChange(enabled) {
+        try {
+            if (!enabled) {
+                const shouldRestart = await this.showHardwareAccelerationConfirmDialog();
+                if (!shouldRestart) {
+                    this.hardwareAccelerationToggle.checked = true;
+                    return;
+                }
+            }
+
+            // 更新设置
+            const result = await window.electronAPI.hardwareAcceleration.updateSettings({
+                enabled: enabled
+            });
+
+            if (result.success) {
+                if (!enabled) {
+                    await this.restartApplication();
+                } else {
+                    this.showHardwareAccelerationEnabledNotification();
+                }
+            } else {
+                showToast('更新硬件加速设置失败', 'error');
+                this.hardwareAccelerationToggle.checked = !enabled;
+            }
+        } catch (error) {
+            showToast('处理硬件加速设置失败', 'error');
+            this.hardwareAccelerationToggle.checked = !enabled;
+        }
+    }
+
+    // 显示硬件加速确认对话框
+    async showHardwareAccelerationConfirmDialog() {
+        return new Promise((resolve) => {
+            const message = '关闭硬件加速可能会降低应用性能，但可以解决某些显卡兼容性问题。\n\n更改此设置需要重启应用才能生效。\n\n是否要关闭硬件加速并立即重启应用？';
+            if (confirm(message)) {
+                resolve(true);
+            } else {
+                resolve(false);
+            }
+        });
+    }
+
+    // 重启应用
+    async restartApplication() {
+        try {
+            showToast('正在重启应用...', 'info');
+            setTimeout(async () => {
+                try {
+                    await window.electronAPI.app.restart();
+                } catch (error) {
+                    showToast('重启应用失败，请手动重启', 'error');
+                }
+            }, 1000);
+        } catch (error) {
+            showToast('重启应用失败，请手动重启', 'error');
+        }
+    }
+
+    // 显示硬件加速启用通知
+    showHardwareAccelerationEnabledNotification() {
+        showToast('硬件加速已启用，建议重启应用以获得最佳性能', 'success');
     }
 
     // 缓存管理方法

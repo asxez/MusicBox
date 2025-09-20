@@ -1,7 +1,31 @@
 // 引入 electron 之前设置垃圾回收标志
 process.argv.push('--expose-gc');
 
+const path = require('path');
+const fs = require('fs');
 const {app, BrowserWindow, ipcMain} = require('electron');
+
+// 加载硬件加速设置
+function loadHardwareAccelerationSettings() {
+    const userDataPath = app.getPath('userData');
+    const settingsPath = path.join(userDataPath, 'hardware-acceleration-settings.json');
+    if (fs.existsSync(settingsPath)) {
+        const settingsData = fs.readFileSync(settingsPath, 'utf8');
+        const settings = JSON.parse(settingsData);
+        return settings.enabled !== false;
+    }
+    return true; // 默认启用硬件加速
+}
+
+// 应用硬件加速设置
+const hardwareAccelerationEnabled = loadHardwareAccelerationSettings();
+if (!hardwareAccelerationEnabled) {
+    console.log('🔧 主进程: 禁用硬件加速');
+    app.disableHardwareAcceleration();
+} else {
+    console.log('✅ 主进程: 硬件加速已启用');
+}
+
 app.commandLine.appendSwitch("js-flags", "--expose-gc");
 
 const LibraryCacheManager = require('./library-cache-manager');
@@ -28,6 +52,7 @@ const {registerSettingsIpcHandlers} = require('./ipc/settings');
 const {registerAppIpcHandlers} = require('./ipc/app');
 const {registerHttpServerIpcHandlers} = require('./ipc/http-server');
 const {registerTrayIpcHandlers} = require('./ipc/tray');
+const {registerHardwareAccelerationIpcHandlers} = require('./ipc/hardware-acceleration');
 const {registerSecurityIntegration} = require('./security/security-integration');
 
 // 导入音乐库相关IPC
@@ -285,6 +310,9 @@ registerLibraryScanIpcHandlers({
 
 // 注册 Settings IPC
 registerSettingsIpcHandlers({ipcMain});
+
+// 注册硬件加速IPC
+registerHardwareAccelerationIpcHandlers({ipcMain});
 
 // 注册系统托盘IPC
 registerTrayIpcHandlers({ipcMain});
