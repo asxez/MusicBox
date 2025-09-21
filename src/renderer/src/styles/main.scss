@@ -889,15 +889,30 @@ a {
 }
 
 // Track info
-.track-cover {
+.track-cover-container {
+  position: relative;
   height: 46px;
   width: 46px;
-  border-radius: 5px;
-  box-shadow: 0 6px 8px -2px rgba(0, 0, 0, 0.16);
   cursor: pointer;
   user-select: none;
+  transition: all var(--transition-normal);
+
+  &:hover {
+    transform: scale(1.05);
+  }
+
+  &.hover .track-cover-overlay {
+    opacity: 1;
+  }
+}
+
+.track-cover {
+  height: 100%;
+  width: 100%;
+  border-radius: 5px;
+  box-shadow: 0 6px 8px -2px rgba(0, 0, 0, 0.16);
   object-fit: cover;
-  transition: opacity var(--transition-normal);
+  transition: all var(--transition-normal);
 
   &.loading {
     opacity: 0.6;
@@ -911,6 +926,39 @@ a {
     50% {
       opacity: 0.3;
     }
+  }
+}
+
+.track-cover-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  pointer-events: none;
+}
+
+.lyrics-hint-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+
+  img {
+    width: 12px;
+    height: 12px;
+    filter: invert(0.2);
   }
 }
 
