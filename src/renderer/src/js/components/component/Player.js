@@ -30,9 +30,9 @@ class Player extends Component {
         this.desktopLyricsBtn = this.element.querySelector('#desktop-lyrics-btn');
 
         this.trackCover = this.element.querySelector('#track-cover');
+        this.trackCoverContainer = this.element.querySelector('.track-cover-container');
         this.trackTitle = this.element.querySelector('#track-title');
         this.trackArtist = this.element.querySelector('#track-artist');
-
 
         this.progressBarContainer = this.element.querySelector('.progress-bar-container');
         this.progressTrack = this.element.querySelector('.progress-track');
@@ -159,6 +159,20 @@ class Player extends Component {
         });
         this.playlistBtn.addEventListener('click', () => {
             this.emit('togglePlaylist');
+        });
+
+        // 点击封面也打开歌词页
+        this.trackCoverContainer.addEventListener('click', () => {
+            this.emit('toggleLyrics');
+        });
+
+        // 封面悬浮效果
+        this.trackCoverContainer.addEventListener('mouseenter', () => {
+            this.trackCoverContainer.classList.add('hover');
+        });
+
+        this.trackCoverContainer.addEventListener('mouseleave', () => {
+            this.trackCoverContainer.classList.remove('hover');
         });
 
         // 桌面歌词按钮事件
