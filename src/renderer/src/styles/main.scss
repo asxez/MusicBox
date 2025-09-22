@@ -6495,7 +6495,10 @@ a {
   margin-right: 32px;
   margin-top: 24px;
   align-items: center;
-  transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+  justify-content 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+  margin-right 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform, justify-content, margin-right;
   z-index: 2;
 
   .lyrics-cover-section {
@@ -6937,6 +6940,7 @@ a {
   align-items: center;
   justify-content: center;
   padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-xl) var(--spacing-lg);
+  transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
   .lyrics-container {
     width: 100%;
@@ -7199,6 +7203,170 @@ a {
     .lyrics-text .lyrics-line {
       font-size: 16px;
     }
+  }
+}
+
+// ===== 封面双击切换布局样式 =====
+
+// 右侧歌词区域的过渡动画
+.lyrics-right-side {
+  transition: opacity 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+  transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: opacity, transform;
+}
+
+// 优化动画性能
+.lyrics-page {
+  // 在布局切换时启用硬件加速
+  &.center-mode {
+    .lyrics-left-side,
+    .lyrics-right-side {
+      transform-style: preserve-3d;
+      backface-visibility: hidden;
+    }
+  }
+}
+
+// 居中模式状态类
+.lyrics-page.center-mode {
+  .lyrics-left-side {
+    // 默认的CSS居中方案（备用）
+    justify-content: center;
+    margin-right: 0;
+    transform: translateX(0);
+  }
+
+  .lyrics-right-side {
+    opacity: 0;
+    transform: translateX(40px);
+    pointer-events: none;
+  }
+}
+
+// 动态居中模式
+.lyrics-page.center-mode.dynamic-center {
+  .lyrics-left-side {
+    // 使用 JS 计算的动态transform值
+    justify-content: flex-end;
+    margin-right: 32px;
+    transform: var(--dynamic-center-transform, translateX(0));
+  }
+}
+
+// 封面双击提示效果
+.lyrics-cover-image {
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+
+  &:hover {
+    transform: scale(1.02);
+  }
+
+  &:active {
+    transform: scale(0.98);
+    transition: transform 0.1s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+}
+
+// 为封面容器添加双击提示
+.lyrics-cover-container {
+  position: relative;
+
+  // 双击提示图标
+  &::before {
+    content: '⚡';
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    pointer-events: none;
+    backdrop-filter: blur(10px);
+    z-index: 10;
+  }
+
+  // 悬停时显示提示
+  &:hover::before {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  // 双击反馈效果
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+    border-radius: 50%;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  // 点击时的反馈动画
+  &:active::after {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    transition: all 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+}
+
+// 响应式设计：在小屏幕上禁用双击切换功能
+@media (max-width: 768px) {
+  .lyrics-cover-container {
+    // 在小屏幕上隐藏双击提示
+    &::before {
+      display: none;
+    }
+
+    // 在小屏幕上禁用点击效果
+    &::after {
+      display: none;
+    }
+  }
+
+  .lyrics-cover-image {
+    cursor: default;
+
+    &:hover {
+      transform: none;
+    }
+
+    &:active {
+      transform: none;
+    }
+  }
+}
+
+// 中等屏幕的居中调整
+@media (max-width: 1024px) {
+  .lyrics-page.center-mode .lyrics-left-side {
+    // 在中等屏幕上，左侧内容宽度较小，调整居中计算
+    transform: translateX(calc(50% - 25vh));
+  }
+}
+
+// 大屏幕的居中调整
+@media (min-width: 1440px) {
+  .lyrics-page.center-mode .lyrics-left-side {
+    // 在大屏幕上，可能需要更精确的居中
+    transform: translateX(calc(50% - 30vh));
   }
 }
 
@@ -7718,8 +7886,8 @@ a {
         right: 0;
         bottom: 0;
         background: linear-gradient(135deg,
-          rgba(var(--color-primary-rgb), 0.8) 0%,
-          rgba(var(--color-primary-rgb), 0.6) 100%);
+                rgba(var(--color-primary-rgb), 0.8) 0%,
+                rgba(var(--color-primary-rgb), 0.6) 100%);
       }
     }
 
@@ -7903,9 +8071,9 @@ a {
     // 星座视图 - 网格布局 + 连线效果
     &.constellation-view {
       background: linear-gradient(135deg,
-        rgba(13, 13, 35, 0.9) 0%,
-        rgba(25, 25, 60, 0.8) 50%,
-        rgba(13, 13, 35, 0.9) 100%);
+              rgba(13, 13, 35, 0.9) 0%,
+              rgba(25, 25, 60, 0.8) 50%,
+              rgba(13, 13, 35, 0.9) 100%);
 
       .constellation-lines {
         position: absolute;
@@ -7938,10 +8106,10 @@ a {
     // 星系视图 - 环形轨道布局
     &.galaxy-view {
       background: radial-gradient(ellipse at center,
-        rgba(5, 5, 20, 0.95) 0%,
-        rgba(15, 15, 40, 0.9) 30%,
-        rgba(25, 25, 60, 0.8) 60%,
-        rgba(5, 5, 20, 0.95) 100%);
+              rgba(5, 5, 20, 0.95) 0%,
+              rgba(15, 15, 40, 0.9) 30%,
+              rgba(25, 25, 60, 0.8) 60%,
+              rgba(5, 5, 20, 0.95) 100%);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -7973,8 +8141,8 @@ a {
             right: -20px;
             bottom: -20px;
             background: radial-gradient(circle,
-              rgba(var(--color-primary-rgb), 0.4) 0%,
-              transparent 70%);
+                    rgba(var(--color-primary-rgb), 0.4) 0%,
+                    transparent 70%);
             border-radius: 50%;
             animation: coreGlow 3s ease-in-out infinite alternate;
           }
@@ -8068,9 +8236,9 @@ a {
         width: 150%;
         height: 150%;
         background: radial-gradient(circle,
-          rgba(255, 255, 255, 0.4) 0%,
-          rgba(var(--color-primary-rgb), 0.3) 50%,
-          transparent 70%);
+                rgba(255, 255, 255, 0.4) 0%,
+                rgba(var(--color-primary-rgb), 0.3) 50%,
+                transparent 70%);
         border-radius: 50%;
         z-index: 1;
         opacity: 0.4;
@@ -8084,8 +8252,8 @@ a {
         height: 80px;
         border-radius: 50%;
         background: linear-gradient(135deg,
-          rgba(255, 255, 255, 0.9) 0%,
-          rgba(var(--color-primary-rgb), 0.8) 100%);
+                rgba(255, 255, 255, 0.9) 0%,
+                rgba(var(--color-primary-rgb), 0.8) 100%);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -8113,8 +8281,8 @@ a {
           width: 20px;
           height: 20px;
           background: radial-gradient(circle,
-            rgba(255, 255, 255, 0.9) 0%,
-            transparent 70%);
+                  rgba(255, 255, 255, 0.9) 0%,
+                  transparent 70%);
           border-radius: 50%;
           opacity: 0;
         }
@@ -8245,8 +8413,8 @@ a {
         width: 120%;
         height: 120%;
         background: radial-gradient(circle,
-          rgba(var(--color-primary-rgb), 0.5) 0%,
-          transparent 70%);
+                rgba(var(--color-primary-rgb), 0.5) 0%,
+                transparent 70%);
         border-radius: 50%;
         z-index: 1;
         opacity: 0.5;
@@ -8397,6 +8565,7 @@ a {
           width: 120px;
           height: 120px;
         }
+
         .artist-avatar img {
           width: 100px;
           height: 100px;
@@ -8408,6 +8577,7 @@ a {
           width: 100px;
           height: 100px;
         }
+
         .artist-avatar img {
           width: 80px;
           height: 80px;
@@ -8419,6 +8589,7 @@ a {
           width: 80px;
           height: 80px;
         }
+
         .artist-avatar img {
           width: 60px;
           height: 60px;
@@ -8430,6 +8601,7 @@ a {
           width: 60px;
           height: 60px;
         }
+
         .artist-avatar img {
           width: 40px;
           height: 40px;
@@ -8444,8 +8616,8 @@ a {
         width: 150%;
         height: 150%;
         background: radial-gradient(circle,
-          rgba(var(--color-primary-rgb), var(--glow-intensity, 0.4)) 0%,
-          transparent 70%);
+                rgba(var(--color-primary-rgb), var(--glow-intensity, 0.4)) 0%,
+                transparent 70%);
         border-radius: 50%;
         z-index: 1;
         animation: starGlow 3s ease-in-out infinite alternate;
@@ -8633,8 +8805,8 @@ a {
         right: 0;
         bottom: 0;
         background: linear-gradient(135deg,
-          rgba(0, 0, 0, 0.6) 0%,
-          rgba(var(--color-primary-rgb), 0.4) 100%);
+                rgba(0, 0, 0, 0.6) 0%,
+                rgba(var(--color-primary-rgb), 0.4) 100%);
       }
     }
 
@@ -8700,8 +8872,8 @@ a {
             width: 280px;
             height: 280px;
             background: radial-gradient(circle,
-              rgba(255, 255, 255, var(--glow-intensity, 0.3)) 0%,
-              transparent 70%);
+                    rgba(255, 255, 255, var(--glow-intensity, 0.3)) 0%,
+                    transparent 70%);
             border-radius: 50%;
             animation: avatarGlow 4s ease-in-out infinite alternate;
           }
@@ -9212,9 +9384,9 @@ a {
   height: 0;
   border-radius: 50%;
   background: radial-gradient(circle,
-    rgba(255, 255, 255, 0.8) 0%,
-    rgba(var(--color-primary-rgb), 0.6) 50%,
-    transparent 70%);
+          rgba(255, 255, 255, 0.8) 0%,
+          rgba(var(--color-primary-rgb), 0.6) 50%,
+          transparent 70%);
   animation: constellationBurst 1s ease-out forwards;
   pointer-events: none;
 }
@@ -9246,8 +9418,8 @@ a {
   height: 0;
   border-radius: 50%;
   background: radial-gradient(circle,
-    rgba(var(--color-primary-rgb), 0.6) 0%,
-    transparent 70%);
+          rgba(var(--color-primary-rgb), 0.6) 0%,
+          transparent 70%);
   animation: galaxyPulse 1.5s ease-out forwards;
   pointer-events: none;
 }
@@ -9749,191 +9921,191 @@ a {
   }
 }
 
-  .artists-content {
-    &.grid-view {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: var(--spacing-lg);
+.artists-content {
+  &.grid-view {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
 
-      .artist-card {
-        background: var(--color-secondary-bg);
-        border-radius: var(--radius-lg);
-        padding: var(--spacing-md);
-        cursor: pointer;
-        transition: all var(--transition-fast);
+    .artist-card {
+      background: var(--color-secondary-bg);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+      cursor: pointer;
+      transition: all var(--transition-fast);
 
-        &:hover {
-          transform: translateY(-4px);
-          box-shadow: var(--shadow-medium);
+      &:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-medium);
 
-          .artist-overlay {
-            opacity: 1;
-          }
-        }
-
-        .artist-cover {
-          position: relative;
-          width: 100%;
-          aspect-ratio: 1;
-          border-radius: var(--radius-md);
-          overflow: hidden;
-          margin-bottom: var(--spacing-md);
-
-          img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-          }
-
-          .artist-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity var(--transition-fast);
-
-            .play-btn {
-              width: 56px;
-              height: 56px;
-              border-radius: 50%;
-              background: var(--color-primary);
-              border: none;
-              color: white;
-              cursor: pointer;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              transition: transform var(--transition-fast);
-
-              &:hover {
-                transform: scale(1.1);
-              }
-
-              svg {
-                width: 24px;
-                height: 24px;
-                fill: currentColor;
-              }
-            }
-          }
-        }
-
-        .artist-info {
-          text-align: center;
-
-          .artist-name {
-            font-size: var(--font-size-md);
-            font-weight: 600;
-            color: var(--color-text);
-            margin: 0 0 var(--spacing-xs) 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-
-          .artist-stats {
-            font-size: var(--font-size-sm);
-            color: var(--color-text-secondary);
-            display: flex;
-            justify-content: center;
-            gap: var(--spacing-xs);
-          }
+        .artist-overlay {
+          opacity: 1;
         }
       }
-    }
 
-    &.list-view {
-      .artist-row {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-md);
-        padding: var(--spacing-md);
+      .artist-cover {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1;
         border-radius: var(--radius-md);
-        cursor: pointer;
-        transition: background-color var(--transition-fast);
+        overflow: hidden;
+        margin-bottom: var(--spacing-md);
 
-        &:hover {
-          background: var(--color-hover);
-
-          .artist-actions {
-            opacity: 1;
-          }
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
 
-        .artist-cover {
-          width: 64px;
-          height: 64px;
-          border-radius: var(--radius-md);
-          overflow: hidden;
-          flex-shrink: 0;
-
-          img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-          }
-        }
-
-        .artist-info {
-          flex: 1;
-          min-width: 0;
-
-          .artist-name {
-            font-size: var(--font-size-md);
-            font-weight: 600;
-            color: var(--color-text);
-            margin: 0 0 var(--spacing-xs) 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-
-          .artist-stats {
-            font-size: var(--font-size-sm);
-            color: var(--color-text-secondary);
-          }
-        }
-
-        .artist-actions {
+        .artist-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
           display: flex;
-          gap: var(--spacing-xs);
+          align-items: center;
+          justify-content: center;
           opacity: 0;
           transition: opacity var(--transition-fast);
 
-          .action-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: var(--radius-sm);
-            background: var(--color-secondary-bg);
+          .play-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--color-primary);
             border: none;
-            color: var(--color-text-secondary);
+            color: white;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all var(--transition-fast);
+            transition: transform var(--transition-fast);
 
             &:hover {
-              background: var(--color-primary);
-              color: white;
+              transform: scale(1.1);
             }
 
             svg {
-              width: 18px;
-              height: 18px;
+              width: 24px;
+              height: 24px;
               fill: currentColor;
             }
           }
         }
       }
+
+      .artist-info {
+        text-align: center;
+
+        .artist-name {
+          font-size: var(--font-size-md);
+          font-weight: 600;
+          color: var(--color-text);
+          margin: 0 0 var(--spacing-xs) 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .artist-stats {
+          font-size: var(--font-size-sm);
+          color: var(--color-text-secondary);
+          display: flex;
+          justify-content: center;
+          gap: var(--spacing-xs);
+        }
+      }
     }
   }
+
+  &.list-view {
+    .artist-row {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      padding: var(--spacing-md);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background-color var(--transition-fast);
+
+      &:hover {
+        background: var(--color-hover);
+
+        .artist-actions {
+          opacity: 1;
+        }
+      }
+
+      .artist-cover {
+        width: 64px;
+        height: 64px;
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        flex-shrink: 0;
+
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      }
+
+      .artist-info {
+        flex: 1;
+        min-width: 0;
+
+        .artist-name {
+          font-size: var(--font-size-md);
+          font-weight: 600;
+          color: var(--color-text);
+          margin: 0 0 var(--spacing-xs) 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .artist-stats {
+          font-size: var(--font-size-sm);
+          color: var(--color-text-secondary);
+        }
+      }
+
+      .artist-actions {
+        display: flex;
+        gap: var(--spacing-xs);
+        opacity: 0;
+        transition: opacity var(--transition-fast);
+
+        .action-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: var(--radius-sm);
+          background: var(--color-secondary-bg);
+          border: none;
+          color: var(--color-text-secondary);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all var(--transition-fast);
+
+          &:hover {
+            background: var(--color-primary);
+            color: white;
+          }
+
+          svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+          }
+        }
+      }
+    }
+  }
+}
 
 
 // 艺术家详情页面样式
@@ -14122,7 +14294,7 @@ body.focus-mode {
     // 这些元素会在JavaScript中动态设置初始状态
     // 这里只是确保有正确的transition属性
     transition: opacity 0.3s cubic-bezier(0.22, 0.61, 0.36, 1),
-                transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+    transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 }
 

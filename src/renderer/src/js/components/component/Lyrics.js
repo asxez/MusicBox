@@ -21,6 +21,12 @@ class Lyrics extends Component {
         this._updateTrackInfoInProgress = false; // 是否正在更新歌曲信息
         this._pendingUpdatePromise = null; // 当前正在执行的更新Promise
 
+        // 封面双击切换功能状态
+        this.isCenterMode = false; // 是否处于居中模式
+        this.isTransitioning = false; // 是否正在进行布局切换动画
+        this.lastClickTime = 0; // 上次点击时间，用于双击检测
+        this.doubleClickDelay = 300; // 双击检测延迟（毫秒）
+
         this.setupElements();
     }
 
@@ -89,6 +95,8 @@ class Lyrics extends Component {
         this.isVisible = false;
         this.isPlaying = false;
         this.listenersSetup = false;
+
+        this.resetLayoutState();
         super.destroy();
     }
 
@@ -109,6 +117,11 @@ class Lyrics extends Component {
 
         // 歌词显示
         this.lyricsDisplay = this.element.querySelector('#lyrics-display');
+
+        // 布局切换相关元素
+        this.lyricsMain = this.element.querySelector('.lyrics-main');
+        this.leftSide = this.element.querySelector('.lyrics-left-side');
+        this.rightSide = this.element.querySelector('.lyrics-right-side');
 
         // 播放控制
         this.playBtn = this.element.querySelector('#lyrics-play-btn');
@@ -169,6 +182,16 @@ class Lyrics extends Component {
 
         this.addEventListenerManaged(this.nextBtn, 'click', async () => {
             await api.nextTrack();
+        });
+
+        // 封面双击切换布局事件
+        this.addEventListenerManaged(this.trackCover, 'click', (e) => {
+            this.handleCoverClick(e);
+        });
+
+        // 窗口大小变化监听器
+        this.addEventListenerManaged(window, 'resize', () => {
+            this.handleWindowResize();
         });
 
         // 音量控制事件
@@ -915,6 +938,144 @@ class Lyrics extends Component {
         const duration = (this.currentTrack && this.currentTrack.duration) ? this.currentTrack.duration : (await api.getDuration());
         const seekTime = percentage * (duration || 0);
         await api.seek(seekTime);
+    }
+
+    // 封面点击处理方法
+    handleCoverClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const currentTime = Date.now();
+        const timeDiff = currentTime - this.lastClickTime;
+
+        if (timeDiff < this.doubleClickDelay) {
+            // 双击检测成功
+            this.handleCoverDoubleClick();
+        }
+
+        this.lastClickTime = currentTime;
+    }
+
+    // 封面双击处理方法
+    async handleCoverDoubleClick() {
+        if (this.isTransitioning) {
+            return; // 如果正在切换，忽略双击
+        }
+
+        // 添加视觉反馈
+        this.trackCover.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            if (this.trackCover) {
+                this.trackCover.style.transform = '';
+            }
+        }, 150);
+
+        this.toggleLayoutMode();
+    }
+
+    // 检查是否支持布局切换（在小屏幕上禁用）
+    isLayoutSwitchSupported() {
+        return window.innerWidth > 768;
+    }
+
+    // 处理窗口大小变化
+    handleWindowResize() {
+        // 若当前处于居中模式，但屏幕变小了，则退出居中模式
+        if (this.isCenterMode && !this.isLayoutSwitchSupported()) {
+            this.resetLayoutState();
+            return;
+        }
+
+        // 若当前处于动态居中模式，重新计算居中位置
+        if (this.isCenterMode && this.page.classList.contains('dynamic-center')) {
+            // 延迟一点时间等待布局稳定
+            setTimeout(() => {
+                this.applyDynamicCenter();
+            }, 100);
+        }
+    }
+
+    // 动态计算精确的居中transform值
+    calculateCenterTransform() {
+        if (!this.page || !this.lyricsMain || !this.leftSide) {
+            return 'translateX(0)';
+        }
+
+        const pageRect = this.page.getBoundingClientRect();
+        const mainRect = this.lyricsMain.getBoundingClientRect();
+
+        // 获取左侧内容的实际内容区域
+        const coverSection = this.leftSide.querySelector('.lyrics-cover-section');
+        if (!coverSection) {
+            return 'translateX(0)';
+        }
+
+        const coverRect = coverSection.getBoundingClientRect();
+
+        // 计算页面中心位置（相对于main容器）
+        const pageCenterX = pageRect.width / 2;
+
+        // 计算内容当前中心位置（相对于main容器）
+        const contentCenterX = coverRect.left + coverRect.width / 2 - mainRect.left;
+
+        // 计算需要移动的距离
+        const translateX = pageCenterX - contentCenterX;
+        return `translateX(${translateX}px)`;
+    }
+
+    // 应用动态居中
+    applyDynamicCenter() {
+        if (!this.leftSide) return;
+
+        const transform = this.calculateCenterTransform();
+        this.leftSide.style.setProperty('--dynamic-center-transform', transform);
+
+        // 添加CSS变量支持的类
+        this.page.classList.add('dynamic-center');
+    }
+
+    // 切换布局模式
+    toggleLayoutMode() {
+        if (this.isTransitioning || !this.isLayoutSwitchSupported() || !this.page) {
+            return;
+        }
+
+        this.isTransitioning = true;
+        this.isCenterMode = !this.isCenterMode;
+        if (this.isCenterMode) {
+            // 进入居中模式：计算并应用动态居中
+            this.applyDynamicCenter();
+        } else {
+            // 退出居中模式：移除动态居中
+            this.page.classList.remove('dynamic-center');
+        }
+
+        // 切换CSS类，让CSS动画处理过渡效果
+        this.page.classList.toggle('center-mode', this.isCenterMode);
+
+        // 设置动画完成后的回调
+        setTimeout(() => {
+            this.isTransitioning = false;
+        }, 800);
+    }
+
+    // 重置布局状态
+    resetLayoutState() {
+        if (!this.page) {
+            return;
+        }
+
+        // 重置状态变量
+        this.isCenterMode = false;
+        this.isTransitioning = false;
+
+        // 移除所有布局相关的类
+        this.page.classList.remove('center-mode', 'dynamic-center');
+
+        // 清理动态CSS变量
+        if (this.leftSide) {
+            this.leftSide.style.removeProperty('--dynamic-center-transform');
+        }
     }
 }
 
