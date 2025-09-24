@@ -9,6 +9,7 @@
   --color-primary-rgb: 51, 94, 234;
   --color-primary-hover: #2952e8;
   --color-primary-bg: #eaeffd;
+  --color-primary-bg-rgb: 234, 239, 253;
   --color-secondary-bg: #f5f5f7;
   --color-surface: #ffffff;
   --color-navbar-bg: rgba(255, 255, 255, 0.86);
@@ -83,6 +84,9 @@
   --transition-slow: 0.5s ease;
   --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-bounce: 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  // Lyrics highlight opacity
+  --lyrics-highlight-opacity: 1.0;
 }
 
 // Dark theme
@@ -95,6 +99,7 @@
   --color-primary-rgb: 51, 94, 234;
   --color-primary-hover: #2952e8;
   --color-primary-bg: #2a3a5c;
+  --color-primary-bg-rgb: 42, 58, 92;
   --color-secondary-bg: #323232;
   --color-surface: #2a2a2a;
   --color-navbar-bg: rgba(34, 34, 34, 0.86);
@@ -5175,6 +5180,86 @@ a {
   }
 }
 
+// 设置页面滑块样式
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+.setting-slider {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      transform: scale(1.1);
+      box-shadow: 0 2px 8px rgba(var(--color-primary-rgb), 0.3);
+    }
+  }
+
+  &::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    cursor: pointer;
+    border: none;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      transform: scale(1.1);
+      box-shadow: 0 2px 8px rgba(var(--color-primary-rgb), 0.3);
+    }
+  }
+
+  &::-moz-range-track {
+    height: 4px;
+    background: var(--color-border);
+    border-radius: 2px;
+    border: none;
+  }
+
+  &:hover {
+    background: var(--color-hover);
+  }
+
+  &:focus {
+    outline: none;
+
+    &::-webkit-slider-thumb {
+      box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.2);
+    }
+
+    &::-moz-range-thumb {
+      box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.2);
+    }
+  }
+}
+
+.slider-value {
+  min-width: 32px;
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
 // 切换开关样式
 .toggle-switch {
   position: relative;
@@ -7005,8 +7090,8 @@ a {
         font-weight: 600;
         transform: scale(1);
         opacity: 1;
-        background: var(--color-primary-bg);
-        box-shadow: var(--shadow-light);
+        background: rgba(var(--color-primary-bg-rgb), var(--lyrics-highlight-opacity));
+        box-shadow: 0 2px 8px rgba(0, 0, 0, calc(0.1 * var(--lyrics-highlight-opacity)));
         border-radius: var(--radius-md);
       }
 

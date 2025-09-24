@@ -75,6 +75,7 @@ class HomePage extends Component {
         if (focusBtn) {
             focusBtn.addEventListener('click', () => {
                 this.toggleFocusMode();
+                window.app.components.lyrics.toggleFullscreen();
             });
         }
 
