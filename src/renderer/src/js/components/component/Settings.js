@@ -133,6 +133,10 @@ class Settings extends Component {
 
         // 硬件加速配置元素
         this.hardwareAccelerationToggle = this.element.querySelector('#hardware-acceleration-toggle');
+
+        // 歌词高亮透明度控制元素
+        this.lyricsHighlightOpacitySlider = this.element.querySelector('#lyrics-highlight-opacity-slider');
+        this.lyricsHighlightOpacityValue = this.element.querySelector('#lyrics-highlight-opacity-value');
     }
 
     setupEventListeners() {
@@ -339,6 +343,14 @@ class Settings extends Component {
             await this.handleHardwareAccelerationChange(e.target.checked);
         });
 
+        // 歌词高亮透明度设置
+        this.lyricsHighlightOpacitySlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            this.lyricsHighlightOpacityValue.textContent = value.toFixed(1);
+            this.updateSetting('lyricsHighlightOpacity', value);
+            this.updateLyricsHighlightOpacity(value);
+        });
+
         // 添加网络磁盘按钮
         if (this.addNetworkDriveBtn) {
             this.addNetworkDriveBtn.addEventListener('click', () => {
@@ -413,6 +425,12 @@ class Settings extends Component {
 
         // 初始化硬件加速设置
         this.initializeHardwareAccelerationSettings();
+
+        // 初始化歌词高亮透明度设置
+        const lyricsOpacity = this.settings.hasOwnProperty('lyricsHighlightOpacity') ? this.settings.lyricsHighlightOpacity : 1.0;
+        this.lyricsHighlightOpacitySlider.value = lyricsOpacity;
+        this.lyricsHighlightOpacityValue.textContent = lyricsOpacity.toFixed(1);
+        this.updateLyricsHighlightOpacity(lyricsOpacity);
 
         console.log('🎵 Settings: 设置值初始化完成', this.settings);
 
@@ -540,6 +558,12 @@ class Settings extends Component {
     // 显示硬件加速启用通知
     showHardwareAccelerationEnabledNotification() {
         showToast('硬件加速已启用，建议重启应用以获得最佳性能', 'success');
+    }
+
+    // 更新歌词高亮透明度
+    updateLyricsHighlightOpacity(opacity) {
+        document.documentElement.style.setProperty('--lyrics-highlight-opacity', opacity);
+        this.emit('lyricsHighlightOpacityChanged', opacity);
     }
 
     // 缓存管理方法
