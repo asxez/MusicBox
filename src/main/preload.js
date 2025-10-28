@@ -171,6 +171,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         validateCache: () => ipcRenderer.invoke('library:validateCache'),
         getCacheStatistics: () => ipcRenderer.invoke('library:getCacheStatistics'),
         clearCache: () => ipcRenderer.invoke('library:clearCache'),
+        removeTrack: (trackFileId) => ipcRenderer.invoke('library:removeTrack', trackFileId),
 
         // 歌单封面
         updatePlaylistCover: (playlistId, imagePath) => ipcRenderer.invoke('library:updatePlaylistCover', playlistId, imagePath),

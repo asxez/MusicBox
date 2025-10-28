@@ -320,8 +320,41 @@ class LibraryCacheManager {
             !invalidPaths.includes(track.filePath)
         );
 
-
         return removedCount;
+    }
+
+    // 从音乐库删除歌曲
+    removeTrack(trackFileId) {
+        if (!Array.isArray(this.cache.tracks)) {
+            console.warn('⚠️ LibraryCacheManager: tracks 不是数组，重置为空数组');
+            this.cache.tracks = [];
+            throw new Error('歌曲不存在');
+        }
+
+        const index = this.cache.tracks.findIndex(track => track.fileId === trackFileId);
+        if (index === -1) {
+            throw new Error('歌曲不存在');
+        }
+
+        const track = this.cache.tracks[index];
+        this.cache.tracks.splice(index, 1);
+        console.log(`🗑️ LibraryCacheManager: 从音乐库删除歌曲 - ${track.title}`);
+
+        // 从所有歌单中移除该歌曲的引用
+        if (Array.isArray(this.cache.playlists)) {
+            for (const playlist of this.cache.playlists) {
+                if (Array.isArray(playlist.trackIds)) {
+                    const trackIndex = playlist.trackIds.indexOf(trackFileId);
+                    if (trackIndex !== -1) {
+                        playlist.trackIds.splice(trackIndex, 1);
+                        playlist.updatedAt = Date.now();
+                        console.log(`🗑️ LibraryCacheManager: 从歌单 ${playlist.name} 中移除歌曲引用`);
+                    }
+                }
+            }
+        }
+
+        return track;
     }
 
     // 添加已扫描目录
