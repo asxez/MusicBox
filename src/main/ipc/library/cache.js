@@ -140,6 +140,27 @@ function registerLibraryCacheIpcHandlers(
             return false;
         }
     });
+
+    // 从音乐库删除歌曲
+    ipcMain.handle('library:removeTrack', async (event, trackFileId) => {
+        try {
+            if (!getLibraryCacheManager()) {
+                await initializeCacheManager();
+            }
+            const libraryCacheManager = getLibraryCacheManager();
+            const track = libraryCacheManager.removeTrack(trackFileId);
+            await libraryCacheManager.saveCache();
+
+            // 更新内存中的音乐库
+            audioEngineState.scannedTracks = libraryCacheManager.getAllTracks();
+
+            console.log(`🗑️ 从音乐库删除歌曲成功: ${track.title}`);
+            return {success: true, track};
+        } catch (error) {
+            console.error('❌ 从音乐库删除歌曲失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
 }
 
 module.exports = {

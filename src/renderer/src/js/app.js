@@ -1671,7 +1671,6 @@ class MusicBoxApp extends EventEmitter {
     }
 
     showSuccess(message) {
-        // TODO: Add toast notification system
         showToast(message, 'success');
     }
 
@@ -1793,15 +1792,58 @@ class MusicBoxApp extends EventEmitter {
         this.updateTrackList('duration-update');
     }
 
-    // Context menu event handlers
-    handleDeleteTrack(track, index) {
-        if (confirm(`确定要删除歌曲 "${track.title}" 吗？`)) {
-            // TODO: 实现删除歌曲的逻辑
-            this.showInfo('删除功能将在后续版本中实现');
+    // 右击菜单事件处理方法
+    // 删除音乐
+    async handleDeleteTrack(track, index) {
+        // 根据当前视图决定删除行为
+        if (this.currentView === 'playlist-detail' && this.components.playlistDetailPage) {
+            // 在歌单页，仅从当前歌单中移除
+            await this.components.playlistDetailPage.removeTrackFromPlaylist(track, index);
+            return;
+        }
+
+        // 在音乐库或其他页面，从音乐库中删除，同时从所有歌单中移除
+        if (!confirm(`确定要从音乐库中删除 "${track.title}" 吗？\n\n此操作将从音乐库和所有歌单中移除该歌曲，但不会删除本地文件。`)) {
+            return;
+        }
+
+        try {
+            const result = await window.electronAPI.library.removeTrack(track.fileId);
+            if (result.success) {
+                // 从本地音乐库数组中移除
+                const libraryIndex = this.library.findIndex(t => t.fileId === track.fileId);
+                if (libraryIndex !== -1) {
+                    this.library.splice(libraryIndex, 1);
+                }
+
+                const filteredIndex = this.filteredLibrary.findIndex(t => t.fileId === track.fileId);
+                if (filteredIndex !== -1) {
+                    this.filteredLibrary.splice(filteredIndex, 1);
+                }
+
+                // 从播放列表中移除
+                if (this.components.playlist) {
+                    const playlistIndex = this.components.playlist.tracks.findIndex(t => t.fileId === track.fileId);
+                    if (playlistIndex !== -1) {
+                        this.components.playlist.removeTrack(playlistIndex);
+                    }
+                }
+
+                // 更新界面
+                this.updateTrackList('track-deleted');
+
+                // 触发库更新事件
+                api.emit('libraryUpdated');
+                this.showInfo(`已从音乐库删除 "${track.title}"`);
+            } else {
+                this.showError(result.error || '删除失败');
+            }
+        } catch (error) {
+            console.error('❌ 删除歌曲失败:', error);
+            this.showError('删除失败，请重试');
         }
     }
 
-    // Settings event handlers
     async handleSelectMusicFolder() {
         try {
             const result = await api.selectMusicFolder();
@@ -1814,7 +1856,6 @@ class MusicBoxApp extends EventEmitter {
         }
     }
 
-    // Add track to playlist
     addToPlaylist(track) {
         if (this.components.playlist) {
             this.components.playlist.addTrack(track);
