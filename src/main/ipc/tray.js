@@ -1,6 +1,6 @@
 // 系统托盘相关 IPC
 
-const {Tray, Menu, nativeImage} = require('electron');
+const {Tray, Menu, nativeImage, app} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const {getMainWindow} = require('../utils/window');
@@ -116,10 +116,7 @@ function updateTrayMenu() {
         {
             label: '退出',
             click: () => {
-                const win = getMainWindow();
-                if (win) {
-                    win.webContents.send('tray:quit');
-                }
+                app.exit(0);
             }
         }
     ]);
