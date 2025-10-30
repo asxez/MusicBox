@@ -117,8 +117,6 @@ class CreatePlaylistDialog extends Component {
             this.confirmBtn.textContent = '创建中...';
             const result = await window.electronAPI.library.createPlaylist(name, description);
             if (result.success) {
-                console.log('✅ 歌单创建成功:', result.playlist);
-
                 // 如果有要添加的歌曲，立即添加
                 if (this.currentTrackToAdd) {
                     try {
@@ -135,9 +133,7 @@ class CreatePlaylistDialog extends Component {
                 // 触发歌单创建事件
                 this.emit('playlistCreated', result.playlist);
                 this.hide();
-                if (window.app && window.app.showInfo) {
-                    window.app.showInfo(`歌单 "${name}" 创建成功`);
-                }
+                window.app.showInfo(`歌单 "${name}" 创建成功`);
             } else {
                 this.showError(result.error || '创建歌单失败');
             }

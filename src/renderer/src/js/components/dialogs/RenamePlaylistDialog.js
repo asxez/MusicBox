@@ -120,14 +120,14 @@ class RenamePlaylistDialog extends Component {
                 this.emit('playlistRenamed', result.playlist);
                 this.hide();
 
-                if (window.app && window.app.showInfo) {
-                    window.app.showInfo(`歌单已重命名为 "${newName}"`);
-                }
+                window.app.showInfo(`歌单已重命名为 "${newName}"`);
             } else {
-                this.showError(result.error || '重命名失败');
+                this.showError('重命名失败');
+                console.error(result);
             }
         } catch (error) {
             this.showError('重命名失败，请重试');
+            console.error(error);
         } finally {
             this.confirmBtn.disabled = false;
             this.confirmBtn.textContent = '重命名';

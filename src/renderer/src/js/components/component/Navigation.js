@@ -546,22 +546,15 @@ class Navigation extends Component {
         try {
             const result = await window.electronAPI.library.deletePlaylist(playlist.id);
             if (result.success) {
-                // console.log('✅ Navigation: 歌单删除成功');
                 await this.refreshPlaylists();
-                if (window.app && window.app.showInfo) {
-                    window.app.showInfo(`歌单 "${playlist.name}" 已删除`);
-                }
+                window.app.showInfo(`歌单 "${playlist.name}" 已删除`);
             } else {
                 console.error('❌ Navigation: 歌单删除失败', result.error);
-                if (window.app && window.app.showError) {
-                    window.app.showError(result.error || '删除失败');
-                }
+                window.app.showError(result.error || '删除失败');
             }
         } catch (error) {
             console.error('❌ Navigation: 歌单删除失败', error);
-            if (window.app && window.app.showError) {
-                window.app.showError('删除失败，请重试');
-            }
+            window.app.showError('删除失败，请重试');
         }
     }
 

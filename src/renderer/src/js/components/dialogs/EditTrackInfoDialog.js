@@ -725,15 +725,7 @@ class EditTrackInfoDialog extends Component {
 
     showError(message) {
         console.error('❌ EditTrackInfoDialog:', message);
-
-        // 显示错误提示（使用简单的alert，后续可以改为更优雅的提示）
-        // 也可以通过全局事件系统显示错误
-        if (window.app && window.app.showError) {
-            window.app.showError(message);
-        } else {
-            // 备用方案：使用浏览器原生alert
-            alert('错误：' + message);
-        }
+        window.app.showError(message);
     }
 
     clearForm() {
