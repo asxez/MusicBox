@@ -125,25 +125,18 @@ class AddToPlaylistDialog extends Component {
             );
             if (result.success) {
                 const playlist = this.playlists.find(p => p.id === playlistId);
-                console.log('✅ 歌曲已添加到歌单:', playlist?.name);
-                if (window.app && window.app.showInfo) {
-                    window.app.showInfo(`已添加到歌单 "${playlist?.name || '未知'}"`);
-                }
+                window.app.showInfo(`已添加到歌单 "${playlist?.name || '未知'}"`);
 
                 // 触发添加成功事件
                 this.emit('trackAdded', {playlist, track: this.currentTrack});
                 this.hide();
             } else {
                 console.error('❌ 添加到歌单失败:', result.error);
-                if (window.app && window.app.showError) {
-                    window.app.showError(result.error || '添加到歌单失败');
-                }
+                window.app.showError(result.error || '添加到歌单失败');
             }
         } catch (error) {
             console.error('❌ 添加到歌单失败:', error);
-            if (window.app && window.app.showError) {
-                window.app.showError('添加到歌单失败，请重试');
-            }
+            window.app.showError('添加到歌单失败，请重试');
         }
     }
 

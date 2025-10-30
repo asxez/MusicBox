@@ -301,18 +301,14 @@ class MusicLibrarySelectionDialog extends Component {
             });
             this.hide();
 
-            if (window.app && window.app.showInfo) {
-                if (failCount === 0) {
-                    window.app.showInfo(`成功添加 ${successCount} 首歌曲到歌单`);
-                } else {
-                    window.app.showInfo(`添加完成：成功 ${successCount} 首，失败 ${failCount} 首`);
-                }
+            if (failCount === 0) {
+                window.app.showInfo(`成功添加 ${successCount} 首歌曲到歌单`);
+            } else {
+                window.app.showInfo(`添加完成：成功 ${successCount} 首，失败 ${failCount} 首`);
             }
         } catch (error) {
             console.error('❌ 批量添加歌曲失败:', error);
-            if (window.app && window.app.showError) {
-                window.app.showError('添加歌曲失败，请重试');
-            }
+            window.app.showError('添加歌曲失败，请重试');
         } finally {
             // 恢复按钮状态
             this.confirmBtn.disabled = false;
