@@ -6,9 +6,11 @@
  * @param {Electron.IpcMain} deps.ipcMain - 主进程 IPC 对象
  * @param {function} deps.getNetworkDriveManager - 返回当前 NetworkDriveManager 实例的函数
  * @param {function} deps.initializeNetworkDriveManager - 初始化 NetworkDriveManager 的函数
+ * @param {function} deps.getNetworkFileAdapter - 返回当前 NetworkFileAdapter 实例的函数
  */
-function registerNetworkDriveIpcHandlers({ipcMain, getNetworkDriveManager, initializeNetworkDriveManager}) {
+function registerNetworkDriveIpcHandlers({ipcMain, getNetworkDriveManager, initializeNetworkDriveManager, getNetworkFileAdapter}) {
     if (!ipcMain) throw new Error('registerNetworkDriveIpcHandlers: 缺少 ipcMain');
+    if (!getNetworkFileAdapter) throw new Error('registerNetworkDriveIpcHandlers: 缺少 getNetworkFileAdapter');
 
     // 挂载SMB网络磁盘
     ipcMain.handle('network-drive:mountSMB', async (event, config) => {
@@ -149,6 +151,82 @@ function registerNetworkDriveIpcHandlers({ipcMain, getNetworkDriveManager, initi
         } catch (error) {
             console.error('❌ 刷新网络磁盘连接状态失败:', error);
             return false;
+        }
+    });
+
+    // 获取网络磁盘目录结构
+    ipcMain.handle('network-drive:getDirectoryStructure', async (event, driveId, dirPath = '/') => {
+        try {
+            const mgr = getNetworkDriveManager();
+            if (!mgr) {
+                return { success: false, error: '网络磁盘管理器未初始化' };
+            }
+
+            const driveInfo = mgr.getDriveInfo(driveId);
+            if (!driveInfo) {
+                return { success: false, error: '网络磁盘未挂载' };
+            }
+
+            const status = mgr.getDriveStatus(driveId);
+            if (!status || !status.connected) {
+                return { success: false, error: '网络磁盘未连接' };
+            }
+
+            const adapter = getNetworkFileAdapter();
+            if (!adapter) {
+                return { success: false, error: 'NetworkFileAdapter 未初始化' };
+            }
+
+            // 构建网络路径
+            const networkPath = `network://${driveId}${dirPath}`;
+
+            // 读取目录内容
+            const items = await adapter.readdir(networkPath);
+
+            // 获取每个项目的详细信息（区分文件和文件夹）
+            const structure = [];
+            for (const itemName of items) {
+                try {
+                    const itemPath = adapter.joinNetworkPath(networkPath, itemName);
+                    const stats = await adapter.stat(itemPath);
+
+                    // 将 stats 对象转换为可序列化的纯对象
+                    // stats.isDirectory 是一个方法，需要调用它
+                    const isDir = typeof stats.isDirectory === 'function'
+                        ? stats.isDirectory()
+                        : Boolean(stats.isDirectory);
+
+                    structure.push({
+                        name: itemName,
+                        path: dirPath === '/' ? `/${itemName}` : `${dirPath}/${itemName}`,
+                        isDirectory: isDir,
+                        size: stats.size || 0,
+                        mtime: stats.mtime ? stats.mtime.toISOString() : null  // 转换为 ISO 字符串
+                    });
+                } catch (error) {
+                    console.error(`❌ 获取项目信息失败 ${itemName}:`, error.message);
+                    // 如果无法获取stats，假设它是文件
+                    structure.push({
+                        name: itemName,
+                        path: dirPath === '/' ? `/${itemName}` : `${dirPath}/${itemName}`,
+                        isDirectory: false,
+                        size: 0,
+                        mtime: null
+                    });
+                }
+            }
+
+            // 按类型和名称排序：文件夹在前，然后按名称排序
+            structure.sort((a, b) => {
+                if (a.isDirectory && !b.isDirectory) return -1;
+                if (!a.isDirectory && b.isDirectory) return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            return { success: true, structure };
+        } catch (error) {
+            console.error('❌ 获取网络磁盘目录结构失败:', error);
+            return { success: false, error: error.message };
         }
     });
 }

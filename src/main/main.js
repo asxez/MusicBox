@@ -254,6 +254,7 @@ registerNetworkDriveIpcHandlers({
     ipcMain,
     getNetworkDriveManager: () => networkDriveManager,
     initializeNetworkDriveManager,
+    getNetworkFileAdapter: () => networkFileAdapter,
 });
 
 // 注册桌面歌词IPC

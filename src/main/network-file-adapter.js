@@ -32,9 +32,14 @@ class NetworkFileAdapter {
 
         // 移除 network:// 前缀
         const pathWithoutProtocol = networkPath.substring(10);
-        const parts = pathWithoutProtocol.split('/');
-        const driveId = parts[0];
-        const relativePath = parts.slice(1).join('/');
+        const firstSlashIndex = pathWithoutProtocol.indexOf('/');
+
+        if (firstSlashIndex === -1) {
+            return {driveId: pathWithoutProtocol, relativePath: '/'};
+        }
+
+        const driveId = pathWithoutProtocol.substring(0, firstSlashIndex);
+        const relativePath = pathWithoutProtocol.substring(firstSlashIndex);
         return {driveId, relativePath};
     }
 
@@ -118,12 +123,18 @@ class NetworkFileAdapter {
     }
 
     // 获取文件的实际WebDAV路径
-    getActualWebDAVPath(fileName) {
+    getActualWebDAVPath(filePath) {
+        const fileName = path.basename(filePath);
         const mapping = this.filePathMappings.get(fileName);
         if (mapping) {
-            return mapping.baseName;
+            const dirPath = path.dirname(filePath);
+            if (dirPath === '.' || dirPath === '/') {
+                return mapping.baseName;
+            }
+            const encodedDir = this.encodeWebDAVPath(dirPath);
+            return `${encodedDir}/${mapping.baseName}`;
         }
-        return this.encodeWebDAVPath(fileName);
+        return this.encodeWebDAVPath(filePath);
     }
 
     // 为网络文件重新建立路径映射
@@ -222,25 +233,20 @@ class NetworkFileAdapter {
     async readWebDAVFile(webdavClient, filePath) {
         try {
             const actualPath = this.getActualWebDAVPath(filePath);
-            const arrayBuffer = await webdavClient.getFileContents(actualPath, {format: 'binary'});
-            console.log(`✅ NetworkFileAdapter: WebDAV文件读取成功，大小: ${arrayBuffer.byteLength} 字节`);
-            return Buffer.from(arrayBuffer);
+            try {
+                const arrayBuffer = await webdavClient.getFileContents(actualPath, {format: 'binary'});
+                console.log(`✅ NetworkFileAdapter: WebDAV文件读取成功（使用actualPath），大小: ${arrayBuffer.byteLength} 字节`);
+                return Buffer.from(arrayBuffer);
+            } catch (actualPathError) {
+                const arrayBuffer = await webdavClient.getFileContents(filePath, {format: 'binary'});
+                console.log(`✅ NetworkFileAdapter: WebDAV文件读取成功（使用原始路径），大小: ${arrayBuffer.byteLength} 字节`);
+                return Buffer.from(arrayBuffer);
+            }
         } catch (error) {
             console.error(`❌ NetworkFileAdapter: WebDAV文件读取失败`);
             console.error(`    文件路径: ${filePath}`);
             console.error(`    错误详情: ${error.message}`);
             console.error(`    错误状态: ${error.status || 'unknown'}`);
-
-            if (this.filePathMappings.has(filePath)) {
-                console.log(`🔄 尝试备选方案：使用编码路径`);
-                try {
-                    const encodedPath = this.encodeWebDAVPath(filePath);
-                    const arrayBuffer = await webdavClient.getFileContents(encodedPath, {format: 'binary'});
-                    return Buffer.from(arrayBuffer);
-                } catch (fallbackError) {
-                    console.error(`❌ 备选方案也失败:`, fallbackError.message);
-                }
-            }
             throw new Error(`WebDAV文件读取失败: ${error.message}`);
         }
     }
@@ -306,31 +312,27 @@ class NetworkFileAdapter {
     async statWebDAVFile(webdavClient, filePath) {
         try {
             const actualPath = this.getActualWebDAVPath(filePath);
-            const stat = await webdavClient.stat(actualPath);
-            console.log(`✅ NetworkFileAdapter: WebDAV文件信息获取成功，类型: ${stat.type}, 大小: ${stat.size || 0}`);
-            return {
-                size: stat.size || 0,
-                mtime: stat.lastmod ? new Date(stat.lastmod) : new Date(),
-                isDirectory: () => stat.type === 'directory',
-                isFile: () => stat.type === 'file'
-            };
+            try {
+                const stat = await webdavClient.stat(actualPath);
+                console.log(`✅ NetworkFileAdapter: WebDAV文件信息获取成功（使用actualPath），类型: ${stat.type}, 大小: ${stat.size || 0}`);
+                return {
+                    size: stat.size || 0,
+                    mtime: stat.lastmod ? new Date(stat.lastmod) : new Date(),
+                    isDirectory: () => stat.type === 'directory',
+                    isFile: () => stat.type === 'file'
+                };
+            } catch (actualPathError) {
+                const stat = await webdavClient.stat(filePath);
+                console.log(`✅ NetworkFileAdapter: WebDAV文件信息获取成功（使用原始路径），类型: ${stat.type}, 大小: ${stat.size || 0}`);
+                return {
+                    size: stat.size || 0,
+                    mtime: stat.lastmod ? new Date(stat.lastmod) : new Date(),
+                    isDirectory: () => stat.type === 'directory',
+                    isFile: () => stat.type === 'file'
+                };
+            }
         } catch (error) {
             console.error(`❌ NetworkFileAdapter: WebDAV文件信息获取失败 "${filePath}":`, error.message);
-
-            if (this.filePathMappings.has(filePath)) {
-                try {
-                    const encodedPath = this.encodeWebDAVPath(filePath);
-                    const stat = await webdavClient.stat(encodedPath);
-                    return {
-                        size: stat.size || 0,
-                        mtime: stat.lastmod ? new Date(stat.lastmod) : new Date(),
-                        isDirectory: () => stat.type === 'directory',
-                        isFile: () => stat.type === 'file'
-                    };
-                } catch (fallbackError) {
-                    console.error(`❌ 备选方案也失败:`, fallbackError.message);
-                }
-            }
             throw new Error(`WebDAV文件信息获取失败: ${error.message}`);
         }
     }
@@ -388,9 +390,24 @@ class NetworkFileAdapter {
      * @returns {Promise<Array>} 目录内容列表
      */
     async readdirWebDAV(webdavClient, dirPath) {
+        let contents;
+        let usedPath;
+
         try {
             const encodedPath = this.encodeWebDAVPath(dirPath);
-            const contents = await webdavClient.getDirectoryContents(encodedPath);
+            console.log(`    编码后路径: "${encodedPath}"`);
+
+            try {
+                contents = await webdavClient.getDirectoryContents(encodedPath);
+                usedPath = encodedPath;
+                console.log(`    ✅ 使用编码路径成功，共 ${contents.length} 项`);
+            } catch (encodedError) {
+                console.log(`    ⚠️ 编码路径失败: ${encodedError.message}`);
+                console.log(`    🔄 尝试使用原始路径...`);
+                contents = await webdavClient.getDirectoryContents(dirPath);
+                usedPath = dirPath;
+                console.log(`    ✅ 使用原始路径成功，共 ${contents.length} 项`);
+            }
 
             // 详细分析每个文件的编码情况
             const fileNames = contents.map(item => {
@@ -424,6 +441,7 @@ class NetworkFileAdapter {
             return fileNames;
         } catch (error) {
             console.error(`❌ NetworkFileAdapter: WebDAV目录读取失败 "${dirPath}":`, error.message);
+            console.error(`    错误详情:`, error);
             throw new Error(`WebDAV目录读取失败: ${error.message}`);
         }
     }

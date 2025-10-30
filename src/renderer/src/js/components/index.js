@@ -32,6 +32,8 @@ const COMPONENTS = {
         'HomePage',            // 首页组件
         'Lyrics',              // 歌词页组件
         'Navigation',          // 侧边导航栏组件
+        'NetworkDiskModal',    // 网络磁盘配置模态框组件
+        'NetworkDriveDetailPage', // 网络磁盘详情页组件
         'Player',              // 播放器控制台组件
         'Playlist',            // 播放列表组件
         'PlaylistDetailPage',  // 歌单页组件

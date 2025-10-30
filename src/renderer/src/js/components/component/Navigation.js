@@ -8,6 +8,7 @@ class Navigation extends Component {
         this.currentView = 'library';
         this.sidebarCollapsed = false;
         this.userPlaylists = [];
+        this.networkDrives = [];
 
         // 插件相关
         this.pluginItems = new Map(); // 存储插件添加的导航项
@@ -17,6 +18,7 @@ class Navigation extends Component {
         this.setupEventListeners();
         this.restoreSidebarState();
         this.loadUserPlaylists();
+        this.loadNetworkDrives();
         this.initializeSidebarButtonsState();
         this.initializeWindowState().then(r => {
             if (!r.status) console.error('❌ Navigation: 初始化窗口状态失败', r.error);
@@ -62,6 +64,10 @@ class Navigation extends Component {
         // 歌单相关元素
         this.userPlaylistsSection = document.getElementById('user-playlists-section');
         this.userPlaylistsList = document.getElementById('user-playlists-list');
+
+        // 网络磁盘相关元素
+        this.networkDrivesSection = document.getElementById('network-drives-section');
+        this.networkDrivesList = document.getElementById('network-drives-list');
 
         // 侧边栏功能按钮
         this.statisticsLink = document.querySelector('[data-view="statistics"]');
@@ -166,6 +172,7 @@ class Navigation extends Component {
         }
 
         this.renderUserPlaylists();
+        this.renderNetworkDrives(); // 重新渲染网络磁盘
         this.reRenderPluginItems(); // 重新渲染插件项
         window.cacheManager.setLocalCache('sidebarCollapsed', this.sidebarCollapsed);
         console.log('🎵 Navigation: 侧边栏状态切换', this.sidebarCollapsed ? '收缩' : '展开');
@@ -570,6 +577,113 @@ class Navigation extends Component {
             this.userPlaylists[index] = {...this.userPlaylists[index], ...updatedPlaylist};
             this.renderUserPlaylists();
             // console.log('✅ Navigation: 歌单信息已更新', updatedPlaylist.name);
+        }
+    }
+
+    // --- 网络磁盘管理 ---
+
+    async loadNetworkDrives() {
+        try {
+            const mountedDrives = await window.electronAPI.networkDrive.getMountedDrives();
+            this.networkDrives = mountedDrives || [];
+            this.renderNetworkDrives();
+            console.log(`✅ Navigation: 加载了 ${this.networkDrives.length} 个网络磁盘`);
+        } catch (error) {
+            console.error('❌ Navigation: 加载网络磁盘列表失败', error);
+            this.networkDrives = [];
+            this.renderNetworkDrives();
+        }
+    }
+
+    renderNetworkDrives() {
+        if (!this.networkDrivesList || !this.networkDrivesSection) {
+            return;
+        }
+
+        if (this.networkDrives.length === 0) {
+            this.networkDrivesSection.style.display = 'none';
+            return;
+        }
+
+        this.networkDrivesSection.style.display = 'block';
+        this.networkDrivesList.innerHTML = this.networkDrives.map(drive =>
+            this.renderNetworkDriveItem(drive)
+        ).join('');
+
+        this.setupNetworkDriveItemEvents();
+    }
+
+    renderNetworkDriveItem(drive) {
+        // 根据磁盘类型选择 SVG 图标
+        const iconPath = drive.type === 'smb'
+            ? 'M4,1H20A1,1 0 0,1 21,2V6A1,1 0 0,1 20,7H4A1,1 0 0,1 3,6V2A1,1 0 0,1 4,1M4,9H20A1,1 0 0,1 21,10V14A1,1 0 0,1 20,15H4A1,1 0 0,1 3,14V10A1,1 0 0,1 4,9M4,17H20A1,1 0 0,1 21,18V22A1,1 0 0,1 20,23H4A1,1 0 0,1 3,22V18A1,1 0 0,1 4,17M9,5H10V3H9V5M9,13H10V11H9V13M9,21H10V19H9V21M5,3V5H7V3H5M5,11V13H7V11H5M5,19V21H7V19H5Z'
+            : 'M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.04Z';
+
+        const displayName = drive.config?.displayName || drive.displayName || '未命名磁盘';
+
+        if (this.sidebarCollapsed) {
+            return `
+                <li>
+                    <div class="network-drive-sidebar-item collapsed-item"
+                         data-drive-id="${drive.id}"
+                         title="${this.escapeHtml(displayName)}">
+                        <svg class="drive-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="${iconPath}"/>
+                        </svg>
+                    </div>
+                </li>
+            `;
+        } else {
+            return `
+                <li>
+                    <div class="network-drive-sidebar-item" data-drive-id="${drive.id}">
+                        <svg class="drive-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="${iconPath}"/>
+                        </svg>
+                        <span class="drive-name">${this.escapeHtml(displayName)}</span>
+                        <div class="sidebar-drive-actions">
+                            <button class="sidebar-drive-action-btn" data-action="refresh" title="刷新连接">
+                                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </li>
+            `;
+        }
+    }
+
+    setupNetworkDriveItemEvents() {
+        this.networkDrivesList.querySelectorAll('.network-drive-sidebar-item').forEach(item => {
+            const driveId = item.dataset.driveId;
+            const drive = this.networkDrives.find(d => d.id === driveId);
+            if (!drive) return;
+
+            item.addEventListener('click', (e) => {
+                if (!e.target.closest('.sidebar-drive-action-btn')) {
+                    this.emit('networkDriveSelected', drive);
+                }
+            });
+
+            const refreshBtn = item.querySelector('[data-action="refresh"]');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await this.refreshNetworkDrive(drive);
+                });
+            }
+        });
+    }
+
+    async refreshNetworkDrive(drive) {
+        try {
+            await window.electronAPI.networkDrive.refreshConnection(drive.id);
+            await this.loadNetworkDrives();
+            window.app.showInfo(`网络磁盘 "${drive.displayName}" 已刷新`);
+        } catch (error) {
+            console.error('❌ Navigation: 刷新网络磁盘失败', error);
+            window.app.showError('刷新失败，请重试');
         }
     }
 

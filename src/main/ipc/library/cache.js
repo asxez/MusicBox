@@ -161,6 +161,53 @@ function registerLibraryCacheIpcHandlers(
             return {success: false, error: error.message};
         }
     });
+
+    // 获取指定网络磁盘的歌曲
+    ipcMain.handle('library:getTracksByDrive', async (event, driveId) => {
+        try {
+            if (!getLibraryCacheManager()) {
+                await initializeCacheManager();
+            }
+            const libraryCacheManager = getLibraryCacheManager();
+            const tracks = libraryCacheManager.getTracksByDrive(driveId);
+
+            // 清理返回的 tracks 中的 cover 对象
+            const cleanedTracks = tracks.map(track => {
+                const cleanedTrack = {...track};
+                if (cleanedTrack.cover && typeof cleanedTrack.cover === 'object') {
+                    cleanedTrack.cover = null;
+                }
+                return cleanedTrack;
+            });
+
+            console.log(`📀 获取网络磁盘 ${driveId} 的歌曲: ${cleanedTracks.length} 首`);
+            return cleanedTracks;
+        } catch (error) {
+            console.error('❌ 获取网络磁盘歌曲失败:', error);
+            return [];
+        }
+    });
+
+    // 移除指定网络磁盘的所有歌曲
+    ipcMain.handle('library:removeTracksByDrive', async (event, driveId) => {
+        try {
+            if (!getLibraryCacheManager()) {
+                await initializeCacheManager();
+            }
+            const libraryCacheManager = getLibraryCacheManager();
+            const removedCount = libraryCacheManager.removeTracksByDrive(driveId);
+            await libraryCacheManager.saveCache();
+
+            // 更新内存中的音乐库
+            audioEngineState.scannedTracks = libraryCacheManager.getAllTracks();
+
+            console.log(`🗑️ 从网络磁盘 ${driveId} 删除了 ${removedCount} 首歌曲`);
+            return {success: true, removedCount};
+        } catch (error) {
+            console.error('❌ 删除网络磁盘歌曲失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
 }
 
 module.exports = {
