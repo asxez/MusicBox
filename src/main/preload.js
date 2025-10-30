@@ -137,6 +137,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         // Scan for music files
         scanDirectory: (path) => ipcRenderer.invoke('library:scanDirectory', path),
         scanNetworkDrive: (driveId, relativePath) => ipcRenderer.invoke('library:scanNetworkDrive', driveId, relativePath),
+        scanSingleFile: (networkPath) => ipcRenderer.invoke('library:scanSingleFile', networkPath),
         scanDirectoryForFiles: (path) => ipcRenderer.invoke('library:scanDirectoryForFiles', path),
         addTrackToLibrary: (audioFile) => ipcRenderer.invoke('library:addTrackToLibrary', audioFile),
 
@@ -172,6 +173,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
         getCacheStatistics: () => ipcRenderer.invoke('library:getCacheStatistics'),
         clearCache: () => ipcRenderer.invoke('library:clearCache'),
         removeTrack: (trackFileId) => ipcRenderer.invoke('library:removeTrack', trackFileId),
+        getTracksByDrive: (driveId) => ipcRenderer.invoke('library:getTracksByDrive', driveId),
+        removeTracksByDrive: (driveId) => ipcRenderer.invoke('library:removeTracksByDrive', driveId),
 
         // 歌单封面
         updatePlaylistCover: (playlistId, imagePath) => ipcRenderer.invoke('library:updatePlaylistCover', playlistId, imagePath),
@@ -232,6 +235,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         testConnection: (config) => ipcRenderer.invoke('network-drive:testConnection', config),
         refreshConnections: () => ipcRenderer.invoke('network-drive:refreshConnections'),
         refreshConnection: (driveId) => ipcRenderer.invoke('network-drive:refreshConnection', driveId),
+        getDirectoryStructure: (driveId, dirPath) => ipcRenderer.invoke('network-drive:getDirectoryStructure', driveId, dirPath),
 
         // 监听网络磁盘事件
         onConnected: (callback) => ipcRenderer.on('network-drive:connected', callback),

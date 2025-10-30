@@ -56,6 +56,93 @@ function registerLibraryScanIpcHandlers(
         }
     });
 
+    // 扫描单个网络文件
+    ipcMain.handle('library:scanSingleFile', async (event, networkPath) => {
+        try {
+            const networkFileAdapter = getNetworkFileAdapter();
+            if (!networkFileAdapter) {
+                throw new Error('NetworkFileAdapter 未初始化');
+            }
+
+            if (!getLibraryCacheManager()) {
+                await initializeCacheManager();
+            }
+
+            const libraryCacheManager = getLibraryCacheManager();
+
+            // 检查文件是否已在缓存中
+            const existingTrack = libraryCacheManager.cache.tracks.find(
+                track => track.filePath === networkPath
+            );
+
+            if (existingTrack) {
+                console.log(`✅ 文件已在缓存中: ${networkPath}`);
+                return { success: true, track: existingTrack, isNew: false };
+            }
+
+            // 检查文件扩展名
+            const audioExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.ape'];
+            const ext = path.extname(networkPath).toLowerCase();
+            if (!audioExtensions.includes(ext)) {
+                return { success: false, error: '不支持的音频格式' };
+            }
+
+            // 获取文件统计信息
+            const stats = await networkFileAdapter.stat(networkPath);
+            const isDir = typeof stats.isDirectory === 'function'
+                ? stats.isDirectory()
+                : Boolean(stats.isDirectory);
+
+            if (isDir) {
+                return { success: false, error: '这是一个文件夹，不是音频文件' };
+            }
+
+            // 解析元数据
+            console.log(`🎵 开始扫描单个文件: ${networkPath}`);
+            const metadata = await parseMetadata(networkPath);
+            const fileName = path.basename(networkPath);
+
+            const trackData = {
+                filePath: networkPath,
+                fileName: fileName,
+                title: metadata.title || path.basename(fileName, ext),
+                artist: metadata.artist || '未知艺术家',
+                album: metadata.album || '未知专辑',
+                duration: metadata.duration || 0,
+                bitrate: metadata.bitrate,
+                sampleRate: metadata.sampleRate,
+                year: metadata.year,
+                genre: metadata.genre,
+                track: metadata.track,
+                disc: metadata.disc,
+                fileSize: stats.size || 0,
+                embeddedLyrics: metadata.embeddedLyrics,
+                isNetworkFile: true,
+            };
+
+            // 添加到缓存
+            const addedTracks = libraryCacheManager.addTracks([{
+                trackData,
+                filePath: networkPath,
+                stats: stats
+            }]);
+
+            await libraryCacheManager.saveCache();
+
+            console.log(`✅ 单个文件扫描完成: ${trackData.title} - ${trackData.artist}`);
+
+            // 通知渲染进程更新
+            if (mainWindow) {
+                mainWindow.webContents.send('library:updated', [trackData]);
+            }
+
+            return { success: true, track: addedTracks[0], isNew: true };
+        } catch (error) {
+            console.error('❌ 扫描单个文件失败:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
     ipcMain.handle('library:scanNetworkDrive', async (event, driveId, relativePath = '/') => {
         try {
             const networkDriveManager = getNetworkDriveManager();

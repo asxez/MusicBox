@@ -357,11 +357,76 @@ class LibraryCacheManager {
         return track;
     }
 
+    // 从网络路径提取 driveId
+    parseDriveId(filePath) {
+        if (!this.isNetworkPath(filePath)) return null;
+        const match = filePath.match(/^network:\/\/([^\/]+)/);
+        return match ? match[1] : null;
+    }
+
+    // 获取指定网络磁盘的歌曲
+    getTracksByDrive(driveId) {
+        if (!Array.isArray(this.cache.tracks)) {
+            console.warn('⚠️ LibraryCacheManager: tracks 不是数组，重置为空数组');
+            this.cache.tracks = [];
+            return [];
+        }
+
+        return this.cache.tracks.filter(track =>
+            this.parseDriveId(track.filePath) === driveId
+        );
+    }
+
+    // 移除指定网络磁盘的所有歌曲
+    removeTracksByDrive(driveId) {
+        if (!Array.isArray(this.cache.tracks)) {
+            console.warn('⚠️ LibraryCacheManager: tracks 不是数组，重置为空数组');
+            this.cache.tracks = [];
+            return 0;
+        }
+
+        const before = this.cache.tracks.length;
+        const removedTracks = this.cache.tracks.filter(track =>
+            this.parseDriveId(track.filePath) === driveId
+        );
+
+        this.cache.tracks = this.cache.tracks.filter(track =>
+            this.parseDriveId(track.filePath) !== driveId
+        );
+
+        const removed = before - this.cache.tracks.length;
+
+        if (removed > 0) {
+            console.log(`🗑️ LibraryCacheManager: 从网络磁盘 ${driveId} 删除了 ${removed} 首歌曲`);
+
+            // 从所有歌单中移除这些歌曲的引用
+            if (Array.isArray(this.cache.playlists)) {
+                const removedFileIds = new Set(removedTracks.map(t => t.fileId));
+
+                for (const playlist of this.cache.playlists) {
+                    if (Array.isArray(playlist.trackIds)) {
+                        const originalLength = playlist.trackIds.length;
+                        playlist.trackIds = playlist.trackIds.filter(trackId =>
+                            !removedFileIds.has(trackId)
+                        );
+
+                        if (playlist.trackIds.length !== originalLength) {
+                            playlist.updatedAt = Date.now();
+                            const removedFromPlaylist = originalLength - playlist.trackIds.length;
+                            console.log(`🗑️ LibraryCacheManager: 从歌单 ${playlist.name} 中移除了 ${removedFromPlaylist} 个网络磁盘歌曲引用`);
+                        }
+                    }
+                }
+            }
+        }
+
+        return removed;
+    }
+
     // 添加已扫描目录
     addScannedDirectory(directoryPath) {
         if (!this.cache.scannedDirectories.includes(directoryPath)) {
             this.cache.scannedDirectories.push(directoryPath);
-
         }
     }
 

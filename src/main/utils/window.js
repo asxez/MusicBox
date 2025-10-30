@@ -3,7 +3,7 @@
  * 提供主窗口和桌面歌词窗口的创建、管理功能
  */
 
-const {BrowserWindow, shell} = require('electron');
+const {BrowserWindow} = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -134,7 +134,7 @@ function getDesktopLyricsWindow() {
  * @returns {BrowserWindow} 创建的主窗口实例
  */
 async function createWindow() {
-    const {app} = require('electron');
+    const {app, shell} = require('electron');
     const isDev = process.env.NODE_ENV === 'development';
 
     // 加载窗口配置

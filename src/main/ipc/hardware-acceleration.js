@@ -1,6 +1,5 @@
 // 硬件加速设置相关 IPC
 
-const {app} = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -18,6 +17,7 @@ let hardwareAccelerationSettings = {...defaultSettings};
 
 // 初始化设置文件路径
 function initSettingsPath() {
+    const {app} = require('electron');
     if (!settingsFilePath) {
         const userDataPath = app.getPath('userData');
         settingsFilePath = path.join(userDataPath, 'hardware-acceleration-settings.json');

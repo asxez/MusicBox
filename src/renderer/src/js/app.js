@@ -140,6 +140,9 @@ class MusicBoxApp extends EventEmitter {
         // 初始化歌单详情页面组件
         this.components.playlistDetailPage = new PlaylistDetailPage('#content-area');
 
+        // 初始化网络磁盘详情页面组件
+        this.components.networkDriveDetailPage = new NetworkDriveDetailPage('#content-area');
+
         // 将settings组件暴露到全局，供其他组件访问
         window.settings = this.components.settings;
 
@@ -177,6 +180,10 @@ class MusicBoxApp extends EventEmitter {
 
         this.components.navigation.on('playlistSelected', async (playlist) => {
             await this.handlePlaylistSelected(playlist);
+        });
+
+        this.components.navigation.on('networkDriveSelected', async (drive) => {
+            await this.handleNetworkDriveSelected(drive);
         });
 
         this.components.navigation.on('showRenameDialog', (playlist) => {
@@ -959,6 +966,10 @@ class MusicBoxApp extends EventEmitter {
         if (this.components.networkDiskModal) {
             this.setupSingleComponentEvents('networkDiskModal');
         }
+
+        if (this.components.networkDriveDetailPage) {
+            this.setupSingleComponentEvents('networkDriveDetailPage');
+        }
     }
 
     // 设置单个组件的事件监听
@@ -1029,6 +1040,22 @@ class MusicBoxApp extends EventEmitter {
                 }
                 break;
 
+            case 'networkDriveDetailPage':
+                if (this.components.networkDriveDetailPage) {
+                    this.components.networkDriveDetailPage.on('driveRemoved', async (drive) => {
+                        await this.handleDriveRemoved(drive);
+                    });
+
+                    this.components.networkDriveDetailPage.on('playTrack', async (track, index) => {
+                        await this.handleTrackPlayed(track, index);
+                    });
+
+                    this.components.networkDriveDetailPage.on('playTracks', async (tracks, startIndex) => {
+                        await this.handlePlayAllTracks(tracks);
+                    });
+                }
+                break;
+
             default:
                 console.warn('🎵 App: 未知的组件名称:', componentName);
         }
@@ -1054,8 +1081,8 @@ class MusicBoxApp extends EventEmitter {
         this.currentView = view;
 
         // 更新侧边栏选中状态
-        // 除了歌单详情页面，因为它有特殊处理
-        if (view !== 'playlist-detail') {
+        // 除了歌单详情页面和网络磁盘详情页面，因为它们有特殊处理
+        if (view !== 'playlist-detail' && view !== 'network-drive-detail') {
             this.updateSidebarSelection(view);
         }
 
@@ -1109,6 +1136,7 @@ class MusicBoxApp extends EventEmitter {
         if (this.components.albumsPage) this.components.albumsPage.hide();
         if (this.components.statisticsPage) this.components.statisticsPage.hide();
         if (this.components.playlistDetailPage) this.components.playlistDetailPage.hide();
+        if (this.components.networkDriveDetailPage) this.components.networkDriveDetailPage.hide();
         if (this.components.trackList) this.components.trackList.hide();
     }
 
@@ -1452,10 +1480,26 @@ class MusicBoxApp extends EventEmitter {
         }
     }
 
+    // 处理网络磁盘选择
+    async handleNetworkDriveSelected(drive) {
+        this.hideAllPages();
+        this.updateSidebarSelection('network-drive', drive.id);
+        this.currentView = 'network-drive-detail';
+        if (this.components.networkDriveDetailPage) {
+            await this.components.networkDriveDetailPage.show(drive);
+        }
+    }
+
+    // 处理网络磁盘移除
+    async handleDriveRemoved(drive) {
+        await this.components.navigation.loadNetworkDrives();
+        await this.refreshLibrary();
+    }
+
     // 更新侧边栏选中状态
     updateSidebarSelection(type, id = null) {
         // 清除所有侧边栏项目的选中状态
-        document.querySelectorAll('.sidebar-link, .playlist-sidebar-item').forEach(item => {
+        document.querySelectorAll('.sidebar-link, .playlist-sidebar-item, .network-drive-sidebar-item').forEach(item => {
             item.classList.remove('active');
         });
 
@@ -1464,6 +1508,12 @@ class MusicBoxApp extends EventEmitter {
             const playlistItem = document.querySelector(`[data-playlist-id="${id}"]`);
             if (playlistItem) {
                 playlistItem.classList.add('active');
+            }
+        } else if (type === 'network-drive' && id) {
+            // 高亮选中的网络磁盘
+            const driveItem = document.querySelector(`[data-drive-id="${id}"]`);
+            if (driveItem) {
+                driveItem.classList.add('active');
             }
         } else {
             // 高亮选中的导航项
@@ -1799,6 +1849,12 @@ class MusicBoxApp extends EventEmitter {
         if (this.currentView === 'playlist-detail' && this.components.playlistDetailPage) {
             // 在歌单页，仅从当前歌单中移除
             await this.components.playlistDetailPage.removeTrackFromPlaylist(track, index);
+            return;
+        }
+
+        if (this.currentView === 'network-drive-detail') {
+            // 在网络磁盘详情页，不允许删除（网络磁盘歌曲应该通过移除整个磁盘来删除）
+            this.showError('网络磁盘中的歌曲无法单独删除，请通过移除整个网络磁盘来删除');
             return;
         }
 
