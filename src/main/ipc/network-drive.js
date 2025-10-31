@@ -8,7 +8,14 @@
  * @param {function} deps.initializeNetworkDriveManager - 初始化 NetworkDriveManager 的函数
  * @param {function} deps.getNetworkFileAdapter - 返回当前 NetworkFileAdapter 实例的函数
  */
-function registerNetworkDriveIpcHandlers({ipcMain, getNetworkDriveManager, initializeNetworkDriveManager, getNetworkFileAdapter}) {
+function registerNetworkDriveIpcHandlers(
+    {
+        ipcMain,
+        getNetworkDriveManager,
+        initializeNetworkDriveManager,
+        getNetworkFileAdapter
+    }
+) {
     if (!ipcMain) throw new Error('registerNetworkDriveIpcHandlers: 缺少 ipcMain');
     if (!getNetworkFileAdapter) throw new Error('registerNetworkDriveIpcHandlers: 缺少 getNetworkFileAdapter');
 
@@ -159,22 +166,22 @@ function registerNetworkDriveIpcHandlers({ipcMain, getNetworkDriveManager, initi
         try {
             const mgr = getNetworkDriveManager();
             if (!mgr) {
-                return { success: false, error: '网络磁盘管理器未初始化' };
+                return {success: false, error: '网络磁盘管理器未初始化'};
             }
 
             const driveInfo = mgr.getDriveInfo(driveId);
             if (!driveInfo) {
-                return { success: false, error: '网络磁盘未挂载' };
+                return {success: false, error: '网络磁盘未挂载'};
             }
 
             const status = mgr.getDriveStatus(driveId);
             if (!status || !status.connected) {
-                return { success: false, error: '网络磁盘未连接' };
+                return {success: false, error: '网络磁盘未连接'};
             }
 
             const adapter = getNetworkFileAdapter();
             if (!adapter) {
-                return { success: false, error: 'NetworkFileAdapter 未初始化' };
+                return {success: false, error: 'NetworkFileAdapter 未初始化'};
             }
 
             // 构建网络路径
@@ -223,10 +230,10 @@ function registerNetworkDriveIpcHandlers({ipcMain, getNetworkDriveManager, initi
                 return a.name.localeCompare(b.name);
             });
 
-            return { success: true, structure };
+            return {success: true, structure};
         } catch (error) {
             console.error('❌ 获取网络磁盘目录结构失败:', error);
-            return { success: false, error: error.message };
+            return {success: false, error: error.message};
         }
     });
 }

@@ -6,7 +6,7 @@
     高颜值的本地音乐播放器
     <br />
     <br />
-    <!-- <a href="#-特性"><strong>✨ 查看特性</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp; -->
+    <a href="https://asxez.github.io/MusicBox/"><strong>🌐 官方网站</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
     <a href="#-安装"><strong>📦下载安装</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
     <a href="#-开发"><strong>🛠️开发指南</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
     <a href="#-插件开发"><strong>🔧为MusicBox安装（开发）插件</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
