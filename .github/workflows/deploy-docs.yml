@@ -1,4 +1,4 @@
-name: Deploy VitePress Docs to GitHub Pages
+name: gh-pages
 
 on:
   # 在推送到 main 分支时触发
@@ -70,4 +70,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-

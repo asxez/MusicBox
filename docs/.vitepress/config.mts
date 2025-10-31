@@ -7,17 +7,17 @@ export default defineConfig({
   lang: 'zh-CN',
   
   head: [
-    ['link', { rel: 'icon', href: '/logo.svg' }],
+    ['link', { rel: 'icon', href: 'images/logo.svg' }],
     ['meta', { name: 'theme-color', content: '#646cff' }],
     ['meta', { name: 'og:type', content: 'website' }],
     ['meta', { name: 'og:locale', content: 'zh-CN' }],
     ['meta', { name: 'og:site_name', content: 'MusicBox' }],
-    ['meta', { name: 'og:image', content: '/logo.svg' }],
+    ['meta', { name: 'og:image', content: 'images/logo.svg' }],
   ],
 
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
-    logo: 'docs/images/logo.svg',
+    logo: 'images/logo.svg',
     
     nav: [
       { text: '首页', link: '/' },

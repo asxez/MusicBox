@@ -6,7 +6,7 @@ hero:
   text: "高颜值本地音乐播放器"
   tagline: "A visually stunning, plugin-based local music player."
   image:
-    src: docs/images/logo.svg
+    src: images/logo.svg
     alt: MusicBox
   actions:
     - theme: brand
