@@ -6,9 +6,6 @@ export default defineConfig({
   description: "高颜值的本地音乐播放器",
   lang: 'zh-CN',
   
-  // 如果部署到 GitHub Pages 的子路径，需要设置 base
-  // base: '/MusicBox/',
-  
   head: [
     ['link', { rel: 'icon', href: '/logo.svg' }],
     ['meta', { name: 'theme-color', content: '#646cff' }],
@@ -20,7 +17,7 @@ export default defineConfig({
 
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
-    logo: './images/logo.svg',
+    logo: 'docs/images/logo.svg',
     
     nav: [
       { text: '首页', link: '/' },
