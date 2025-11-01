@@ -1,10 +1,10 @@
 name: gh-pages
 
 on:
-  # 在推送到 main 分支时触发
+  # 在推送到 dev 分支时触发
   push:
     branches:
-      - main
+      - dev
     paths:
       - 'docs/**'
       - '.github/workflows/deploy-docs.yml'
