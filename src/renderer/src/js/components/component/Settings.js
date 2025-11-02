@@ -137,6 +137,9 @@ class Settings extends Component {
         // 打开应用数据文件夹按钮
         this.openSoftDirBtn = this.element.querySelector('#open-soft-dir');
 
+        // 开发者工具按钮
+        this.developerToolsBtn = this.element.querySelector('#developer-tools');
+
         // 歌词高亮透明度控制元素
         this.lyricsHighlightOpacitySlider = this.element.querySelector('#lyrics-highlight-opacity-slider');
         this.lyricsHighlightOpacityValue = this.element.querySelector('#lyrics-highlight-opacity-value');
@@ -350,6 +353,13 @@ class Settings extends Component {
         if (this.openSoftDirBtn) {
             this.openSoftDirBtn.addEventListener('click', async () => {
                 await this.handleOpenUserDataFolder();
+            });
+        }
+
+        // 开发者工具按钮
+        if (this.developerToolsBtn) {
+            this.developerToolsBtn.addEventListener('click', async () => {
+                await this.handleOpenDevTools();
             });
         }
 
@@ -610,6 +620,17 @@ class Settings extends Component {
         } else {
             showToast('打开文件夹失败', 'error');
             console.error('❌ Settings: 打开应用数据文件夹失败:', result.error);
+        }
+    }
+
+    // 打开开发者工具
+    async handleOpenDevTools() {
+        const result = await window.electronAPI.openDevTools();
+        if (result.success) {
+            showToast('开发者工具已打开', 'success');
+        } else {
+            showToast('打开开发者工具失败', 'error');
+            console.error('❌ Settings: 打开开发者工具失败:', result.error);
         }
     }
 
