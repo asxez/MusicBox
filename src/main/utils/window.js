@@ -271,6 +271,18 @@ async function createWindow() {
         mainWindow.webContents.send('window:maximized', false);
     });
 
+    // 拦截开发者工具快捷键
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+        // 拦截 Ctrl+Shift+I 和 F12
+        if ((input.control && input.shift && input.key.toLowerCase() === 'i') ||
+            (input.key === 'F12')) {
+            event.preventDefault();
+            if (!mainWindow.webContents.isDevToolsOpened()) {
+                mainWindow.webContents.openDevTools({mode: 'detach'});
+            }
+        }
+    });
+
     return mainWindow;
 }
 

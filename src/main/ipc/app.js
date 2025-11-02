@@ -3,6 +3,7 @@
 const {app, shell} = require('electron');
 const path = require('path');
 const fs = require('fs');
+const {getMainWindow} = require('../utils/window');
 
 /**
  * 注册 App 相关的 IPC
@@ -61,6 +62,21 @@ function registerAppIpcHandlers({ipcMain}) {
             return {success: true, path: dirPath};
         } catch (error) {
             console.error('❌ 创建目录失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    ipcMain.handle('app:openDevTools', async () => {
+        try {
+            const win = getMainWindow();
+            if (win && !win.isDestroyed()) {
+                win.webContents.openDevTools({mode: 'detach'});
+                return {success: true};
+            } else {
+                return {success: false, error: '主窗口不可用'};
+            }
+        } catch (error) {
+            console.error('❌ 打开开发者工具失败:', error);
             return {success: false, error: error.message};
         }
     });
