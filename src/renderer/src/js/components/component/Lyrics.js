@@ -683,6 +683,7 @@ class Lyrics extends Component {
                 <div class="lyrics-line-spacer"></div>
             </div>
         `;
+        if (!this.isCenterMode) this.toggleLayoutMode();
     }
 
     renderLyrics() {
