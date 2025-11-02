@@ -297,7 +297,7 @@ async function parseMetadata(filePath, networkFileAdapter = null) {
 
         let metadata;
         if (networkFileAdapter && networkFileAdapter.isNetworkPath(filePath)) {
-            console.log(`🌐 检测到网络路径，使用网络文件解析: ${filePath}`);
+            // console.log(`🌐 检测到网络路径，使用网络文件解析: ${filePath}`);
             const buffer = await networkFileAdapter.readFile(filePath);
             metadata = await mm.parseBuffer(buffer, {
                 mimeType: getMimeTypeFromExtension(filePath),

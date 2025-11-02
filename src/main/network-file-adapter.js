@@ -14,7 +14,6 @@ class NetworkFileAdapter {
         }
 
         const isValid = filePath.startsWith('network://') && filePath.length > 10;
-
         if (!isValid && filePath.startsWith('network:')) {
             console.warn(`路径格式错误: ${filePath}, 正确格式: network://driveId/path`);
         }
@@ -235,11 +234,11 @@ class NetworkFileAdapter {
             const actualPath = this.getActualWebDAVPath(filePath);
             try {
                 const arrayBuffer = await webdavClient.getFileContents(actualPath, {format: 'binary'});
-                console.log(`✅ NetworkFileAdapter: WebDAV文件读取成功（使用actualPath），大小: ${arrayBuffer.byteLength} 字节`);
+                // console.log(`✅ NetworkFileAdapter: WebDAV文件读取成功（使用actualPath），大小: ${arrayBuffer.byteLength} 字节`);
                 return Buffer.from(arrayBuffer);
             } catch (actualPathError) {
                 const arrayBuffer = await webdavClient.getFileContents(filePath, {format: 'binary'});
-                console.log(`✅ NetworkFileAdapter: WebDAV文件读取成功（使用原始路径），大小: ${arrayBuffer.byteLength} 字节`);
+                // console.log(`✅ NetworkFileAdapter: WebDAV文件读取成功（使用原始路径），大小: ${arrayBuffer.byteLength} 字节`);
                 return Buffer.from(arrayBuffer);
             }
         } catch (error) {
@@ -314,7 +313,7 @@ class NetworkFileAdapter {
             const actualPath = this.getActualWebDAVPath(filePath);
             try {
                 const stat = await webdavClient.stat(actualPath);
-                console.log(`✅ NetworkFileAdapter: WebDAV文件信息获取成功（使用actualPath），类型: ${stat.type}, 大小: ${stat.size || 0}`);
+                // console.log(`✅ NetworkFileAdapter: WebDAV文件信息获取成功（使用actualPath），类型: ${stat.type}, 大小: ${stat.size || 0}`);
                 return {
                     size: stat.size || 0,
                     mtime: stat.lastmod ? new Date(stat.lastmod) : new Date(),
@@ -323,7 +322,7 @@ class NetworkFileAdapter {
                 };
             } catch (actualPathError) {
                 const stat = await webdavClient.stat(filePath);
-                console.log(`✅ NetworkFileAdapter: WebDAV文件信息获取成功（使用原始路径），类型: ${stat.type}, 大小: ${stat.size || 0}`);
+                // console.log(`✅ NetworkFileAdapter: WebDAV文件信息获取成功（使用原始路径），类型: ${stat.type}, 大小: ${stat.size || 0}`);
                 return {
                     size: stat.size || 0,
                     mtime: stat.lastmod ? new Date(stat.lastmod) : new Date(),
@@ -414,25 +413,17 @@ class NetworkFileAdapter {
                 const originalFilename = item.filename;
                 const baseName = path.basename(originalFilename);
 
-                console.log(`🔍 分析文件编码:`);
-                console.log(`    原始filename: "${originalFilename}"`);
-                console.log(`    basename: "${baseName}"`);
-
                 // 检查文件名是否已经被编码
                 const isAlreadyEncoded = this.isPathEncoded(baseName);
-                console.log(`    是否已编码: ${isAlreadyEncoded}`);
 
                 let finalName;
                 if (isAlreadyEncoded) {
                     // 如果已经编码，直接解码
                     finalName = this.decodeWebDAVPath(baseName);
-                    console.log(`    解码结果: "${finalName}"`);
                 } else {
                     // 如果未编码，直接使用
                     finalName = baseName;
-                    console.log(`    直接使用: "${finalName}"`);
                 }
-                console.log(`📄 最终文件名: "${finalName}" (类型: ${item.type || 'unknown'})`);
 
                 // 存储原始路径信息以供后续使用
                 this.storeFilePathMapping(finalName, originalFilename, baseName);
@@ -455,7 +446,7 @@ class NetworkFileAdapter {
             }
 
             const {driveId, relativePath} = this.parseNetworkPath(networkPath);
-            console.log(`🔍 NetworkFileAdapter: 解析路径 driveId="${driveId}", relativePath="${relativePath}"`);
+            // console.log(`🔍 NetworkFileAdapter: 解析路径 driveId="${driveId}", relativePath="${relativePath}"`);
 
             let driveInfo = this.networkDriveManager.getDriveInfo(driveId);
             if (!driveInfo) {
