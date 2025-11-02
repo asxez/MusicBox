@@ -417,17 +417,7 @@ class Settings extends Component {
         }
 
         // 初始化封面缓存目录
-        const coverCacheDirectory = this.settings.coverCacheDirectory;
-        if (coverCacheDirectory) {
-            this.coverCacheFolderPath.textContent = coverCacheDirectory;
-            this.coverCacheFolderPath.classList.add('selected');
-
-            // 设置本地封面管理器
-            window.localCoverManager.setCoverDirectory(coverCacheDirectory);
-        } else {
-            this.coverCacheFolderPath.textContent = '未选择';
-            this.coverCacheFolderPath.classList.remove('selected');
-        }
+        this.initializeCoverCacheDirectory();
 
         // 初始化网络磁盘设置
         this.networkDriveToggle.checked = this.settings.hasOwnProperty('networkDriveEnabled') ? this.settings.networkDriveEnabled : false;
@@ -502,6 +492,48 @@ class Settings extends Component {
         } catch (error) {
             console.error('❌ Settings: 初始化硬件加速设置失败:', error);
             this.hardwareAccelerationToggle.checked = true; // 默认启用
+        }
+    }
+
+    // 初始化封面缓存目录
+    async initializeCoverCacheDirectory() {
+        try {
+            let coverCacheDirectory = this.settings.coverCacheDirectory;
+
+            // 如果用户未设置封面缓存目录，使用默认路径
+            if (!coverCacheDirectory) {
+                const defaultPathResult = await window.electronAPI.getDefaultCoverCachePath();
+                if (defaultPathResult.success) {
+                    coverCacheDirectory = defaultPathResult.path;
+
+                    // 确保默认目录存在
+                    const ensureResult = await window.electronAPI.ensureDirectoryExists(coverCacheDirectory);
+                    if (ensureResult.success) {
+                        // 保存默认路径到设置
+                        this.updateSetting('coverCacheDirectory', coverCacheDirectory);
+                        console.log(`✅ Settings: 使用默认封面缓存目录: ${coverCacheDirectory}`);
+                    } else {
+                        console.error('❌ Settings: 创建默认封面缓存目录失败:', ensureResult.error);
+                        coverCacheDirectory = null;
+                    }
+                } else {
+                    console.error('❌ Settings: 获取默认封面缓存路径失败:', defaultPathResult.error);
+                }
+            }
+
+            // 设置封面缓存目录
+            if (coverCacheDirectory) {
+                this.coverCacheFolderPath.textContent = coverCacheDirectory;
+                this.coverCacheFolderPath.classList.add('selected');
+                window.localCoverManager.setCoverDirectory(coverCacheDirectory);
+            } else {
+                this.coverCacheFolderPath.textContent = '未选择';
+                this.coverCacheFolderPath.classList.remove('selected');
+            }
+        } catch (error) {
+            console.error('❌ Settings: 初始化封面缓存目录失败:', error);
+            this.coverCacheFolderPath.textContent = '未选择';
+            this.coverCacheFolderPath.classList.remove('selected');
         }
     }
 

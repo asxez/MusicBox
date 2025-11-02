@@ -32,6 +32,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getPlatform: () => ipcRenderer.invoke('app:getPlatform'),
     getUserDataPath: () => ipcRenderer.invoke('app:getUserDataPath'),
     openUserDataFolder: () => ipcRenderer.invoke('app:openUserDataFolder'),
+    getDefaultCoverCachePath: () => ipcRenderer.invoke('app:getDefaultCoverCachePath'),
+    ensureDirectoryExists: (dirPath) => ipcRenderer.invoke('app:ensureDirectoryExists', dirPath),
 
     // 文件对话框
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
