@@ -134,6 +134,9 @@ class Settings extends Component {
         // 硬件加速配置元素
         this.hardwareAccelerationToggle = this.element.querySelector('#hardware-acceleration-toggle');
 
+        // 打开应用数据文件夹按钮
+        this.openSoftDirBtn = this.element.querySelector('#open-soft-dir');
+
         // 歌词高亮透明度控制元素
         this.lyricsHighlightOpacitySlider = this.element.querySelector('#lyrics-highlight-opacity-slider');
         this.lyricsHighlightOpacityValue = this.element.querySelector('#lyrics-highlight-opacity-value');
@@ -342,6 +345,13 @@ class Settings extends Component {
         this.hardwareAccelerationToggle.addEventListener('change', async (e) => {
             await this.handleHardwareAccelerationChange(e.target.checked);
         });
+
+        // 打开应用数据文件夹按钮
+        if (this.openSoftDirBtn) {
+            this.openSoftDirBtn.addEventListener('click', async () => {
+                await this.handleOpenUserDataFolder();
+            });
+        }
 
         // 歌词高亮透明度设置
         this.lyricsHighlightOpacitySlider.addEventListener('input', (e) => {
@@ -558,6 +568,17 @@ class Settings extends Component {
     // 显示硬件加速启用通知
     showHardwareAccelerationEnabledNotification() {
         showToast('硬件加速已启用，建议重启应用以获得最佳性能', 'success');
+    }
+
+    // 打开应用数据文件夹
+    async handleOpenUserDataFolder() {
+        const result = await window.electronAPI.openUserDataFolder();
+        if (result.success) {
+            showToast('已打开应用数据文件夹', 'success');
+        } else {
+            showToast('打开文件夹失败', 'error');
+            console.error('❌ Settings: 打开应用数据文件夹失败:', result.error);
+        }
     }
 
     // 更新歌词高亮透明度

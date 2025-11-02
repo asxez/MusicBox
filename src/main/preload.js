@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // 应用信息
     getVersion: () => ipcRenderer.invoke('app:getVersion'),
     getPlatform: () => ipcRenderer.invoke('app:getPlatform'),
+    getUserDataPath: () => ipcRenderer.invoke('app:getUserDataPath'),
+    openUserDataFolder: () => ipcRenderer.invoke('app:openUserDataFolder'),
 
     // 文件对话框
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),

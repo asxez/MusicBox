@@ -1,6 +1,6 @@
 // App 基础信息 IPC
 
-const {app} = require('electron');
+const {app, shell} = require('electron');
 
 /**
  * 注册 App 相关的 IPC
@@ -22,6 +22,21 @@ function registerAppIpcHandlers({ipcMain}) {
         app.relaunch();
         app.exit(0);
         return {success: true};
+    });
+
+    ipcMain.handle('app:getUserDataPath', () => {
+        return app.getPath('userData');
+    });
+
+    ipcMain.handle('app:openUserDataFolder', async () => {
+        try {
+            const userDataPath = app.getPath('userData');
+            await shell.openPath(userDataPath);
+            return {success: true};
+        } catch (error) {
+            console.error('❌ 打开应用数据文件夹失败:', error);
+            return {success: false, error: error.message};
+        }
     });
 }
 
