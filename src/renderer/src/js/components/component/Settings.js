@@ -12,7 +12,6 @@ class Settings extends Component {
         this.setupElements();
         this.setupEventListeners();
         this.initializeSettings();
-        this.initializePluginContainer();
         this.initializeSectionDisplay();
         this.updateVersionInfo();
     }
