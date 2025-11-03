@@ -47,13 +47,13 @@
 
 ## 📔 TODOS
 
-✅已完成，❌未完成，🔄部分完成，❓待定
+✅已完成，❌未完成，🔄进行中，❓待定
 
 - ✅ 硬件加速
+- 🔄 重构插件系统
 - ❌ 歌词逐字
 - ❌ 修复播放列表存在的问题
 - ❌ 歌词样式调整
-- 🔄 更多其他特性
 
 
 ## 📦 安装
@@ -106,73 +106,38 @@ npm run build
 
 ## 🛠️ 开发
 
-### 项目结构
+### 项目架构
 
-```
-MusicBox/
-├── src/
-│   ├── main/                                   # 主进程代码
-│   │   ├── ipc/                                # IPC
-│   │   ├── security/                           # 安全相关模块
-│   │   ├── utils/                              # 通用工具
-│   │   ├── drive-registry.js                   # 全局驱动器注册表
-│   │   ├── library-cache-manager.js            # 音乐库缓存管理
-│   │   ├── main.js                             # 主进程入口
-│   │   ├── metadata-handler.js                 # 音频元数据处理器
-│   │   ├── metadata_editor.py                  # 音频元数据编辑器
-│   │   ├── network-drive-manager.js            # 网络磁盘管理
-│   │   ├── network-file-adapter.js             # 网络文件系统适配器
-│   │   └── preload.js                          # 预加载脚本
-│   └── renderer/                               # 渲染进程代码
-│       ├── src/                                # 源代码
-│       │   ├── js/                             # JavaScript 源码
-│       │   │   ├── components/                 # UI 组件
-│       │   │   │   └── ...                     
-│       │   │   ├── api.js                      # API 接口层
-│       │   │   ├── app.js                      # 应用主类
-│       │   │   ├── cache-manager.js            # localStorage缓存管理
-│       │   │   ├── cover-update-manager.js     # 封面更新管理
-│       │   │   ├── desktop-lyrics.js           # 桌面歌词管理
-│       │   │   ├── embedded-cover-manager.js   # 内嵌封面管理
-│       │   │   ├── embedded-lyrics-manager.js  # 内嵌歌词管理
-│       │   │   ├── local-cover-manager.js      # 本地封面文件管理
-│       │   │   ├── local-lyrics-manager.js     # 本地歌词文件管理
-│       │   │   ├── md5.js                      # md5
-│       │   │   ├── shortcut-config.js          # 快捷键配置
-│       │   │   ├── shortcut-recorder.js        # 快捷键录制器
-│       │   │   ├── url-validator.js            # URL有效性检查
-│       │   │   ├── utils.js                    # 工具方法
-│       │   │   └── web-audio-engine.js         # 音频引擎
-│       │   ├── styles/                         # SCSS 样式源码
-│       │   │   └── main.scss                   # 主样式文件
-│       │   └── assets/                         # 源资源文件
-│       └── scripts/                            # 构建脚本
-├── build/                                      # 构建的logo
-├── docs/                                       # 文档和图片
-├── dist/                                       # 构建输出目录
-├── electron-builder.yml                        # 构建配置
-├── package.json                                # 项目配置
-└── README.md                                   # 项目说明
-```
+见[MusicBox 架构文档](docs/Architecture.md)
 
 
 ## 🔧 插件开发
 
-可在 **issue** 中提交你开发的插件，我会在此链接你的仓库😋
+插件系统正在重构中...
 
-[MusicBox 插件开发文档](src/renderer/src/js/plugin-system/docs)
+[//]: # (可在 **issue** 中提交你开发的插件，我会在此链接你的仓库😋)
+
+[//]: # ()
+[//]: # ([MusicBox 插件开发文档]&#40;src/renderer/src/js/plugin-system/docs&#41;)
 
 
 ### 可用插件列表
 
-Q: 如何使用插件？
+插件系统正在重构中...
 
-A：设置中打开插件管理，导入插件即可，目前只支持单个的 JS 文件。
+[//]: # (Q: 如何使用插件？)
 
-**注意：插件间可能存在不兼容问题**
-- [主题切换器-示例插件](src/renderer/src/js/plugin-system/examples/ThemeSwitcherPlugin.js) 描述：提供多种预设主题，支持实时切换
-- [MusicBox实时状态接口](src/renderer/src/js/plugin-system/examples/RealtimeStatusAPIPlugin.js) 描述：提供 HTTP 接口获取 MusicBox 实时状态信息
-- [背景图修改器](src/renderer/src/js/plugin-system/examples/BackgroundModifyPlugin.js) 描述：可修改应用的背景图片，支持单张图片和文件夹
+[//]: # ()
+[//]: # (A：设置中打开插件管理，导入插件即可，目前只支持单个的 JS 文件。)
+
+[//]: # ()
+[//]: # (**注意：插件间可能存在不兼容问题**)
+
+[//]: # (- [主题切换器-示例插件]&#40;src/renderer/src/js/plugin-system/examples/ThemeSwitcherPlugin.js&#41; 描述：提供多种预设主题，支持实时切换)
+
+[//]: # (- [MusicBox实时状态接口]&#40;src/renderer/src/js/plugin-system/examples/RealtimeStatusAPIPlugin.js&#41; 描述：提供 HTTP 接口获取 MusicBox 实时状态信息)
+
+[//]: # (- [背景图修改器]&#40;src/renderer/src/js/plugin-system/examples/BackgroundModifyPlugin.js&#41; 描述：可修改应用的背景图片，支持单张图片和文件夹)
 
 ## 🤝 贡献
 
