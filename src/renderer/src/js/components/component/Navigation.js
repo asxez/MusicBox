@@ -10,10 +10,6 @@ class Navigation extends Component {
         this.userPlaylists = [];
         this.networkDrives = [];
 
-        // 插件相关
-        this.pluginItems = new Map(); // 存储插件添加的导航项
-        this.pluginItemIdCounter = 0; // 插件项ID计数器
-
         this.setupElements();
         this.setupEventListeners();
         this.restoreSidebarState();
@@ -173,7 +169,6 @@ class Navigation extends Component {
 
         this.renderUserPlaylists();
         this.renderNetworkDrives(); // 重新渲染网络磁盘
-        this.reRenderPluginItems(); // 重新渲染插件项
         window.cacheManager.setLocalCache('sidebarCollapsed', this.sidebarCollapsed);
         console.log('🎵 Navigation: 侧边栏状态切换', this.sidebarCollapsed ? '收缩' : '展开');
     }
@@ -687,213 +682,13 @@ class Navigation extends Component {
         return div.innerHTML;
     }
 
-    // --- 插件API ---
-
-    // 添加插件导航项
-    addPluginItem(config) {
-        try {
-            // 生成唯一ID
-            const itemId = `plugin-nav-item-${++this.pluginItemIdCounter}`;
-
-            // 验证配置
-            if (!config || typeof config !== 'object') {
-                throw new Error('插件导航项配置无效');
-            }
-
-            const {
-                id = itemId,
-                name = '插件项',
-                icon = '🔌',
-                order = 100,
-                onClick = null,
-                view = null
-            } = config;
-
-            // 创建导航项数据
-            const pluginItem = {
-                id: itemId,
-                pluginId: config.pluginId || 'unknown',
-                name,
-                icon,
-                order,
-                onClick,
-                view,
-                element: null
-            };
-
-            // 存储插件项
-            this.pluginItems.set(itemId, pluginItem);
-
-            // 渲染插件项
-            this.renderPluginItem(pluginItem);
-
-            return itemId;
-        } catch (error) {
-            console.error('❌ Navigation: 添加插件导航项失败:', error);
-            return null;
-        }
-    }
-
-    // 移除插件导航项
-    removePluginItem(itemId) {
-        try {
-            const pluginItem = this.pluginItems.get(itemId);
-            if (!pluginItem) {
-                console.warn(`⚠️ Navigation: 插件导航项 ${itemId} 不存在`);
-                return false;
-            }
-
-            // 移除DOM元素
-            if (pluginItem.element && pluginItem.element.parentNode) {
-                pluginItem.element.parentNode.removeChild(pluginItem.element);
-            }
-
-            // 从存储中移除
-            this.pluginItems.delete(itemId);
-
-            return true;
-        } catch (error) {
-            console.error('❌ Navigation: 移除插件导航项失败:', error);
-            return false;
-        }
-    }
-
-    // 渲染插件导航项
-    renderPluginItem(pluginItem) {
-        try {
-            const sidebar_content = this.sidebar.querySelector('.sidebar-content');
-
-            // 找到或创建插件导航区域
-            let pluginSection = document.createElement('div');
-            pluginSection.className = 'sidebar-section plugin-nav-section';
-            pluginSection.innerHTML = `
-                <div class="nav-section-header">
-                    <h3 class="sidebar-title">插件</h3>
-                    <ul class="sidebar-menu plugin-nav-list"></ul>
-                </div>
-            `;
-
-            // 插入到歌单后
-            const playlistSection = sidebar_content.querySelector('.user-playlists-section');
-            if (playlistSection) {
-                sidebar_content.insert(pluginSection, playlistSection);
-            } else {
-                sidebar_content.appendChild(pluginSection);
-            }
-
-            const pluginNavList = pluginSection.querySelector('.sidebar-menu');
-
-            // 创建导航项元素
-            const listItem = document.createElement('li');
-            listItem.className = 'plugin-nav-item';
-            listItem.dataset.pluginItemId = pluginItem.id;
-
-            const link = document.createElement('a');
-            link.href = '#';
-            link.className = 'sidebar-link plugin-link';
-            link.dataset.view = pluginItem.view || `plugin-${pluginItem.id}`;
-
-            // 根据侧边栏状态设置内容
-            if (this.sidebarCollapsed) {
-                link.innerHTML = `
-                    <span class="sidebar-icon" title="${this.escapeHtml(pluginItem.name)}">
-                        ${pluginItem.icon}
-                    </span>
-                `;
-            } else {
-                link.innerHTML = `
-                    <span class="sidebar-icon">${pluginItem.icon}</span>
-                    <span class="sidebar-text">${this.escapeHtml(pluginItem.name)}</span>
-                `;
-            }
-
-            // 添加点击事件
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-
-                if (pluginItem.onClick && typeof pluginItem.onClick === 'function') {
-                    try {
-                        pluginItem.onClick();
-                    } catch (error) {
-                        console.error('❌ Navigation: 插件导航项点击处理失败:', error);
-                    }
-                } else if (pluginItem.view) {
-                    this.navigateToView(pluginItem.view);
-                }
-            });
-
-            listItem.appendChild(link);
-
-            // 按order排序插入
-            const existingItems = Array.from(pluginNavList.children);
-            let insertIndex = existingItems.length;
-
-            for (let i = 0; i < existingItems.length; i++) {
-                const existingItemId = existingItems[i].dataset.pluginItemId;
-                const existingItem = this.pluginItems.get(existingItemId);
-                if (existingItem && existingItem.order > pluginItem.order) {
-                    insertIndex = i;
-                    break;
-                }
-            }
-
-            if (insertIndex < existingItems.length) {
-                pluginNavList.insertBefore(listItem, existingItems[insertIndex]);
-            } else {
-                pluginNavList.appendChild(listItem);
-            }
-
-            // 保存元素引用
-            pluginItem.element = listItem;
-
-            // 更新插件区域可见性
-            this.updatePluginSectionVisibility();
-        } catch (error) {
-            console.error('❌ Navigation: 渲染插件导航项失败:', error);
-        }
-    }
-
-    // 更新插件区域可见性
-    updatePluginSectionVisibility() {
-        const pluginSection = document.querySelector('.plugin-nav-section');
-        if (pluginSection) {
-            const hasItems = this.pluginItems.size > 0;
-            pluginSection.style.display = hasItems ? 'block' : 'none';
-        }
-    }
-
-    // 重新渲染所有插件项
-    // 用于侧边栏状态变化
-    reRenderPluginItems() {
-        // 清除现有的插件项DOM
-        const pluginNavList = document.querySelector('.plugin-nav-list');
-        if (pluginNavList) {
-            pluginNavList.innerHTML = '';
-        }
-
-        // 重新渲染所有插件项
-        const sortedItems = Array.from(this.pluginItems.values()).sort((a, b) => a.order - b.order);
-        sortedItems.forEach(item => {
-            item.element = null; // 清除旧的元素引用
-            this.renderPluginItem(item);
-        });
-    }
-
     destroy() {
-        // 清理插件导航项
-        this.pluginItems.forEach((item, itemId) => {
-            this.removePluginItem(itemId);
-        });
-        this.pluginItems.clear();
-
         // 清理用户歌单数据
         this.userPlaylists = [];
 
         // 重置状态
         this.currentView = null;
         this.sidebarCollapsed = false;
-        this.pluginItemIdCounter = 0;
-
         super.destroy();
     }
 }
