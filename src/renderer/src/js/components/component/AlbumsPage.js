@@ -3,6 +3,9 @@
  * 营造“收藏实体专辑”的沉浸式浏览体验
  */
 
+import {formatTime} from "@js/utils";
+import {Component} from "@components/base/Component";
+
 class AlbumsPage extends Component {
     constructor(container) {
         super(container);
@@ -788,4 +791,4 @@ class AlbumsPage extends Component {
     }
 }
 
-window.components.component.AlbumsPage = AlbumsPage;
+export { AlbumsPage };

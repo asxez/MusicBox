@@ -1,3 +1,5 @@
+import { EventEmitter } from '@js/utils';
+
 class Component extends EventEmitter {
     constructor(element=null, has=true) {
         super();
@@ -168,4 +170,4 @@ class Component extends EventEmitter {
     }
 }
 
-window.Component = Component;
+export { Component };

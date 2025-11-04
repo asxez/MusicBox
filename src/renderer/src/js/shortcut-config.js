@@ -3,6 +3,8 @@
  * 负责管理局内快捷键和全局快捷键的配置
  */
 
+import { cacheManager } from "@js/cache-manager";
+
 class ShortcutConfig {
     constructor() {
         this.config = this.loadConfig();
@@ -164,12 +166,12 @@ class ShortcutConfig {
 
     loadConfig() {
         try {
-            if (!window.cacheManager) {
+            if (!cacheManager) {
                 console.warn('CacheManager未加载，使用默认快捷键配置');
                 return this.getDefaultConfig();
             }
 
-            const saved = window.cacheManager.getLocalCache('musicbox-shortcuts');
+            const saved = cacheManager.getLocalCache('musicbox-shortcuts');
             if (saved && typeof saved === 'object') {
                 return this.mergeWithDefaults(saved);
             }
@@ -224,12 +226,12 @@ class ShortcutConfig {
      */
     saveConfig() {
         try {
-            if (!window.cacheManager) {
+            if (!cacheManager) {
                 console.error('CacheManager未加载，无法保存快捷键配置');
                 return false;
             }
 
-            window.cacheManager.setLocalCache('musicbox-shortcuts', this.config);
+            cacheManager.setLocalCache('musicbox-shortcuts', this.config);
             return true;
         } catch (error) {
             console.error('保存快捷键配置失败:', error);
@@ -573,14 +575,14 @@ class ShortcutConfig {
      * 保存折叠状态
      */
     saveCollapseState() {
-        window.cacheManager.setLocalCache('shortcuts-collapsed', this.isCollapsed);
+        cacheManager.setLocalCache('shortcuts-collapsed', this.isCollapsed);
     }
 
     /**
      * 加载折叠状态
      */
     loadCollapseState() {
-        const saved = window.cacheManager.getLocalCache('shortcuts-collapsed');
+        const saved = cacheManager.getLocalCache('shortcuts-collapsed');
         if (typeof saved === 'boolean') {
             this.isCollapsed = saved;
         }

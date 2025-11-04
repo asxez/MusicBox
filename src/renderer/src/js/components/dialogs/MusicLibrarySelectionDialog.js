@@ -2,6 +2,8 @@
  * 音乐库选择对话框组件
  */
 
+import {Component} from "@components/base/Component";
+
 class MusicLibrarySelectionDialog extends Component {
     constructor() {
         super(null, false);
@@ -331,4 +333,4 @@ class MusicLibrarySelectionDialog extends Component {
     }
 }
 
-window.components.dialogs.MusicLibrarySelectionDialog = MusicLibrarySelectionDialog;
+export { MusicLibrarySelectionDialog };

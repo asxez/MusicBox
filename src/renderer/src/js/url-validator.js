@@ -256,9 +256,10 @@ class URLValidator {
     }
 }
 
-window.urlValidator = new URLValidator();
+let urlValidator = new URLValidator();
 setInterval(() => {
-    if (window.urlValidator) {
-        window.urlValidator.cleanupExpiredCache();
+    if (urlValidator) {
+        urlValidator.cleanupExpiredCache();
     }
 }, 15000);
+export { urlValidator };

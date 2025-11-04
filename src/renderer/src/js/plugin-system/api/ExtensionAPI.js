@@ -3,6 +3,9 @@
  * 为扩展提供访问应用功能的标准接口
  */
 
+import { showToast } from '@js/utils';
+import {cacheManager} from "@js/cache-manager";
+
 /**
  * 创建扩展 API
  * @param {Object} context 扩展上下文
@@ -199,8 +202,8 @@ function createLibraryAPI() {
          * 获取播放列表
          */
         getPlaylists() {
-            if (window.cacheManager && typeof window.cacheManager.getLocalCache === 'function') {
-                return window.cacheManager.getLocalCache('playlists') || [];
+            if (cacheManager && typeof cacheManager.getLocalCache === 'function') {
+                return cacheManager.getLocalCache('playlists') || [];
             }
             return [];
         }

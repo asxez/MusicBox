@@ -3,6 +3,8 @@
  * 参考 VSCode 的 ExtensionService，提供扩展管理的核心功能
  */
 
+import {cacheManager} from "@js/cache-manager";
+
 /**
  * 扩展服务 - 管理所有扩展的生命周期
  */
@@ -131,7 +133,7 @@ class ExtensionService extends Disposable {
             await this._syncExtensionsFromMainProcess();
 
             // 从本地存储加载扩展配置
-            const extensionsConfig = window.cacheManager?.getLocalCache('extensions-config') || {};
+            const extensionsConfig = cacheManager?.getLocalCache('extensions-config') || {};
             const installedExtensions = extensionsConfig.installed || [];
 
             console.log(`🔌 ExtensionService: 发现 ${installedExtensions.length} 个已安装的扩展`);
@@ -188,7 +190,7 @@ class ExtensionService extends Disposable {
             });
 
             // 获取本地存储的扩展配置
-            const extensionsConfig = window.cacheManager?.getLocalCache('extensions-config') || {};
+            const extensionsConfig = cacheManager?.getLocalCache('extensions-config') || {};
             const localExtensions = extensionsConfig.installed || [];
             console.log(`💾 ExtensionService: 本地存储扩展数量: ${localExtensions.length}`);
 
@@ -242,7 +244,7 @@ class ExtensionService extends Disposable {
             }
 
             extensionsConfig.installed = cleanedExtensions;
-            window.cacheManager?.setLocalCache('extensions-config', extensionsConfig);
+            cacheManager?.setLocalCache('extensions-config', extensionsConfig);
 
             console.log(`✅ ExtensionService: 扩展列表同步完成，当前共 ${cleanedExtensions.length} 个外部扩展`);
 
@@ -271,7 +273,7 @@ class ExtensionService extends Disposable {
             console.log(`📦 ExtensionService: 发现 ${builtinExtensions.length} 个内置扩展`);
 
             // 读取已保存的内置插件状态
-            const extensionsConfig = window.cacheManager?.getLocalCache('extensions-config') || {};
+            const extensionsConfig = cacheManager?.getLocalCache('extensions-config') || {};
             const builtinStates = extensionsConfig.builtinStates || {};
             console.log(`📋 ExtensionService: 已保存的内置插件状态:`, builtinStates);
 
@@ -469,12 +471,12 @@ class ExtensionService extends Disposable {
             }
 
             // 保存到本地存储
-            const extensionsConfig = window.cacheManager?.getLocalCache('extensions-config') || {};
+            const extensionsConfig = cacheManager?.getLocalCache('extensions-config') || {};
             if (!extensionsConfig.installed) {
                 extensionsConfig.installed = [];
             }
             extensionsConfig.installed.push(manifest);
-            window.cacheManager?.setLocalCache('extensions-config', extensionsConfig);
+            cacheManager?.setLocalCache('extensions-config', extensionsConfig);
 
             // 加载扩展
             await this._loadExtension(manifest);
@@ -510,12 +512,12 @@ class ExtensionService extends Disposable {
             this._registry.unregisterExtension(extensionId);
 
             // 从本地存储移除
-            const extensionsConfig = window.cacheManager?.getLocalCache('extensions-config') || {};
+            const extensionsConfig = cacheManager?.getLocalCache('extensions-config') || {};
             if (extensionsConfig.installed) {
                 extensionsConfig.installed = extensionsConfig.installed.filter(
                     ext => ext.id !== extensionId
                 );
-                window.cacheManager?.setLocalCache('extensions-config', extensionsConfig);
+                cacheManager?.setLocalCache('extensions-config', extensionsConfig);
             }
 
             // 触发变化事件
@@ -591,7 +593,7 @@ class ExtensionService extends Disposable {
             const extensionInfo = result.extension;
 
             // 同步到本地存储（确保与主进程注册表一致）
-            const extensionsConfig = window.cacheManager?.getLocalCache('extensions-config') || {};
+            const extensionsConfig = cacheManager?.getLocalCache('extensions-config') || {};
             if (!extensionsConfig.installed) {
                 extensionsConfig.installed = [];
             }
@@ -600,12 +602,12 @@ class ExtensionService extends Disposable {
             const existingIndex = extensionsConfig.installed.findIndex(ext => ext.id === extensionInfo.id);
             if (existingIndex === -1) {
                 extensionsConfig.installed.push(extensionInfo);
-                window.cacheManager?.setLocalCache('extensions-config', extensionsConfig);
+                cacheManager?.setLocalCache('extensions-config', extensionsConfig);
                 console.log(`💾 ExtensionService: 已同步扩展到本地存储 ${extensionInfo.id}`);
             } else {
                 // 更新现有扩展信息
                 extensionsConfig.installed[existingIndex] = extensionInfo;
-                window.cacheManager?.setLocalCache('extensions-config', extensionsConfig);
+                cacheManager?.setLocalCache('extensions-config', extensionsConfig);
                 console.log(`💾 ExtensionService: 已更新本地存储中的扩展 ${extensionInfo.id}`);
             }
 
@@ -658,12 +660,12 @@ class ExtensionService extends Disposable {
             }
 
             // 从本地存储移除（与主进程注册表保持同步）
-            const extensionsConfig = window.cacheManager?.getLocalCache('extensions-config') || {};
+            const extensionsConfig = cacheManager?.getLocalCache('extensions-config') || {};
             if (extensionsConfig.installed) {
                 extensionsConfig.installed = extensionsConfig.installed.filter(
                     ext => ext.id !== extensionId
                 );
-                window.cacheManager?.setLocalCache('extensions-config', extensionsConfig);
+                cacheManager?.setLocalCache('extensions-config', extensionsConfig);
                 console.log(`💾 ExtensionService: 已从本地存储移除扩展 ${extensionId}`);
             }
 
@@ -799,7 +801,7 @@ class ExtensionService extends Disposable {
      */
     _updateExtensionEnabledState(extensionId, enabled) {
         try {
-            const extensionsConfig = window.cacheManager?.getLocalCache('extensions-config') || {};
+            const extensionsConfig = cacheManager?.getLocalCache('extensions-config') || {};
             if (!extensionsConfig.installed) {
                 extensionsConfig.installed = [];
             }
@@ -816,7 +818,7 @@ class ExtensionService extends Disposable {
             if (extIndex !== -1) {
                 console.log(`   ➡️ 找到外部扩展，索引: ${extIndex}`);
                 extensionsConfig.installed[extIndex].enabled = enabled;
-                window.cacheManager?.setLocalCache('extensions-config', extensionsConfig);
+                cacheManager?.setLocalCache('extensions-config', extensionsConfig);
                 console.log(`   ✓ 已保存外部扩展 ${extensionId} 的启用状态: ${enabled}`);
                 return;
             }
@@ -824,7 +826,7 @@ class ExtensionService extends Disposable {
             // 如果不是外部插件，保存到内置插件状态映射中
             console.log(`   ➡️ 未找到外部扩展，保存为内置扩展状态`);
             extensionsConfig.builtinStates[extensionId] = { enabled };
-            window.cacheManager?.setLocalCache('extensions-config', extensionsConfig);
+            cacheManager?.setLocalCache('extensions-config', extensionsConfig);
             console.log(`   ✓ 已保存内置扩展 ${extensionId} 的启用状态: ${enabled}`);
             console.log(`   更新后的builtinStates:`, extensionsConfig.builtinStates);
 

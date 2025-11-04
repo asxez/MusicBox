@@ -2,6 +2,11 @@
  * 我的音乐页组件
  */
 
+import { sanitizeHTML, formatTime } from "@js/utils";
+import {cacheManager} from "@js/cache-manager";
+import {coverUpdateManager} from "@js/cover-update-manager";
+import {Component} from "@components/base/Component";
+
 class TrackList extends Component {
     constructor(container) {
         super(container);
@@ -42,7 +47,7 @@ class TrackList extends Component {
     }
 
     getShowCoversSettings() {
-        const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
         return settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
     }
 
@@ -82,7 +87,7 @@ class TrackList extends Component {
 
     setupCoverUpdateListener() {
         // 监听封面更新事件
-        this.coverUpdateUnsubscribe = window.coverUpdateManager.onCoverUpdate(async (data) => {
+        this.coverUpdateUnsubscribe = coverUpdateManager.onCoverUpdate(async (data) => {
             await this.handleCoverUpdate(data);
         });
     }
@@ -397,4 +402,4 @@ class TrackList extends Component {
     }
 }
 
-window.components.component.TrackList = TrackList;
+export { TrackList };

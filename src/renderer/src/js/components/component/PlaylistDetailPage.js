@@ -2,6 +2,10 @@
  * 歌单页组件
  */
 
+import {cacheManager} from "@js/cache-manager";
+import {localCoverManager} from "@js/local-cover-manager";
+import {Component} from "@components/base/Component";
+
 class PlaylistDetailPage extends Component {
     constructor(container) {
         super(container);
@@ -65,7 +69,7 @@ class PlaylistDetailPage extends Component {
     }
 
     getShowCoversSettings() {
-        const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
         return settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
     }
 
@@ -846,7 +850,7 @@ class PlaylistDetailPage extends Component {
 
     async loadTrackCoverAsync(track) {
         try {
-            if (!window.localCoverManager) return;
+            if (!localCoverManager) return;
 
             // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
             const loadCover = async () => {
@@ -1192,4 +1196,4 @@ class PlaylistDetailPage extends Component {
     }
 }
 
-window.components.component.PlaylistDetailPage = PlaylistDetailPage;
+export { PlaylistDetailPage };

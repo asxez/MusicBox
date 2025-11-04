@@ -1,5 +1,10 @@
 // 播放器组件
 
+import {formatTime, showToast} from "@js/utils";
+import { cacheManager } from "@js/cache-manager";
+import {urlValidator} from "@js/url-validator";
+import {Component} from "@components/base/Component";
+
 class Player extends Component {
     constructor() {
         super('#player');
@@ -302,8 +307,8 @@ class Player extends Component {
                 if (coverResult.success && coverResult.imageUrl) {
                     if (typeof coverResult.imageUrl === 'string') {
                         // 使用安全的图片设置方法
-                        if (window.urlValidator) {
-                            const success = await window.urlValidator.safeSetImageSrc(
+                        if (urlValidator) {
+                            const success = await urlValidator.safeSetImageSrc(
                                 this.trackCover,
                                 coverResult.imageUrl
                             );
@@ -554,7 +559,7 @@ class Player extends Component {
 
         try {
             // 检查设置中是否启用了桌面歌词功能
-            const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
             // 如果设置中没有明确的值，默认启用；如果有明确的值，使用该值
             const desktopLyricsEnabled = settings.hasOwnProperty('desktopLyrics') ? settings.desktopLyrics : true;
 
@@ -590,4 +595,4 @@ class Player extends Component {
     }
 }
 
-window.components.component.Player = Player;
+export { Player };

@@ -2,6 +2,9 @@
  * 均衡器组件
  */
 
+import {cacheManager} from "@js/cache-manager";
+import {Component} from "@components/base/Component";
+
 class EqualizerComponent extends Component {
     constructor() {
         super('#equalizer-modal');
@@ -138,7 +141,7 @@ class EqualizerComponent extends Component {
         if (window.api.getEqualizer) {
             this.equalizer = window.api.getEqualizer();
             if (this.equalizer) {
-                if (window.cacheManager) {
+                if (cacheManager) {
                     this.reloadConfig();
                 } else {
                     this.loadSettings();
@@ -302,9 +305,9 @@ class EqualizerComponent extends Component {
 
     loadSettings() {
         try {
-            const settings = window.cacheManager.getLocalCache('musicbox-equalizer-settings') || {};
+            const settings = cacheManager.getLocalCache('musicbox-equalizer-settings') || {};
             console.log('📋 从缓存加载的设置:', settings);
-            const customPresets = window.cacheManager.getLocalCache('musicbox-equalizer-custom-presets') || {};
+            const customPresets = cacheManager.getLocalCache('musicbox-equalizer-custom-presets') || {};
             console.log('📋 从缓存加载的自定义预设:', Object.keys(customPresets));
             this.isEnabled = settings.enabled === true;
             // console.log(`🎛️ 均衡器启用状态: ${this.isEnabled}`);
@@ -374,7 +377,7 @@ class EqualizerComponent extends Component {
 
             // 恢复自定义预设到localStorage（向后兼容）
             if (Object.keys(customPresets).length > 0) {
-                window.cacheManager.setLocalCache('customEqualizerPresets', customPresets);
+                cacheManager.setLocalCache('customEqualizerPresets', customPresets);
                 console.log(`✅ 恢复了 ${Object.keys(customPresets).length} 个自定义预设到localStorage`);
             }
 
@@ -413,13 +416,13 @@ class EqualizerComponent extends Component {
             lastModified: Date.now(),
         };
 
-        window.cacheManager.setLocalCache('musicbox-equalizer-settings', settings);
+        cacheManager.setLocalCache('musicbox-equalizer-settings', settings);
 
         // 保存自定义预设
-        const customPresetsFromStorage = window.cacheManager.getLocalCache('customEqualizerPresets');
+        const customPresetsFromStorage = cacheManager.getLocalCache('customEqualizerPresets');
         if (customPresetsFromStorage) {
             const customPresets = customPresetsFromStorage;
-            window.cacheManager.setLocalCache('musicbox-equalizer-custom-presets', customPresets);
+            cacheManager.setLocalCache('musicbox-equalizer-custom-presets', customPresets);
             console.log(`💾 已同步 ${Object.keys(customPresets).length} 个自定义预设到缓存`);
         }
     }
@@ -466,7 +469,7 @@ class EqualizerComponent extends Component {
 
         // 保存到缓存
         try {
-            if (!window.cacheManager) {
+            if (!cacheManager) {
                 throw new Error('CacheManager未加载');
             }
 
@@ -485,8 +488,8 @@ class EqualizerComponent extends Component {
             };
 
             // 保存缓存
-            window.cacheManager.setLocalCache('musicbox-equalizer-custom-presets', customPresets);
-            window.cacheManager.setLocalCache('customEqualizerPresets', customPresets);
+            cacheManager.setLocalCache('musicbox-equalizer-custom-presets', customPresets);
+            cacheManager.setLocalCache('customEqualizerPresets', customPresets);
 
             // 更新预设选择器
             this.updatePresetSelect();
@@ -547,7 +550,7 @@ class EqualizerComponent extends Component {
         }
 
         try {
-            if (!window.cacheManager) {
+            if (!cacheManager) {
                 throw new Error('CacheManager未加载');
             }
 
@@ -555,8 +558,8 @@ class EqualizerComponent extends Component {
             delete customPresets[name];
 
             // 更新缓存
-            window.cacheManager.setLocalCache('musicbox-equalizer-custom-presets', customPresets);
-            window.cacheManager.setLocalCache('customEqualizerPresets', customPresets);
+            cacheManager.setLocalCache('musicbox-equalizer-custom-presets', customPresets);
+            cacheManager.setLocalCache('customEqualizerPresets', customPresets);
 
             // 更新预设选择器
             this.updatePresetSelect();
@@ -569,12 +572,12 @@ class EqualizerComponent extends Component {
 
     getCustomPresets() {
         try {
-            if (!window.cacheManager) {
+            if (!cacheManager) {
                 console.warn('CacheManager未加载，返回空的自定义预设');
                 return {};
             }
 
-            const stored = window.cacheManager.getLocalCache('musicbox-equalizer-custom-presets');
+            const stored = cacheManager.getLocalCache('musicbox-equalizer-custom-presets');
             return stored || {};
         } catch (error) {
             console.error('❌ 读取自定义预设失败:', error);
@@ -655,4 +658,4 @@ class EqualizerComponent extends Component {
     }
 }
 
-window.components.component.EqualizerComponent = EqualizerComponent;
+export { EqualizerComponent };

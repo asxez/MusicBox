@@ -2,6 +2,9 @@
  * 网络磁盘详情页组件
  */
 
+import {cacheManager} from "@js/cache-manager";
+import {Component} from "@components/base/Component";
+
 class NetworkDriveDetailPage extends Component {
     constructor(container) {
         super(container);
@@ -65,7 +68,7 @@ class NetworkDriveDetailPage extends Component {
     }
 
     getShowCoversSettings() {
-        const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
         return settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
     }
 
@@ -558,4 +561,4 @@ class NetworkDriveDetailPage extends Component {
     }
 }
 
-window.components.component.NetworkDriveDetailPage = NetworkDriveDetailPage;
+export { NetworkDriveDetailPage };

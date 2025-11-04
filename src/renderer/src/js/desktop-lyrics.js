@@ -1,3 +1,5 @@
+import {cacheManager} from "@js/cache-manager";
+
 /**
  * 桌面歌词管理器
  * 负责桌面歌词窗口的显示、交互和数据同步
@@ -393,7 +395,7 @@ class DesktopLyricsManager {
     }
 
     async setOpacity(opacity) {
-        window.cacheManager.setLocalCache('desktopLyrics-opacity', opacity);
+        cacheManager.setLocalCache('desktopLyrics-opacity', opacity);
 
         if (window.electronAPI && window.electronAPI.desktopLyrics) {
             try {
@@ -414,7 +416,7 @@ class DesktopLyricsManager {
             this.elements.currentLyric.style.fontSize = fontSize + 'px';
             this.elements.nextLyric.style.fontSize = (fontSize * 0.64) + 'px';
         }
-        window.cacheManager.setLocalCache('desktopLyrics-fontSize', fontSize);
+        cacheManager.setLocalCache('desktopLyrics-fontSize', fontSize);
     }
 
     startDrag(e) {
@@ -505,7 +507,7 @@ class DesktopLyricsManager {
 
         // 显示主题名称
         this.showThemeToast(themes[nextIndex].displayName);
-        window.cacheManager.setLocalCache('desktopLyrics-theme', themes[nextIndex].name);
+        cacheManager.setLocalCache('desktopLyrics-theme', themes[nextIndex].name);
     }
 
     showThemeToast(themeName) {
@@ -559,7 +561,7 @@ class DesktopLyricsManager {
 
     async loadSettings() {
         // 加载设置
-        const savedOpacity = window.cacheManager.getLocalCache('desktopLyrics-opacity');
+        const savedOpacity = cacheManager.getLocalCache('desktopLyrics-opacity');
         if (savedOpacity) {
             const opacity = parseFloat(savedOpacity);
             this.elements.opacitySlider.value = opacity;
@@ -567,7 +569,7 @@ class DesktopLyricsManager {
         }
 
         // 加载字体大小
-        const savedFontSize = window.cacheManager.getLocalCache('desktopLyrics-fontSize');
+        const savedFontSize = cacheManager.getLocalCache('desktopLyrics-fontSize');
         if (savedFontSize) {
             const fontSize = parseInt(savedFontSize);
             this.elements.fontSizeSlider.value = fontSize;
@@ -575,13 +577,13 @@ class DesktopLyricsManager {
         }
 
         // 加载主题
-        const savedTheme = window.cacheManager.getLocalCache('desktopLyrics-theme');
+        const savedTheme = cacheManager.getLocalCache('desktopLyrics-theme');
         if (savedTheme) {
             this.elements.container.classList.add(savedTheme);
         }
 
         // 加载布局偏好
-        const savedLayout = window.cacheManager.getLocalCache('desktopLyrics-layout');
+        const savedLayout = cacheManager.getLocalCache('desktopLyrics-layout');
         if (savedLayout) {
             console.log('🎵 DesktopLyrics: 上次使用的布局:', savedLayout);
         }
@@ -701,7 +703,7 @@ class DesktopLyricsManager {
         this.elements.container.classList.add(`${newLayout}-layout`);
         this.animateLayoutTransition(oldLayout, newLayout);
         this.adjustFontSizeForLayout(newLayout);
-        window.cacheManager.setLocalCache('desktopLyrics-lastLayout', newLayout);
+        cacheManager.setLocalCache('desktopLyrics-lastLayout', newLayout);
         this.showLayoutToast(newLayout);
     }
 
@@ -819,7 +821,7 @@ class DesktopLyricsManager {
                 x: x,
                 y: y,
             };
-            window.cacheManager.setLocalCache('desktopLyrics-windowPosition', positionData);
+            cacheManager.setLocalCache('desktopLyrics-windowPosition', positionData);
             console.log(`🎵 DesktopLyrics: 窗口位置已保存 (${x}, ${y})`);
         } catch (error) {
             console.error('❌ DesktopLyrics: 保存窗口位置失败:', error);
@@ -841,7 +843,7 @@ class DesktopLyricsManager {
                 height: height,
                 layout: isVertical ? 'vertical' : 'horizontal' // 记录保存时的布局模式
             };
-            window.cacheManager.setLocalCache('desktopLyrics-windowSize', sizeData);
+            cacheManager.setLocalCache('desktopLyrics-windowSize', sizeData);
             console.log(`🎵 DesktopLyrics: 窗口尺寸已保存 (${width}x${height}) [${isVertical ? '竖屏' : '横屏'}模式]`);
         } catch (error) {
             console.error('❌ DesktopLyrics: 保存窗口尺寸失败:', error);
@@ -878,7 +880,7 @@ class DesktopLyricsManager {
     // 恢复窗口位置
     async restoreWindowPosition() {
         try {
-            const savedPosition = window.cacheManager.getLocalCache('desktopLyrics-windowPosition');
+            const savedPosition = cacheManager.getLocalCache('desktopLyrics-windowPosition');
             if (!savedPosition) {
                 console.log('🎵 DesktopLyrics: 没有保存的窗口位置');
                 return;
@@ -892,7 +894,7 @@ class DesktopLyricsManager {
                 console.log(`🎵 DesktopLyrics: 窗口位置已恢复 (${x}, ${y})`);
             } else {
                 console.log('🎵 DesktopLyrics: 保存的位置无效，使用默认位置');
-                window.cacheManager.removeLocalCache('desktopLyrics-windowPosition');
+                cacheManager.removeLocalCache('desktopLyrics-windowPosition');
             }
         } catch (error) {
             console.error('❌ DesktopLyrics: 恢复窗口位置失败:', error);
@@ -902,7 +904,7 @@ class DesktopLyricsManager {
     // 恢复窗口尺寸
     async restoreWindowSize() {
         try {
-            const savedSize = window.cacheManager.getLocalCache('desktopLyrics-windowSize');
+            const savedSize = cacheManager.getLocalCache('desktopLyrics-windowSize');
             if (!savedSize) {
                 console.log('🎵 DesktopLyrics: 没有保存的窗口尺寸');
                 return;
@@ -939,11 +941,11 @@ class DesktopLyricsManager {
                 } else {
                     console.error(`❌ DesktopLyrics: 设置窗口尺寸失败: ${result.error}`);
                     console.log('🎵 DesktopLyrics: 清除无效的保存尺寸');
-                    window.cacheManager.removeLocalCache('desktopLyrics-windowSize');
+                    cacheManager.removeLocalCache('desktopLyrics-windowSize');
                 }
             } else {
                 console.log(`🎵 DesktopLyrics: 保存的尺寸无效 (${width}x${height})，清除缓存`);
-                window.cacheManager.removeLocalCache('desktopLyrics-windowSize');
+                cacheManager.removeLocalCache('desktopLyrics-windowSize');
             }
         } catch (error) {
             console.error('❌ DesktopLyrics: 恢复窗口尺寸失败:', error);

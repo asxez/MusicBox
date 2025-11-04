@@ -2,6 +2,8 @@
  * 创建歌单对话框组件
  */
 
+import {Component} from "@components/base/Component";
+
 class CreatePlaylistDialog extends Component {
     constructor() {
         super(null, false);
@@ -147,4 +149,4 @@ class CreatePlaylistDialog extends Component {
     }
 }
 
-window.components.dialogs.CreatePlaylistDialog = CreatePlaylistDialog;
+export { CreatePlaylistDialog };

@@ -2,6 +2,9 @@
  * 首页组件
  */
 
+import {cacheManager} from "@js/cache-manager";
+import {Component} from "@components/base/Component";
+
 class HomePage extends Component {
     constructor(container) {
         super(container);
@@ -402,7 +405,7 @@ class HomePage extends Component {
         };
 
         // 保存到本地存储
-        const moodHistory = window.cacheManager.getLocalCache('musicbox-mood-history') || [];
+        const moodHistory = cacheManager.getLocalCache('musicbox-mood-history') || [];
         moodHistory.push(moodData);
 
         // 只保留最近100条记录
@@ -410,7 +413,7 @@ class HomePage extends Component {
             moodHistory.splice(0, moodHistory.length - 100);
         }
 
-        window.cacheManager.setLocalCache('musicbox-mood-history', moodHistory);
+        cacheManager.setLocalCache('musicbox-mood-history', moodHistory);
     }
 
     saveMusicDiary() {
@@ -423,9 +426,9 @@ class HomePage extends Component {
         };
 
         // 保存到本地存储
-        const diaryHistory = window.cacheManager.getLocalCache('musicbox-diary-history') || [];
+        const diaryHistory = cacheManager.getLocalCache('musicbox-diary-history') || [];
         diaryHistory.push(diaryEntry);
-        window.cacheManager.setLocalCache('musicbox-diary-history', diaryHistory);
+        cacheManager.setLocalCache('musicbox-diary-history', diaryHistory);
 
         // 清空输入框并显示保存成功提示
         diaryInput.value = '';
@@ -644,4 +647,4 @@ class HomePage extends Component {
     }
 }
 
-window.components.component.HomePage = HomePage;
+export { HomePage };

@@ -1,3 +1,33 @@
+import {EventEmitter, showToast, theme} from './utils';
+import {AlbumsPage} from "@components/component/AlbumsPage";
+import {ArtistsPage} from "@components/component/ArtistsPage";
+import {ContextMenu} from "@components/component/ContextMenu";
+import {EqualizerComponent} from "@components/component/EqualizerComponent";
+import {HomePage} from "@components/component/HomePage";
+import {Lyrics} from "@components/component/Lyrics";
+import {Navigation} from "@components/component/Navigation";
+import {NetworkDiskModal} from "@components/component/NetworkDiskModal";
+import {NetworkDriveDetailPage} from "@components/component/NetworkDriveDetailPage";
+import {Player} from '@components/component/Player';
+import {Playlist} from "@components/component/Playlist";
+import {PlaylistDetailPage} from "@components/component/PlaylistDetailPage";
+import {PluginManagerModal} from "@components/component/PluginManagerModal";
+import {RecentPage} from "@components/component/RecentPage";
+import {Search} from "@components/component/Search";
+import {Settings} from "@components/component/Settings";
+import {StatisticsPage} from "@components/component/StatisticsPage";
+import {TrackList} from "@components/component/TrackList";
+import {UpdateModal} from "@components/component/UpdateModal";
+
+import {AddToPlaylistDialog} from "@components/dialogs/AddToPlaylistDialog";
+import {CreatePlaylistDialog} from "@components/dialogs/CreatePlaylistDialog";
+import {EditTrackInfoDialog} from "@components/dialogs/EditTrackInfoDialog";
+import {MusicLibrarySelectionDialog} from "@components/dialogs/MusicLibrarySelectionDialog";
+import {RenamePlaylistDialog} from "@components/dialogs/RenamePlaylistDialog";
+
+import { cacheManager } from "@js/cache-manager";
+import {localCoverManager} from "@js/local-cover-manager";
+
 class MusicBoxApp extends EventEmitter {
     constructor() {
         super();
@@ -31,7 +61,7 @@ class MusicBoxApp extends EventEmitter {
             await this.loadInitialData();
 
             // 恢复音量
-            const savedVolume = window.cacheManager.getLocalCache('volume');
+            const savedVolume = cacheManager.getLocalCache('volume');
             if (savedVolume !== null) {
                 await api.setVolume(savedVolume);
                 await this.components.player.updateUI();
@@ -427,7 +457,7 @@ class MusicBoxApp extends EventEmitter {
 
     // 按需初始化页面组件
     initializePageComponentsOnDemand() {
-        const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
 
         // 最近播放页面
         const recentPlayEnabled = settings.hasOwnProperty('recentPlay') ? settings.recentPlay : true;
@@ -686,7 +716,7 @@ class MusicBoxApp extends EventEmitter {
     async preloadTrackCovers() {
         try {
             // 检查是否启用了封面显示
-            const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
             const showTrackCovers = settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
             if (!showTrackCovers) {
                 return;
@@ -702,7 +732,7 @@ class MusicBoxApp extends EventEmitter {
             // 为啥是12首？因为全屏状态下，一页最多显示12首歌😋
             // 坏了兄弟们，预加载12首似乎有点占内存，砍一半吧🥵
             const tracksToPreload = this.library.slice(0, 6);
-            await window.localCoverManager.preloadCovers(tracksToPreload);
+            await localCoverManager.preloadCovers(tracksToPreload);
             this.coversPreloadedByApp = true;
         } catch (error) {
             console.warn('⚠️ App: 封面预加载失败:', error);
@@ -714,7 +744,7 @@ class MusicBoxApp extends EventEmitter {
         try {
             if (this.components.player && this.components.settings) {
                 // 从设置中获取桌面歌词状态
-                const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+                const settings = cacheManager.getLocalCache('musicbox-settings') || {};
                 const desktopLyricsEnabled = settings.hasOwnProperty('desktopLyrics') ? settings.desktopLyrics : true;
 
                 // 更新Player组件的按钮状态
@@ -2074,7 +2104,7 @@ class MusicBoxApp extends EventEmitter {
                         height,
                         timestamp: Date.now()
                     };
-                    window.cacheManager.setLocalCache('mainWindow-size', sizeData);
+                    cacheManager.setLocalCache('mainWindow-size', sizeData);
                 }
             }
         } catch (error) {
@@ -2085,7 +2115,7 @@ class MusicBoxApp extends EventEmitter {
     // 恢复窗口尺寸
     async restoreWindowSize() {
         try {
-            const savedSize = window.cacheManager.getLocalCache('mainWindow-size');
+            const savedSize = cacheManager.getLocalCache('mainWindow-size');
             if (!savedSize) {
                 return;
             }
@@ -2094,10 +2124,10 @@ class MusicBoxApp extends EventEmitter {
             if (this.isValidWindowSize(width, height)) {
                 const result = await window.electronAPI.window.setSize(width, height);
                 if (!result || !result.success) {
-                    window.cacheManager.removeLocalCache('mainWindow-size');
+                    cacheManager.removeLocalCache('mainWindow-size');
                 }
             } else {
-                window.cacheManager.removeLocalCache('mainWindow-size');
+                cacheManager.removeLocalCache('mainWindow-size');
             }
         } catch (error) {
             console.error('❌ 恢复窗口尺寸失败:', error);
@@ -2122,8 +2152,8 @@ class MusicBoxApp extends EventEmitter {
     // 恢复播放状态
     async restorePlaybackState() {
         try {
-            const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
-            const playbackState = window.cacheManager.getLocalCache('playback-state');
+            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
+            const playbackState = cacheManager.getLocalCache('playback-state');
 
             // 如果启用了记住播放位置且有保存的状态
             if (settings.rememberPosition && playbackState) {
@@ -2240,7 +2270,7 @@ class MusicBoxApp extends EventEmitter {
     // 保存播放状态
     async savePlaybackState() {
         try {
-            const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
 
             // 只有启用记住播放位置时才保存
             if (settings.rememberPosition) {
@@ -2260,7 +2290,7 @@ class MusicBoxApp extends EventEmitter {
                     playMode,
                     timestamp: Date.now()
                 };
-                window.cacheManager.setLocalCache('playback-state', playbackState);
+                cacheManager.setLocalCache('playback-state', playbackState);
             }
         } catch (error) {
             console.error('❌ App: 保存播放状态失败:', error);
@@ -2271,7 +2301,7 @@ class MusicBoxApp extends EventEmitter {
     async initSystemTray() {
         try {
             // 获取托盘设置
-            const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
             const trayEnabled = settings.hasOwnProperty('systemTray') ? settings.systemTray : true;
 
             if (trayEnabled) {

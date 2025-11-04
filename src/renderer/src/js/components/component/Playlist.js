@@ -2,6 +2,9 @@
  * 播放列表组件
  */
 
+import { formatTime } from "@js/utils";
+import {Component} from "@components/base/Component";
+
 class Playlist extends Component {
     constructor(element) {
         super(element);
@@ -233,4 +236,4 @@ class Playlist extends Component {
     }
 }
 
-window.components.component.Playlist = Playlist;
+export { Playlist };

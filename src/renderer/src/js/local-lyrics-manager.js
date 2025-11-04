@@ -167,4 +167,5 @@ class LocalLyricsManager {
     }
 }
 
-window.localLyricsManager = new LocalLyricsManager();
+let localLyricsManager = new LocalLyricsManager();
+export { localLyricsManager };

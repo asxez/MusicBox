@@ -480,4 +480,5 @@ class EmbeddedLyricsManager {
     }
 }
 
-window.embeddedLyricsManager = new EmbeddedLyricsManager();
+let embeddedLyricsManager = new EmbeddedLyricsManager();
+export { embeddedLyricsManager };

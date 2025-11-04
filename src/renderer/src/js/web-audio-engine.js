@@ -1,6 +1,7 @@
 /**
  * 基于 Web Audio API 的音频引擎
  */
+import {embeddedCoverManager} from "@js/embedded-cover-manager";
 
 class WebAudioEngine {
     constructor() {
@@ -95,8 +96,8 @@ class WebAudioEngine {
             let coverUrl = null;
             if (metadata.cover && metadata.cover.data) {
                 try {
-                    if (window.embeddedCoverManager) {
-                        const coverResult = window.embeddedCoverManager.convertCoverToUrl(metadata.cover);
+                    if (embeddedCoverManager) {
+                        const coverResult = embeddedCoverManager.convertCoverToUrl(metadata.cover);
                         if (coverResult.success && typeof coverResult.url === 'string') {
                             coverUrl = coverResult.url;
                             this.coverObjectUrls.add(coverUrl);
@@ -1279,5 +1280,4 @@ class AudioEqualizer {
     }
 }
 
-window.WebAudioEngine = WebAudioEngine;
-window.AudioEqualizer = AudioEqualizer;
+export { WebAudioEngine, AudioEqualizer};

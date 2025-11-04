@@ -2,6 +2,8 @@
  * 更新检查模态窗口组件
  */
 
+import {Component} from "@components/base/Component";
+
 class UpdateModal extends Component {
     constructor() {
         super(null, false);
@@ -341,4 +343,4 @@ class UpdateModal extends Component {
     }
 }
 
-window.components.component.UpdateModal = UpdateModal;
+export { UpdateModal };

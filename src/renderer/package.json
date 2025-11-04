@@ -3,27 +3,32 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "serve": "http-server public -p 8080 -c-1",
-    "build": "npm run build:css && npm run build:js && npm run copy:assets && npm run copy:js-html",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "vite preview --port 8080",
+    "lint": "eslint src/**/*.js",
+    "clean": "rimraf public",
+    "build:old": "npm run build:css && npm run build:js && npm run copy:assets && npm run copy:js-html",
     "build:css": "sass src/styles/main.scss public/styles/main.css --style=compressed",
     "build:js": "node scripts/build.js",
     "copy:assets": "node scripts/copy-assets.js",
-    "copy:js-html": "node scripts/copy-js-html.js",
-    "dev": "concurrently \"npm run watch:css\" \"npm run watch:js\" \"npm run serve\"",
-    "lint": "eslint src/**/*.js",
-    "clean": "rimraf public/styles public/js public/assets"
+    "copy:js-html": "node scripts/copy-js-html.js"
   },
   "dependencies": {
     "dayjs": "^1.11.7",
     "fuse.js": "^6.6.2"
   },
   "devDependencies": {
+    "@vitejs/plugin-legacy": "^7.2.1",
     "chokidar": "^3.6.0",
     "concurrently": "^7.6.0",
     "eslint": "^8.35.0",
     "http-server": "^14.1.1",
     "rimraf": "^4.1.2",
     "sass": "^1.58.3",
-    "terser": "^5.16.6"
+    "terser": "^5.16.6",
+    "vite": "^7.1.12",
+    "vite-plugin-static-copy": "^3.1.4"
   }
 }

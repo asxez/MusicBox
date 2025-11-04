@@ -1,4 +1,3 @@
-
 /**
  * Format time in seconds to MM:SS or HH:MM:SS format
  * @param {number} seconds - Time in seconds
@@ -208,8 +207,6 @@ class EventEmitter {
     }
 }
 
-window.EventEmitter = EventEmitter;
-
 const theme = {
     get current() {
         return document.documentElement.getAttribute('data-theme') || 'light';
@@ -239,3 +236,13 @@ const theme = {
 document.addEventListener('DOMContentLoaded', () => {
     theme.init();
 });
+
+
+export {
+    EventEmitter,
+    showToast,
+    debounce,
+    theme,
+    formatTime,
+    sanitizeHTML,
+};

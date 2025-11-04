@@ -2,6 +2,9 @@
  * 封面更新管理器
  * 处理封面更新事件和缓存刷新
  */
+import {localCoverManager} from "@js/local-cover-manager";
+import {embeddedCoverManager} from "@js/embedded-cover-manager";
+
 class CoverUpdateManager {
     constructor() {
         this.updateCallbacks = new Set();
@@ -26,7 +29,7 @@ class CoverUpdateManager {
     }
 
     async handleCoverUpdate(data) {
-        const { filePath, title, artist, album, timestamp } = data;
+        const {filePath, title, artist, album, timestamp} = data;
 
         // 防止重复更新
         const updateKey = `${filePath}-${timestamp}`;
@@ -37,8 +40,8 @@ class CoverUpdateManager {
 
         try {
             // 清理相关缓存
-            window.embeddedCoverManager.clearCacheForFile(filePath);
-            window.localCoverManager.clearCacheForTrack(title, artist, album);
+            embeddedCoverManager.clearCacheForFile(filePath);
+            localCoverManager.clearCacheForTrack(title, artist, album);
 
             // 通知组件更新
             this.notifyCallbacks({
@@ -62,7 +65,8 @@ class CoverUpdateManager {
 
     onCoverUpdate(callback) {
         if (typeof callback !== 'function') {
-            return () => {};
+            return () => {
+            };
         }
 
         this.updateCallbacks.add(callback);
@@ -103,11 +107,12 @@ class CoverUpdateManager {
     }
 }
 
-window.coverUpdateManager = new CoverUpdateManager();
+let coverUpdateManager = new CoverUpdateManager();
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        window.coverUpdateManager.initialize();
+        coverUpdateManager.initialize();
     });
 } else {
-    window.coverUpdateManager.initialize();
+    coverUpdateManager.initialize();
 }
+export {coverUpdateManager};
