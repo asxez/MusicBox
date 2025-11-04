@@ -1,0 +1,31 @@
+{
+  "id": "hello-world",
+  "name": "Hello World Extension",
+  "version": "1.0.0",
+  "description": "MusicBox 插件系统测试",
+  "author": "MusicBox Team",
+  "main": "extension.js",
+  "canDisable": true,
+  "activationEvents": [
+    "onStartUp"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "helloWorld.sayHello",
+        "title": "Hello World: Say Hello"
+      }
+    ]
+  },
+  "engines": {
+    "musicbox": "^1.0.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "hello",
+    "world",
+    "example"
+  ]
+}

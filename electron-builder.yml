@@ -69,6 +69,7 @@ win:
       arch:
         - x64
         - arm64
+  requestedExecutionLevel: "highestAvailable"
   # 代码签名配置（需要证书）
   # certificateFile: path/to/certificate.p12
   # certificatePassword: ${env.WIN_CSC_KEY_PASSWORD}

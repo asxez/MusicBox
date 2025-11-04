@@ -130,6 +130,9 @@ class Settings extends Component {
         // 歌词高亮透明度控制元素
         this.lyricsHighlightOpacitySlider = this.element.querySelector('#lyrics-highlight-opacity-slider');
         this.lyricsHighlightOpacityValue = this.element.querySelector('#lyrics-highlight-opacity-value');
+
+        // 插件管理元素
+        this.openPluginManagerBtn = this.element.querySelector('#open-plugin-manager-btn');
     }
 
     setupEventListeners() {
@@ -362,6 +365,13 @@ class Settings extends Component {
         if (this.addNetworkDriveBtn) {
             this.addNetworkDriveBtn.addEventListener('click', () => {
                 this.showNetworkDriveModal();
+            });
+        }
+
+        // 插件管理事件监听器
+        if (this.openPluginManagerBtn) {
+            this.openPluginManagerBtn.addEventListener('click', () => {
+                this.openPluginManager();
             });
         }
 
@@ -1108,6 +1118,14 @@ class Settings extends Component {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    openPluginManager() {
+        if (window.app.components.pluginManagerModal) {
+            window.app.components.pluginManagerModal.show();
+        } else {
+            this.showNotification('插件管理器不可用', 'error');
+        }
     }
 }
 

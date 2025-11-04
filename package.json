@@ -38,6 +38,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "adm-zip": "^0.5.16",
     "chardet": "^2.1.0",
     "electron-icon-builder": "^2.0.1",
     "fuse.js": "^6.6.2",

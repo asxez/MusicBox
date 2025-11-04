@@ -54,6 +54,7 @@ const {registerHttpServerIpcHandlers} = require('./ipc/http-server');
 const {registerTrayIpcHandlers} = require('./ipc/tray');
 const {registerHardwareAccelerationIpcHandlers} = require('./ipc/hardware-acceleration');
 const {registerSecurityIntegration} = require('./security/security-integration');
+const {registerExtensionsIpcHandlers} = require('./ipc/extensions');
 
 // 导入音乐库相关IPC
 const {registerLibraryPlaylistIpcHandlers} = require('./ipc/library/playlist');
@@ -328,6 +329,9 @@ registerMemoryIpcHandlers({ipcMain});
 
 // 注册HTTP服务器IPC
 registerHttpServerIpcHandlers({ipcMain});
+
+// 注册扩展管理IPC
+registerExtensionsIpcHandlers({ipcMain, mainWindow});
 
 // 注册安全/集成 IPC
 registerSecurityIntegration({isDev});
