@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <title>MusicBox</title>
-    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="./styles/main.scss">
 </head>
 <body>
     <noscript>
@@ -1489,17 +1489,17 @@
     </div>
 
     <!-- Scripts -->
-    <!-- 应用核心 - 按顺序加载 -->
-    <script src="js/cache-manager.js"></script>
-    <script src="js/local-lyrics-manager.js"></script>
-    <script src="js/embedded-lyrics-manager.js"></script>
-    <script src="js/embedded-cover-manager.js"></script>
-    <script src="js/local-cover-manager.js"></script>
-    <script src="js/url-validator.js"></script>
-    <script src="js/cover-update-manager.js"></script>
-    <script src="js/web-audio-engine.js"></script>
+    <!-- 独立加载的工具脚本（不通过 Vite 打包） -->
+<!--    <script src="./js/cache-manager.js"></script>-->
+<!--    <script src="./js/local-lyrics-manager.js"></script>-->
+<!--    <script src="./js/embedded-lyrics-manager.js"></script>-->
+<!--    <script src="./js/embedded-cover-manager.js"></script>-->
+<!--    <script src="./js/local-cover-manager.js"></script>-->
+<!--    <script src="./js/url-validator.js"></script>-->
+<!--    <script src="./js/cover-update-manager.js"></script>-->
+<!--    <script src="./js/web-audio-engine.js"></script>-->
 
-    <!-- 主应用包（包含插件系统核心） -->
-    <script src="js/bundle.js"></script>
+    <!-- Vite 主入口 - 将打包所有应用代码 -->
+    <script type="module" src="./js/main.js"></script>
 </body>
 </html>

@@ -12,8 +12,9 @@
   "private": true,
   "scripts": {
     "start": "chcp 65001 && electron src/main/main.js --expose-gc",
+    "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
     "dev:main": "chcp 65001 && electron src/main/main.js --expose-gc",
-    "dev:renderer": "cd src/renderer && npm run serve",
+    "dev:renderer": "cd src/renderer && npm run dev",
     "build": "npm run build:python && npm run build:renderer && npm run build:main",
     "build:renderer": "cd src/renderer && npm run build",
     "build:main": "electron-builder",

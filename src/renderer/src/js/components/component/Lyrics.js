@@ -2,6 +2,9 @@
  * 歌词页组件
  */
 
+import {urlValidator} from "@js/url-validator";
+import {Component} from "@components/base/Component";
+
 class Lyrics extends Component {
     constructor(element) {
         super(element);
@@ -650,7 +653,7 @@ class Lyrics extends Component {
     async setCoverAndBackground(imageUrl) {
         try {
             // 使用urlValidator安全设置封面图片
-            const success = await window.urlValidator.safeSetImageSrc(this.trackCover, imageUrl);
+            const success = await urlValidator.safeSetImageSrc(this.trackCover, imageUrl);
             if (!success) {
                 this.trackCover.src = 'assets/images/default-cover.svg';
             }
@@ -1080,4 +1083,4 @@ class Lyrics extends Component {
     }
 }
 
-window.components.component.Lyrics = Lyrics;
+export { Lyrics };

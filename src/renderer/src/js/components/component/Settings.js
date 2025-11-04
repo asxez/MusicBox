@@ -2,6 +2,13 @@
  * 设置组件
  */
 
+import { showToast } from '@js/utils';
+import {cacheManager} from "@js/cache-manager";
+import {localLyricsManager} from "@js/local-lyrics-manager";
+import {localCoverManager} from "@js/local-cover-manager";
+import {embeddedLyricsManager} from "@js/embedded-lyrics-manager";
+import {Component} from "@components/base/Component";
+
 class Settings extends Component {
     constructor(element) {
         super(element);
@@ -273,7 +280,7 @@ class Settings extends Component {
                     this.lyricsFolderPath.classList.add('selected');
 
                     // 更新本地歌词管理器
-                    window.localLyricsManager.setLyricsDirectory(selectedPath);
+                    localLyricsManager.setLyricsDirectory(selectedPath);
                 }
             } catch (error) {
                 console.error('❌ Settings: 选择歌词目录失败:', error);
@@ -290,7 +297,7 @@ class Settings extends Component {
                     this.coverCacheFolderPath.classList.add('selected');
 
                     // 更新本地封面管理器
-                    window.localCoverManager.setCoverDirectory(selectedPath);
+                    localCoverManager.setCoverDirectory(selectedPath);
                 }
             } catch (error) {
                 console.error('❌ Settings: 选择封面缓存目录失败:', error);
@@ -417,7 +424,7 @@ class Settings extends Component {
             this.lyricsFolderPath.classList.add('selected');
 
             // 设置本地歌词管理器
-            window.localLyricsManager.setLyricsDirectory(lyricsDirectory);
+            localLyricsManager.setLyricsDirectory(lyricsDirectory);
         } else {
             this.lyricsFolderPath.textContent = '未选择';
             this.lyricsFolderPath.classList.remove('selected');
@@ -455,7 +462,7 @@ class Settings extends Component {
 
     // 加载设置
     loadSettings() {
-        let settings = window.cacheManager.getLocalCache('musicbox-settings');
+        let settings = cacheManager.getLocalCache('musicbox-settings');
         if (settings === null)
             settings = {};
         return settings;
@@ -464,7 +471,7 @@ class Settings extends Component {
     // 更新设置
     updateSetting(key, value) {
         this.settings[key] = value;
-        window.cacheManager.setLocalCache('musicbox-settings', this.settings);
+        cacheManager.setLocalCache('musicbox-settings', this.settings);
     }
 
     // 获取设置值
@@ -532,7 +539,7 @@ class Settings extends Component {
             if (coverCacheDirectory) {
                 this.coverCacheFolderPath.textContent = coverCacheDirectory;
                 this.coverCacheFolderPath.classList.add('selected');
-                window.localCoverManager.setCoverDirectory(coverCacheDirectory);
+                localCoverManager.setCoverDirectory(coverCacheDirectory);
             } else {
                 this.coverCacheFolderPath.textContent = '未选择';
                 this.coverCacheFolderPath.classList.remove('selected');
@@ -727,7 +734,7 @@ class Settings extends Component {
             this.testEmbeddedLyricsBtn.textContent = '检测中...';
             console.log(`🎵 测试内嵌歌词: ${filePath}`);
 
-            const debugResult = await window.embeddedLyricsManager.debugEmbeddedLyrics(filePath);
+            const debugResult = await embeddedLyricsManager.debugEmbeddedLyrics(filePath);
             let reportLines = [
                 `文件: ${filePath}`,
                 `时间: ${new Date().toLocaleString()}`,
@@ -1129,4 +1136,4 @@ class Settings extends Component {
     }
 }
 
-window.components.component.Settings = Settings;
+export { Settings };

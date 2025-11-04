@@ -2,6 +2,9 @@
  * 艺术家页组件
  */
 
+import {urlValidator} from "@js/url-validator";
+import {Component} from "@components/base/Component";
+
 class ArtistsPage extends Component {
     constructor(container) {
         super(container);
@@ -546,8 +549,8 @@ class ArtistsPage extends Component {
             const img = card.querySelector('img');
             if (img && imageUrl) {
                 // 使用安全的图片设置方法
-                if (window.urlValidator) {
-                    window.urlValidator.safeSetImageSrc(img, imageUrl).then(success => {
+                if (urlValidator) {
+                    urlValidator.safeSetImageSrc(img, imageUrl).then(success => {
                         if (success) {
                             img.style.opacity = '';
                             img.style.filter = '';
@@ -1376,8 +1379,8 @@ class ArtistsPage extends Component {
     updateAlbumCoverDisplay(albumName, imageUrl) {
         const albumImgs = this.container.querySelectorAll(`img[data-album="${albumName}"]`);
         albumImgs.forEach(img => {
-            if (window.urlValidator) {
-                window.urlValidator.safeSetImageSrc(img, imageUrl);
+            if (urlValidator) {
+                urlValidator.safeSetImageSrc(img, imageUrl);
             } else {
                 img.src = imageUrl;
             }
@@ -1476,4 +1479,4 @@ class ArtistsPage extends Component {
     }
 }
 
-window.components.component.ArtistsPage = ArtistsPage;
+export { ArtistsPage };

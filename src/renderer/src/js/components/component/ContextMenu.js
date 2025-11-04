@@ -2,6 +2,8 @@
  * 菜单组件
  */
 
+import {Component} from "@components/base/Component";
+
 class ContextMenu extends Component {
     constructor(element) {
         super(element);
@@ -104,4 +106,4 @@ class ContextMenu extends Component {
     }
 }
 
-window.components.component.ContextMenu = ContextMenu;
+export { ContextMenu };

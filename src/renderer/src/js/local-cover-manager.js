@@ -312,4 +312,5 @@ class LocalCoverManager {
     }
 }
 
-window.localCoverManager = new LocalCoverManager();
+let localCoverManager = new LocalCoverManager();
+export { localCoverManager };

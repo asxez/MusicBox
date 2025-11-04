@@ -2,6 +2,11 @@
  * 最近播放页组件
  */
 
+import {cacheManager} from "@js/cache-manager";
+import {localCoverManager} from "@js/local-cover-manager";
+import {formatTime} from "@js/utils";
+import {Component} from "@components/base/Component";
+
 class RecentPage extends Component {
     constructor(container) {
         super(container);
@@ -48,7 +53,7 @@ class RecentPage extends Component {
     }
 
     loadPlayHistory() {
-        const history = window.cacheManager.getLocalCache('musicbox-play-history');
+        const history = cacheManager.getLocalCache('musicbox-play-history');
         if (history) {
             try {
                 this.recentTracks = history;
@@ -65,7 +70,7 @@ class RecentPage extends Component {
         if (!track || !track.filePath) return;
 
         let history = [];
-        const stored = window.cacheManager.getLocalCache('musicbox-play-history')
+        const stored = cacheManager.getLocalCache('musicbox-play-history')
         if (stored) {
             history = stored;
         }
@@ -81,14 +86,14 @@ class RecentPage extends Component {
 
         // 限制历史记录数量
         history = history.slice(0, 100);
-        window.cacheManager.setLocalCache('musicbox-play-history', history);
+        cacheManager.setLocalCache('musicbox-play-history', history);
         this.recentTracks = history;
     }
 
     // 清空播放历史
     clearHistory() {
         try {
-            window.cacheManager.removeLocalCache('musicbox-play-history');
+            cacheManager.removeLocalCache('musicbox-play-history');
             this.recentTracks = [];
             this.render();
         } catch (error) {
@@ -99,10 +104,10 @@ class RecentPage extends Component {
     // 移除单个历史记录
     removeHistoryItem(trackPath) {
         try {
-            let history = window.cacheManager.getLocalCache('musicbox-play-history') || [];
+            let history = cacheManager.getLocalCache('musicbox-play-history') || [];
             history = history.filter(item => item.filePath !== trackPath);
 
-            window.cacheManager.setLocalCache('musicbox-play-history', history);
+            cacheManager.setLocalCache('musicbox-play-history', history);
             this.recentTracks = history;
             this.render();
         } catch (error) {
@@ -334,7 +339,7 @@ class RecentPage extends Component {
 
     preloadVisibleCovers() {
         // 预加载当前页面显示的所有歌曲封面
-        if (this.recentTracks.length > 0 && window.localCoverManager) {
+        if (this.recentTracks.length > 0 && localCoverManager) {
             console.log(`🖼️ RecentPage: 开始预加载 ${this.recentTracks.length} 首最近播放歌曲的封面`);
 
             // 为每首歌曲触发封面加载
@@ -421,4 +426,4 @@ class RecentPage extends Component {
     }
 }
 
-window.components.component.RecentPage = RecentPage;
+export { RecentPage };

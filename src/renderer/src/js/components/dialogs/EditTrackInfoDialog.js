@@ -2,6 +2,8 @@
  * 编辑歌曲信息对话框组件
  */
 
+import {Component} from "@components/base/Component";
+
 class EditTrackInfoDialog extends Component {
     constructor() {
         super(null, false);
@@ -855,4 +857,4 @@ class EditTrackInfoDialog extends Component {
     }
 }
 
-window.components.dialogs.EditTrackInfoDialog = EditTrackInfoDialog;
+export { EditTrackInfoDialog };

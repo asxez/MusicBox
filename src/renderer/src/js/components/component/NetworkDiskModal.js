@@ -2,6 +2,8 @@
  * 网络磁盘配置模态框组件
  */
 
+import {Component} from "@components/base/Component";
+
 class NetworkDiskModal extends Component {
     constructor() {
         super('#network-drive-modal');
@@ -443,4 +445,4 @@ class NetworkDiskModal extends Component {
     }
 }
 
-window.components.component.NetworkDiskModal = NetworkDiskModal;
+export { NetworkDiskModal };

@@ -2,6 +2,8 @@
  * 重命名歌单对话框组件
  */
 
+import {Component} from "@components/base/Component";
+
 class RenamePlaylistDialog extends Component {
     constructor() {
         super(null, false);
@@ -135,4 +137,4 @@ class RenamePlaylistDialog extends Component {
     }
 }
 
-window.components.dialogs.RenamePlaylistDialog = RenamePlaylistDialog;
+export { RenamePlaylistDialog };

@@ -2,6 +2,9 @@
  * 搜索组件
  */
 
+import {debounce, showToast} from "@js/utils";
+import {Component} from "@components/base/Component";
+
 class Search extends Component {
     constructor() {
         super('#search-input');
@@ -60,4 +63,4 @@ class Search extends Component {
     }
 }
 
-window.components.component.Search = Search;
+export { Search };

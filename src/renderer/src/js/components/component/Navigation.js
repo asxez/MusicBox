@@ -2,6 +2,10 @@
  * 侧边导航栏组件
  */
 
+import {theme} from "@js/utils";
+import {cacheManager} from "@js/cache-manager";
+import {Component} from "@components/base/Component";
+
 class Navigation extends Component {
     constructor() {
         super('#navbar');
@@ -169,7 +173,7 @@ class Navigation extends Component {
 
         this.renderUserPlaylists();
         this.renderNetworkDrives(); // 重新渲染网络磁盘
-        window.cacheManager.setLocalCache('sidebarCollapsed', this.sidebarCollapsed);
+        cacheManager.setLocalCache('sidebarCollapsed', this.sidebarCollapsed);
         console.log('🎵 Navigation: 侧边栏状态切换', this.sidebarCollapsed ? '收缩' : '展开');
     }
 
@@ -320,7 +324,7 @@ class Navigation extends Component {
 
     // 恢复侧边栏状态
     restoreSidebarState() {
-        const savedState = window.cacheManager.getLocalCache('sidebarCollapsed')
+        const savedState = cacheManager.getLocalCache('sidebarCollapsed')
         if (savedState === 'true') {
             this.sidebarCollapsed = true;
             this.sidebar.classList.add('collapsed');
@@ -371,7 +375,7 @@ class Navigation extends Component {
     // 初始化侧边栏按钮状态
     initializeSidebarButtonsState() {
         try {
-            const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
 
             // 统计信息按钮状态
             const statisticsEnabled = settings.hasOwnProperty('statistics') ? settings.statistics : true;
@@ -693,4 +697,4 @@ class Navigation extends Component {
     }
 }
 
-window.components.component.Navigation = Navigation;
+export { Navigation };

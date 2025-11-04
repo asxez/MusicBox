@@ -3,6 +3,8 @@
  * 参考 VSCode 的扩展激活机制，管理扩展的生命周期
  */
 
+import {cacheManager} from "@js/cache-manager";
+
 /**
  * 扩展激活时间记录
  */
@@ -407,7 +409,7 @@ class ExtensionActivator extends Disposable {
         return {
             get(key, defaultValue) {
                 try {
-                    const data = window.cacheManager?.getLocalCache(storageKey) || {};
+                    const data = cacheManager?.getLocalCache(storageKey) || {};
                     return data[key] !== undefined ? data[key] : defaultValue;
                 } catch (error) {
                     return defaultValue;
@@ -416,9 +418,9 @@ class ExtensionActivator extends Disposable {
 
             update(key, value) {
                 try {
-                    const data = window.cacheManager?.getLocalCache(storageKey) || {};
+                    const data = cacheManager?.getLocalCache(storageKey) || {};
                     data[key] = value;
-                    window.cacheManager?.setLocalCache(storageKey, data);
+                    cacheManager?.setLocalCache(storageKey, data);
                     return Promise.resolve();
                 } catch (error) {
                     return Promise.reject(error);
@@ -427,7 +429,7 @@ class ExtensionActivator extends Disposable {
 
             keys() {
                 try {
-                    const data = window.cacheManager?.getLocalCache(storageKey) || {};
+                    const data = cacheManager?.getLocalCache(storageKey) || {};
                     return Object.keys(data);
                 } catch (error) {
                     return [];

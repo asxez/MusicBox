@@ -456,4 +456,5 @@ class EmbeddedCoverManager {
     }
 }
 
-window.embeddedCoverManager = new EmbeddedCoverManager();
+let embeddedCoverManager = new EmbeddedCoverManager();
+export { embeddedCoverManager };

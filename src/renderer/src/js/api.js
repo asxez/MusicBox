@@ -1,3 +1,12 @@
+import { EventEmitter } from './utils.js';
+import {cacheManager} from "@js/cache-manager";
+import {localLyricsManager} from "@js/local-lyrics-manager";
+import {localCoverManager} from "@js/local-cover-manager";
+import {embeddedLyricsManager} from "@js/embedded-lyrics-manager";
+import {embeddedCoverManager} from "@js/embedded-cover-manager";
+import {WebAudioEngine} from "@js/web-audio-engine";
+import {urlValidator} from "@js/url-validator";
+
 class MusicBoxAPI extends EventEmitter {
     constructor() {
         super();
@@ -101,14 +110,14 @@ class MusicBoxAPI extends EventEmitter {
 
     async initializeWebAudio() {
         try {
-            if (window.WebAudioEngine) {
-                this.webAudioEngine = new window.WebAudioEngine();
+            if (WebAudioEngine) {
+                this.webAudioEngine = new WebAudioEngine();
                 const initialized = await this.webAudioEngine.initialize();
                 if (initialized) {
-                    this.webAudioEngine.setVolume(window.cacheManager.getLocalCache('volume'));
+                    this.webAudioEngine.setVolume(cacheManager.getLocalCache('volume'));
 
                     // 设置无间隙播放状态
-                    const gaplessEnabled = window.cacheManager.getLocalCache('musicbox-settings')?.gaplessPlayback !== false;
+                    const gaplessEnabled = cacheManager.getLocalCache('musicbox-settings')?.gaplessPlayback !== false;
                     this.webAudioEngine.setGaplessPlayback(gaplessEnabled);
                 }
             }
@@ -987,7 +996,7 @@ class MusicBoxAPI extends EventEmitter {
 
     async getSetting(key) {
         try {
-            return window.cacheManager.getLocalCache(key);
+            return cacheManager.getLocalCache(key);
         } catch (error) {
             console.error('Failed to get setting:', error);
             return null;
@@ -996,7 +1005,7 @@ class MusicBoxAPI extends EventEmitter {
 
     async setSetting(key, value) {
         try {
-            window.cacheManager.setLocalCache(key, value);
+            cacheManager.setLocalCache(key, value);
         } catch (error) {
             console.error('❌ Failed to set setting:', error);
             return false;
@@ -1113,15 +1122,15 @@ class MusicBoxAPI extends EventEmitter {
             // 如果强制刷新，先清理缓存
             if (forceRefresh) {
                 if (filePath ) {
-                    window.embeddedCoverManager.clearCacheForFile(filePath);
-                    window.localCoverManager.clearCacheForTrack(title, artist, album);
+                    embeddedCoverManager.clearCacheForFile(filePath);
+                    localCoverManager.clearCacheForTrack(title, artist, album);
                 }
             }
 
             // 优先级1: 检查内嵌封面
             if (filePath) {
                 try {
-                    const embeddedResult = await window.embeddedCoverManager.getEmbeddedCover(filePath);
+                    const embeddedResult = await embeddedCoverManager.getEmbeddedCover(filePath);
                     if (embeddedResult.success && embeddedResult.url) {
                         // 对于blob URL，跳过验证以避免过早释放
                         // URL验证会在DOM加载时自然进行
@@ -1137,8 +1146,8 @@ class MusicBoxAPI extends EventEmitter {
                             };
                         } else {
                             // 对于非blob URL，进行验证
-                            const isValidUrl = window.urlValidator ?
-                                await window.urlValidator.isValidUrl(embeddedResult.url) : true;
+                            const isValidUrl = urlValidator ?
+                                await urlValidator.isValidUrl(embeddedResult.url) : true;
                             if (isValidUrl) {
                                 return {
                                     success: true,
@@ -1158,9 +1167,9 @@ class MusicBoxAPI extends EventEmitter {
             }
 
             // 优先级2: 检查本地封面缓存
-            if (window.localCoverManager && window.localCoverManager.getCoverDirectory()) {
+            if (localCoverManager && localCoverManager.getCoverDirectory()) {
                 try {
-                    const localCoverResult = await window.localCoverManager.checkLocalCover(title, artist, album);
+                    const localCoverResult = await localCoverManager.checkLocalCover(title, artist, album);
                     if (localCoverResult.success) {
                         return {
                             success: true,
@@ -1216,7 +1225,7 @@ class MusicBoxAPI extends EventEmitter {
     // 保存封面到本地
     async saveCoverToLocalCache(title, artist, album, imageData) {
         try {
-            if (!window.localCoverManager || !window.localCoverManager.getCoverDirectory()) {
+            if (!localCoverManager || !localCoverManager.getCoverDirectory()) {
                 console.log('⚠️ 未设置封面缓存目录，跳过本地缓存保存');
                 return;
             }
@@ -1235,7 +1244,7 @@ class MusicBoxAPI extends EventEmitter {
                 else if (imageData.includes('.gif') || imageData.includes('gif')) imageFormat = 'gif';
             }
 
-            const saveResult = await window.localCoverManager.saveCoverToCache(
+            const saveResult = await localCoverManager.saveCoverToCache(
                 title, artist, album, imageData, imageFormat
             );
         } catch (error) {
@@ -1260,7 +1269,7 @@ class MusicBoxAPI extends EventEmitter {
             // 优先级1: 检查内嵌歌词
             if (filePath) {
                 try {
-                    const embeddedResult = await window.embeddedLyricsManager.getEmbeddedLyrics(filePath);
+                    const embeddedResult = await embeddedLyricsManager.getEmbeddedLyrics(filePath);
                     if (embeddedResult.success) {
                         // 释放请求锁
                         this._lyricsRequestLock.delete(lyricsKey);
@@ -1272,9 +1281,9 @@ class MusicBoxAPI extends EventEmitter {
             }
 
             // 优先级2: 检查本地歌词文件
-            if (window.localLyricsManager) {
+            if (localLyricsManager) {
                 try {
-                    const localResult = await window.localLyricsManager.getLyrics(title, artist, album);
+                    const localResult = await localLyricsManager.getLyrics(title, artist, album);
                     if (localResult.success) {
                         // 释放请求锁
                         this._lyricsRequestLock.delete(lyricsKey);
@@ -1286,8 +1295,8 @@ class MusicBoxAPI extends EventEmitter {
             }
 
             // 优先级3: 检查localStorage缓存
-            if (window.cacheManager) {
-                const cached = window.cacheManager.getLyricsCache(title, artist, album);
+            if (cacheManager) {
+                const cached = cacheManager.getLyricsCache(title, artist, album);
                 if (cached) {
                     // 释放请求锁
                     this._lyricsRequestLock.delete(lyricsKey);
@@ -1313,7 +1322,7 @@ class MusicBoxAPI extends EventEmitter {
                 lrc: lrcText.trim(),
                 source: 'network'
             };
-            window.cacheManager.setLyricsCache(title, artist, album, result);
+            cacheManager.setLyricsCache(title, artist, album, result);
 
             // 释放请求锁
             this._lyricsRequestLock.delete(lyricsKey);
@@ -1465,7 +1474,7 @@ class MusicBoxAPI extends EventEmitter {
 
     // 节流保存播放位置
     throttledSavePosition(position) {
-        const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
 
         // 只有启用记住播放位置时才保存
         if (!settings.rememberPosition) return;
@@ -1488,7 +1497,7 @@ class MusicBoxAPI extends EventEmitter {
                     timestamp: Date.now()
                 };
 
-                window.cacheManager.setLocalCache('playback-state', playbackState);
+                cacheManager.setLocalCache('playback-state', playbackState);
             } catch (error) {
                 console.error('❌ API: 保存播放位置失败:', error);
             }
@@ -1497,7 +1506,7 @@ class MusicBoxAPI extends EventEmitter {
 
     // 立即保存当前播放状态
     saveCurrentPlaybackState() {
-        const settings = window.cacheManager.getLocalCache('musicbox-settings') || {};
+        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
 
         // 只有启用记住播放位置时才保存
         if (!settings.rememberPosition) {
@@ -1525,7 +1534,7 @@ class MusicBoxAPI extends EventEmitter {
                 playMode: this.playMode
             });
 
-            window.cacheManager.setLocalCache('playback-state', playbackState);
+            cacheManager.setLocalCache('playback-state', playbackState);
             console.log('✅ API: 播放状态已保存（包含播放列表）');
         } catch (error) {
             console.error('❌ API: 保存播放状态失败:', error);

@@ -2,6 +2,9 @@
  * 统计页组件
  */
 
+import {cacheManager} from "@js/cache-manager";
+import {Component} from "@components/base/Component";
+
 class StatisticsPage extends Component {
     constructor(container) {
         super(container);
@@ -57,7 +60,7 @@ class StatisticsPage extends Component {
     }
 
     loadPlayHistory() {
-        const history = window.cacheManager.getLocalCache('musicbox-play-history')
+        const history = cacheManager.getLocalCache('musicbox-play-history')
         if (history) {
             try {
                 this.recentTracks = history.slice(0, 50);
@@ -87,7 +90,7 @@ class StatisticsPage extends Component {
             playCountStats[trackKey] = (playCountStats[trackKey] || 0) + 1;
 
             // 保存统计数据
-            window.cacheManager.setLocalCache('musicbox-play-count-stats', playCountStats);
+            cacheManager.setLocalCache('musicbox-play-count-stats', playCountStats);
 
             console.log(`📊 StatisticsPage: 更新播放次数 - ${track.title}: ${playCountStats[trackKey]} 次`);
         } catch (error) {
@@ -98,7 +101,7 @@ class StatisticsPage extends Component {
     // 加载播放次数统计
     loadPlayCountStats() {
         try {
-            return window.cacheManager.getLocalCache('musicbox-play-count-stats') || {};
+            return cacheManager.getLocalCache('musicbox-play-count-stats') || {};
         } catch (error) {
             console.error('❌ StatisticsPage: 加载播放次数统计失败:', error);
             return {};
@@ -301,4 +304,4 @@ class StatisticsPage extends Component {
     }
 }
 
-window.components.component.StatisticsPage = StatisticsPage;
+export { StatisticsPage };
