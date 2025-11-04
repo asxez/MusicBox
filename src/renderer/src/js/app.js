@@ -75,26 +75,42 @@ class MusicBoxApp extends EventEmitter {
     // 初始化插件系统
     async initializePluginSystem() {
         try {
-            // 检查插件系统是否可用
-            if (typeof window.initializePluginSystem === 'function') {
-                const success = await window.initializePluginSystem();
-                if (success) {
-                    // 设置应用引用到插件系统
-                    window.pluginManager.app = this;
+            console.log('🔌 App: 开始初始化插件系统');
 
-                    // 更新插件管理器的上下文，确保包含最新的组件
-                    if (typeof window.pluginAPI.createPluginContext === 'function') {
-                        window.pluginManager.pluginContext = window.pluginAPI.createPluginContext('system');
-                    }
-                } else {
-                    console.warn('⚠️ App: 插件系统初始化失败，但应用将继续运行');
-                }
-            } else {
-                console.warn('⚠️ App: 插件系统未加载，跳过初始化');
+            // 检查扩展服务是否可用
+            if (typeof ExtensionService === 'undefined') {
+                console.error('❌ App: ExtensionService 未定义，插件系统核心模块可能未加载');
+                return;
             }
+
+            // 创建服务集合
+            const services = new ServiceCollection();
+
+            // 创建实例化服务
+            const instantiationService = new InstantiationService(services);
+
+            // 创建扩展服务
+            const extensionService = instantiationService.createInstance(ExtensionService);
+
+            // 初始化扩展服务
+            await extensionService.initialize();
+
+            // 保存到全局和应用实例
+            window.extensionService = extensionService;
+            window.instantiationService = instantiationService;
+            this.extensionService = extensionService;
+            this.instantiationService = instantiationService;
+
+            console.log('✅ App: 扩展服务初始化成功');
+
+            // 触发启动扩展激活事件
+            await extensionService.activateByEvent(ActivationEvents.ON_START_UP);
+
+            console.log('✅ App: 插件系统初始化完成');
 
         } catch (error) {
             console.error('❌ App: 插件系统初始化失败:', error);
+            // 不抛出错误，让应用继续运行
         }
     }
 
@@ -110,10 +126,7 @@ class MusicBoxApp extends EventEmitter {
                 }
             }));
 
-            // 如果插件管理器存在，通知它应用已就绪
-            if (window.pluginManager && typeof window.pluginManager.onAppReady === 'function') {
-                window.pluginManager.onAppReady(this);
-            }
+            console.log('✅ App: 应用就绪事件已触发');
         } catch (error) {
             console.error('❌ App: 通知插件系统失败:', error);
         }
@@ -146,14 +159,14 @@ class MusicBoxApp extends EventEmitter {
         // 将settings组件暴露到全局，供其他组件访问
         window.settings = this.components.settings;
 
-        // 初始化插件管理组件
-        this.components.pluginManagerModal = new PluginManagerModal();
-
         // 初始化更新检查模态窗口
         this.components.updateModal = new UpdateModal();
 
         // 网络磁盘模态框组件
         this.components.networkDiskModal = null;
+
+        // 插件管理模态框组件
+        this.components.pluginManagerModal = new PluginManagerModal();
 
         // 初始化首页
         this.components.homePage = new HomePage('#content-area');

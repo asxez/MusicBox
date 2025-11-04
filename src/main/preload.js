@@ -360,5 +360,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // 内存管理
     memory: {
         forceGC: () => ipcRenderer.invoke('memory:forceGC'),
+    },
+
+    extensions: {
+        selectPackage: () => ipcRenderer.invoke('extensions:selectPackage'),
+        installFromFile: (filePath) => ipcRenderer.invoke('extensions:installFromFile', filePath),
+        uninstall: (extensionId, keepData) => ipcRenderer.invoke('extensions:uninstall', extensionId, keepData),
+        enable: (extensionId) => ipcRenderer.invoke('extensions:enable', extensionId),
+        disable: (extensionId) => ipcRenderer.invoke('extensions:disable', extensionId),
+        getInstalled: () => ipcRenderer.invoke('extensions:getInstalled'),
+        scanUserExtensions: () => ipcRenderer.invoke('extensions:scanUserExtensions'),
+        readExtensionFile: (extensionId, filePath) => ipcRenderer.invoke('extensions:readExtensionFile', extensionId, filePath),
     }
 });

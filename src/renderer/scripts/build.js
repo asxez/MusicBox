@@ -70,14 +70,19 @@ async function bundleJS() {
         // 1. 基础组件
         'components/base/Component.js',
 
-        // 2. 插件系统
-        'plugin-system/PluginBase.js',
-        'plugin-system/PluginLoader.js',
-        'plugin-system/PluginAPI.js',
-        'plugin-system/PluginManager.js',
-        'plugin-system/index.js',
+        // 2. 新插件系统核心基础设施（必须最先加载）
+        'plugin-system/core/Lifecycle.js',
+        'plugin-system/core/Event.js',
+        'plugin-system/core/Instantiation.js',
+        'plugin-system/core/ExtensionsRegistry.js',
+        'plugin-system/core/ExtensionActivator.js',
+        'plugin-system/core/ExtensionService.js',
+        'plugin-system/core/index.js',
 
-        // 3. 页面组件
+        // 3. 扩展 API
+        'plugin-system/api/ExtensionAPI.js',
+
+        // 4. 页面组件
         'components/component/ArtistsPage.js',
         'components/component/AlbumsPage.js',
         'components/component/ContextMenu.js',
@@ -127,7 +132,13 @@ async function bundleJS() {
     const excludeDirs = [
         'plugin-system/examples',
         'plugin-system/docs',
-    ]
+    ];
+
+    // 需要单独复制的插件系统文件（不打包到 bundle.js）
+    const pluginSystemSeparateFiles = [
+        'plugin-system/examples/hello-world-extension/extension.js',
+        'plugin-system/examples/hello-world-extension/manifest.json',
+    ];
 
     // Collect all JavaScript files
     const allFiles = collectJSFiles(jsDir);
