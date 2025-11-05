@@ -4,6 +4,7 @@
 
 import {urlValidator} from "@js/url-validator";
 import {Component} from "@components/base/Component";
+import {api} from "@js/api";
 
 class Lyrics extends Component {
     constructor(element) {

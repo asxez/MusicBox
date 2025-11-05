@@ -297,10 +297,11 @@ function markAsDisposable(obj) {
     return obj;
 }
 
-
-window.Disposable = Disposable;
-window.DisposableStore = DisposableStore;
-window.DisposableMap = DisposableMap;
-window.toDisposable = toDisposable;
-window.combinedDisposable = combinedDisposable;
-window.markAsDisposable = markAsDisposable;
+export {
+    Disposable,
+    DisposableStore,
+    DisposableMap,
+    toDisposable,
+    combinedDisposable,
+    markAsDisposable,
+};

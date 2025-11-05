@@ -279,7 +279,7 @@ window.myExtension = { activate, deactivate };
 
 1. 将类改为导出 `activate` 和 `deactivate` 函数
 2. 使用 `context.subscriptions` 替代 `this.disposables`
-3. 使用新的 API 替代直接访问 `window.app`
+3. 使用新的 API 替代直接访问 `app`
 4. 创建 `manifest.json` 文件
 5. 更新激活事件和贡献点
 
@@ -295,7 +295,7 @@ A: 根据 `activationEvents` 定义的事件触发时激活。
 
 ### Q: 如何访问应用功能？
 
-A: 通过 `createExtensionAPI(context)` 获取 API，不要直接访问 `window.app`。
+A: 通过 `createExtensionAPI(context)` 获取 API，不要直接访问 `app`。
 
 ### Q: 如何持久化数据？
 

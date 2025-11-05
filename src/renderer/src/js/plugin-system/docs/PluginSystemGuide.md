@@ -402,7 +402,7 @@ await window.extensionService.uninstallExtension('extension-id');
 
 1. 将 `PluginBase` 改为导出 `activate` 和 `deactivate` 函数
 2. 使用 `context.subscriptions` 替代 `this.disposables`
-3. 使用新的 API 替代直接访问 `window.app`
+3. 使用新的 API 替代直接访问 `app`
 4. 创建 `manifest.json` 文件
 5. 更新激活事件和贡献点
 
@@ -410,7 +410,7 @@ await window.extensionService.uninstallExtension('extension-id');
 
 ### Q: 如何访问应用的组件？
 
-A: 通过 API 访问，不要直接访问 `window.app`。
+A: 通过 API 访问，不要直接访问 `app`。
 
 ### Q: 如何持久化数据？
 

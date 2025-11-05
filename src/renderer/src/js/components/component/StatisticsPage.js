@@ -4,6 +4,7 @@
 
 import {cacheManager} from "@js/cache-manager";
 import {Component} from "@components/base/Component";
+import {api} from "@js/api";
 
 class StatisticsPage extends Component {
     constructor(container) {

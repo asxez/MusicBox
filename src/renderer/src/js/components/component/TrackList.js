@@ -6,6 +6,8 @@ import { sanitizeHTML, formatTime } from "@js/utils";
 import {cacheManager} from "@js/cache-manager";
 import {coverUpdateManager} from "@js/cover-update-manager";
 import {Component} from "@components/base/Component";
+import {api} from "@js/api";
+import {app} from "@js/app";
 
 class TrackList extends Component {
     constructor(container) {
@@ -62,8 +64,8 @@ class TrackList extends Component {
     setupSettingsListener() {
         // 延迟设置监听器，确保app.components.settings已初始化
         const setupListener = () => {
-            if (window.app && window.app.components && window.app.components.settings) {
-                window.app.components.settings.on('showTrackCoversEnabled', (enabled) => {
+            if (app && app.components && app.components.settings) {
+                app.components.settings.on('showTrackCoversEnabled', (enabled) => {
                     this.showCovers = enabled;
                     // 重置预加载状态，因为设置发生了变化
                     this.coversPreloaded = false;
@@ -226,7 +228,7 @@ class TrackList extends Component {
             // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
             const loadCover = async () => {
                 try {
-                    const coverResult = await window.api.getCover(
+                    const coverResult = await api.getCover(
                         track.title, track.artist, track.album, track.filePath
                     );
 

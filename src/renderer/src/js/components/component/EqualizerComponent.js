@@ -4,6 +4,7 @@
 
 import {cacheManager} from "@js/cache-manager";
 import {Component} from "@components/base/Component";
+import {api} from "@js/api";
 
 class EqualizerComponent extends Component {
     constructor() {
@@ -138,8 +139,8 @@ class EqualizerComponent extends Component {
 
     async initializeEqualizer() {
         // 等待API初始化
-        if (window.api.getEqualizer) {
-            this.equalizer = window.api.getEqualizer();
+        if (api.getEqualizer) {
+            this.equalizer = api.getEqualizer();
             if (this.equalizer) {
                 if (cacheManager) {
                     this.reloadConfig();
@@ -174,7 +175,7 @@ class EqualizerComponent extends Component {
         this.isEnabled = enabled;
 
         // 更新音频引擎
-        window.api.setEqualizerEnabled(enabled);
+        api.setEqualizerEnabled(enabled);
         // console.log(`🎛️ 音频引擎均衡器状态已更新: ${enabled}`);
 
         // 更新UI状态（避免触发change事件）
@@ -318,8 +319,8 @@ class EqualizerComponent extends Component {
             }
 
             // 直接更新音频引擎状态，不通过setEnabled避免递归
-            if (window.api && window.api.setEqualizerEnabled) {
-                window.api.setEqualizerEnabled(this.isEnabled);
+            if (api && api.setEqualizerEnabled) {
+                api.setEqualizerEnabled(this.isEnabled);
             }
 
             // 更新UI状态
@@ -404,7 +405,7 @@ class EqualizerComponent extends Component {
             this.equalizerSettings.classList.add('disabled');
         }
 
-        window.api.setEqualizerEnabled(false);
+        api.setEqualizerEnabled(false);
     }
 
     saveSettings() {

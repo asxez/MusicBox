@@ -4,6 +4,16 @@
  */
 
 import {cacheManager} from "@js/cache-manager";
+import {ExtensionActivationReason, ExtensionActivator} from "@js/plugin-system/core/ExtensionActivator";
+import {Emitter} from "@js/plugin-system/core/Event";
+import {createDecorator} from "@js/plugin-system/core/Instantiation";
+import {
+    ActivationEvents,
+    ContributionPoints,
+    ExtensionDescriptor,
+    extensionsRegistry
+} from "@js/plugin-system/core/ExtensionsRegistry";
+import {Disposable} from "@js/plugin-system/core/Lifecycle";
 
 /**
  * 扩展服务 - 管理所有扩展的生命周期
@@ -874,5 +884,7 @@ class ExtensionService extends Disposable {
 // 创建服务标识符
 const IExtensionService = createDecorator('extensionService');
 
-window.ExtensionService = ExtensionService;
-window.IExtensionService = IExtensionService;
+export {
+    ExtensionService,
+    IExtensionService
+};

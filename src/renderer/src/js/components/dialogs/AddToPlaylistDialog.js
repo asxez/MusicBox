@@ -3,6 +3,7 @@
  */
 
 import {Component} from "@components/base/Component";
+import {app} from "@js/app";
 
 class AddToPlaylistDialog extends Component {
     constructor() {
@@ -127,18 +128,18 @@ class AddToPlaylistDialog extends Component {
             );
             if (result.success) {
                 const playlist = this.playlists.find(p => p.id === playlistId);
-                window.app.showInfo(`已添加到歌单 "${playlist?.name || '未知'}"`);
+                app.showInfo(`已添加到歌单 "${playlist?.name || '未知'}"`);
 
                 // 触发添加成功事件
                 this.emit('trackAdded', {playlist, track: this.currentTrack});
                 this.hide();
             } else {
                 console.error('❌ 添加到歌单失败:', result.error);
-                window.app.showError(result.error || '添加到歌单失败');
+                app.showError(result.error || '添加到歌单失败');
             }
         } catch (error) {
             console.error('❌ 添加到歌单失败:', error);
-            window.app.showError('添加到歌单失败，请重试');
+            app.showError('添加到歌单失败，请重试');
         }
     }
 

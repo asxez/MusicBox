@@ -5,6 +5,8 @@
 import {cacheManager} from "@js/cache-manager";
 import {localCoverManager} from "@js/local-cover-manager";
 import {Component} from "@components/base/Component";
+import {api} from "@js/api";
+import {app} from "@js/app";
 
 class PlaylistDetailPage extends Component {
     constructor(container) {
@@ -76,8 +78,8 @@ class PlaylistDetailPage extends Component {
     setupSettingsListener() {
         // 延迟设置监听器，确保app.components.settings已初始化
         const setupListener = () => {
-            if (window.app && window.app.components && window.app.components.settings) {
-                window.app.components.settings.on('showTrackCoversEnabled', (enabled) => {
+            if (app && app.components && app.components.settings) {
+                app.components.settings.on('showTrackCoversEnabled', (enabled) => {
                     this.showCovers = enabled;
                     if (this.isVisible) {
                         this.render(); // 重新渲染列表
@@ -528,8 +530,8 @@ class PlaylistDetailPage extends Component {
 
     async playTrack(track, index) {
         try {
-            window.app.components.playlist.setTracks(this.tracks, index);
-            await window.app.playTrackFromPlaylist(track, index);
+            app.components.playlist.setTracks(this.tracks, index);
+            await app.playTrackFromPlaylist(track, index);
         } catch (error) {
             console.error('❌ PlaylistDetailPage: 播放歌曲失败', error);
         }
@@ -537,7 +539,7 @@ class PlaylistDetailPage extends Component {
 
     async playAllTracks() {
         if (this.tracks.length === 0) {
-            window.app.showInfo('歌单为空，无法播放');
+            app.showInfo('歌单为空，无法播放');
             return;
         }
         this.emit('playAllTracks', this.tracks);
@@ -545,7 +547,7 @@ class PlaylistDetailPage extends Component {
 
     async shufflePlayTracks() {
         if (this.tracks.length === 0) {
-            window.app.showInfo('歌单为空，无法播放');
+            app.showInfo('歌单为空，无法播放');
             return;
         }
 
@@ -562,7 +564,7 @@ class PlaylistDetailPage extends Component {
     async addFromFolder() {
         try {
             // 显示进度提示
-            window.app.showInfo('正在选择文件夹...');
+            app.showInfo('正在选择文件夹...');
 
             // 打开文件夹选择对话框
             const folderPath = await window.electronAPI.openDirectory();
@@ -571,18 +573,18 @@ class PlaylistDetailPage extends Component {
             }
 
             // 显示扫描进度
-            window.app.showInfo('正在扫描文件夹中的音频文件...');
+            app.showInfo('正在扫描文件夹中的音频文件...');
 
             // 扫描文件夹中的音频文件
             const audioFiles = await this.scanFolderForAudioFiles(folderPath);
 
             if (audioFiles.length === 0) {
-                window.app.showInfo('在选择的文件夹中未找到音频文件');
+                app.showInfo('在选择的文件夹中未找到音频文件');
                 return;
             }
 
             // 显示添加进度
-            window.app.showInfo(`正在添加 ${audioFiles.length} 首歌曲到歌单...`);
+            app.showInfo(`正在添加 ${audioFiles.length} 首歌曲到歌单...`);
 
             // 批量添加到歌单
             const result = await this.addTracksToPlaylist(audioFiles);
@@ -596,14 +598,14 @@ class PlaylistDetailPage extends Component {
                 if (failCount > 0) {
                     message += `，${failCount} 首歌曲添加失败`;
                 }
-                window.app.showSuccess(message);
+                app.showSuccess(message);
                 await this.loadPlaylistTracks();
             } else {
-                window.app.showError(result.error || '添加歌曲到歌单失败');
+                app.showError(result.error || '添加歌曲到歌单失败');
             }
 
         } catch (error) {
-            window.app.showError('从文件夹添加音乐失败，请重试');
+            app.showError('从文件夹添加音乐失败，请重试');
         }
     }
 
@@ -630,12 +632,12 @@ class PlaylistDetailPage extends Component {
                 // 触发歌单更新事件
                 this.emit('playlistUpdated', this.currentPlaylist);
 
-                window.app.showInfo(`歌单"${this.currentPlaylist.name}"已清空`);
+                app.showInfo(`歌单"${this.currentPlaylist.name}"已清空`);
             } else {
-                window.app.showError(result.error || '清空歌单失败');
+                app.showError(result.error || '清空歌单失败');
             }
         } catch (error) {
-            window.app.showError('清空歌单失败，请重试');
+            app.showError('清空歌单失败，请重试');
         }
     }
 
@@ -761,12 +763,12 @@ class PlaylistDetailPage extends Component {
             this.emit('playlistUpdated', this.currentPlaylist);
 
             if (failCount === 0) {
-                window.app.showInfo(`成功移除 ${successCount} 首歌曲`);
+                app.showInfo(`成功移除 ${successCount} 首歌曲`);
             } else {
-                window.app.showInfo(`移除完成：成功 ${successCount} 首，失败 ${failCount} 首`);
+                app.showInfo(`移除完成：成功 ${successCount} 首，失败 ${failCount} 首`);
             }
         } catch (error) {
-            window.app.showError('批量移除失败，请重试');
+            app.showError('批量移除失败，请重试');
         }
     }
 
@@ -793,12 +795,12 @@ class PlaylistDetailPage extends Component {
 
                 // 触发歌单更新事件
                 this.emit('playlistUpdated', this.currentPlaylist);
-                window.app.showInfo(`已从歌单中移除 "${track.title}"`);
+                app.showInfo(`已从歌单中移除 "${track.title}"`);
             } else {
-                window.app.showError(result.error || '移除失败');
+                app.showError(result.error || '移除失败');
             }
         } catch (error) {
-            window.app.showError('移除失败，请重试');
+            app.showError('移除失败，请重试');
         }
     }
 
@@ -854,7 +856,7 @@ class PlaylistDetailPage extends Component {
 
             // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
             const loadCover = async () => {
-                const coverResult = await window.api.getCover(
+                const coverResult = await api.getCover(
                     track.title, track.artist, track.album
                 );
 
@@ -1030,7 +1032,7 @@ class PlaylistDetailPage extends Component {
                 await this.setCover(result.path);
             }
         } catch (error) {
-            window.app.showError('选择图片失败，请重试');
+            app.showError('选择图片失败，请重试');
         }
     }
 
@@ -1052,12 +1054,12 @@ class PlaylistDetailPage extends Component {
                 // 触发歌单更新事件
                 this.emit('playlistUpdated', this.currentPlaylist);
                 this.emit('playlistCoverUpdated', this.currentPlaylist);
-                window.app.showInfo('歌单封面设置成功');
+                app.showInfo('歌单封面设置成功');
             } else {
                 throw new Error(result.error || '设置封面失败');
             }
         } catch (error) {
-            window.app.showError(error.message || '设置封面失败，请重试');
+            app.showError(error.message || '设置封面失败，请重试');
         }
     }
 
@@ -1079,12 +1081,12 @@ class PlaylistDetailPage extends Component {
                 // 触发歌单更新事件
                 this.emit('playlistUpdated', this.currentPlaylist);
                 this.emit('playlistCoverUpdated', this.currentPlaylist);
-                window.app.showInfo('歌单封面已移除');
+                app.showInfo('歌单封面已移除');
             } else {
                 throw new Error(result.error || '移除封面失败');
             }
         } catch (error) {
-            window.app.showError(error.message || '移除封面失败，请重试');
+            app.showError(error.message || '移除封面失败，请重试');
         }
     }
 
@@ -1108,7 +1110,7 @@ class PlaylistDetailPage extends Component {
     }
 
     showTrackContextMenu(x, y, track, index) {
-        const contextMenu = window.app?.components?.contextMenu;
+        const contextMenu = app?.components?.contextMenu;
         if (contextMenu) {
             contextMenu.show(x, y, track, index);
         } else {

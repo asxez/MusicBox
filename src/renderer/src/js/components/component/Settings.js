@@ -8,6 +8,8 @@ import {localLyricsManager} from "@js/local-lyrics-manager";
 import {localCoverManager} from "@js/local-cover-manager";
 import {embeddedLyricsManager} from "@js/embedded-lyrics-manager";
 import {Component} from "@components/base/Component";
+import {api} from "@js/api";
+import {app} from "@js/app";
 
 class Settings extends Component {
     constructor(element) {
@@ -1059,8 +1061,8 @@ class Settings extends Component {
 
     // 显示网络磁盘配置模态框
     showNetworkDriveModal() {
-        if (window.app.components.networkDiskModal) {
-            window.app.components.networkDiskModal.show();
+        if (app.components.networkDiskModal) {
+            app.components.networkDiskModal.show();
         } else {
             this.showNotification('网络磁盘功能不可用', 'error');
         }
@@ -1128,8 +1130,8 @@ class Settings extends Component {
     }
 
     openPluginManager() {
-        if (window.app.components.pluginManagerModal) {
-            window.app.components.pluginManagerModal.show();
+        if (app.components.pluginManagerModal) {
+            app.components.pluginManagerModal.show();
         } else {
             this.showNotification('插件管理器不可用', 'error');
         }

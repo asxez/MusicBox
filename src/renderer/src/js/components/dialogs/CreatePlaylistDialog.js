@@ -3,6 +3,7 @@
  */
 
 import {Component} from "@components/base/Component";
+import {app} from "@js/app";
 
 class CreatePlaylistDialog extends Component {
     constructor() {
@@ -135,7 +136,7 @@ class CreatePlaylistDialog extends Component {
                 // 触发歌单创建事件
                 this.emit('playlistCreated', result.playlist);
                 this.hide();
-                window.app.showInfo(`歌单 "${name}" 创建成功`);
+                app.showInfo(`歌单 "${name}" 创建成功`);
             } else {
                 this.showError(result.error || '创建歌单失败');
             }

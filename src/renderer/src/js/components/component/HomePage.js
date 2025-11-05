@@ -4,6 +4,8 @@
 
 import {cacheManager} from "@js/cache-manager";
 import {Component} from "@components/base/Component";
+import {api} from "@js/api";
+import {app} from "@js/app";
 
 class HomePage extends Component {
     constructor(container) {
@@ -78,7 +80,7 @@ class HomePage extends Component {
         if (focusBtn) {
             focusBtn.addEventListener('click', () => {
                 this.toggleFocusMode();
-                window.app.components.lyrics.toggleFullscreen();
+                app.components.lyrics.toggleFullscreen();
             });
         }
 

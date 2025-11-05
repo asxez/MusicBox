@@ -3,6 +3,8 @@
  * 参考 VSCode 的 Event/Emitter 模式，提供类型安全和资源管理
  */
 
+import {Disposable, DisposableStore, toDisposable} from "@js/plugin-system/core/Lifecycle";
+
 /**
  * Emitter - 事件发射器
  * 用于创建和管理事件
@@ -347,6 +349,8 @@ class EventMultiplexer extends Disposable {
     }
 }
 
-window.Emitter = Emitter;
-window.Event = Event;
-window.EventMultiplexer = EventMultiplexer;
+export {
+    Emitter,
+    Event,
+    EventMultiplexer
+};

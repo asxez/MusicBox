@@ -5,6 +5,7 @@
 
 import {formatTime} from "@js/utils";
 import {Component} from "@components/base/Component";
+import {api} from "@js/api";
 
 class AlbumsPage extends Component {
     constructor(container) {
@@ -187,7 +188,7 @@ class AlbumsPage extends Component {
             }
             // 显示加载态
             this._setAlbumCardLoading(album.key, true);
-            const result = await window.api.getCover('', artist, name, null, false);
+            const result = await api.getCover('', artist, name, null, false);
             if (result && result.success && result.imageUrl) {
                 // 更新专辑数据
                 album.cover = result.imageUrl;
