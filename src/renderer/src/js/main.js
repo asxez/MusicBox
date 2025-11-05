@@ -35,7 +35,7 @@ import './plugin-system/core/index.js';
 // ============================================
 // 5. 导入扩展 API
 // ============================================
-import './plugin-system/api/ExtensionAPI.js';
+import './plugin-system/api/index.js';
 
 // ============================================
 // 6. 导入页面组件
