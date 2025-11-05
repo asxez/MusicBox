@@ -322,7 +322,7 @@ class ExtensionService extends Disposable {
 
         try {
             // 内置扩展列表（硬编码目录名，避免需要文件系统 API）
-            const builtinExtensionDirs = ['hello-world'];
+            const builtinExtensionDirs = ['hello-world', 'extension-api-test'];
 
             for (const dirName of builtinExtensionDirs) {
                 try {

@@ -1,0 +1,349 @@
+/**
+ * Player API - 播放器控制 API
+ * 提供音乐播放控制、播放列表管理、播放状态查询等功能
+ */
+
+import {Validator, validate} from './common/validation.js';
+import {NotAvailableError, ErrorUtils} from './common/errors.js';
+import {toDisposable} from '../core/Lifecycle.js';
+import {api} from '@js/api';
+
+/**
+ * 播放模式枚举
+ */
+export const PlayMode = {
+    SEQUENCE: 'sequence',      // 顺序播放
+    SHUFFLE: 'shuffle',        // 随机播放
+    REPEAT_ONE: 'repeat-one',  // 单曲循环
+    REPEAT_ALL: 'repeat-all'   // 列表循环
+};
+
+/**
+ * 播放状态枚举
+ */
+export const PlaybackState = {
+    PLAYING: 'playing',
+    PAUSED: 'paused',
+    STOPPED: 'stopped'
+};
+
+/**
+ * 创建播放器 API
+ * @param {Object} context - 扩展上下文
+ * @returns {PlayerAPI} 播放器 API 实例
+ */
+export function createPlayerAPI(context) {
+    return {
+        /**
+         * 播放歌曲
+         * @param {Object} track - 歌曲对象
+         * @returns {Promise<void>}
+         */
+        async play(track) {
+            Validator.assertObject(track, 'track');
+
+            return ErrorUtils.wrapAsync(async () => {
+                if (api && typeof api.playTrack === 'function') {
+                    await api.playTrack(track);
+                } else {
+                    throw new NotAvailableError('player.play', 'API 未初始化');
+                }
+            }, 'player.play');
+        },
+
+        /**
+         * 暂停播放
+         * @returns {Promise<void>}
+         */
+        async pause() {
+            return ErrorUtils.wrapAsync(async () => {
+                if (api && typeof api.pause === 'function') {
+                    await api.pause();
+                } else {
+                    throw new NotAvailableError('player.pause', 'API 未初始化');
+                }
+            }, 'player.pause');
+        },
+
+        /**
+         * 继续播放
+         * @returns {Promise<void>}
+         */
+        async resume() {
+            return ErrorUtils.wrapAsync(async () => {
+                if (api && typeof api.resume === 'function') {
+                    await api.resume();
+                } else {
+                    throw new NotAvailableError('player.resume', 'API 未初始化');
+                }
+            }, 'player.resume');
+        },
+
+        /**
+         * 停止播放
+         * @returns {Promise<void>}
+         */
+        async stop() {
+            return ErrorUtils.wrapAsync(async () => {
+                if (api && typeof api.stop === 'function') {
+                    await api.stop();
+                } else {
+                    throw new NotAvailableError('player.stop', 'API 未初始化');
+                }
+            }, 'player.stop');
+        },
+
+        /**
+         * 下一首
+         * @returns {Promise<void>}
+         */
+        async next() {
+            return ErrorUtils.wrapAsync(async () => {
+                if (api && typeof api.next === 'function') {
+                    await api.next();
+                } else {
+                    throw new NotAvailableError('player.next', 'API 未初始化');
+                }
+            }, 'player.next');
+        },
+
+        /**
+         * 上一首
+         * @returns {Promise<void>}
+         */
+        async previous() {
+            return ErrorUtils.wrapAsync(async () => {
+                if (api && typeof api.previous === 'function') {
+                    await api.previous();
+                } else {
+                    throw new NotAvailableError('player.previous', 'API 未初始化');
+                }
+            }, 'player.previous');
+        },
+
+        /**
+         * 设置音量
+         * @param {number} volume - 音量 (0-1)
+         * @returns {Promise<void>}
+         */
+        async setVolume(volume) {
+            validate.volume(volume);
+
+            return ErrorUtils.wrapAsync(async () => {
+                if (api && typeof api.setVolume === 'function') {
+                    await api.setVolume(volume);
+                } else {
+                    throw new NotAvailableError('player.setVolume', 'API 未初始化');
+                }
+            }, 'player.setVolume');
+        },
+
+        /**
+         * 获取当前音量
+         * @returns {number} 音量值 (0-1)
+         */
+        getVolume() {
+            return ErrorUtils.wrapSync(() => {
+                if (api && typeof api.volume !== 'undefined') {
+                    return api.volume;
+                }
+                return 0.7; // 默认音量
+            }, 'player.getVolume');
+        },
+
+        /**
+         * 获取当前播放状态
+         * @returns {Object|null} 播放状态对象
+         */
+        getState() {
+            return ErrorUtils.wrapSync(() => {
+                if (api && typeof api.getPlaybackState === 'function') {
+                    return api.getPlaybackState();
+                }
+                if (api) {
+                    return {
+                        isPlaying: api.isPlaying || false,
+                        currentTrack: api.currentTrack || null,
+                        position: api.position || 0,
+                        duration: api.duration || 0,
+                        volume: api.volume || 0.7
+                    };
+                }
+                return null;
+            }, 'player.getState');
+        },
+
+        /**
+         * 获取当前歌曲
+         * @returns {Object|null} 当前歌曲对象
+         */
+        getCurrentTrack() {
+            return ErrorUtils.wrapSync(() => {
+                if (api && typeof api.getCurrentTrack === 'function') {
+                    return api.getCurrentTrack();
+                }
+                if (api && api.currentTrack) {
+                    return api.currentTrack;
+                }
+                return null;
+            }, 'player.getCurrentTrack');
+        },
+
+        /**
+         * 跳转到指定时间
+         * @param {number} time - 时间（秒）
+         * @returns {Promise<void>}
+         */
+        async seek(time) {
+            validate.time(time);
+
+            return ErrorUtils.wrapAsync(async () => {
+                if (api && typeof api.seek === 'function') {
+                    await api.seek(time);
+                } else {
+                    throw new NotAvailableError('player.seek', 'API 未初始化');
+                }
+            }, 'player.seek');
+        },
+
+        /**
+         * 获取当前播放位置
+         * @returns {number} 播放位置（秒）
+         */
+        getPosition() {
+            return ErrorUtils.wrapSync(() => {
+                if (api && typeof api.position !== 'undefined') {
+                    return api.position;
+                }
+                return 0;
+            }, 'player.getPosition');
+        },
+
+        /**
+         * 获取当前歌曲时长
+         * @returns {number} 时长（秒）
+         */
+        getDuration() {
+            return ErrorUtils.wrapSync(() => {
+                if (api && typeof api.duration !== 'undefined') {
+                    return api.duration;
+                }
+                return 0;
+            }, 'player.getDuration');
+        },
+
+        /**
+         * 设置播放列表
+         * @param {Array<Object>} tracks - 歌曲列表
+         * @param {number} [startIndex=-1] - 起始播放索引
+         * @returns {Promise<void>}
+         */
+        async setPlaylist(tracks, startIndex = -1) {
+            Validator.assertArray(tracks, 'tracks');
+            if (startIndex !== -1) {
+                Validator.assertNumber(startIndex, 'startIndex');
+            }
+
+            return ErrorUtils.wrapAsync(async () => {
+                if (api && typeof api.setPlaylist === 'function') {
+                    await api.setPlaylist(tracks, startIndex);
+                } else {
+                    throw new NotAvailableError('player.setPlaylist', 'API 未初始化');
+                }
+            }, 'player.setPlaylist');
+        },
+
+        /**
+         * 获取当前播放列表
+         * @returns {Array<Object>} 播放列表
+         */
+        getPlaylist() {
+            return ErrorUtils.wrapSync(() => {
+                if (api && Array.isArray(api.playlist)) {
+                    return [...api.playlist];
+                }
+                return [];
+            }, 'player.getPlaylist');
+        },
+
+        /**
+         * 设置播放模式
+         * @param {string} mode - 播放模式 (sequence, shuffle, repeat-one, repeat-all)
+         * @returns {Promise<void>}
+         */
+        async setPlayMode(mode) {
+            Validator.assertEnum(
+                mode,
+                Object.values(PlayMode),
+                'mode'
+            );
+
+            return ErrorUtils.wrapAsync(async () => {
+                if (api && typeof api.setPlayMode === 'function') {
+                    await api.setPlayMode(mode);
+                } else if (api) {
+                    api.playMode = mode;
+                } else {
+                    throw new NotAvailableError('player.setPlayMode', 'API 未初始化');
+                }
+            }, 'player.setPlayMode');
+        },
+
+        /**
+         * 获取播放模式
+         * @returns {string} 播放模式
+         */
+        getPlayMode() {
+            return ErrorUtils.wrapSync(() => {
+                if (api && api.playMode) {
+                    return api.playMode;
+                }
+                return PlayMode.SEQUENCE;
+            }, 'player.getPlayMode');
+        },
+
+        /**
+         * 监听歌曲变化事件
+         * @param {Function} callback - 回调函数
+         * @returns {Disposable} 可释放对象
+         */
+        onTrackChanged(callback) {
+            Validator.assertFunction(callback, 'callback');
+
+            return ErrorUtils.wrapSync(() => {
+                if (api && typeof api.on === 'function') {
+                    api.on('trackChanged', callback);
+                    return toDisposable(() => {
+                        if (api && typeof api.off === 'function') {
+                            api.off('trackChanged', callback);
+                        }
+                    });
+                }
+                return toDisposable(() => {
+                });
+            }, 'player.onTrackChanged');
+        },
+
+        /**
+         * 监听播放状态变化事件
+         * @param {Function} callback - 回调函数
+         * @returns {Disposable} 可释放对象
+         */
+        onPlaybackStateChanged(callback) {
+            Validator.assertFunction(callback, 'callback');
+
+            return ErrorUtils.wrapSync(() => {
+                if (api && typeof api.on === 'function') {
+                    api.on('playbackStateChanged', callback);
+                    return toDisposable(() => {
+                        if (api && typeof api.off === 'function') {
+                            api.off('playbackStateChanged', callback);
+                        }
+                    });
+                }
+                return toDisposable(() => {
+                });
+            }, 'player.onPlaybackStateChanged');
+        }
+    };
+}

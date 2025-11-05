@@ -31,6 +31,14 @@ function registerAppIpcHandlers({ipcMain}) {
         return app.getPath('userData');
     });
 
+    ipcMain.handle('app:getAppPath', () => {
+        return app.getAppPath();
+    });
+
+    ipcMain.handle('app:getTempPath', () => {
+        return app.getPath('temp');
+    });
+
     ipcMain.handle('app:openUserDataFolder', async () => {
         try {
             const userDataPath = app.getPath('userData');

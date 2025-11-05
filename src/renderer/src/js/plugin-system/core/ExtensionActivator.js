@@ -5,7 +5,7 @@
 
 import {cacheManager} from "@js/cache-manager";
 import {Disposable, DisposableStore} from "@js/plugin-system/core/Lifecycle";
-import {createExtensionAPI} from "@js/plugin-system/api/ExtensionAPI";
+import {createExtensionAPI} from "@js/plugin-system/api/index.js";
 
 /**
  * 扩展激活时间记录

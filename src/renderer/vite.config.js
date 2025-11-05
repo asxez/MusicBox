@@ -56,13 +56,8 @@ export default defineConfig({
           if (id.includes('node_modules')) {
             return 'vendor';
           }
-          // 插件系统核心
-          if (id.includes('plugin-system/core')) {
-            return 'plugin-core';
-          }
-          // 插件系统 API
-          if (id.includes('plugin-system/api')) {
-            return 'plugin-api';
+          if (id.includes('plugin-system/core') || id.includes('plugin-system/api')) {
+            return 'plugin-system';
           }
           // 组件
           if (id.includes('components/')) {
