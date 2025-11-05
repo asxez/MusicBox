@@ -638,11 +638,11 @@ class APITestPlugin extends PluginBase {
      * 模拟Player事件
      */
     async simulatePlayerEvent(eventName) {
-        // 尝试通过window.api触发事件（如果可用）
+        // 尝试通过api触发事件（如果可用）
         try {
-            if (window.api && typeof window.api.emit === 'function') {
+            if (api && typeof api.emit === 'function') {
                 const testData = this.generateTestEventData(eventName);
-                window.api.emit(eventName, testData);
+                api.emit(eventName, testData);
             }
         } catch (error) {
             console.warn(`无法模拟${eventName}事件:`, error);

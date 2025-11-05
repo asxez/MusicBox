@@ -3,6 +3,8 @@
  */
 
 import {Component} from "@components/base/Component";
+import {api} from "@js/api";
+import {app} from "@js/app";
 
 class EditTrackInfoDialog extends Component {
     constructor() {
@@ -151,11 +153,11 @@ class EditTrackInfoDialog extends Component {
     // 使用API加载封面
     async loadCoverFromAPI(track) {
         try {
-            if (!window.api || !window.api.getCover) {
+            if (!api || !api.getCover) {
                 return false;
             }
 
-            const result = await window.api.getCover(track.title, track.artist, track.album, track.filePath);
+            const result = await api.getCover(track.title, track.artist, track.album, track.filePath);
 
             if (result.success && typeof result.imageUrl === 'string') {
                 track.cover = result.imageUrl;
@@ -727,7 +729,7 @@ class EditTrackInfoDialog extends Component {
 
     showError(message) {
         console.error('❌ EditTrackInfoDialog:', message);
-        window.app.showError(message);
+        app.showError(message);
     }
 
     clearForm() {
@@ -782,7 +784,7 @@ class EditTrackInfoDialog extends Component {
                 // 如果保存了新封面，更新封面URL
                 if (this.selectedCoverFile && result.updatedMetadata && result.updatedMetadata.cover) {
                     try {
-                        const coverResult = await window.api.getCover(
+                        const coverResult = await api.getCover(
                             result.updatedMetadata.title,
                             result.updatedMetadata.artist,
                             result.updatedMetadata.album,

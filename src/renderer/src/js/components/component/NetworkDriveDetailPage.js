@@ -4,6 +4,7 @@
 
 import {cacheManager} from "@js/cache-manager";
 import {Component} from "@components/base/Component";
+import {app} from "@js/app";
 
 class NetworkDriveDetailPage extends Component {
     constructor(container) {
@@ -74,8 +75,8 @@ class NetworkDriveDetailPage extends Component {
 
     setupSettingsListener() {
         const setupListener = () => {
-            if (window?.app?.components?.settings) {
-                window.app.components.settings.on('showTrackCoversEnabled', (enabled) => {
+            if (app?.components?.settings) {
+                app.components.settings.on('showTrackCoversEnabled', (enabled) => {
                     this.showCovers = enabled;
                     if (this.isVisible) {
                         this.render();
@@ -249,28 +250,28 @@ class NetworkDriveDetailPage extends Component {
             await this.loadDriveStatus();
             this.render();
             const displayName = this.currentDrive.config?.displayName || this.currentDrive.displayName || '未命名磁盘';
-            window.app.showInfo(`网络磁盘 "${displayName}" 已刷新`);
+            app.showInfo(`网络磁盘 "${displayName}" 已刷新`);
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 刷新失败', error);
-            window.app.showError('刷新失败，请重试');
+            app.showError('刷新失败，请重试');
         }
     }
 
     async scanDrive() {
         try {
-            window.app.showInfo('开始扫描网络磁盘...');
+            app.showInfo('开始扫描网络磁盘...');
             const result = await window.electronAPI.library.scanNetworkDrive(this.currentDrive.id, '/');
 
             if (result) {
                 await this.loadDriveTracks();
                 this.render();
-                window.app.showInfo(`扫描完成，找到 ${this.tracks.length} 首歌曲`);
+                app.showInfo(`扫描完成，找到 ${this.tracks.length} 首歌曲`);
             } else {
-                window.app.showError('扫描失败，请检查网络连接');
+                app.showError('扫描失败，请检查网络连接');
             }
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 扫描失败', error);
-            window.app.showError('扫描失败，请重试');
+            app.showError('扫描失败，请重试');
         }
     }
 
@@ -288,14 +289,14 @@ class NetworkDriveDetailPage extends Component {
 
                 this.emit('driveRemoved', this.currentDrive);
 
-                window.app.showInfo(`网络磁盘 "${displayName}" 已移除`);
-                await window.app.handleViewChange('library');
+                app.showInfo(`网络磁盘 "${displayName}" 已移除`);
+                await app.handleViewChange('library');
             } else {
-                window.app.showError('移除失败，请重试');
+                app.showError('移除失败，请重试');
             }
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 移除失败', error);
-            window.app.showError('移除失败，请重试');
+            app.showError('移除失败，请重试');
         }
     }
 
@@ -310,8 +311,8 @@ class NetworkDriveDetailPage extends Component {
     }
 
     showTrackContextMenu(x, y, track, index) {
-        if (window.app && window.app.components && window.app.components.contextMenu) {
-            window.app.components.contextMenu.show(x, y, track, index);
+        if (app && app.components && app.components.contextMenu) {
+            app.components.contextMenu.show(x, y, track, index);
         }
     }
 
@@ -331,7 +332,7 @@ class NetworkDriveDetailPage extends Component {
             } else {
                 // 如果不在缓存中，自动扫描该文件
                 console.log('🎵 NetworkDriveDetailPage: 文件未在缓存中，开始扫描...');
-                window.app.showInfo('正在加载音乐...');
+                app.showInfo('正在加载音乐...');
 
                 const result = await window.electronAPI.library.scanSingleFile(networkPath);
 
@@ -344,17 +345,17 @@ class NetworkDriveDetailPage extends Component {
                     this.emit('playTrack', result.track, 0);
 
                     if (result.isNew) {
-                        window.app.showSuccess('音乐已添加到音乐库');
+                        app.showSuccess('音乐已添加到音乐库');
                     }
                 } else {
                     // 扫描失败
                     console.error('❌ NetworkDriveDetailPage: 文件扫描失败', result.error);
-                    window.app.showError(result.error || '无法加载此音乐文件');
+                    app.showError(result.error || '无法加载此音乐文件');
                 }
             }
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 播放音乐文件失败', error);
-            window.app.showError('播放失败，请重试');
+            app.showError('播放失败，请重试');
         }
     }
 
@@ -369,8 +370,8 @@ class NetworkDriveDetailPage extends Component {
 
             if (track) {
                 // 如果已经在缓存中，显示完整的右键菜单
-                if (window.app && window.app.components && window.app.components.contextMenu) {
-                    window.app.components.contextMenu.show(x, y, track, 0);
+                if (app && app.components && app.components.contextMenu) {
+                    app.components.contextMenu.show(x, y, track, 0);
                 }
             } else {
                 // 如果不在缓存中，创建临时 track 对象并显示右键菜单
@@ -385,8 +386,8 @@ class NetworkDriveDetailPage extends Component {
                     needsScan: true // 标记需要扫描
                 };
 
-                if (window.app && window.app.components && window.app.components.contextMenu) {
-                    window.app.components.contextMenu.show(x, y, track, 0);
+                if (app && app.components && app.components.contextMenu) {
+                    app.components.contextMenu.show(x, y, track, 0);
                 }
             }
         } catch (error) {

@@ -324,9 +324,11 @@ const ContributionPoints = {
 // 创建全局注册表实例
 const extensionsRegistry = new ExtensionsRegistry();
 
-window.ExtensionPoint = ExtensionPoint;
-window.ExtensionDescriptor = ExtensionDescriptor;
-window.ExtensionsRegistry = ExtensionsRegistry;
-window.ActivationEvents = ActivationEvents;
-window.ContributionPoints = ContributionPoints;
-window.extensionsRegistry = extensionsRegistry;
+export {
+    ExtensionPoint,
+    ExtensionDescriptor,
+    ExtensionsRegistry,
+    ActivationEvents,
+    ContributionPoints,
+    extensionsRegistry,
+};

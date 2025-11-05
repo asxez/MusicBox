@@ -52,7 +52,9 @@ async function deactivate() {
 }
 
 // 导出激活和停用函数
-window.helloWorldExtension = {
+let helloWorldExtension = {
     activate,
     deactivate
 };
+
+window.helloWorldExtension = helloWorldExtension;

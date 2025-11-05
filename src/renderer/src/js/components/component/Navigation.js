@@ -5,6 +5,7 @@
 import {theme} from "@js/utils";
 import {cacheManager} from "@js/cache-manager";
 import {Component} from "@components/base/Component";
+import {app} from "@js/app";
 
 class Navigation extends Component {
     constructor() {
@@ -546,14 +547,14 @@ class Navigation extends Component {
             const result = await window.electronAPI.library.deletePlaylist(playlist.id);
             if (result.success) {
                 await this.refreshPlaylists();
-                window.app.showInfo(`歌单 "${playlist.name}" 已删除`);
+                app.showInfo(`歌单 "${playlist.name}" 已删除`);
             } else {
                 console.error('❌ Navigation: 歌单删除失败', result.error);
-                window.app.showError(result.error || '删除失败');
+                app.showError(result.error || '删除失败');
             }
         } catch (error) {
             console.error('❌ Navigation: 歌单删除失败', error);
-            window.app.showError('删除失败，请重试');
+            app.showError('删除失败，请重试');
         }
     }
 
@@ -672,10 +673,10 @@ class Navigation extends Component {
         try {
             await window.electronAPI.networkDrive.refreshConnection(drive.id);
             await this.loadNetworkDrives();
-            window.app.showInfo(`网络磁盘 "${drive.displayName}" 已刷新`);
+            app.showInfo(`网络磁盘 "${drive.displayName}" 已刷新`);
         } catch (error) {
             console.error('❌ Navigation: 刷新网络磁盘失败', error);
-            window.app.showError('刷新失败，请重试');
+            app.showError('刷新失败，请重试');
         }
     }
 

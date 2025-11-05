@@ -1610,4 +1610,5 @@ class MusicBoxAPI extends EventEmitter {
     }
 }
 
-window.api = new MusicBoxAPI();
+let api = new MusicBoxAPI();
+export { api };

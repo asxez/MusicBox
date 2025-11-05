@@ -5,6 +5,9 @@
 
 import { showToast } from '@js/utils';
 import {cacheManager} from "@js/cache-manager";
+import {Disposable, toDisposable} from "@js/plugin-system/core/Lifecycle";
+import {api} from "@js/api";
+import {app} from "@js/app";
 
 /**
  * 创建扩展 API
@@ -60,8 +63,8 @@ function createPlayerAPI() {
          * @param {Object} track 歌曲对象
          */
         async play(track) {
-            if (window.api && typeof window.api.playTrack === 'function') {
-                await window.api.playTrack(track);
+            if (api && typeof api.playTrack === 'function') {
+                await api.playTrack(track);
             }
         },
 
@@ -69,8 +72,8 @@ function createPlayerAPI() {
          * 暂停播放
          */
         async pause() {
-            if (window.api && typeof window.api.pause === 'function') {
-                await window.api.pause();
+            if (api && typeof api.pause === 'function') {
+                await api.pause();
             }
         },
 
@@ -78,8 +81,8 @@ function createPlayerAPI() {
          * 继续播放
          */
         async resume() {
-            if (window.api && typeof window.api.resume === 'function') {
-                await window.api.resume();
+            if (api && typeof api.resume === 'function') {
+                await api.resume();
             }
         },
 
@@ -87,8 +90,8 @@ function createPlayerAPI() {
          * 停止播放
          */
         async stop() {
-            if (window.api && typeof window.api.stop === 'function') {
-                await window.api.stop();
+            if (api && typeof api.stop === 'function') {
+                await api.stop();
             }
         },
 
@@ -96,8 +99,8 @@ function createPlayerAPI() {
          * 下一首
          */
         async next() {
-            if (window.api && typeof window.api.next === 'function') {
-                await window.api.next();
+            if (api && typeof api.next === 'function') {
+                await api.next();
             }
         },
 
@@ -105,8 +108,8 @@ function createPlayerAPI() {
          * 上一首
          */
         async previous() {
-            if (window.api && typeof window.api.previous === 'function') {
-                await window.api.previous();
+            if (api && typeof api.previous === 'function') {
+                await api.previous();
             }
         },
 
@@ -115,8 +118,8 @@ function createPlayerAPI() {
          * @param {Number} volume 音量 (0-1)
          */
         async setVolume(volume) {
-            if (window.api && typeof window.api.setVolume === 'function') {
-                await window.api.setVolume(volume);
+            if (api && typeof api.setVolume === 'function') {
+                await api.setVolume(volume);
             }
         },
 
@@ -124,8 +127,8 @@ function createPlayerAPI() {
          * 获取当前播放状态
          */
         getState() {
-            if (window.api && typeof window.api.getPlaybackState === 'function') {
-                return window.api.getPlaybackState();
+            if (api && typeof api.getPlaybackState === 'function') {
+                return api.getPlaybackState();
             }
             return null;
         },
@@ -134,8 +137,8 @@ function createPlayerAPI() {
          * 获取当前歌曲
          */
         getCurrentTrack() {
-            if (window.api && typeof window.api.getCurrentTrack === 'function') {
-                return window.api.getCurrentTrack();
+            if (api && typeof api.getCurrentTrack === 'function') {
+                return api.getCurrentTrack();
             }
             return null;
         },
@@ -145,8 +148,8 @@ function createPlayerAPI() {
          * @param {Number} time 时间（秒）
          */
         async seek(time) {
-            if (window.api && typeof window.api.seek === 'function') {
-                await window.api.seek(time);
+            if (api && typeof api.seek === 'function') {
+                await api.seek(time);
             }
         }
     };
@@ -161,8 +164,8 @@ function createLibraryAPI() {
          * 获取所有歌曲
          */
         getAllTracks() {
-            if (window.app && window.app.library) {
-                return [...window.app.library];
+            if (app && app.library) {
+                return [...app.library];
             }
             return [];
         },
@@ -172,8 +175,8 @@ function createLibraryAPI() {
          * @param {String} query 搜索关键词
          */
         searchTracks(query) {
-            if (window.app && typeof window.app.searchLibrary === 'function') {
-                return window.app.searchLibrary(query);
+            if (app && typeof app.searchLibrary === 'function') {
+                return app.searchLibrary(query);
             }
             return [];
         },
@@ -183,8 +186,8 @@ function createLibraryAPI() {
          * @param {Object} track 歌曲对象
          */
         async addTrack(track) {
-            if (window.app && typeof window.app.addTrackToLibrary === 'function') {
-                await window.app.addTrackToLibrary(track);
+            if (app && typeof app.addTrackToLibrary === 'function') {
+                await app.addTrackToLibrary(track);
             }
         },
 
@@ -193,8 +196,8 @@ function createLibraryAPI() {
          * @param {String} trackId 歌曲ID
          */
         async removeTrack(trackId) {
-            if (window.app && typeof window.app.removeTrackFromLibrary === 'function') {
-                await window.app.removeTrackFromLibrary(trackId);
+            if (app && typeof app.removeTrackFromLibrary === 'function') {
+                await app.removeTrackFromLibrary(trackId);
             }
         },
 
@@ -336,8 +339,8 @@ function createNavigationAPI() {
          * @param {String} viewId 视图ID
          */
         navigateTo(viewId) {
-            if (window.app && window.app.components && window.app.components.navigation) {
-                window.app.components.navigation.navigateTo(viewId);
+            if (app && app.components && app.components.navigation) {
+                app.components.navigation.navigateTo(viewId);
             }
         }
     };
@@ -391,10 +394,10 @@ function createEventsAPI() {
          * @param {Function} callback 回调函数
          */
         on(eventName, callback) {
-            if (window.app) {
-                window.app.on(eventName, callback);
+            if (app) {
+                app.on(eventName, callback);
                 return toDisposable(() => {
-                    window.app.off(eventName, callback);
+                    app.off(eventName, callback);
                 });
             }
             return Disposable.None;
@@ -406,8 +409,8 @@ function createEventsAPI() {
          * @param {*} data 数据
          */
         emit(eventName, data) {
-            if (window.app) {
-                window.app.emit(eventName, data);
+            if (app) {
+                app.emit(eventName, data);
             }
         }
     };
@@ -470,4 +473,4 @@ function createViewsAPI() {
     };
 }
 
-window.createExtensionAPI = createExtensionAPI;
+export {createExtensionAPI};

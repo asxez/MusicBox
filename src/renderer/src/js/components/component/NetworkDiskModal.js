@@ -3,6 +3,7 @@
  */
 
 import {Component} from "@components/base/Component";
+import {api} from "@js/api";
 
 class NetworkDiskModal extends Component {
     constructor() {
@@ -380,7 +381,7 @@ class NetworkDiskModal extends Component {
             this.showNotification('正在扫描网络磁盘...', 'info');
 
             // 使用API层的统一方法
-            const success = await window.api.scanNetworkDrive(driveId, '/');
+            const success = await api.scanNetworkDrive(driveId, '/');
             if (success) {
                 this.showNotification('网络磁盘扫描完成', 'success');
             } else {

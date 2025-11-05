@@ -3,6 +3,7 @@
  */
 
 import {Component} from "@components/base/Component";
+import {app} from "@js/app";
 
 class RenamePlaylistDialog extends Component {
     constructor() {
@@ -122,7 +123,7 @@ class RenamePlaylistDialog extends Component {
                 this.emit('playlistRenamed', result.playlist);
                 this.hide();
 
-                window.app.showInfo(`歌单已重命名为 "${newName}"`);
+                app.showInfo(`歌单已重命名为 "${newName}"`);
             } else {
                 this.showError('重命名失败');
                 console.error(result);

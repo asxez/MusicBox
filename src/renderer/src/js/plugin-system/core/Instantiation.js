@@ -334,12 +334,13 @@ const ServiceRegistry = {
 // 预定义的服务标识符
 const IInstantiationService = createDecorator('instantiationService');
 
-
-window.ServiceIdentifier = ServiceIdentifier;
-window.createDecorator = createDecorator;
-window.SyncDescriptor = SyncDescriptor;
-window.ServiceCollection = ServiceCollection;
-window.InstantiationService = InstantiationService;
-window.storeServiceDependency = storeServiceDependency;
-window.ServiceRegistry = ServiceRegistry;
-window.IInstantiationService = IInstantiationService;
+export {
+    ServiceIdentifier,
+    createDecorator,
+    SyncDescriptor,
+    ServiceCollection,
+    InstantiationService,
+    storeServiceDependency,
+    ServiceRegistry,
+    IInstantiationService,
+};

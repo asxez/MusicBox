@@ -4,6 +4,8 @@
  */
 
 import {cacheManager} from "@js/cache-manager";
+import {Disposable, DisposableStore} from "@js/plugin-system/core/Lifecycle";
+import {createExtensionAPI} from "@js/plugin-system/api/ExtensionAPI";
 
 /**
  * 扩展激活时间记录
@@ -499,7 +501,9 @@ class ExtensionActivator extends Disposable {
     }
 }
 
-window.ExtensionActivationTimes = ExtensionActivationTimes;
-window.ExtensionActivationReason = ExtensionActivationReason;
-window.ActivatedExtension = ActivatedExtension;
-window.ExtensionActivator = ExtensionActivator;
+export {
+    ExtensionActivationTimes,
+    ExtensionActivationReason,
+    ActivatedExtension,
+    ExtensionActivator
+};

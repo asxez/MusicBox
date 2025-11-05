@@ -27,6 +27,10 @@ import {RenamePlaylistDialog} from "@components/dialogs/RenamePlaylistDialog";
 
 import { cacheManager } from "@js/cache-manager";
 import {localCoverManager} from "@js/local-cover-manager";
+import {ExtensionService} from "@js/plugin-system/core/ExtensionService";
+import {InstantiationService, ServiceCollection} from "@js/plugin-system/core/Instantiation";
+import {ActivationEvents} from "@js/plugin-system/core/ExtensionsRegistry";
+import {api} from "@js/api";
 
 class MusicBoxApp extends EventEmitter {
     constructor() {
@@ -435,7 +439,7 @@ class MusicBoxApp extends EventEmitter {
 
         // 监听无间隙播放设置变化
         this.components.settings.on('gaplessPlaybackEnabled', (enabled) => {
-            window.api.setGaplessPlayback(enabled);
+            api.setGaplessPlayback(enabled);
         });
 
         // 新组件事件监听
@@ -2410,7 +2414,7 @@ class MusicBoxApp extends EventEmitter {
                     </button>
                 </div>
                 <div class="update-toast-actions">
-                    <button class="update-toast-btn update-toast-btn-primary" onclick="window.app.components.updateModal.show(); this.closest('.update-notification-toast').remove();">查看详情</button>
+                    <button class="update-toast-btn update-toast-btn-primary" onclick="app.components.updateModal.show(); this.closest('.update-notification-toast').remove();">查看详情</button>
                     <button class="update-toast-btn update-toast-btn-secondary" onclick="this.closest('.update-notification-toast').remove()">稍后提醒</button>
                 </div>
             </div>
@@ -2438,4 +2442,5 @@ class MusicBoxApp extends EventEmitter {
     }
 }
 
-window.app = new MusicBoxApp();
+let app = new MusicBoxApp();
+export { app };
