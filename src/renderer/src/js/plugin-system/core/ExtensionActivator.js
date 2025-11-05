@@ -56,6 +56,12 @@ class ExtensionActivator extends Disposable {
         this._activatedExtensions = new Map();
         this._activatingExtensions = new Map();
         this._alreadyActivatedEvents = {};
+
+        // 将 createExtensionAPI 注入到全局环境，供插件代码使用
+        // 解决 ES 模块迁移后，插件代码无法访问模块导出的问题
+        if (!window.createExtensionAPI) {
+            window.createExtensionAPI = createExtensionAPI;
+        }
     }
 
     /**
