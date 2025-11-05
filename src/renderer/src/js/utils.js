@@ -18,21 +18,6 @@ function formatTime(seconds) {
 }
 
 /**
- * Format file size in bytes to human readable format
- * @param {number} bytes - File size in bytes
- * @returns {string} Formatted file size
- */
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 B';
-
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
-
-/**
  * Debounce function to limit the rate of function calls
  * @param {Function} func - Function to debounce
  * @param {number} wait - Wait time in milliseconds
@@ -48,61 +33,6 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
-}
-
-/**
- * Throttle function to limit the rate of function calls
- * @param {Function} func - Function to throttle
- * @param {number} limit - Time limit in milliseconds
- * @returns {Function} Throttled function
- */
-function throttle(func, limit) {
-    let inThrottle;
-    return function (...args) {
-        if (!inThrottle) {
-            func.apply(this, args);
-            inThrottle = true;
-            setTimeout(() => inThrottle = false, limit);
-        }
-    };
-}
-
-/**
- * Generate a unique ID
- * @returns {string} Unique ID
- */
-function generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
-
-/**
- * Get file extension from file path
- * @param {string} filePath - File path
- * @returns {string} File extension
- */
-function getFileExtension(filePath) {
-    return filePath.split('.').pop().toLowerCase();
-}
-
-/**
- * Get file name from file path
- * @param {string} filePath - File path
- * @returns {string} File name without extension
- */
-function getFileName(filePath) {
-    const name = filePath.split(/[\\/]/).pop();
-    return name.substring(0, name.lastIndexOf('.')) || name;
-}
-
-/**
- * Check if a file is an audio file based on extension
- * @param {string} filePath - File path
- * @returns {boolean} True if audio file
- */
-function isAudioFile(filePath) {
-    const audioExtensions = ['mp3', 'flac', 'wav', 'ogg', 'm4a', 'aac', 'wma'];
-    const extension = getFileExtension(filePath);
-    return audioExtensions.includes(extension);
 }
 
 /**
@@ -166,11 +96,6 @@ function showToast(message, type = 'info', duration = 1500) {
         }, 300);
     }, duration);
 }
-
-window.components = {
-    component: {},
-    dialogs: {},
-};
 
 // 自定义事件
 class EventEmitter {
