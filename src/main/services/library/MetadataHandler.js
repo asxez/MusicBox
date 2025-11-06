@@ -21,7 +21,7 @@ const METADATA_HANDLERS = {
 class MetadataHandler {
     constructor() {
         this.pythonPath = null;
-        this.scriptPath = path.join(__dirname, 'metadata_editor.py');
+        this.scriptPath = path.join(__dirname, '../', '../', 'metadata_editor.py');
         this.initialized = false;
         this.useExecutable = false; // 标记是否使用打包后的可执行文件
 
@@ -58,7 +58,7 @@ class MetadataHandler {
             return possiblePaths[0];
         } else {
             // 开发环境：可执行文件在src/main目录中
-            const executablePath = path.join(__dirname, executableName);
+            const executablePath = path.join(__dirname, '../', '../', executableName);
             console.log(`🔧 开发环境可执行文件路径: ${executablePath}`);
             return executablePath;
         }
@@ -82,17 +82,6 @@ class MetadataHandler {
                 // 检查文件权限和大小
                 const stats = fs.statSync(this.executablePath);
                 console.log(`📊 可执行文件信息: 大小=${(stats.size / 1024 / 1024).toFixed(2)}MB, 可执行=${!!(stats.mode & parseInt('111', 8))}`);
-
-                // 测试可执行文件是否正常工作
-                const testResult = await this.testExecutable();
-                if (testResult) {
-                    this.useExecutable = true;
-                    console.log('✅ 将使用打包后的可执行文件处理元数据');
-                    this.initialized = true;
-                    return true;
-                } else {
-                    console.log('⚠️ 可执行文件测试失败，回退到Python脚本模式');
-                }
             } else {
                 console.log(`❌ 可执行文件不存在: ${this.executablePath}`);
 
@@ -155,35 +144,6 @@ class MetadataHandler {
         }
 
         return null;
-    }
-
-    // 测试打包后的可执行文件
-    async testExecutable() {
-        console.log(`🧪 测试可执行文件: ${this.executablePath}`);
-
-        try {
-            const result = await this.runCommand(this.executablePath, ['--help']);
-            if (result.success) {
-                // 检查输出是否包含预期内容
-                const hasExpectedContent = result.stdout.includes('音频元数据编辑器') ||
-                    result.stdout.includes('metadata_editor') ||
-                    result.stdout.includes('file_path');
-
-                if (hasExpectedContent) {
-                    return true;
-                } else {
-                    console.log('⚠️ 可执行文件输出格式不符合预期');
-                    console.log(`📝 实际输出: ${result.stdout.substring(0, 200)}...`);
-                    return false;
-                }
-            } else {
-                console.error(`❌ 可执行文件执行失败: ${result.stderr}`);
-                return false;
-            }
-        } catch (error) {
-            console.error('❌ 测试可执行文件异常:', error.message);
-            return false;
-        }
     }
 
     // 检查mutagen库可用性
