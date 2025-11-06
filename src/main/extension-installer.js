@@ -15,6 +15,7 @@ const {app} = require('electron');
 const BUILTIN_EXTENSION_IDS = [
     'hello-world',
     'extension-api-test',
+    'advanced-extension'
 ];
 
 class ExtensionInstaller {

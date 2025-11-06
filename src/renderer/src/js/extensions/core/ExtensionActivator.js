@@ -49,10 +49,12 @@ class ActivatedExtension {
  * 扩展激活器
  */
 class ExtensionActivator extends Disposable {
-    constructor(registry, instantiationService) {
+    constructor(registry, instantiationService, permissionManager = null, configurationManager = null) {
         super();
         this._registry = registry;
         this._instantiationService = instantiationService;
+        this._permissionManager = permissionManager;
+        this._configurationManager = configurationManager;
         this._activatedExtensions = new Map();
         this._activatingExtensions = new Map();
         this._alreadyActivatedEvents = {};
@@ -369,8 +371,22 @@ class ExtensionActivator extends Disposable {
     _createExtensionContext(descriptor) {
         const subscriptions = new DisposableStore();
 
+        // 创建扩展 API（带权限代理）
+        const apiOptions = {
+            permissionManager: this._permissionManager,
+            enableProxy: !!this._permissionManager,
+            enableLogging: false // 可以根据配置启用
+        };
+
         const context = {
             // 扩展信息
+            extension: {
+                id: descriptor.id,
+                name: descriptor.name,
+                version: descriptor.version,
+                publisher: descriptor.publisher,
+                isBuiltin: descriptor.isBuiltin
+            },
             extensionId: descriptor.id,
             extensionPath: descriptor.extensionLocation,
             extensionUri: descriptor.extensionLocation,
@@ -398,7 +414,21 @@ class ExtensionActivator extends Disposable {
             storagePath: '',
             storageUri: '',
             globalStoragePath: '',
-            globalStorageUri: ''
+            globalStorageUri: '',
+
+            // 扩展 API（带权限代理）
+            api: createExtensionAPI(
+                {
+                    extension: {
+                        id: descriptor.id,
+                        name: descriptor.name,
+                        version: descriptor.version
+                    },
+                    globalState: this._createMemento(descriptor.id, true),
+                    workspaceState: this._createMemento(descriptor.id, false)
+                },
+                apiOptions
+            )
         };
 
         return context;

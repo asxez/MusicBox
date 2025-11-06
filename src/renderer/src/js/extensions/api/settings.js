@@ -133,23 +133,24 @@ export function createSettingsAPI(context) {
 
         /**
          * 监听设置变化
-         * @param {string} key - 设置键
-         * @param {Function} callback - 回调函数
+         * @param {Function} callback - 回调函数，接收 {key, newValue, oldValue} 事件对象
          * @returns {Disposable} 可释放对象
          */
-        onDidChange(key, callback) {
-            validate.configKey(key);
+        onDidChange(callback) {
             Validator.assertFunction(callback, 'callback');
 
             return ErrorUtils.wrapSync(() => {
                 if (window.settings && typeof window.settings.onSettingChanged === 'function') {
-                    return window.settings.onSettingChanged(key, callback);
+                    // 如果系统提供了配置变化监听，使用系统的
+                    return window.settings.onSettingChanged(callback);
                 }
 
                 // 使用 storage 事件监听 localStorage 变化
                 const handler = (event) => {
-                    if (event.key === `setting_${key}`) {
+                    // 只处理设置相关的变化
+                    if (event.key && event.key.startsWith('setting_')) {
                         try {
+                            const key = event.key.substring(8); // 移除 'setting_' 前缀
                             const newValue = event.newValue ? JSON.parse(event.newValue) : undefined;
                             const oldValue = event.oldValue ? JSON.parse(event.oldValue) : undefined;
                             callback({key, newValue, oldValue});

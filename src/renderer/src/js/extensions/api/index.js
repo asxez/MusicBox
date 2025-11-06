@@ -23,13 +23,25 @@ import {
     DiagnosticSeverity
 } from './diagnostics.js';
 import {CancellationToken, createTasksAPI, Task, TaskState} from './tasks.js';
+import {
+    createExtensionAPIProxy,
+    createLoggingAPIProxy,
+    APICallLogger
+} from '@extensions/core/ExtensionAPIProxy.js';
+
+// 全局 API 调用日志记录器
+const apiCallLogger = new APICallLogger();
 
 /**
  * 创建扩展 API
  * @param {Object} context - 扩展上下文
+ * @param {Object} options - 选项
+ * @param {PermissionManager} options.permissionManager - 权限管理器
+ * @param {boolean} options.enableProxy - 是否启用权限代理（默认 true）
+ * @param {boolean} options.enableLogging - 是否启用日志记录（默认 false）
  * @returns {Object} API 对象
  */
-function createExtensionAPI(context) {
+function createExtensionAPI(context, options = {}) {
     // 验证上下文
     if (!context) {
         console.warn('⚠️ 扩展上下文未提供，某些 API 功能可能不可用');
@@ -40,8 +52,14 @@ function createExtensionAPI(context) {
         };
     }
 
-    // 创建 API 对象
-    const api = {
+    const {
+        permissionManager = null,
+        enableProxy = true,
+        enableLogging = false
+    } = options;
+
+    // 创建原始 API 对象
+    const rawAPI = {
         // 播放器 API
         player: createPlayerAPI(context),
 
@@ -82,7 +100,23 @@ function createExtensionAPI(context) {
         tasks: createTasksAPI(context)
     };
 
-    return api;
+    // 如果启用了权限代理且提供了权限管理器，则创建代理
+    if (enableProxy && permissionManager) {
+        const extensionId = context.extension.id;
+
+        if (enableLogging) {
+            // 创建带日志记录的代理
+            console.log(`🔐 创建带权限和日志的 API 代理: ${extensionId}`);
+            return createLoggingAPIProxy(rawAPI, extensionId, permissionManager, apiCallLogger);
+        } else {
+            // 创建普通权限代理
+            console.log(`🔐 创建带权限的 API 代理: ${extensionId}`);
+            return createExtensionAPIProxy(rawAPI, extensionId, permissionManager);
+        }
+    }
+
+    // 返回原始 API
+    return rawAPI;
 }
 
 /**
@@ -112,7 +146,7 @@ function createMockMemento() {
 }
 
 // 导出主要函数
-export {createExtensionAPI};
+export {createExtensionAPI, apiCallLogger};
 
 // 导出枚举和常量
 export {

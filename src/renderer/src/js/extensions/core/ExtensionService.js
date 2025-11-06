@@ -14,6 +14,10 @@ import {
     extensionsRegistry
 } from "@extensions/core/ExtensionsRegistry";
 import {Disposable} from "@extensions/core/Lifecycle";
+import {ExtensionHostManager} from "@extensions/core/ExtensionHostManager";
+import {DependencyResolver} from "@extensions/core/ExtensionDependencies";
+import {PermissionManager} from "@extensions/core/ExtensionPermissions";
+import {ConfigurationManager} from "@extensions/core/ExtensionConfiguration";
 
 /**
  * 扩展服务 - 管理所有扩展的生命周期
@@ -29,6 +33,12 @@ class ExtensionService extends Disposable {
         this._onWillActivateExtension = new Emitter();
         this._onDidActivateExtension = new Emitter();
         this._onDidActivateExtensionError = new Emitter();
+
+        // 新增的管理器
+        this._hostManager = new ExtensionHostManager(this);
+        this._dependencyResolver = new DependencyResolver(this._registry);
+        this._permissionManager = new PermissionManager();
+        this._configurationManager = new ConfigurationManager();
     }
 
     /**
@@ -71,8 +81,16 @@ class ExtensionService extends Disposable {
         try {
             console.log('🔌 ExtensionService: 开始初始化');
 
-            // 创建激活器
-            this._activator = new ExtensionActivator(this._registry, this._instantiationService);
+            // 创建激活器（传入权限和配置管理器）
+            this._activator = new ExtensionActivator(
+                this._registry,
+                this._instantiationService,
+                this._permissionManager,
+                this._configurationManager
+            );
+
+            // 启动扩展主机
+            await this._hostManager.startAll();
 
             // 注册核心扩展点
             this._registerCoreExtensionPoints();
@@ -80,11 +98,20 @@ class ExtensionService extends Disposable {
             // 扫描并加载扩展
             await this._scanAndLoadExtensions();
 
-            // 激活启动扩展
-            await this._activateStartupExtensions();
+            // 构建依赖图
+            this._dependencyResolver.buildDependencyGraph();
+
+            // 检测循环依赖
+            const cycles = this._dependencyResolver.detectCircularDependencies();
+            if (cycles.length > 0) {
+                console.warn('⚠️ ExtensionService: 检测到循环依赖:', cycles);
+            }
 
             this._isInitialized = true;
-            console.log('✅ ExtensionService: 初始化完成');
+            console.log('✅ ExtensionService: 初始化完成（准备激活启动扩展）');
+
+            // 激活启动扩展
+            await this._activateStartupExtensions();
 
         } catch (error) {
             console.error('❌ ExtensionService: 初始化失败:', error);
@@ -298,8 +325,24 @@ class ExtensionService extends Disposable {
                         console.log(`🔄 ExtensionService: 恢复内置扩展 ${manifest.id} 的状态: enabled=${manifest.enabled}`);
                     }
 
+                    // 创建扩展描述符
                     const descriptor = new ExtensionDescriptor(manifest);
+
+                    // 注册到注册表
                     this._registry.registerExtension(descriptor);
+
+                    // 注册权限
+                    const permissions = this._permissionManager.extractPermissions(manifest);
+                    this._permissionManager.registerExtensionPermissions(descriptor.id, permissions);
+
+                    // 注册配置
+                    if (manifest.contributes && manifest.contributes.configuration) {
+                        this._configurationManager.registerConfiguration(
+                            descriptor.id,
+                            manifest.contributes.configuration
+                        );
+                    }
+
                     console.log(`✅ ExtensionService: 已注册内置扩展 ${descriptor.id}, enabled=${descriptor.enabled}`);
                 } catch (error) {
                     console.error(`❌ ExtensionService: 注册内置扩展 ${manifest.id} 失败:`, error);
@@ -322,7 +365,7 @@ class ExtensionService extends Disposable {
 
         try {
             // 内置扩展列表（硬编码目录名，避免需要文件系统 API）
-            const builtinExtensionDirs = ['hello-world', 'extension-api-test'];
+            const builtinExtensionDirs = ['hello-world', 'extension-api-test', 'advanced-extension'];
 
             for (const dirName of builtinExtensionDirs) {
                 try {
@@ -374,16 +417,24 @@ class ExtensionService extends Disposable {
      */
     async _loadExtension(manifest) {
         try {
-            console.log(`📦 ExtensionService._loadExtension: ${manifest.id}, isBuiltin=${manifest.isBuiltin}`);
-            console.log(`     ⚠️ 此方法只注册到注册表，不修改localStorage`);
-
             // 创建扩展描述符
             const descriptor = new ExtensionDescriptor(manifest);
 
-            // 注册到注册表（不修改localStorage）
+            // 注册到注册表
             this._registry.registerExtension(descriptor);
 
-            console.log(`✅ ExtensionService._loadExtension: 完成 ${descriptor.id}, enabled=${descriptor.enabled}`);
+            // 注册权限
+            const permissions = this._permissionManager.extractPermissions(manifest);
+            this._permissionManager.registerExtensionPermissions(descriptor.id, permissions);
+
+            // 注册配置
+            if (manifest.contributes && manifest.contributes.configuration) {
+                this._configurationManager.registerConfiguration(
+                    descriptor.id,
+                    manifest.contributes.configuration
+                );
+            }
+
         } catch (error) {
             console.error(`❌ ExtensionService: 加载扩展失败:`, error);
             throw error;
@@ -401,11 +452,40 @@ class ExtensionService extends Disposable {
 
             console.log(`🔌 ExtensionService: 发现 ${enabledExtensions.length} 个已启用的扩展（共 ${allExtensions.length} 个）`);
 
-            // 激活所有标记为启动激活的已启用扩展
-            await this._activator.activateByEvent(ActivationEvents.ON_START_UP, true);
+            // 获取需要启动激活的扩展
+            const startupExtensions = enabledExtensions.filter(ext => {
+                return ext.activationEvents && (
+                    ext.activationEvents.includes(ActivationEvents.ON_START_UP) ||
+                    ext.activationEvents.includes(ActivationEvents.WILDCARD)
+                );
+            });
 
-            // 激活通配符扩展
-            await this._activator.activateByEvent(ActivationEvents.WILDCARD, true);
+            // 按依赖关系排序
+            const extensionIds = startupExtensions.map(ext => ext.id);
+            let sortedIds;
+            try {
+                sortedIds = this._dependencyResolver.topologicalSort(extensionIds);
+                console.log(`📊 ExtensionService: 依赖排序完成，顺序:`, sortedIds);
+            } catch (error) {
+                console.warn('⚠️ ExtensionService: 依赖排序失败，使用原始顺序:', error);
+                sortedIds = extensionIds;
+            }
+
+            // 按顺序激活扩展
+            for (const extensionId of sortedIds) {
+                try {
+                    // 检查依赖
+                    const depCheck = this._dependencyResolver.checkDependencies(extensionId);
+                    if (!depCheck.satisfied) {
+                        console.warn(`⚠️ ExtensionService: 扩展 ${extensionId} 依赖未满足:`, depCheck);
+                        continue;
+                    }
+
+                    await this.activateById(extensionId);
+                } catch (error) {
+                    console.error(`❌ ExtensionService: 激活扩展 ${extensionId} 失败:`, error);
+                }
+            }
 
             console.log('✅ ExtensionService: 启动扩展激活完成');
 
@@ -835,7 +915,7 @@ class ExtensionService extends Disposable {
 
             // 如果不是外部插件，保存到内置插件状态映射中
             console.log(`   ➡️ 未找到外部扩展，保存为内置扩展状态`);
-            extensionsConfig.builtinStates[extensionId] = { enabled };
+            extensionsConfig.builtinStates[extensionId] = {enabled};
             cacheManager?.setLocalCache('extensions-config', extensionsConfig);
             console.log(`   ✓ 已保存内置扩展 ${extensionId} 的启用状态: ${enabled}`);
             console.log(`   更新后的builtinStates:`, extensionsConfig.builtinStates);
@@ -865,6 +945,34 @@ class ExtensionService extends Disposable {
     }
 
     /**
+     * 获取权限管理器
+     */
+    getPermissionManager() {
+        return this._permissionManager;
+    }
+
+    /**
+     * 获取配置管理器
+     */
+    getConfigurationManager() {
+        return this._configurationManager;
+    }
+
+    /**
+     * 获取依赖解析器
+     */
+    getDependencyResolver() {
+        return this._dependencyResolver;
+    }
+
+    /**
+     * 获取扩展主机管理器
+     */
+    getHostManager() {
+        return this._hostManager;
+    }
+
+    /**
      * 释放资源
      */
     dispose() {
@@ -872,6 +980,18 @@ class ExtensionService extends Disposable {
 
         if (this._activator) {
             this._activator.dispose();
+        }
+
+        if (this._hostManager) {
+            this._hostManager.dispose();
+        }
+
+        if (this._permissionManager) {
+            this._permissionManager.dispose();
+        }
+
+        if (this._configurationManager) {
+            this._configurationManager.dispose();
         }
 
         this._onDidChangeExtensions.dispose();
