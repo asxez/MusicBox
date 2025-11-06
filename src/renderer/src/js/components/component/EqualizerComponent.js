@@ -2,9 +2,9 @@
  * 均衡器组件
  */
 
-import {cacheManager} from "@js/cache-manager";
+import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
-import {api} from "@js/api";
+import {api} from "@api/api";
 
 class EqualizerComponent extends Component {
     constructor() {

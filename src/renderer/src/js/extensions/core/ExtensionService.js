@@ -3,7 +3,7 @@
  * 参考 VSCode 的 ExtensionService，提供扩展管理的核心功能
  */
 
-import {cacheManager} from "@js/cache-manager";
+import {cacheManager} from "@services/CacheManager";
 import {ExtensionActivationReason, ExtensionActivator} from "@extensions/core/ExtensionActivator";
 import {Emitter} from "@extensions/core/Event";
 import {createDecorator} from "@extensions/core/Instantiation";

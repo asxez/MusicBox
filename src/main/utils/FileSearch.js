@@ -267,5 +267,4 @@ module.exports = {
     findBestLyricsMatch,
     generateCoverSearchPatterns,
     findBestCoverMatch,
-    calculateCoverMatchScore
 };

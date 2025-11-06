@@ -1,4 +1,4 @@
-import {EventEmitter, showToast} from './utils';
+import {EventEmitter, showToast} from '@utils';
 
 import {AlbumsPage} from "@components/component/AlbumsPage";
 import {ArtistsPage} from "@components/component/ArtistsPage";
@@ -26,9 +26,9 @@ import {EditTrackInfoDialog} from "@components/dialogs/EditTrackInfoDialog";
 import {MusicLibrarySelectionDialog} from "@components/dialogs/MusicLibrarySelectionDialog";
 import {RenamePlaylistDialog} from "@components/dialogs/RenamePlaylistDialog";
 
-import {cacheManager} from "@js/cache-manager";
-import {localCoverManager} from "@js/local-cover-manager";
-import {api} from "@js/api";
+import {cacheManager} from "@services/CacheManager";
+import {localCoverManager} from "@services/cover/LocalCoverManager";
+import {api} from "@api/api";
 
 import {ExtensionService} from "@extensions/core/ExtensionService";
 import {InstantiationService, ServiceCollection} from "@extensions/core/Instantiation";

@@ -6,7 +6,7 @@
 import {Validator} from './common/validation.js';
 import {ErrorUtils} from './common/errors.js';
 import {Disposable} from '../core/Lifecycle.js';
-import {showToast} from '@js/utils';
+import {showToast} from '@utils';
 
 /**
  * 通知类型枚举

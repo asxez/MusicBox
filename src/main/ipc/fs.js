@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const fsPromises = require('fs').promises;
-const {FS_ALLOWED} = require('../utils/allowed_func');
+const {FS_ALLOWED} = require('../utils/AllowedFunc');
 
 /**
  * 注册文件系统相关的 IPC

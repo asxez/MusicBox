@@ -1,9 +1,10 @@
-import {cacheManager} from "@js/cache-manager";
-
 /**
  * 桌面歌词管理器
  * 负责桌面歌词窗口的显示、交互和数据同步
  */
+
+import {cacheManager} from "@services/CacheManager";
+
 class DesktopLyricsManager {
     constructor() {
         this.currentLyrics = [];

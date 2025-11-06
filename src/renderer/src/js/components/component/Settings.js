@@ -2,14 +2,14 @@
  * 设置组件
  */
 
-import {showToast} from '@js/utils';
-import {cacheManager} from "@js/cache-manager";
-import {localLyricsManager} from "@js/local-lyrics-manager";
-import {localCoverManager} from "@js/local-cover-manager";
-import {embeddedLyricsManager} from "@js/embedded-lyrics-manager";
+import {showToast} from '@utils';
+import {cacheManager} from "@services/CacheManager";
+import {localLyricsManager} from "@services/lyrics/LocalLyricsManager";
+import {localCoverManager} from "@services/cover/LocalCoverManager";
+import {embeddedLyricsManager} from "@services/lyrics/EmbeddedLyricsManager";
 import {Component} from "@components/base/Component";
-import {api} from "@js/api";
-import {app} from "@js/app";
+import {api} from "@api/api";
+import {app} from "@core/app";
 
 class Settings extends Component {
     constructor(element) {

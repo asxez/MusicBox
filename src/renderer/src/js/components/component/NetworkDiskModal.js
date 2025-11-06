@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@components/base/Component";
-import {api} from "@js/api";
+import {api} from "@api/api";
 
 class NetworkDiskModal extends Component {
     constructor() {

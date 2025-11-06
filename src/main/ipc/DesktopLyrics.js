@@ -8,7 +8,7 @@ const {
     isDesktopLyricsVisible,
     sendToDesktopLyrics,
     getDesktopLyricsWindow,
-} = require('../utils/window');
+} = require('../core/window');
 
 /**
  * 注册桌面歌词相关的 IPC

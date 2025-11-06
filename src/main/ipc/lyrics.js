@@ -107,7 +107,7 @@ function registerLyricsIpcHandlers({ipcMain, networkFileAdapter}) {
 
     // 搜索本地歌词文件
     ipcMain.handle('lyrics:searchLocalFiles', async (event, lyricsDir, title, artist, album) => {
-        const {generateLyricsSearchPatterns, findBestLyricsMatch} = require('../utils/file-search');
+        const {generateLyricsSearchPatterns, findBestLyricsMatch} = require('../utils/FileSearch');
         try {
             console.log(`🔍 搜索本地歌词文件: ${title} - ${artist} 在目录 ${lyricsDir}`);
 

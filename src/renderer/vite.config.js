@@ -34,7 +34,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'src/index.html'),
-        'desktop-lyrics': path.resolve(__dirname, 'src/desktop-lyrics.html')
+        'desktop-lyrics': path.resolve(__dirname, 'src/DesktopLyrics.html')
       },
       output: {
         // 静态资源输出配置
@@ -77,10 +77,15 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '@js': path.resolve(__dirname, 'src/js'),
-      '@styles': path.resolve(__dirname, 'src/styles'),
-      '@assets': path.resolve(__dirname, 'src/assets'),
+      '@core': path.resolve(__dirname, 'src/js/core'),
+      '@services': path.resolve(__dirname, 'src/js/services'),
+      '@utils': path.resolve(__dirname, 'src/js/utils'),
+      '@api': path.resolve(__dirname, 'src/js/api'),
+      '@pages': path.resolve(__dirname, 'src/js/pages'),
       '@components': path.resolve(__dirname, 'src/js/components'),
       '@extensions': path.resolve(__dirname, 'src/js/extensions'),
+      '@styles': path.resolve(__dirname, 'src/styles'),
+      '@assets': path.resolve(__dirname, 'src/assets'),
     }
   },
   

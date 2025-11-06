@@ -4,7 +4,7 @@ const SMB2 = require('node-smb2');
 const path = require('path');
 const fs = require('fs');
 const EventEmitter = require('events');
-const {getGlobalDriveRegistry} = require('./drive-registry');
+const {getGlobalDriveRegistry} = require('./DriveRegistry');
 
 // WebDAV模块需要动态导入
 let webdavModule = null;

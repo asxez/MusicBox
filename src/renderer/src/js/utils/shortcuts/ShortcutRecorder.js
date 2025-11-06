@@ -3,7 +3,7 @@
  * 负责捕获用户按键并转换为快捷键字符串
  */
 
-import {EventEmitter} from "./utils";
+import {EventEmitter} from "@utils";
 
 class ShortcutRecorder extends EventEmitter {
     constructor() {

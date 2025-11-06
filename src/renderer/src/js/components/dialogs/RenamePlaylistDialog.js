@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@components/base/Component";
-import {app} from "@js/app";
+import {app} from "@core/app";
 
 class RenamePlaylistDialog extends Component {
     constructor() {

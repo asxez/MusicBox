@@ -1,11 +1,11 @@
-import {EventEmitter} from './utils.js';
-import {cacheManager} from "@js/cache-manager";
-import {localLyricsManager} from "@js/local-lyrics-manager";
-import {localCoverManager} from "@js/local-cover-manager";
-import {embeddedLyricsManager} from "@js/embedded-lyrics-manager";
-import {embeddedCoverManager} from "@js/embedded-cover-manager";
-import {WebAudioEngine} from "@js/web-audio-engine";
-import {urlValidator} from "@js/url-validator";
+import {EventEmitter} from '@utils';
+import {cacheManager} from "@services/CacheManager";
+import {localLyricsManager} from "@services/lyrics/LocalLyricsManager";
+import {localCoverManager} from "@services/cover/LocalCoverManager";
+import {embeddedLyricsManager} from "@services/lyrics/EmbeddedLyricsManager";
+import {embeddedCoverManager} from "@services/cover/EmbeddedCoverManager";
+import {WebAudioEngine} from "@services/audio/WebAudioEngine";
+import {urlValidator} from "@utils/URLValidator";
 
 class MusicBoxAPI extends EventEmitter {
     constructor() {

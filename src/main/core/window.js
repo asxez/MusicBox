@@ -416,8 +416,4 @@ module.exports = {
     closeDesktopLyrics,
     isDesktopLyricsVisible,
     sendToDesktopLyrics,
-    loadWindowConfig,
-    saveWindowConfig,
-    getDefaultWindowConfig,
-    isValidWindowConfig
 };

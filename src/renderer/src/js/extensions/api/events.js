@@ -6,7 +6,7 @@
 import {Validator} from './common/validation.js';
 import {ErrorUtils} from './common/errors.js';
 import {Disposable, toDisposable} from '../core/Lifecycle.js';
-import {app} from '@js/app';
+import {app} from '@core/app';
 
 /**
  * 创建事件 API

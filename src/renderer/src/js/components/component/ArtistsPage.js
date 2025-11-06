@@ -2,9 +2,9 @@
  * 艺术家页组件
  */
 
-import {urlValidator} from "@js/url-validator";
+import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@components/base/Component";
-import {api} from "@js/api";
+import {api} from "@api/api";
 
 class ArtistsPage extends Component {
     constructor(container) {

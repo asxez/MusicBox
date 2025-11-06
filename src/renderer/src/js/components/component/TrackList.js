@@ -2,12 +2,12 @@
  * 我的音乐页组件
  */
 
-import {formatTime, sanitizeHTML} from "@js/utils";
-import {cacheManager} from "@js/cache-manager";
-import {coverUpdateManager} from "@js/cover-update-manager";
+import {formatTime, sanitizeHTML} from "@utils";
+import {cacheManager} from "@services/CacheManager";
+import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
 import {Component} from "@components/base/Component";
-import {api} from "@js/api";
-import {app} from "@js/app";
+import {api} from "@api/api";
+import {app} from "@core/app";
 
 class TrackList extends Component {
     constructor(container) {

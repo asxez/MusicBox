@@ -3,8 +3,8 @@
  */
 
 import {Component} from "@components/base/Component";
-import {api} from "@js/api";
-import {app} from "@js/app";
+import {api} from "@api/api";
+import {app} from "@core/app";
 
 class EditTrackInfoDialog extends Component {
     constructor() {
