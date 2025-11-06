@@ -4,7 +4,7 @@
  */
 
 import {Validator} from './common/validation.js';
-import {NotAvailableError, ErrorUtils} from './common/errors.js';
+import {ErrorUtils, NotAvailableError} from './common/errors.js';
 import {cacheManager} from '@js/cache-manager';
 import {app} from '@js/app';
 

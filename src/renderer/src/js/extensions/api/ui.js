@@ -5,7 +5,7 @@
 
 import {Validator} from './common/validation.js';
 import {ErrorUtils} from './common/errors.js';
-import {Disposable, toDisposable} from '../core/Lifecycle.js';
+import {Disposable} from '../core/Lifecycle.js';
 import {showToast} from '@js/utils';
 
 /**

@@ -3,9 +3,9 @@
  * 提供命令注册、执行、管理等功能
  */
 
-import {Validator, validate} from './common/validation.js';
-import {ErrorUtils, ConflictError, NotFoundError} from './common/errors.js';
-import {toDisposable, Disposable} from '../core/Lifecycle.js';
+import {validate, Validator} from './common/validation.js';
+import {ErrorUtils, NotFoundError} from './common/errors.js';
+import {Disposable, toDisposable} from '../core/Lifecycle.js';
 
 /**
  * 全局命令注册表

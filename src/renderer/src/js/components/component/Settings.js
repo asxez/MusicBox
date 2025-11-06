@@ -2,7 +2,7 @@
  * 设置组件
  */
 
-import { showToast } from '@js/utils';
+import {showToast} from '@js/utils';
 import {cacheManager} from "@js/cache-manager";
 import {localLyricsManager} from "@js/local-lyrics-manager";
 import {localCoverManager} from "@js/local-cover-manager";

@@ -3,7 +3,7 @@
  * 提供应用设置的读取和修改功能
  */
 
-import {Validator, validate} from './common/validation.js';
+import {validate, Validator} from './common/validation.js';
 import {ErrorUtils, NotAvailableError} from './common/errors.js';
 import {toDisposable} from '../core/Lifecycle.js';
 

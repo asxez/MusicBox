@@ -4,16 +4,16 @@
  */
 
 import {cacheManager} from "@js/cache-manager";
-import {ExtensionActivationReason, ExtensionActivator} from "@js/plugin-system/core/ExtensionActivator";
-import {Emitter} from "@js/plugin-system/core/Event";
-import {createDecorator} from "@js/plugin-system/core/Instantiation";
+import {ExtensionActivationReason, ExtensionActivator} from "@extensions/core/ExtensionActivator";
+import {Emitter} from "@extensions/core/Event";
+import {createDecorator} from "@extensions/core/Instantiation";
 import {
     ActivationEvents,
     ContributionPoints,
     ExtensionDescriptor,
     extensionsRegistry
-} from "@js/plugin-system/core/ExtensionsRegistry";
-import {Disposable} from "@js/plugin-system/core/Lifecycle";
+} from "@extensions/core/ExtensionsRegistry";
+import {Disposable} from "@extensions/core/Lifecycle";
 
 /**
  * 扩展服务 - 管理所有扩展的生命周期
@@ -277,7 +277,7 @@ class ExtensionService extends Disposable {
         try {
             console.log('🔌 ExtensionService: 扫描并注册内置扩展');
 
-            const builtinPath = 'js/plugin-system/builtin';
+            const builtinPath = 'js/extensions/builtin';
             const builtinExtensions = await this._scanBuiltinExtensions(builtinPath);
 
             console.log(`📦 ExtensionService: 发现 ${builtinExtensions.length} 个内置扩展`);

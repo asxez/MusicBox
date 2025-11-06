@@ -3,14 +3,14 @@
  * 加载所有核心组件并初始化
  */
 
-import {InstantiationService, ServiceCollection} from "@js/plugin-system/core/Instantiation";
-import {ExtensionService} from "@js/plugin-system/core/ExtensionService";
+import {InstantiationService, ServiceCollection} from "@extensions/core/Instantiation";
+import {ExtensionService} from "@extensions/core/ExtensionService";
 
 /**
  * 加载核心模块
  */
 async function loadCoreModules() {
-    const basePath = './js/plugin-system/core';
+    const basePath = './js/extensions/core';
 
     const modules = [
         'Lifecycle.js',

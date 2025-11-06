@@ -1,4 +1,5 @@
-import {EventEmitter, showToast, theme} from './utils';
+import {EventEmitter, showToast} from './utils';
+
 import {AlbumsPage} from "@components/component/AlbumsPage";
 import {ArtistsPage} from "@components/component/ArtistsPage";
 import {ContextMenu} from "@components/component/ContextMenu";
@@ -25,12 +26,13 @@ import {EditTrackInfoDialog} from "@components/dialogs/EditTrackInfoDialog";
 import {MusicLibrarySelectionDialog} from "@components/dialogs/MusicLibrarySelectionDialog";
 import {RenamePlaylistDialog} from "@components/dialogs/RenamePlaylistDialog";
 
-import { cacheManager } from "@js/cache-manager";
+import {cacheManager} from "@js/cache-manager";
 import {localCoverManager} from "@js/local-cover-manager";
-import {ExtensionService} from "@js/plugin-system/core/ExtensionService";
-import {InstantiationService, ServiceCollection} from "@js/plugin-system/core/Instantiation";
-import {ActivationEvents} from "@js/plugin-system/core/ExtensionsRegistry";
 import {api} from "@js/api";
+
+import {ExtensionService} from "@extensions/core/ExtensionService";
+import {InstantiationService, ServiceCollection} from "@extensions/core/Instantiation";
+import {ActivationEvents} from "@extensions/core/ExtensionsRegistry";
 
 class MusicBoxApp extends EventEmitter {
     constructor() {
@@ -2443,4 +2445,4 @@ class MusicBoxApp extends EventEmitter {
 }
 
 let app = new MusicBoxApp();
-export { app };
+export {app};

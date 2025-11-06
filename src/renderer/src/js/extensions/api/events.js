@@ -4,8 +4,8 @@
  */
 
 import {Validator} from './common/validation.js';
-import {ErrorUtils, NotAvailableError} from './common/errors.js';
-import {toDisposable, Disposable} from '../core/Lifecycle.js';
+import {ErrorUtils} from './common/errors.js';
+import {Disposable, toDisposable} from '../core/Lifecycle.js';
 import {app} from '@js/app';
 
 /**

@@ -3,9 +3,9 @@
  * 提供自定义视图的注册和管理功能
  */
 
-import {Validator, validate} from './common/validation.js';
-import {ErrorUtils, ConflictError} from './common/errors.js';
-import {toDisposable, Disposable} from '../core/Lifecycle.js';
+import {validate, Validator} from './common/validation.js';
+import {ConflictError, ErrorUtils} from './common/errors.js';
+import {Disposable, toDisposable} from '../core/Lifecycle.js';
 
 /**
  * 全局视图注册表

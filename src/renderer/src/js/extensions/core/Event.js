@@ -3,7 +3,7 @@
  * 参考 VSCode 的 Event/Emitter 模式，提供类型安全和资源管理
  */
 
-import {Disposable, DisposableStore, toDisposable} from "@js/plugin-system/core/Lifecycle";
+import {Disposable, DisposableStore, toDisposable} from "@extensions/core/Lifecycle";
 
 /**
  * Emitter - 事件发射器
