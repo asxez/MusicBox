@@ -1,0 +1,112 @@
+{
+  "id": "advanced-example",
+  "name": "Advanced Extension Example",
+  "version": "1.0.0",
+  "publisher": "MusicBox",
+  "description": "演示新插件系统的高级功能",
+  "main": "extension.js",
+  "canDisable": true,
+  "categories": ["Other"],
+  "keywords": ["example", "demo", "advanced"],
+  "activationEvents": [
+    "onStartUp",
+    "onCommand:advancedExample.hello"
+  ],
+  "permissions": [
+    "player.read",
+    "player.control",
+    "library.read",
+    "ui.notification",
+    "ui.dialog",
+    "ui.statusbar",
+    "storage.read",
+    "storage.write",
+    "network.request",
+    "settings.read",
+    "settings.write"
+  ],
+  "extensionDependencies": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "advancedExample.hello",
+        "title": "Advanced Example: Hello"
+      },
+      {
+        "command": "advancedExample.showStats",
+        "title": "Advanced Example: Show Stats"
+      },
+      {
+        "command": "advancedExample.fetchData",
+        "title": "Advanced Example: Fetch Data"
+      }
+    ],
+    "configuration": {
+      "title": "Advanced Example Settings",
+      "properties": {
+        "advancedExample.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "启用扩展功能"
+        },
+        "advancedExample.autoNotify": {
+          "type": "boolean",
+          "default": true,
+          "description": "自动显示通知"
+        },
+        "advancedExample.apiEndpoint": {
+          "type": "string",
+          "default": "https://api.example.com",
+          "description": "API 端点 URL",
+          "pattern": "^https?://.+"
+        },
+        "advancedExample.maxItems": {
+          "type": "integer",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "最大项目数"
+        },
+        "advancedExample.refreshInterval": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 1000,
+          "description": "刷新间隔（毫秒）"
+        },
+        "advancedExample.features": {
+          "type": "array",
+          "default": ["notifications", "stats"],
+          "items": {
+            "type": "string",
+            "enum": ["notifications", "stats", "network"]
+          },
+          "description": "启用的功能"
+        }
+      }
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "advancedExample.hello"
+        },
+        {
+          "command": "advancedExample.showStats"
+        },
+        {
+          "command": "advancedExample.fetchData"
+        }
+      ]
+    }
+  },
+  "engines": {
+    "musicbox": "^1.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/advanced-extension"
+  },
+  "bugs": {
+    "url": "https://github.com/example/advanced-extension/issues"
+  },
+  "license": "MIT"
+}
