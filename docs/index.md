@@ -61,9 +61,9 @@ features:
     title: 无间隙播放
     details: 支持无间隙播放，为连续的专辑歌曲提供更好的播放体验
 
-  - icon: 👁️
-    title: 自由的页面显示
-    details: 支持自由的页面显示开关，打造属于你的个性化界面
+  - icon: ⚙️
+    title: 高度个性化的设置功能
+    details: 内置多个设置项，打造属于你的个性化播放器
 ---
 
 <style>
@@ -125,7 +125,7 @@ features:
   <p style="font-size: 1.2rem; font-weight: 600;">
     如果你喜欢这个项目，请给它一个 ⭐️
   </p>
-  <a href="https://github.com/asxez/MusicBox" target="_blank" style="display: inline-block; margin-top: 1rem;">
+  <a href="https://github.com/asxez/MusicBox" target="_blank" style="display: inline-block;">
     <img src="https://img.shields.io/github/stars/asxez/MusicBox?style=social" alt="GitHub stars">
   </a>
 </div>
