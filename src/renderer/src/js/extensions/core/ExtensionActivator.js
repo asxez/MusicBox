@@ -3,7 +3,7 @@
  * 参考 VSCode 的扩展激活机制，管理扩展的生命周期
  */
 
-import {cacheManager} from "@js/cache-manager";
+import {cacheManager} from "@services/CacheManager";
 import {Disposable, DisposableStore} from "@extensions/core/Lifecycle";
 import {createExtensionAPI} from "@extensions/api/index.js";
 

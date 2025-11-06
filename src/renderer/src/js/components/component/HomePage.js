@@ -2,10 +2,10 @@
  * 首页组件
  */
 
-import {cacheManager} from "@js/cache-manager";
+import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
-import {api} from "@js/api";
-import {app} from "@js/app";
+import {api} from "@api/api";
+import {app} from "@core/app";
 
 class HomePage extends Component {
     constructor(container) {

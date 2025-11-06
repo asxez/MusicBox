@@ -5,8 +5,8 @@
 
 import {Validator} from './common/validation.js';
 import {ErrorUtils, NotAvailableError} from './common/errors.js';
-import {cacheManager} from '@js/cache-manager';
-import {app} from '@js/app';
+import {cacheManager} from '@services/CacheManager';
+import {app} from '@core/app';
 
 /**
  * 创建音乐库 API

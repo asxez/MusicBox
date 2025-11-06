@@ -3,7 +3,7 @@
  * 提供内存缓存和本地存储缓存功能
  */
 
-import {hex_md5} from "@js/md5";
+import {hex_md5} from "@utils/md5";
 
 class CacheManager {
     constructor() {

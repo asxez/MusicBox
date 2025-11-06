@@ -3,9 +3,9 @@
  * 营造“收藏实体专辑”的沉浸式浏览体验
  */
 
-import {formatTime} from "@js/utils";
+import {formatTime} from "@utils";
 import {Component} from "@components/base/Component";
-import {api} from "@js/api";
+import {api} from "@api/api";
 
 class AlbumsPage extends Component {
     constructor(container) {

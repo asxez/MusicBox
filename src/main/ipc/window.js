@@ -1,6 +1,6 @@
 // 窗口控制相关 IPC
 
-const {getMainWindow} = require('../utils/window');
+const {getMainWindow} = require('../core/window');
 
 // 尺寸保护相关的缓存
 let cachedOriginalSize = null;

@@ -3,9 +3,9 @@
  */
 
 import {theme} from "@js/utils";
-import {cacheManager} from "@js/cache-manager";
+import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
-import {app} from "@js/app";
+import {app} from "@core/app";
 
 class Navigation extends Component {
     constructor() {

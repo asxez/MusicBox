@@ -2,9 +2,9 @@
  * 搜索组件
  */
 
-import {debounce, showToast} from "@js/utils";
+import {debounce, showToast} from "@utils";
 import {Component} from "@components/base/Component";
-import {api} from "@js/api";
+import {api} from "@api/api";
 
 class Search extends Component {
     constructor() {

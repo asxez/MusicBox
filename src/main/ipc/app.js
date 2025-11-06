@@ -3,7 +3,7 @@
 const {app, shell} = require('electron');
 const path = require('path');
 const fs = require('fs');
-const {getMainWindow} = require('../utils/window');
+const {getMainWindow} = require('../core/window');
 
 /**
  * 注册 App 相关的 IPC

@@ -1,5 +1,5 @@
-import {EventEmitter} from '@js/utils';
-import {api} from "@js/api";
+import {EventEmitter} from '@utils';
+import {api} from "@api/api";
 
 class Component extends EventEmitter {
     constructor(element=null, has=true) {

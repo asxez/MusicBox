@@ -2,11 +2,11 @@
  * 歌单页组件
  */
 
-import {cacheManager} from "@js/cache-manager";
-import {localCoverManager} from "@js/local-cover-manager";
+import {cacheManager} from "@services/CacheManager";
+import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {Component} from "@components/base/Component";
-import {api} from "@js/api";
-import {app} from "@js/app";
+import {api} from "@api/api";
+import {app} from "@core/app";
 
 class PlaylistDetailPage extends Component {
     constructor(container) {

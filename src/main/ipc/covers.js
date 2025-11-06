@@ -62,7 +62,7 @@ function registerCoversIpcHandlers({ipcMain}) {
     // 检查本地封面缓存是否存在
     ipcMain.handle('covers:checkLocalCover', async (event, coverDir, title, artist, album, isAlbum = false) => {
         const {cleanCoverFileName} = require('../utils/string');
-        const {generateCoverSearchPatterns, findBestCoverMatch} = require('../utils/file-search');
+        const {generateCoverSearchPatterns, findBestCoverMatch} = require('../utils/FileSearch');
         try {
             // console.log(`🔍 检查本地封面缓存: ${title} - ${artist} 在目录 ${coverDir} (isAlbum=${!!isAlbum})`);
 

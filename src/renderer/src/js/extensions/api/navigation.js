@@ -5,7 +5,7 @@
 
 import {validate, Validator} from './common/validation.js';
 import {ErrorUtils, NotAvailableError} from './common/errors.js';
-import {app} from '@js/app';
+import {app} from '@core/app';
 
 /**
  * 创建导航 API

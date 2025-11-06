@@ -3,7 +3,7 @@
  */
 
 const {dialog} = require('electron');
-const ExtensionInstaller = require('../extension-installer');
+const ExtensionInstaller = require('../services/extensions/ExtensionInstaller');
 
 let extensionInstaller = null;
 

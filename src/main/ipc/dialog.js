@@ -1,7 +1,7 @@
 // 对话框相关 IPC
 
 const {dialog} = require('electron');
-const {getMainWindow} = require('../utils/window');
+const {getMainWindow} = require('../core/window');
 
 /**
  * 注册对话框相关的 IPC

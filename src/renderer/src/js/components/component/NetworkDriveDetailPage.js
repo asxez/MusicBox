@@ -2,9 +2,9 @@
  * 网络磁盘详情页组件
  */
 
-import {cacheManager} from "@js/cache-manager";
+import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
-import {app} from "@js/app";
+import {app} from "@core/app";
 
 class NetworkDriveDetailPage extends Component {
     constructor(container) {

@@ -1,7 +1,7 @@
 // 全局快捷键相关 IPC
 
 const {app, globalShortcut} = require('electron');
-const {getMainWindow} = require('../utils/window');
+const {getMainWindow} = require('../core/window');
 
 // 模块内状态
 let globalShortcutsEnabled = false;

@@ -1,10 +1,10 @@
 // 播放器组件
 
 import {formatTime, showToast} from "@js/utils";
-import {cacheManager} from "@js/cache-manager";
-import {urlValidator} from "@js/url-validator";
+import {cacheManager} from "@services/CacheManager";
+import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@components/base/Component";
-import {api} from "@js/api";
+import {api} from "@api/api";
 
 class Player extends Component {
     constructor() {

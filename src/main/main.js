@@ -28,14 +28,14 @@ if (!hardwareAccelerationEnabled) {
 
 app.commandLine.appendSwitch("js-flags", "--expose-gc");
 
-const LibraryCacheManager = require('./library-cache-manager');
-const NetworkDriveManager = require('./network-drive-manager');
-const NetworkFileAdapter = require('./network-file-adapter');
-const metadataHandler = require('./metadata-handler');
+const LibraryCacheManager = require('./services/library/LibraryCacheManager');
+const NetworkDriveManager = require('./services/network/NetworkDriveManager');
+const NetworkFileAdapter = require('./services/network/NetworkFileAdapter');
+const metadataHandler = require('./services/library/MetadataHandler');
 
 // 导入工具函数
 const metadataUtils = require('./utils/metadata');
-const windowUtils = require('./utils/window');
+const windowUtils = require('./core/window');
 
 const {registerAudioIpcHandlers} = require('./ipc/audio');
 const {registerDialogIpcHandlers} = require('./ipc/dialog');
@@ -43,17 +43,17 @@ const {registerWindowIpcHandlers} = require('./ipc/window');
 const {registerFsIpcHandlers} = require('./ipc/fs');
 const {registerOsIpcHandlers} = require('./ipc/os');
 const {registerPathIpcHandlers} = require('./ipc/path');
-const {registerNetworkDriveIpcHandlers} = require('./ipc/network-drive');
-const {registerDesktopLyricsIpcHandlers} = require('./ipc/desktop-lyrics');
+const {registerNetworkDriveIpcHandlers} = require('./ipc/NetworkDrive');
+const {registerDesktopLyricsIpcHandlers} = require('./ipc/DesktopLyrics');
 const {registerLyricsIpcHandlers} = require('./ipc/lyrics');
 const {registerCoversIpcHandlers} = require('./ipc/covers');
-const {registerGlobalShortcutsIpcHandlers} = require('./ipc/global-shortcuts');
+const {registerGlobalShortcutsIpcHandlers} = require('./ipc/GlobalShortcuts');
 const {registerSettingsIpcHandlers} = require('./ipc/settings');
 const {registerAppIpcHandlers} = require('./ipc/app');
-const {registerHttpServerIpcHandlers} = require('./ipc/http-server');
+const {registerHttpServerIpcHandlers} = require('./ipc/HttpServer');
 const {registerTrayIpcHandlers} = require('./ipc/tray');
-const {registerHardwareAccelerationIpcHandlers} = require('./ipc/hardware-acceleration');
-const {registerSecurityIntegration} = require('./security/security-integration');
+const {registerHardwareAccelerationIpcHandlers} = require('./ipc/HardwareAcceleration');
+const {registerSecurityIntegration} = require('./security/SecurityIntegration');
 const {registerExtensionsIpcHandlers} = require('./ipc/extensions');
 
 // 导入音乐库相关IPC
@@ -187,7 +187,7 @@ app.whenReady().then(async () => {
         }
     }
 
-    const {initializeGlobalDriveRegistry} = require('./drive-registry');
+    const {initializeGlobalDriveRegistry} = require('./services/network/DriveRegistry');
     await initializeGlobalDriveRegistry();
     await initializeNetworkDriveManager();
     await initializeCacheManager();

@@ -6,7 +6,7 @@
 import {validate, Validator} from './common/validation.js';
 import {ErrorUtils, NotAvailableError} from './common/errors.js';
 import {toDisposable} from '../core/Lifecycle.js';
-import {api} from '@js/api';
+import {api} from '@api/api';
 
 /**
  * 播放模式枚举

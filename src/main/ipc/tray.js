@@ -3,7 +3,7 @@
 const {Tray, Menu, nativeImage, app} = require('electron');
 const path = require('path');
 const fs = require('fs');
-const {getMainWindow} = require('../utils/window');
+const {getMainWindow} = require('../core/window');
 
 let tray = null;
 let traySettings = {

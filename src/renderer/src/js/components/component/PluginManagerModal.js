@@ -2,7 +2,7 @@
  * 插件管理模态框组件
  */
 
-import {showToast} from "@js/utils";
+import {showToast} from "@utils";
 import {Component} from "@components/base/Component";
 
 class PluginManagerModal extends Component {

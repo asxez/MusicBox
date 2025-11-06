@@ -2,11 +2,11 @@
  * 最近播放页组件
  */
 
-import {cacheManager} from "@js/cache-manager";
-import {localCoverManager} from "@js/local-cover-manager";
-import {formatTime} from "@js/utils";
+import {cacheManager} from "@services/CacheManager";
+import {localCoverManager} from "@services/cover/LocalCoverManager";
+import {formatTime} from "@utils";
 import {Component} from "@components/base/Component";
-import {api} from "@js/api";
+import {api} from "@api/api";
 
 class RecentPage extends Component {
     constructor(container) {
