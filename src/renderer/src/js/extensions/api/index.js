@@ -4,7 +4,7 @@
  */
 
 // 导入各个 API 模块
-import {createPlayerAPI, PlayMode, PlaybackState} from './player.js';
+import {createPlayerAPI, PlaybackState, PlayMode} from './player.js';
 import {createLibraryAPI} from './library.js';
 import {createUIAPI, NotificationType, StatusBarAlignment, StatusBarItem, WebviewPanel} from './ui.js';
 import {createStorageAPI} from './storage.js';
@@ -16,13 +16,13 @@ import {createEventsAPI} from './events.js';
 import {createCommandsAPI} from './commands.js';
 import {createViewsAPI, TreeView} from './views.js';
 import {
-    createDiagnosticsAPI,
-    DiagnosticSeverity,
     createDiagnostic,
+    createDiagnosticsAPI,
+    Diagnostic,
     DiagnosticCollection,
-    Diagnostic
+    DiagnosticSeverity
 } from './diagnostics.js';
-import {createTasksAPI, TaskState, Task, CancellationToken} from './tasks.js';
+import {CancellationToken, createTasksAPI, Task, TaskState} from './tasks.js';
 
 /**
  * 创建扩展 API

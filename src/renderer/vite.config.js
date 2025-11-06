@@ -56,8 +56,8 @@ export default defineConfig({
           if (id.includes('node_modules')) {
             return 'vendor';
           }
-          if (id.includes('plugin-system/core') || id.includes('plugin-system/api')) {
-            return 'plugin-system';
+          if (id.includes('extensions/core') || id.includes('extensions/api')) {
+            return 'extensions';
           }
           // 组件
           if (id.includes('components/')) {
@@ -79,7 +79,8 @@ export default defineConfig({
       '@js': path.resolve(__dirname, 'src/js'),
       '@styles': path.resolve(__dirname, 'src/styles'),
       '@assets': path.resolve(__dirname, 'src/assets'),
-      '@components': path.resolve(__dirname, 'src/js/components')
+      '@components': path.resolve(__dirname, 'src/js/components'),
+      '@extensions': path.resolve(__dirname, 'src/js/extensions'),
     }
   },
   
@@ -100,8 +101,8 @@ export default defineConfig({
       targets: [
         // 复制内置插件
         {
-          src: 'js/plugin-system/builtin',
-          dest: 'js/plugin-system'
+          src: 'js/extensions/builtin',
+          dest: 'js/extensions'
         },
         // 复制 favicon
         {

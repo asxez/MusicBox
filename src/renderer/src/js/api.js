@@ -1,4 +1,4 @@
-import { EventEmitter } from './utils.js';
+import {EventEmitter} from './utils.js';
 import {cacheManager} from "@js/cache-manager";
 import {localLyricsManager} from "@js/local-lyrics-manager";
 import {localCoverManager} from "@js/local-cover-manager";

@@ -24,18 +24,18 @@ import './components/base/Component.js';
 // ============================================
 // 4. 导入插件系统核心（必须按顺序加载）
 // ============================================
-import './plugin-system/core/Lifecycle.js';
-import './plugin-system/core/Event.js';
-import './plugin-system/core/Instantiation.js';
-import './plugin-system/core/ExtensionsRegistry.js';
-import './plugin-system/core/ExtensionActivator.js';
-import './plugin-system/core/ExtensionService.js';
-import './plugin-system/core/index.js';
+import './extensions/core/Lifecycle.js';
+import './extensions/core/Event.js';
+import './extensions/core/Instantiation.js';
+import './extensions/core/ExtensionsRegistry.js';
+import './extensions/core/ExtensionActivator.js';
+import './extensions/core/ExtensionService.js';
+import './extensions/core/index.js';
 
 // ============================================
 // 5. 导入扩展 API
 // ============================================
-import './plugin-system/api/index.js';
+import './extensions/api/index.js';
 
 // ============================================
 // 6. 导入页面组件

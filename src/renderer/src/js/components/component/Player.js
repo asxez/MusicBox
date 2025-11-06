@@ -1,7 +1,7 @@
 // 播放器组件
 
 import {formatTime, showToast} from "@js/utils";
-import { cacheManager } from "@js/cache-manager";
+import {cacheManager} from "@js/cache-manager";
 import {urlValidator} from "@js/url-validator";
 import {Component} from "@components/base/Component";
 import {api} from "@js/api";

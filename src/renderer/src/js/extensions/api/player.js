@@ -3,8 +3,8 @@
  * 提供音乐播放控制、播放列表管理、播放状态查询等功能
  */
 
-import {Validator, validate} from './common/validation.js';
-import {NotAvailableError, ErrorUtils} from './common/errors.js';
+import {validate, Validator} from './common/validation.js';
+import {ErrorUtils, NotAvailableError} from './common/errors.js';
 import {toDisposable} from '../core/Lifecycle.js';
 import {api} from '@js/api';
 

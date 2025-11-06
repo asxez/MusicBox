@@ -3,7 +3,7 @@
  * 提供应用内导航功能
  */
 
-import {Validator, validate} from './common/validation.js';
+import {validate, Validator} from './common/validation.js';
 import {ErrorUtils, NotAvailableError} from './common/errors.js';
 import {app} from '@js/app';
 

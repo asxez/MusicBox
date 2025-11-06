@@ -3,7 +3,7 @@
  * 负责管理局内快捷键和全局快捷键的配置
  */
 
-import { cacheManager } from "@js/cache-manager";
+import {cacheManager} from "@js/cache-manager";
 
 class ShortcutConfig {
     constructor() {

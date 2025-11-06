@@ -2,7 +2,7 @@
  * 播放列表组件
  */
 
-import { formatTime } from "@js/utils";
+import {formatTime} from "@js/utils";
 import {Component} from "@components/base/Component";
 
 class Playlist extends Component {

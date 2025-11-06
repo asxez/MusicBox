@@ -102,7 +102,7 @@ await window.extensionService.installExtension(manifest);
 ## 目录结构
 
 ```
-plugin-system/
+extensions/
 ├── core/                    # 核心基础设施
 │   ├── Lifecycle.js        # 生命周期管理
 │   ├── Event.js            # 事件系统

@@ -2,7 +2,7 @@
  * 我的音乐页组件
  */
 
-import { sanitizeHTML, formatTime } from "@js/utils";
+import {formatTime, sanitizeHTML} from "@js/utils";
 import {cacheManager} from "@js/cache-manager";
 import {coverUpdateManager} from "@js/cover-update-manager";
 import {Component} from "@components/base/Component";

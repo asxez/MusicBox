@@ -2,6 +2,7 @@
  * 封面更新管理器
  * 处理封面更新事件和缓存刷新
  */
+
 import {localCoverManager} from "@js/local-cover-manager";
 import {embeddedCoverManager} from "@js/embedded-cover-manager";
 
