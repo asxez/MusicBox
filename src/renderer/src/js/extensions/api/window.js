@@ -4,7 +4,7 @@
  */
 
 import {ErrorUtils} from '@extensions/api/common/errors.js';
-import {Validator as Validate} from "@extensions/api/common/validation";
+import {Validator} from "@extensions/api/common/validation";
 
 /**
  * 创建窗口 API
@@ -80,8 +80,8 @@ export function createWindowAPI(context) {
          * @returns {Promise<Object>}
          */
         async setSize(width, height) {
-            Validate.assertType(width, 'number', 'width');
-            Validate.assertType(height, 'number', 'height');
+            Validator.assertType(width, 'number', 'width');
+            Validator.assertType(height, 'number', 'height');
 
             return ErrorUtils.wrapAsync(async () => {
                 return await window.electronAPI.window.setSize(width, height);
