@@ -447,7 +447,7 @@ class ExtensionActivator extends Disposable {
         return {
             get(key, defaultValue) {
                 try {
-                    const data = cacheManager?.getLocalCache(storageKey) || {};
+                    const data = cacheManager.getLocalCache(storageKey) || {};
                     return data[key] !== undefined ? data[key] : defaultValue;
                 } catch (error) {
                     return defaultValue;
@@ -456,7 +456,7 @@ class ExtensionActivator extends Disposable {
 
             update(key, value) {
                 try {
-                    const data = cacheManager?.getLocalCache(storageKey) || {};
+                    const data = cacheManager.getLocalCache(storageKey) || {};
                     data[key] = value;
                     cacheManager?.setLocalCache(storageKey, data);
                     return Promise.resolve();
@@ -467,7 +467,7 @@ class ExtensionActivator extends Disposable {
 
             keys() {
                 try {
-                    const data = cacheManager?.getLocalCache(storageKey) || {};
+                    const data = cacheManager.getLocalCache(storageKey) || {};
                     return Object.keys(data);
                 } catch (error) {
                     return [];
