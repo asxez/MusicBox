@@ -24,6 +24,7 @@ import {
 import {CancellationToken, createTasksAPI, Task, TaskState} from './tasks.js';
 import {APICallLogger, createExtensionAPIProxy, createLoggingAPIProxy} from '@extensions/core/ExtensionAPIProxy.js';
 import {createWindowAPI} from "@extensions/api/window";
+import {createSettingsAPI} from "@extensions/api/settings";
 
 // 全局 API 调用日志记录器
 const apiCallLogger = new APICallLogger();
@@ -67,6 +68,9 @@ function createExtensionAPI(context, options = {}) {
 
         // 存储 API
         storage: createStorageAPI(context),
+
+        // 配置 API
+        settings: createSettingsAPI(context),
 
         // 导航 API
         navigation: createNavigationAPI(context),
