@@ -8,7 +8,6 @@ import {cacheManager} from "@services/CacheManager";
 class ShortcutConfig {
     constructor() {
         this.config = this.loadConfig();
-        this.defaultConfig = this.getDefaultConfig();
         this.isCollapsed = true;
         this.loadCollapseState(); // 加载保存的折叠状态
     }
@@ -166,11 +165,6 @@ class ShortcutConfig {
 
     loadConfig() {
         try {
-            if (!cacheManager) {
-                console.warn('CacheManager未加载，使用默认快捷键配置');
-                return this.getDefaultConfig();
-            }
-
             const saved = cacheManager.getLocalCache('musicbox-shortcuts');
             if (saved && typeof saved === 'object') {
                 return this.mergeWithDefaults(saved);
@@ -226,11 +220,6 @@ class ShortcutConfig {
      */
     saveConfig() {
         try {
-            if (!cacheManager) {
-                console.error('CacheManager未加载，无法保存快捷键配置');
-                return false;
-            }
-
             cacheManager.setLocalCache('musicbox-shortcuts', this.config);
             return true;
         } catch (error) {
@@ -252,11 +241,6 @@ class ShortcutConfig {
     }
 
     async initializeGlobalShortcuts() {
-        if (!window.electronAPI || !window.electronAPI.globalShortcuts) {
-            console.warn('全局快捷键API不可用');
-            return;
-        }
-
         try {
             await window.electronAPI.globalShortcuts.setEnabled(this.config.enableGlobalShortcuts);
 
@@ -312,22 +296,20 @@ class ShortcutConfig {
         this.config.enableGlobalShortcuts = enabled;
 
         // 通知主进程更新全局快捷键状态
-        if (window.electronAPI && window.electronAPI.globalShortcuts) {
-            try {
-                await window.electronAPI.globalShortcuts.setEnabled(enabled);
+        try {
+            await window.electronAPI.globalShortcuts.setEnabled(enabled);
 
-                if (enabled) {
-                    // 如果启用，注册当前的全局快捷键
-                    const globalShortcuts = this.getEnabledGlobalShortcuts();
-                    await window.electronAPI.globalShortcuts.register(globalShortcuts);
-                } else {
-                    // 如果禁用，取消注册所有全局快捷键
-                    await window.electronAPI.globalShortcuts.unregister();
-                }
-
-            } catch (error) {
-                console.error('设置全局快捷键状态失败:', error);
+            if (enabled) {
+                // 如果启用，注册当前的全局快捷键
+                const globalShortcuts = this.getEnabledGlobalShortcuts();
+                await window.electronAPI.globalShortcuts.register(globalShortcuts);
+            } else {
+                // 如果禁用，取消注册所有全局快捷键
+                await window.electronAPI.globalShortcuts.unregister();
             }
+
+        } catch (error) {
+            console.error('设置全局快捷键状态失败:', error);
         }
 
         return this.saveConfig();
@@ -703,4 +685,5 @@ class ShortcutConfig {
     }
 }
 
-window.shortcutConfig = new ShortcutConfig();
+let shortcutConfig = new ShortcutConfig();
+export {shortcutConfig};

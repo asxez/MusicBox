@@ -33,6 +33,8 @@ import {api} from "@api/api";
 import {ExtensionService} from "@extensions/core/ExtensionService";
 import {InstantiationService, ServiceCollection} from "@extensions/core/Instantiation";
 import {ActivationEvents} from "@extensions/core/ExtensionsRegistry";
+import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
+import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 
 class MusicBoxApp extends EventEmitter {
     constructor() {
@@ -1256,7 +1258,7 @@ class MusicBoxApp extends EventEmitter {
             }
 
             // 如果快捷键录制器正在录制，不处理应用快捷键
-            if (window.shortcutRecorder && window.shortcutRecorder.isRecording) {
+            if (shortcutRecorder && shortcutRecorder.isRecording) {
                 return;
             }
 
@@ -1352,7 +1354,7 @@ class MusicBoxApp extends EventEmitter {
 
     // 获取当前启用的快捷键
     getEnabledShortcuts() {
-        return window.shortcutConfig.getEnabledLocalShortcuts();
+        return shortcutConfig.getEnabledLocalShortcuts();
     }
 
     // 查找匹配的快捷键
@@ -1459,8 +1461,8 @@ class MusicBoxApp extends EventEmitter {
 
     // 初始化全局快捷键
     async initGlobalShortcuts() {
-        if (window.shortcutConfig) {
-            await window.shortcutConfig.initializeGlobalShortcuts();
+        if (shortcutConfig) {
+            await shortcutConfig.initializeGlobalShortcuts();
         }
 
         // 监听全局快捷键触发事件
