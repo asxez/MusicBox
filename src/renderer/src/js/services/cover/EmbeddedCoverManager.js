@@ -46,7 +46,6 @@ class EmbeddedCoverManager {
 
             // 防止重复处理同一文件
             if (this.processingFiles.has(filePath)) {
-                // console.log(`⏳ EmbeddedCoverManager: 文件正在处理中，等待结果 - ${filePath}`);
                 // 等待处理完成
                 return new Promise((resolve) => {
                     const checkInterval = setInterval(() => {
@@ -66,11 +65,9 @@ class EmbeddedCoverManager {
             }
 
             this.processingFiles.add(filePath);
-            // console.log(`🔍 EmbeddedCoverManager: 获取内嵌封面 - ${filePath}`);
 
             // 从主进程获取元数据（包括封面）
             const metadata = await window.electronAPI.library.getTrackMetadata(filePath);
-
             if (!metadata || typeof metadata !== 'object') {
                 const errorResult = {success: false, error: '主进程返回无效响应'};
                 this.setCache(cacheKey, errorResult);
@@ -117,7 +114,6 @@ class EmbeddedCoverManager {
                 format: metadata.cover.format,
                 size: convertedCover.size,
                 source: 'embedded',
-                // originalData: metadata.cover
             };
 
             // 缓存结果
@@ -197,8 +193,6 @@ class EmbeddedCoverManager {
                 throw new Error('封面数据长度为0');
             }
 
-            // console.log(`✅ EmbeddedCoverManager: 数据转换完成，长度: ${imageData.length}`);
-
             // 创建Blob
             const mimeType = `image/${format.toLowerCase()}`;
             const blob = new Blob([imageData], {type: mimeType});
@@ -208,11 +202,8 @@ class EmbeddedCoverManager {
                 throw new Error('创建的Blob大小为0');
             }
 
-            // console.log(`✅ EmbeddedCoverManager: Blob创建成功，大小: ${blob.size}, 类型: ${mimeType}`);
-
             // 创建Object URL
             const objectUrl = URL.createObjectURL(blob);
-            // console.log('✅ EmbeddedCoverManager: Object URL创建成功', objectUrl);
 
             // 验证创建的URL
             if (typeof objectUrl !== 'string' || !objectUrl.startsWith('blob:')) {
@@ -324,9 +315,7 @@ class EmbeddedCoverManager {
             clearTimeout(timeoutId);
         });
         this.pendingReleases.clear();
-
         this.cache.clear();
-        console.log('🗑️ EmbeddedCoverManager: 缓存已清空');
     }
 
     /**
@@ -457,4 +446,4 @@ class EmbeddedCoverManager {
 }
 
 let embeddedCoverManager = new EmbeddedCoverManager();
-export { embeddedCoverManager };
+export {embeddedCoverManager};
