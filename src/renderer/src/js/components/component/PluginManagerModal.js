@@ -12,7 +12,7 @@ class PluginManagerModal extends Component {
         this.listenersSetup = false;
     }
 
-    show() {
+    async show() {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupEventListeners();
@@ -28,7 +28,7 @@ class PluginManagerModal extends Component {
         });
 
         // 加载插件列表
-        this.loadPluginList();
+        await this.loadPluginList();
     }
 
     hide() {
