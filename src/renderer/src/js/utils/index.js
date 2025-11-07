@@ -130,6 +130,12 @@ class EventEmitter {
             }
         });
     }
+
+    removeAllListeners(eventName) {
+        if (this.events[eventName]) {
+            delete this.events[eventName];
+        }
+    }
 }
 
 const theme = {

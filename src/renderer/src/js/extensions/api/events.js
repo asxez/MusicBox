@@ -26,17 +26,12 @@ export function createEventsAPI(context) {
             Validator.assertFunction(callback, 'callback');
 
             return ErrorUtils.wrapSync(() => {
-                if (app && typeof app.on === 'function') {
-                    app.on(eventName, callback);
-                    return toDisposable(() => {
-                        if (app && typeof app.off === 'function') {
-                            app.off(eventName, callback);
-                        }
-                    });
-                }
-
-                console.warn(`⚠️ 应用事件系统不可用，无法监听事件: ${eventName}`);
-                return Disposable.None;
+                app.on(eventName, callback);
+                return toDisposable(() => {
+                    if (app && typeof app.off === 'function') {
+                        app.off(eventName, callback);
+                    }
+                });
             }, 'events.on');
         },
 
@@ -75,11 +70,7 @@ export function createEventsAPI(context) {
             Validator.assertNonEmptyString(eventName, 'eventName');
 
             return ErrorUtils.wrapSync(() => {
-                if (app && typeof app.emit === 'function') {
-                    app.emit(eventName, data);
-                } else {
-                    console.warn(`⚠️ 应用事件系统不可用，无法触发事件: ${eventName}`);
-                }
+                app.emit(eventName, data);
             }, 'events.emit');
         },
 
@@ -94,11 +85,7 @@ export function createEventsAPI(context) {
             Validator.assertFunction(callback, 'callback');
 
             return ErrorUtils.wrapSync(() => {
-                if (app && typeof app.off === 'function') {
-                    app.off(eventName, callback);
-                } else {
-                    console.warn(`⚠️ 应用事件系统不可用，无法移除监听器: ${eventName}`);
-                }
+                app.off(eventName, callback);
             }, 'events.off');
         },
 
@@ -113,11 +100,7 @@ export function createEventsAPI(context) {
             }
 
             return ErrorUtils.wrapSync(() => {
-                if (app && typeof app.removeAllListeners === 'function') {
-                    app.removeAllListeners(eventName);
-                } else {
-                    console.warn(`⚠️ 应用事件系统不可用，无法移除监听器`);
-                }
+                app.removeAllListeners(eventName);
             }, 'events.removeAllListeners');
         }
     };

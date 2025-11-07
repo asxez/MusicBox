@@ -18,10 +18,7 @@ export function createSystemAPI(context) {
          */
         async getVersion() {
             return ErrorUtils.wrapAsync(async () => {
-                if (window.electronAPI?.getVersion) {
-                    return await window.electronAPI.getVersion();
-                }
-                return '1.0.0';
+                return await window.electronAPI.getVersion();
             }, 'system.getVersion');
         },
 
@@ -31,10 +28,7 @@ export function createSystemAPI(context) {
          */
         async getPlatform() {
             return ErrorUtils.wrapAsync(async () => {
-                if (window.electronAPI?.getPlatform) {
-                    return await window.electronAPI.getPlatform();
-                }
-                return navigator.platform || 'unknown';
+                return await window.electronAPI.getPlatform();
             }, 'system.getPlatform');
         },
 
@@ -59,10 +53,7 @@ export function createSystemAPI(context) {
          */
         async getAppPath() {
             return ErrorUtils.wrapAsync(async () => {
-                if (window.electronAPI?.getAppPath) {
-                    return await window.electronAPI.getAppPath();
-                }
-                return '';
+                return await window.electronAPI.getAppPath();
             }, 'system.getAppPath');
         },
 
@@ -72,10 +63,7 @@ export function createSystemAPI(context) {
          */
         async getUserDataPath() {
             return ErrorUtils.wrapAsync(async () => {
-                if (window.electronAPI?.getUserDataPath) {
-                    return await window.electronAPI.getUserDataPath();
-                }
-                return '';
+                return await window.electronAPI.getUserDataPath();
             }, 'system.getUserDataPath');
         },
 
@@ -85,10 +73,7 @@ export function createSystemAPI(context) {
          */
         async getTempPath() {
             return ErrorUtils.wrapAsync(async () => {
-                if (window.electronAPI?.getTempPath) {
-                    return await window.electronAPI.getTempPath();
-                }
-                return '';
+                return await window.electronAPI.getTempPath();
             }, 'system.getTempPath');
         },
 
@@ -130,7 +115,7 @@ export function createSystemAPI(context) {
          */
         async openExternal(url) {
             return ErrorUtils.wrapAsync(async () => {
-                if (window.electronAPI?.openExternal) {
+                if (window.electronAPI.openExternal) {
                     await window.electronAPI.openExternal(url);
                 } else {
                     window.open(url, '_blank');
@@ -145,11 +130,7 @@ export function createSystemAPI(context) {
          */
         async showItemInFolder(filePath) {
             return ErrorUtils.wrapAsync(async () => {
-                if (window.electronAPI?.showItemInFolder) {
-                    await window.electronAPI.showItemInFolder(filePath);
-                } else {
-                    console.warn('showItemInFolder 功能不可用');
-                }
+                await window.electronAPI.openPath(filePath);
             }, 'system.showItemInFolder');
         },
 

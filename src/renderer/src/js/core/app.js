@@ -296,8 +296,8 @@ class MusicBoxApp extends EventEmitter {
             await this.handleAddToCustomPlaylist(track, index);
         });
 
-        this.components.contextMenu.on('delete', ({track, index}) => {
-            this.handleDeleteTrack(track, index);
+        this.components.contextMenu.on('delete', async ({track, index}) => {
+            await this.handleDeleteTrack(track, index);
         });
 
         this.components.contextMenu.on('editInfo', async ({track, index}) => {
