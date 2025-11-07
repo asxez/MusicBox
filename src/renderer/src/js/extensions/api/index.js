@@ -8,7 +8,6 @@ import {createPlayerAPI, PlaybackState, PlayMode} from './player.js';
 import {createLibraryAPI} from './library.js';
 import {createUIAPI, NotificationType, StatusBarAlignment, StatusBarItem, WebviewPanel} from './ui.js';
 import {createStorageAPI} from './storage.js';
-import {createSettingsAPI} from './settings.js';
 import {createNavigationAPI} from './navigation.js';
 import {createNetworkAPI} from './network.js';
 import {createSystemAPI} from './system.js';
@@ -68,9 +67,6 @@ function createExtensionAPI(context, options = {}) {
 
         // 存储 API
         storage: createStorageAPI(context),
-
-        // 设置 API
-        settings: createSettingsAPI(context),
 
         // 导航 API
         navigation: createNavigationAPI(context),
