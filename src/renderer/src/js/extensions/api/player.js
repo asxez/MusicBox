@@ -7,6 +7,7 @@ import {validate, Validator} from './common/validation.js';
 import {ErrorUtils, NotAvailableError} from './common/errors.js';
 import {toDisposable} from '../core/Lifecycle.js';
 import {api} from '@api/api';
+import {app} from "@core/app";
 
 /**
  * 播放模式枚举
@@ -15,7 +16,6 @@ export const PlayMode = {
     SEQUENCE: 'sequence',      // 顺序播放
     SHUFFLE: 'shuffle',        // 随机播放
     REPEAT_ONE: 'repeat-one',  // 单曲循环
-    REPEAT_ALL: 'repeat-all'   // 列表循环
 };
 
 /**
@@ -36,19 +36,33 @@ export function createPlayerAPI(context) {
     return {
         /**
          * 播放歌曲
-         * @param {Object} track - 歌曲对象
          * @returns {Promise<void>}
          */
-        async play(track) {
-            Validator.assertObject(track, 'track');
-
+        async play() {
             return ErrorUtils.wrapAsync(async () => {
-                if (api && typeof api.playTrack === 'function') {
-                    await api.playTrack(track);
+                if (api && typeof api.play === 'function') {
+                    await api.play();
                 } else {
                     throw new NotAvailableError('player.play', 'API 未初始化');
                 }
             }, 'player.play');
+        },
+
+        /**
+         * 按路径播放歌曲
+         * @param {string} filePath
+         * @returns {Promise<void>}
+         */
+        playTrack(filePath) {
+            Validator.assertString(filePath, 'filePath');
+
+            return ErrorUtils.wrapAsync(async () => {
+                if (app && typeof app.loadAndPlayFile === 'function') {
+                    await app.loadAndPlayFile(filePath);
+                } else {
+                    throw new NotAvailableError('player.playTrack', 'app 未初始化');
+                }
+            }, 'player.playTrack');
         },
 
         /**
@@ -63,20 +77,6 @@ export function createPlayerAPI(context) {
                     throw new NotAvailableError('player.pause', 'API 未初始化');
                 }
             }, 'player.pause');
-        },
-
-        /**
-         * 继续播放
-         * @returns {Promise<void>}
-         */
-        async resume() {
-            return ErrorUtils.wrapAsync(async () => {
-                if (api && typeof api.resume === 'function') {
-                    await api.resume();
-                } else {
-                    throw new NotAvailableError('player.resume', 'API 未初始化');
-                }
-            }, 'player.resume');
         },
 
         /**
@@ -97,28 +97,28 @@ export function createPlayerAPI(context) {
          * 下一首
          * @returns {Promise<void>}
          */
-        async next() {
+        async nextTrack() {
             return ErrorUtils.wrapAsync(async () => {
-                if (api && typeof api.next === 'function') {
-                    await api.next();
+                if (api && typeof api.nextTrack === 'function') {
+                    await api.nextTrack();
                 } else {
-                    throw new NotAvailableError('player.next', 'API 未初始化');
+                    throw new NotAvailableError('player.nextTrack', 'API 未初始化');
                 }
-            }, 'player.next');
+            }, 'player.nextTrack');
         },
 
         /**
          * 上一首
          * @returns {Promise<void>}
          */
-        async previous() {
+        async previousTrack() {
             return ErrorUtils.wrapAsync(async () => {
-                if (api && typeof api.previous === 'function') {
-                    await api.previous();
+                if (api && typeof api.previousTrack === 'function') {
+                    await api.previousTrack();
                 } else {
-                    throw new NotAvailableError('player.previous', 'API 未初始化');
+                    throw new NotAvailableError('player.previousTrack', 'API 未初始化');
                 }
-            }, 'player.previous');
+            }, 'player.previousTrack');
         },
 
         /**
@@ -157,9 +157,6 @@ export function createPlayerAPI(context) {
          */
         getState() {
             return ErrorUtils.wrapSync(() => {
-                if (api && typeof api.getPlaybackState === 'function') {
-                    return api.getPlaybackState();
-                }
                 if (api) {
                     return {
                         isPlaying: api.isPlaying || false,
@@ -212,8 +209,8 @@ export function createPlayerAPI(context) {
          */
         getPosition() {
             return ErrorUtils.wrapSync(() => {
-                if (api && typeof api.position !== 'undefined') {
-                    return api.position;
+                if (api && typeof api.getPosition === 'function') {
+                    return api.getPosition();
                 }
                 return 0;
             }, 'player.getPosition');
@@ -225,8 +222,8 @@ export function createPlayerAPI(context) {
          */
         getDuration() {
             return ErrorUtils.wrapSync(() => {
-                if (api && typeof api.duration !== 'undefined') {
-                    return api.duration;
+                if (api && typeof api.getDuration === 'function') {
+                    return api.getDuration();
                 }
                 return 0;
             }, 'player.getDuration');
@@ -271,16 +268,16 @@ export function createPlayerAPI(context) {
          * @param {string} mode - 播放模式 (sequence, shuffle, repeat-one, repeat-all)
          * @returns {Promise<void>}
          */
-        async setPlayMode(mode) {
+        setPlayMode(mode) {
             Validator.assertEnum(
                 mode,
                 Object.values(PlayMode),
                 'mode'
             );
 
-            return ErrorUtils.wrapAsync(async () => {
+            return ErrorUtils.wrapSync(() => {
                 if (api && typeof api.setPlayMode === 'function') {
-                    await api.setPlayMode(mode);
+                    api.setPlayMode(mode);
                 } else if (api) {
                     api.playMode = mode;
                 } else {

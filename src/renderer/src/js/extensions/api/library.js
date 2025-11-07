@@ -7,6 +7,7 @@ import {Validator} from './common/validation.js';
 import {ErrorUtils, NotAvailableError} from './common/errors.js';
 import {cacheManager} from '@services/CacheManager';
 import {app} from '@core/app';
+import {api} from "@api/api";
 
 /**
  * 创建音乐库 API
@@ -51,14 +52,14 @@ export function createLibraryAPI(context) {
          * @param {string} query - 搜索关键词
          * @returns {Array<Object>} 搜索结果
          */
-        searchTracks(query) {
+        async searchTracks(query) {
             Validator.assertString(query, 'query');
 
-            return ErrorUtils.wrapSync(() => {
-                if (app && typeof app.searchLibrary === 'function') {
-                    return app.searchLibrary(query);
+            return await ErrorUtils.wrapAsync(async () => {
+                if (api && typeof api.searchLibrary === 'function') {
+                    return await api.searchLibrary(query);
                 }
-                // 简单的本地搜索实现
+                // 简单的搜索实现
                 if (app && app.library) {
                     const lowerQuery = query.toLowerCase();
                     return app.library.filter(track => {
@@ -92,18 +93,16 @@ export function createLibraryAPI(context) {
 
         /**
          * 从库中移除歌曲
-         * @param {string} trackId - 歌曲 ID
+         * @param {string} track - 歌曲
+         * @param {number} index - 歌曲索引
          * @returns {Promise<boolean>} 是否成功
          */
-        async removeTrack(trackId) {
-            Validator.assertNonEmptyString(trackId, 'trackId');
+        async removeTrack(track, index) {
+            Validator.assertNonEmptyString(track, 'track');
+            Validator.assertType(index, 'number', 'index');
 
             return ErrorUtils.wrapAsync(async () => {
-                if (app && typeof app.removeTrackFromLibrary === 'function') {
-                    await app.removeTrackFromLibrary(trackId);
-                    return true;
-                }
-                throw new NotAvailableError('library.removeTrack', 'API 未实现');
+                await app.handleDeleteTrack(track, index);
             }, 'library.removeTrack');
         },
 

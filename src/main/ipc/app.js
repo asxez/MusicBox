@@ -50,6 +50,16 @@ function registerAppIpcHandlers({ipcMain}) {
         }
     });
 
+    ipcMain.handle('app:openPath', async (event, path) => {
+        try {
+            await shell.openPath(path);
+            return {success: true};
+        } catch (error) {
+            console.error('❌ 打开文件夹失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
     ipcMain.handle('app:getDefaultCoverCachePath', () => {
         try {
             const userDataPath = app.getPath('userData');

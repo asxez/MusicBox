@@ -3,7 +3,7 @@
  * 提供应用内导航功能
  */
 
-import {validate, Validator} from './common/validation.js';
+import {validate} from './common/validation.js';
 import {ErrorUtils, NotAvailableError} from './common/errors.js';
 import {app} from '@core/app';
 
@@ -17,16 +17,14 @@ export function createNavigationAPI(context) {
         /**
          * 导航到视图
          * @param {string} viewId - 视图 ID
-         * @param {Object} [options={}] - 导航选项
          * @returns {void}
          */
-        navigateTo(viewId, options = {}) {
+        navigateToView(viewId) {
             validate.viewId(viewId);
-            Validator.assertObject(options, 'options');
 
             return ErrorUtils.wrapSync(() => {
                 if (app && app.components && app.components.navigation) {
-                    app.components.navigation.navigateTo(viewId, options);
+                    app.components.navigation.navigateToView(viewId);
                 } else {
                     throw new NotAvailableError('navigation.navigateTo', '导航组件不可用');
                 }
@@ -39,15 +37,8 @@ export function createNavigationAPI(context) {
          */
         goBack() {
             return ErrorUtils.wrapSync(() => {
-                if (app && app.components && app.components.navigation) {
-                    if (typeof app.components.navigation.goBack === 'function') {
-                        app.components.navigation.goBack();
-                    } else {
-                        window.history.back();
-                    }
-                } else {
-                    window.history.back();
-                }
+                //TODO
+                console.log('暂未实现');
             }, 'navigation.goBack');
         },
 
@@ -57,15 +48,8 @@ export function createNavigationAPI(context) {
          */
         goForward() {
             return ErrorUtils.wrapSync(() => {
-                if (app && app.components && app.components.navigation) {
-                    if (typeof app.components.navigation.goForward === 'function') {
-                        app.components.navigation.goForward();
-                    } else {
-                        window.history.forward();
-                    }
-                } else {
-                    window.history.forward();
-                }
+                //TODO
+                console.log('暂未实现');
             }, 'navigation.goForward');
         },
 
@@ -80,21 +64,6 @@ export function createNavigationAPI(context) {
                 }
                 return null;
             }, 'navigation.getCurrentView');
-        },
-
-        /**
-         * 获取导航历史
-         * @returns {Array<string>} 导航历史
-         */
-        getHistory() {
-            return ErrorUtils.wrapSync(() => {
-                if (app && app.components && app.components.navigation) {
-                    if (typeof app.components.navigation.getHistory === 'function') {
-                        return app.components.navigation.getHistory();
-                    }
-                }
-                return [];
-            }, 'navigation.getHistory');
         }
     };
 }

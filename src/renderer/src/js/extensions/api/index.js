@@ -23,11 +23,7 @@ import {
     DiagnosticSeverity
 } from './diagnostics.js';
 import {CancellationToken, createTasksAPI, Task, TaskState} from './tasks.js';
-import {
-    createExtensionAPIProxy,
-    createLoggingAPIProxy,
-    APICallLogger
-} from '@extensions/core/ExtensionAPIProxy.js';
+import {APICallLogger, createExtensionAPIProxy, createLoggingAPIProxy} from '@extensions/core/ExtensionAPIProxy.js';
 
 // 全局 API 调用日志记录器
 const apiCallLogger = new APICallLogger();

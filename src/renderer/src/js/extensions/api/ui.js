@@ -99,7 +99,6 @@ export function createUIAPI(context) {
                 const confirmText = options.confirmText || '确定';
                 const cancelText = options.cancelText || '取消';
 
-                // 简单实现，使用浏览器原生对话框
                 // TODO: 实现自定义对话框组件
                 return window.confirm(`${title}\n\n${message}`);
             }, 'ui.showConfirmDialog');
@@ -118,7 +117,6 @@ export function createUIAPI(context) {
                 const defaultValue = options.value || '';
                 const placeholder = options.placeholder || '';
 
-                // 简单实现，使用浏览器原生输入框
                 // TODO: 实现自定义输入框组件
                 const result = window.prompt(prompt, defaultValue);
                 return result;
@@ -138,7 +136,6 @@ export function createUIAPI(context) {
             return ErrorUtils.wrapAsync(async () => {
                 const placeholder = options.placeholder || '请选择';
 
-                // 简单实现
                 // TODO: 实现自定义快速选择组件
                 const itemLabels = items.map(item =>
                     typeof item === 'string' ? item : (item.label || String(item))
@@ -194,7 +191,6 @@ export function createUIAPI(context) {
                 const title = options.title || '处理中...';
                 const cancellable = options.cancellable || false;
 
-                // 简单实现
                 // TODO: 实现自定义进度提示组件
                 console.log(`[Progress] ${title}`);
 
