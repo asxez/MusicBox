@@ -24,6 +24,7 @@ import {
 } from './diagnostics.js';
 import {CancellationToken, createTasksAPI, Task, TaskState} from './tasks.js';
 import {APICallLogger, createExtensionAPIProxy, createLoggingAPIProxy} from '@extensions/core/ExtensionAPIProxy.js';
+import {createWindowAPI} from "@extensions/api/window";
 
 // 全局 API 调用日志记录器
 const apiCallLogger = new APICallLogger();
@@ -93,7 +94,10 @@ function createExtensionAPI(context, options = {}) {
         diagnostics: createDiagnosticsAPI(context),
 
         // 任务 API
-        tasks: createTasksAPI(context)
+        tasks: createTasksAPI(context),
+
+        // 窗口 API
+        window: createWindowAPI(context),
     };
 
     // 如果启用了权限代理且提供了权限管理器，则创建代理

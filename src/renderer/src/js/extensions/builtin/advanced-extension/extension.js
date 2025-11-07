@@ -192,11 +192,12 @@ function registerCommands(context, config) {
  * 设置播放器监听器
  */
 function setupPlayerListeners(context, config) {
-    const {player, ui, storage} = createExtensionAPI(context);
+    const {player, ui, storage, window} = createExtensionAPI(context);
 
     // 监听播放状态变化
     const stateListener = player.onPlaybackStateChanged(async (state) => {
         if (state === 'playing') {
+            console.log(await window.getSize());
             playCount++;
             await storage.update('playCount', playCount);
 

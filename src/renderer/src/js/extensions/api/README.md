@@ -22,6 +22,7 @@ api/
 ├── views.js              # 视图 API
 ├── diagnostics.js        # 诊断 API
 ├── tasks.js              # 任务 API
+├── window.js             # 窗口 API
 └── common/
     ├── errors.js         # 错误定义
     └── validation.js     # 参数验证
@@ -453,6 +454,26 @@ await api.system.showItemInFolder('/path/to/file');
 // 剪贴板
 const text = await api.system.getClipboardText();
 await api.system.setClipboardText('复制的文本');
+```
+
+### Window API
+
+窗口控制。
+
+```javascript
+// 获取版本和平台
+await api.window.maximize();
+await api.window.minimize();
+await api.window.close();
+
+const isMax = await api.window.isMaximized();
+const position = await api.window.getPosition();
+const size = await api.window.getSize();
+const obj = await api.window.setSize();
+
+await api.window.onMaximizedChanged((isMaximized) => {
+    console.log(isMaximized);
+});
 ```
 
 ## 🛡️ 错误处理

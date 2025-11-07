@@ -381,8 +381,8 @@ class Settings extends Component {
 
         // 插件管理事件监听器
         if (this.openPluginManagerBtn) {
-            this.openPluginManagerBtn.addEventListener('click', () => {
-                this.openPluginManager();
+            this.openPluginManagerBtn.addEventListener('click', async () => {
+                await this.openPluginManager();
             });
         }
 
@@ -1131,13 +1131,13 @@ class Settings extends Component {
         return div.innerHTML;
     }
 
-    openPluginManager() {
+    async openPluginManager() {
         if (app.components.pluginManagerModal) {
-            app.components.pluginManagerModal.show();
+            await app.components.pluginManagerModal.show();
         } else {
             this.showNotification('插件管理器不可用', 'error');
         }
     }
 }
 
-export { Settings };
+export {Settings};
