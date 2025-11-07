@@ -308,7 +308,5 @@ class ShortcutRecorder extends EventEmitter {
     }
 }
 
-window.shortcutRecorder = new ShortcutRecorder();
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = ShortcutRecorder;
-}
+let shortcutRecorder = new ShortcutRecorder();
+export {shortcutRecorder};

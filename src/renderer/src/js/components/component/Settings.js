@@ -10,6 +10,8 @@ import {embeddedLyricsManager} from "@services/lyrics/EmbeddedLyricsManager";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
+import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
+import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
 
 class Settings extends Component {
     constructor(element) {
@@ -835,7 +837,7 @@ class Settings extends Component {
     }
 
     initializeShortcuts() {
-        const config = window.shortcutConfig.getConfig();
+        const config = shortcutConfig.getConfig();
 
         // 设置全局快捷键开关状态
         this.globalShortcutsToggle.checked = config.enableGlobalShortcuts;
@@ -847,7 +849,7 @@ class Settings extends Component {
 
         // 延迟初始化折叠功能，确保DOM完全渲染
         setTimeout(() => {
-            window.shortcutConfig.initializeCollapsibleShortcuts();
+            shortcutConfig.initializeCollapsibleShortcuts();
         }, 100);
     }
 
@@ -925,20 +927,20 @@ class Settings extends Component {
 
     startRecordingShortcut(type, id, element) {
         // 开始录制
-        window.shortcutRecorder.startRecording(element);
+        shortcutRecorder.startRecording(element);
 
         // 监听录制结果
         const handleRecorded = async (shortcutString) => {
             await this.handleShortcutRecorded(type, id, shortcutString, element);
-            window.shortcutRecorder.off('shortcutRecorded', handleRecorded);
+            shortcutRecorder.off('shortcutRecorded', handleRecorded);
         };
 
-        window.shortcutRecorder.on('shortcutRecorded', handleRecorded);
+        shortcutRecorder.on('shortcutRecorded', handleRecorded);
     }
 
     async handleShortcutRecorded(type, id, shortcutString, element) {
         // 检查冲突
-        const conflicts = window.shortcutConfig.checkConflicts(type, id, shortcutString);
+        const conflicts = shortcutConfig.checkConflicts(type, id, shortcutString);
         if (conflicts.length > 0) {
             this.showShortcutConflict(conflicts, shortcutString, async () => {
                 // 用户确认覆盖
@@ -951,7 +953,7 @@ class Settings extends Component {
 
     async updateShortcut(type, id, shortcutString, element) {
         try {
-            const success = await window.shortcutConfig.updateShortcut(type, id, shortcutString);
+            const success = await shortcutConfig.updateShortcut(type, id, shortcutString);
             if (success) {
                 element.textContent = this.formatShortcutKey(shortcutString);
                 showToast('快捷键已更新', 'success');
@@ -968,7 +970,7 @@ class Settings extends Component {
     }
 
     toggleShortcut(type, id, enabled) {
-        const success = window.shortcutConfig.setShortcutEnabled(type, id, enabled);
+        const success = shortcutConfig.setShortcutEnabled(type, id, enabled);
 
         if (success) {
             // 更新UI
@@ -990,11 +992,11 @@ class Settings extends Component {
 
     async toggleGlobalShortcuts(enabled) {
         try {
-            const success = await window.shortcutConfig.setGlobalShortcutsEnabled(enabled);
+            const success = await shortcutConfig.setGlobalShortcutsEnabled(enabled);
             if (success) {
                 this.updateGlobalShortcutsVisibility(enabled);
                 // 刷新快捷键摘要
-                window.shortcutConfig.refreshSummary();
+                shortcutConfig.refreshSummary();
                 showToast(enabled ? '全局快捷键已启用' : '全局快捷键已禁用', 'success');
                 this.emit('shortcutsUpdated');
             } else {
@@ -1035,12 +1037,12 @@ class Settings extends Component {
     }
 
     resetShortcuts() {
-        const success = window.shortcutConfig.resetToDefaults();
+        const success = shortcutConfig.resetToDefaults();
         if (success) {
             // 重新初始化快捷键配置
             this.initializeShortcuts();
             // 刷新摘要
-            window.shortcutConfig.refreshSummary();
+            shortcutConfig.refreshSummary();
             showToast('快捷键已重置为默认设置', 'success');
             this.emit('shortcutsUpdated');
         } else {
