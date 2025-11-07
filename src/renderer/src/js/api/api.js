@@ -30,82 +30,13 @@ class MusicBoxAPI extends EventEmitter {
 
         // 音频切换锁，防止快速切换时的竞态条件
         this._trackSwitchLock = false;
-        this._pendingTrackSwitch = null;
 
         // 歌词获取去重机制
         this._lyricsRequestLock = new Set(); // 正在请求歌词的歌曲集合
 
-        if (!window.electronAPI) {
-            this.createMockAPI();
-        }
-
         this.initializeWebAudio().then(() => {
             this.setupEventListeners();
         });
-    }
-
-    createMockAPI() {
-        // Create a mock Electron API for browser testing
-        window.electronAPI = {
-            audio: {
-                init: () => Promise.resolve(true),
-                loadTrack: (filePath) => Promise.resolve(true),
-                play: () => Promise.resolve(true),
-                pause: () => Promise.resolve(true),
-                stop: () => Promise.resolve(true),
-                seek: (position) => Promise.resolve(true),
-                setVolume: (volume) => Promise.resolve(),
-                getVolume: () => Promise.resolve(0.7),
-                getPosition: () => Promise.resolve(0),
-                getDuration: () => Promise.resolve(180),
-                getCurrentTrack: () => Promise.resolve({
-                    filePath: 'mock-track.mp3',
-                    title: 'Mock Track',
-                    artist: 'Mock Artist',
-                    album: 'Mock Album',
-                    duration: 180
-                }),
-                setPlaylist: (tracks) => Promise.resolve(),
-                nextTrack: () => Promise.resolve(true),
-                previousTrack: () => Promise.resolve(true),
-                onTrackChanged: () => {
-                },
-                onPlaybackStateChanged: () => {
-                },
-                onPositionChanged: () => {
-                }
-            },
-            library: {
-                scanDirectory: (path) => Promise.resolve(true),
-                getTracks: (options) => Promise.resolve([]),
-                getAlbums: () => Promise.resolve([]),
-                getArtists: () => Promise.resolve([]),
-                search: (query) => Promise.resolve([]),
-                getTrackMetadata: (filePath) => Promise.resolve(null),
-                onLibraryUpdated: () => {
-                },
-                onScanProgress: () => {
-                }
-            },
-            openDirectory: () => Promise.resolve(null),
-            openFiles: () => Promise.resolve([]),
-            settings: {
-                get: (key) => Promise.resolve(null),
-                set: (key, value) => Promise.resolve(true)
-            },
-            getVersion: () => Promise.resolve('1.0.0-mock'),
-            getPlatform: () => Promise.resolve('browser'),
-            window: {
-                minimize: () => Promise.resolve(null),
-                maximize: () => Promise.resolve(null),
-                isMaximized: () => Promise.resolve(false),
-                close: () => Promise.resolve(null),
-                getPosition: () => Promise.resolve([0, 0]),
-                getSize: () => Promise.resolve([1440, 900]),
-                sendPosition: (data) => Promise.resolve(null),
-                clearSizeCache: () => Promise.resolve(null),
-            }
-        };
     }
 
     async initializeWebAudio() {
@@ -211,10 +142,6 @@ class MusicBoxAPI extends EventEmitter {
     // Audio Engine Methods
     async initializeAudio() {
         try {
-            if (!window.electronAPI.audio) {
-                throw new Error('Audio API not available');
-            }
-
             const result = await window.electronAPI.audio.init();
             this.isInitialized = result;
             return result;
@@ -704,7 +631,7 @@ class MusicBoxAPI extends EventEmitter {
         const defaultOptions = {
             timeout: 10000,
             headers: {
-                'User-Agent': 'MusicBox/0.1.0'
+                'User-Agent': 'MusicBox'
             },
             ...options
         };
@@ -802,7 +729,7 @@ class MusicBoxAPI extends EventEmitter {
             return result;
         } catch (error) {
             console.error('❌ [API] 添加文件到音乐库失败:', error);
-            return { success: false, error: error.message };
+            return {success: false, error: error.message};
         }
     }
 
@@ -994,42 +921,6 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async getSetting(key) {
-        try {
-            return cacheManager.getLocalCache(key);
-        } catch (error) {
-            console.error('Failed to get setting:', error);
-            return null;
-        }
-    }
-
-    async setSetting(key, value) {
-        try {
-            cacheManager.setLocalCache(key, value);
-        } catch (error) {
-            console.error('❌ Failed to set setting:', error);
-            return false;
-        }
-    }
-
-    async getAppVersion() {
-        try {
-            return await window.electronAPI.getVersion();
-        } catch (error) {
-            console.error('❌ Failed to get app version:', error);
-            return 'Unknown';
-        }
-    }
-
-    async getPlatform() {
-        try {
-            return await window.electronAPI.getPlatform();
-        } catch (error) {
-            console.error('❌ Failed to get platform:', error);
-            return 'unknown';
-        }
-    }
-
     stopProgressTracking() {
         if (this.progressInterval) {
             clearInterval(this.progressInterval);
@@ -1121,7 +1012,7 @@ class MusicBoxAPI extends EventEmitter {
         try {
             // 如果强制刷新，先清理缓存
             if (forceRefresh) {
-                if (filePath ) {
+                if (filePath) {
                     embeddedCoverManager.clearCacheForFile(filePath);
                     localCoverManager.clearCacheForTrack(title, artist, album);
                 }
@@ -1225,7 +1116,7 @@ class MusicBoxAPI extends EventEmitter {
     // 保存封面到本地
     async saveCoverToLocalCache(title, artist, album, imageData) {
         try {
-            if (!localCoverManager || !localCoverManager.getCoverDirectory()) {
+            if (!localCoverManager.getCoverDirectory()) {
                 console.log('⚠️ 未设置封面缓存目录，跳过本地缓存保存');
                 return;
             }
@@ -1259,7 +1150,7 @@ class MusicBoxAPI extends EventEmitter {
         try {
             // 检查是否已经在请求中，防止重复请求
             if (this._lyricsRequestLock.has(lyricsKey)) {
-                return { success: false, error: '歌词获取已在进行中' };
+                return {success: false, error: '歌词获取已在进行中'};
             }
 
             // 添加到请求锁
@@ -1409,10 +1300,6 @@ class MusicBoxAPI extends EventEmitter {
 
     // 桌面歌词同步方法
     async syncToDesktopLyrics(type, data) {
-        if (!window.electronAPI || !window.electronAPI.desktopLyrics) {
-            return;
-        }
-
         try {
             switch (type) {
                 case 'track':
@@ -1454,11 +1341,6 @@ class MusicBoxAPI extends EventEmitter {
 
     // 桌面歌词控制方法
     async toggleDesktopLyrics() {
-        if (!window.electronAPI || !window.electronAPI.desktopLyrics) {
-            console.warn('桌面歌词API不可用');
-            return {success: false, error: '桌面歌词API不可用'};
-        }
-
         try {
             const result = await window.electronAPI.desktopLyrics.toggle();
             if (result.success && result.visible) {
@@ -1562,10 +1444,6 @@ class MusicBoxAPI extends EventEmitter {
     }
 
     async showDesktopLyrics() {
-        if (!window.electronAPI || !window.electronAPI.desktopLyrics) {
-            return {success: false, error: '桌面歌词API不可用'};
-        }
-
         try {
             const result = await window.electronAPI.desktopLyrics.show();
             if (result.success) {
@@ -1579,10 +1457,6 @@ class MusicBoxAPI extends EventEmitter {
     }
 
     async hideDesktopLyrics() {
-        if (!window.electronAPI || !window.electronAPI.desktopLyrics) {
-            return {success: false, error: '桌面歌词API不可用'};
-        }
-
         try {
             return await window.electronAPI.desktopLyrics.hide();
         } catch (error) {
@@ -1592,10 +1466,6 @@ class MusicBoxAPI extends EventEmitter {
     }
 
     async isDesktopLyricsVisible() {
-        if (!window.electronAPI || !window.electronAPI.desktopLyrics) {
-            return false;
-        }
-
         try {
             return await window.electronAPI.desktopLyrics.isVisible();
         } catch (error) {
@@ -1611,4 +1481,4 @@ class MusicBoxAPI extends EventEmitter {
 }
 
 let api = new MusicBoxAPI();
-export { api };
+export {api};
