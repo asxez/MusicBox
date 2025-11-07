@@ -1352,27 +1352,7 @@ class MusicBoxApp extends EventEmitter {
 
     // 获取当前启用的快捷键
     getEnabledShortcuts() {
-        if (!window.shortcutConfig) {
-            return this.getDefaultShortcuts();
-        }
         return window.shortcutConfig.getEnabledLocalShortcuts();
-    }
-
-    // 获取默认快捷键（兼容性）
-    getDefaultShortcuts() {
-        return {
-            playPause: {id: 'playPause', name: '播放/暂停', key: 'Space'},
-            previousTrack: {id: 'previousTrack', name: '上一首', key: 'Ctrl+ArrowLeft'},
-            nextTrack: {id: 'nextTrack', name: '下一首', key: 'Ctrl+ArrowRight'},
-            volumeUp: {id: 'volumeUp', name: '音量增加', key: 'Ctrl+ArrowUp'},
-            volumeDown: {id: 'volumeDown', name: '音量减少', key: 'Ctrl+ArrowDown'},
-            search: {id: 'search', name: '搜索', key: 'Ctrl+F'},
-            toggleLyrics: {id: 'toggleLyrics', name: '显示/隐藏歌词', key: 'Ctrl+L'},
-            toggleFullscreen: {id: 'toggleFullscreen', name: '全屏切换', key: 'F11'},
-            exitLyrics: {id: 'exitLyrics', name: '退出歌词页面', key: 'Escape'},
-            seekForward: {id: 'seekForward', name: '快进', key: 'ArrowRight'},
-            seekBackward: {id: 'seekBackward', name: '回退', key: 'ArrowLeft'}
-        };
     }
 
     // 查找匹配的快捷键
@@ -1615,7 +1595,7 @@ class MusicBoxApp extends EventEmitter {
         // 保存播放状态和音量
         await this.savePlaybackState();
         if (this.components.player) {
-            await api.setSetting('volume', this.components.player.volume);
+            await cacheManager.setLocalCache('volume', this.components.player.volume);
         }
 
         // 清理DOM事件监听器
@@ -1690,21 +1670,6 @@ class MusicBoxApp extends EventEmitter {
                 // 多个文件 - 添加到播放列表
                 await this.addFilesToPlaylist(audioFiles);
             }
-        }
-    }
-
-    async openFileDialog() {
-        try {
-            const files = await api.openFileDialog();
-            if (files && files.length > 0) {
-                if (files.length === 1) {
-                    await this.loadAndPlayFile(files[0]);
-                } else {
-                    await this.addFilesToPlaylist(files);
-                }
-            }
-        } catch (error) {
-            this.showError('无法打开文件选择框');
         }
     }
 

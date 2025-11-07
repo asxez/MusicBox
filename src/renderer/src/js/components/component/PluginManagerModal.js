@@ -53,7 +53,6 @@ class PluginManagerModal extends Component {
         this.installBtn = this.element.querySelector('#install-extension-modal-btn');
 
         // 插件列表元素
-        this.pluginListContainer = this.element.querySelector('#plugin-list-container');
         this.pluginListLoading = this.element.querySelector('#plugin-list-loading');
         this.pluginList = this.element.querySelector('#plugin-list');
         this.pluginListEmpty = this.element.querySelector('#plugin-list-empty');
@@ -226,19 +225,11 @@ class PluginManagerModal extends Component {
      */
     async handleInstallExtension() {
         try {
-            console.log('📦 PluginManagerModal: 开始选择扩展包文件');
-
             // 选择扩展包文件
             const filePath = await window.electronAPI.extensions.selectPackage();
-
-            console.log('📦 PluginManagerModal: 选择的文件路径:', filePath);
-
             if (!filePath) {
-                console.log('📦 PluginManagerModal: 用户取消选择');
-                return; // 用户取消选择
+                return;
             }
-
-            this.showNotification('正在安装扩展...', 'info');
 
             // 通过 ExtensionService 安装
             if (!window.extensionService) {
@@ -248,11 +239,8 @@ class PluginManagerModal extends Component {
             console.log('📦 PluginManagerModal: 调用 ExtensionService.installExtensionFromFile');
             const extensionInfo = await window.extensionService.installExtensionFromFile(filePath);
 
-            this.showNotification(`扩展 "${extensionInfo.name}" 安装成功！`, 'success');
-
             // 刷新插件列表
             await this.loadPluginList();
-
         } catch (error) {
             console.error('❌ PluginManagerModal: 安装扩展失败:', error);
             this.showNotification(`安装失败: ${error.message}`, 'error');
@@ -264,19 +252,12 @@ class PluginManagerModal extends Component {
      */
     async handleEnableExtension(extensionId, extensionName) {
         try {
-            this.showNotification('正在启用扩展...', 'info');
-
             if (!window.extensionService) {
                 throw new Error('扩展服务未初始化');
             }
-
             await window.extensionService.enableExtension(extensionId);
-
-            this.showNotification(`扩展 "${extensionName}" 已启用`, 'success');
-
             // 刷新插件列表
             await this.loadPluginList();
-
         } catch (error) {
             console.error('❌ PluginManagerModal: 启用扩展失败:', error);
             this.showNotification(`启用失败: ${error.message}`, 'error');
@@ -288,24 +269,11 @@ class PluginManagerModal extends Component {
      */
     async handleDisableExtension(extensionId, extensionName) {
         try {
-            const confirmed = confirm(`确定要禁用扩展 "${extensionName}" 吗？\n\n禁用后扩展将停止运行，但不会被卸载。`);
-            if (!confirmed) {
-                return;
-            }
-
-            this.showNotification('正在禁用扩展...', 'info');
-
             if (!window.extensionService) {
                 throw new Error('扩展服务未初始化');
             }
-
             await window.extensionService.disableExtension(extensionId);
-
-            this.showNotification(`扩展 "${extensionName}" 已禁用`, 'success');
-
-            // 刷新插件列表
             await this.loadPluginList();
-
         } catch (error) {
             console.error('❌ PluginManagerModal: 禁用扩展失败:', error);
             this.showNotification(`禁用失败: ${error.message}`, 'error');
@@ -322,19 +290,14 @@ class PluginManagerModal extends Component {
                 return;
             }
 
-            this.showNotification('正在卸载扩展...', 'info');
-
             if (!window.extensionService) {
                 throw new Error('扩展服务未初始化');
             }
 
             await window.extensionService.uninstallExtensionFromDisk(extensionId);
 
-            this.showNotification(`扩展 "${extensionName}" 已卸载`, 'success');
-
             // 刷新插件列表
             await this.loadPluginList();
-
         } catch (error) {
             console.error('❌ PluginManagerModal: 卸载扩展失败:', error);
             this.showNotification(`卸载失败: ${error.message}`, 'error');
@@ -358,4 +321,4 @@ class PluginManagerModal extends Component {
     }
 }
 
-export { PluginManagerModal };
+export {PluginManagerModal};

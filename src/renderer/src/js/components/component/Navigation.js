@@ -109,11 +109,9 @@ class Navigation extends Component {
         });
 
         // 监听窗口最大化状态变化
-        if (window.electronAPI && window.electronAPI.window) {
-            window.electronAPI.window.onMaximizedChanged((isMaximized) => {
-                this.updateMaximizeButton(isMaximized);
-            });
-        }
+        window.electronAPI.window.onMaximizedChanged((isMaximized) => {
+            this.updateMaximizeButton(isMaximized);
+        });
 
         // 窗口拖拽事件监听器
         this.setupWindowDrag();
@@ -181,10 +179,8 @@ class Navigation extends Component {
     // 窗口控制方法
     async minimizeWindow() {
         try {
-            if (window.electronAPI && window.electronAPI.window) {
-                await window.electronAPI.window.minimize();
-                console.log('🎵 Navigation: 窗口最小化');
-            }
+            await window.electronAPI.window.minimize();
+            console.log('🎵 Navigation: 窗口最小化');
         } catch (error) {
             console.error('❌ Navigation: 窗口最小化失败', error);
         }
@@ -192,10 +188,8 @@ class Navigation extends Component {
 
     async toggleMaximizeWindow() {
         try {
-            if (window.electronAPI && window.electronAPI.window) {
-                await window.electronAPI.window.maximize();
-                console.log('🎵 Navigation: 窗口最大化/还原切换');
-            }
+            await window.electronAPI.window.maximize();
+            console.log('🎵 Navigation: 窗口最大化/还原切换');
         } catch (error) {
             console.error('❌ Navigation: 窗口最大化/还原失败', error);
         }
@@ -203,10 +197,7 @@ class Navigation extends Component {
 
     async closeWindow() {
         try {
-            if (window.electronAPI && window.electronAPI.window) {
-                await window.electronAPI.window.close();
-                console.log('🎵 Navigation: 窗口关闭');
-            }
+            await window.electronAPI.window.close();
         } catch (error) {
             console.error('❌ Navigation: 窗口关闭失败', error);
         }
@@ -226,12 +217,10 @@ class Navigation extends Component {
 
     async initializeWindowState() {
         try {
-            if (window.electronAPI && window.electronAPI.window) {
-                const isMaximized = await window.electronAPI.window.isMaximized();
-                this.updateMaximizeButton(isMaximized);
-                return {
-                    status: true,
-                }
+            const isMaximized = await window.electronAPI.window.isMaximized();
+            this.updateMaximizeButton(isMaximized);
+            return {
+                status: true,
             }
         } catch (error) {
             return {
@@ -269,23 +258,15 @@ class Navigation extends Component {
 
             // 主动尺寸保护机制 - 记录拖拽开始时的窗口尺寸
             try {
-                if (window.electronAPI && window.electronAPI.window) {
-                    window.electronAPI.window.getSize().then(([width, height]) => {
-                        this.originalWindowWidth = width;
-                        this.originalWindowHeight = height;
-                        // console.log('🎵 Navigation: 记录原始窗口尺寸', {
-                        //     width: this.originalWindowWidth,
-                        //     height: this.originalWindowHeight
-                        // });
-                    }).catch(error => {
-                        console.error('❌ Navigation: 获取窗口尺寸失败', error);
-                    });
-                }
+                window.electronAPI.window.getSize().then(([width, height]) => {
+                    this.originalWindowWidth = width;
+                    this.originalWindowHeight = height;
+                }).catch(error => {
+                    console.error('❌ Navigation: 获取窗口尺寸失败', error);
+                });
             } catch (error) {
                 console.error('❌ Navigation: 尺寸记录失败', error);
             }
-
-            // console.log('🎵 Navigation: 开始拖拽窗口', {dinatesX: this.dinatesX, dinatesY: this.dinatesY});
 
             document.onmousemove = async (ev) => {
                 if (this.isKeyDown) {
@@ -300,24 +281,18 @@ class Navigation extends Component {
                         originalWidth: this.originalWindowWidth,
                         originalHeight: this.originalWindowHeight
                     };
-                    if (window.electronAPI && window.electronAPI.window) {
-                        await window.electronAPI.window.sendPosition(data);
-                    }
+                    await window.electronAPI.window.sendPosition(data);
                 }
             };
             document.onmouseup = async (ev) => {
                 this.isKeyDown = false;
 
                 // 主动尺寸保护机制 - 清理缓存的尺寸信息
-                if (window.electronAPI && window.electronAPI.window) {
-                    await window.electronAPI.window.clearSizeCache();
-                }
+                await window.electronAPI.window.clearSizeCache();
 
                 // 重置本地尺寸记录
                 this.originalWindowWidth = 0;
                 this.originalWindowHeight = 0;
-
-                // console.log('🎵 Navigation: 结束拖拽窗口，已清理尺寸缓存');
             };
         };
         navbarContent.addEventListener('mousedown', mousedown);
@@ -698,4 +673,4 @@ class Navigation extends Component {
     }
 }
 
-export { Navigation };
+export {Navigation};
