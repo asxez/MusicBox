@@ -59,18 +59,6 @@ class EmbeddedLyricsManager {
                 return errorResult;
             }
 
-            // 输出歌词数据详情用于调试
-            console.log('🔍 EmbeddedLyricsManager: 收到的歌词数据:', {
-                type: result.lyrics.type,
-                format: result.lyrics.format,
-                language: result.lyrics.language,
-                description: result.lyrics.description,
-                synchronized: result.lyrics.synchronized,
-                textLength: result.lyrics.text ? result.lyrics.text.length : 0,
-                timestampCount: result.lyrics.timestamps ? result.lyrics.timestamps.length : 0,
-                textPreview: result.lyrics.text ? result.lyrics.text.substring(0, 100) + '...' : '无文本'
-            });
-
             // 转换歌词格式为LRC
             const convertedLyrics = this.convertToLRC(result.lyrics);
             if (!convertedLyrics.success) {
@@ -78,13 +66,6 @@ class EmbeddedLyricsManager {
                 this.setCache(cacheKey, errorResult);
                 return errorResult;
             }
-
-            console.log('🔍 EmbeddedLyricsManager: LRC转换结果:', {
-                success: convertedLyrics.success,
-                type: convertedLyrics.type,
-                lrcLength: convertedLyrics.lrc ? convertedLyrics.lrc.length : 0,
-                lrcPreview: convertedLyrics.lrc ? convertedLyrics.lrc.substring(0, 200) + '...' : '无LRC内容'
-            });
 
             const finalResult = {
                 success: true,
@@ -137,14 +118,6 @@ class EmbeddedLyricsManager {
                 throw new Error('内嵌歌词数据无效');
             }
 
-            console.log('🔍 开始LRC转换:', {
-                type: embeddedLyrics.type,
-                synchronized: embeddedLyrics.synchronized,
-                textLength: embeddedLyrics.text.length,
-                hasTimestamps: !!(embeddedLyrics.timestamps && embeddedLyrics.timestamps.length > 0),
-                textPreview: embeddedLyrics.text.substring(0, 100) + '...'
-            });
-
             let lrcContent = '';
 
             if (embeddedLyrics.synchronized && embeddedLyrics.timestamps) {
@@ -156,12 +129,6 @@ class EmbeddedLyricsManager {
                 console.log('🔍 使用非同步歌词转换路径');
                 lrcContent = this.convertUnsynchronizedToLRC(embeddedLyrics);
             }
-
-            console.log('🔍 LRC转换完成:', {
-                originalLength: embeddedLyrics.text.length,
-                convertedLength: lrcContent.length,
-                lrcPreview: lrcContent.substring(0, 200) + '...'
-            });
 
             return {
                 success: true,
@@ -355,46 +322,12 @@ class EmbeddedLyricsManager {
     }
 
     /**
-     * 获取缓存统计信息
-     * @returns {Object} 缓存统计信息
-     */
-    getCacheStats() {
-        return {
-            size: this.cache.size,
-            maxSize: this.maxCacheSize,
-            type: 'embedded'
-        };
-    }
-
-    /**
      * 检查文件是否包含内嵌歌词
      * @param {Object} trackMetadata - 音频文件元数据
      * @returns {boolean} 是否包含内嵌歌词
      */
     hasEmbeddedLyrics(trackMetadata) {
         return !!(trackMetadata && trackMetadata.embeddedLyrics && trackMetadata.embeddedLyrics.text);
-    }
-
-    /**
-     * 获取内嵌歌词的简要信息
-     * @param {Object} trackMetadata - 音频文件元数据
-     * @returns {Object|null} 歌词简要信息
-     */
-    getEmbeddedLyricsInfo(trackMetadata) {
-        if (!this.hasEmbeddedLyrics(trackMetadata)) {
-            return null;
-        }
-
-        const lyrics = trackMetadata.embeddedLyrics;
-        return {
-            type: lyrics.type,
-            format: lyrics.format,
-            language: lyrics.language || '未知',
-            description: lyrics.description || '',
-            synchronized: lyrics.synchronized || false,
-            textLength: lyrics.text ? lyrics.text.length : 0,
-            timestampCount: lyrics.timestamps ? lyrics.timestamps.length : 0
-        };
     }
 
     /**
@@ -481,4 +414,4 @@ class EmbeddedLyricsManager {
 }
 
 let embeddedLyricsManager = new EmbeddedLyricsManager();
-export { embeddedLyricsManager };
+export {embeddedLyricsManager};

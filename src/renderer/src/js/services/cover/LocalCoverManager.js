@@ -8,7 +8,6 @@ class LocalCoverManager {
         this.coverDirectory = null;
         this.cache = new Map();
         this.maxCacheSize = 5;
-        this.supportedFormats = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
     }
 
     /**
@@ -101,22 +100,12 @@ class LocalCoverManager {
             const cacheKey = this.generateCacheKey(title, artist, album);
             if (this.cache.has(cacheKey)) {
                 const cachedPath = this.cache.get(cacheKey);
-                // console.log(`✅ LocalCoverManager: 内存缓存命中 - ${title}`);
                 return {
                     success: true,
                     filePath: cachedPath,
                     source: 'memory-cache'
                 };
             }
-
-            // console.log(`🔍 LocalCoverManager: 检查本地封面缓存`, {
-            //     title: title || '(专辑模式)',
-            //     artist,
-            //     album,
-            //     isAlbum: !title,
-            //     cacheKey,
-            //     coverDirectory: this.coverDirectory
-            // });
 
             // 搜索匹配的封面文件
             const isAlbum = !title;
@@ -137,7 +126,6 @@ class LocalCoverManager {
                 }
                 // 添加到内存缓存
                 this.addToCache(cacheKey, searchResult.filePath);
-                // console.log(`✅ LocalCoverManager: 找到本地封面缓存 - ${searchResult.fileName}`);
                 return {
                     success: true,
                     filePath: searchResult.filePath,
@@ -251,7 +239,6 @@ class LocalCoverManager {
      */
     clearCache() {
         this.cache.clear();
-        console.log('🧹 LocalCoverManager: 内存缓存已清空');
     }
 
     /**
@@ -302,15 +289,7 @@ class LocalCoverManager {
             }
         }
     }
-
-    /**
-     * 获取默认封面路径
-     * @returns {string} 默认封面路径
-     */
-    getDefaultCoverPath() {
-        return 'assets/images/default-cover.svg';
-    }
 }
 
 let localCoverManager = new LocalCoverManager();
-export { localCoverManager };
+export {localCoverManager};

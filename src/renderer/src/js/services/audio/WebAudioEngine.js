@@ -53,7 +53,7 @@ class WebAudioEngine {
         try {
             // 初始化窗口可见性监听
             this.initVisibilityListener();
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.audioContext = new window.AudioContext();
             this.gainNode = this.audioContext.createGain();
             this.gainNode.connect(this.audioContext.destination);
             this.gainNode.gain.value = this.volume;
@@ -141,11 +141,6 @@ class WebAudioEngine {
             if (this.onTrackChanged) {
                 this.onTrackChanged(this.currentTrack);
             }
-
-            // 触发时长更新事件
-            // if (this.onDurationChanged) {
-            //     this.onDurationChanged(filePath, this.duration);
-            // }
 
             // 若启用无间隙播放，预加载下一首歌曲
             if (this.gaplessPlaybackEnabled && this.playlist.length > 1) {

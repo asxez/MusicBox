@@ -17,15 +17,9 @@ class CoverUpdateManager {
         if (this.initialized) return;
 
         // 监听主进程的封面更新事件
-        if (window.electronAPI?.library?.onCoverUpdated) {
-            window.electronAPI.library.onCoverUpdated((data) => {
-                this.handleCoverUpdate(data);
-            });
-            console.log('封面更新事件监听器已注册');
-        } else {
-            console.warn('封面更新事件API不可用');
-        }
-
+        window.electronAPI.library.onCoverUpdated(async (data) => {
+            await this.handleCoverUpdate(data);
+        });
         this.initialized = true;
     }
 

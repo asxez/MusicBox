@@ -28,14 +28,11 @@ class CacheManager {
         this.memoryCache.set(key, {
             data: data,
         });
-
-        // console.log(`🗄️ CacheManager: 内存缓存已设置 - ${key}`);
     }
 
     getMemoryCache(key) {
         const cached = this.memoryCache.get(key);
         if (cached) {
-            // console.log(`✅ CacheManager: 内存缓存命中 - ${key}`);
             return cached.data;
         }
         return null;
@@ -48,7 +45,6 @@ class CacheManager {
                 data: data,
             };
             localStorage.setItem(this.storagePrefix + key, JSON.stringify(cacheData));
-            // console.log(`🗄️ CacheManager: 本地缓存已设置 - ${key}`);
         } catch (error) {
             console.warn('❌ CacheManager: 本地缓存设置失败:', error);
         }
@@ -59,7 +55,6 @@ class CacheManager {
             const cached = localStorage.getItem(this.storagePrefix + key);
             if (!cached) return null;
             const cacheData = JSON.parse(cached);
-            // console.log(`✅ CacheManager: 本地缓存命中 - ${key}`);
             return cacheData.data;
         } catch (error) {
             console.warn('❌ CacheManager: 本地缓存读取失败:', error);
@@ -83,7 +78,6 @@ class CacheManager {
                 cacheSource: 'cache-manager'
             };
             this.setLocalCache(key, cacheData);
-            // console.log(`🗄️ CacheManager: 歌词已缓存 - ${title} (来源: ${lyricsData.source || 'unknown'})`);
         }
     }
 
@@ -119,7 +113,6 @@ class CacheManager {
                     removedCount++;
                 }
             }
-            // console.log(`🧹 CacheManager: 清空了所有缓存 (${removedCount} 个条目)`);
         } catch (error) {
             console.warn('❌ CacheManager: 清空缓存失败:', error);
         }
@@ -127,4 +120,4 @@ class CacheManager {
 }
 
 let cacheManager = new CacheManager();
-export { cacheManager };
+export {cacheManager};

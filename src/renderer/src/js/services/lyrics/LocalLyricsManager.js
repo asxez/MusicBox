@@ -43,7 +43,6 @@ class LocalLyricsManager {
 
             const cacheKey = this.generateCacheKey(title, artist, album);
             if (this.cache.has(cacheKey)) {
-                console.log(`✅ LocalLyricsManager: 缓存命中 - ${title}`);
                 return this.cache.get(cacheKey);
             }
             console.log(`🔍 LocalLyricsManager: 搜索本地歌词 - ${title} by ${artist}`);
@@ -144,28 +143,7 @@ class LocalLyricsManager {
         this.cache.clear();
         console.log('🗑️ LocalLyricsManager: 缓存已清空');
     }
-
-    /**
-     * 预加载常用歌词文件
-     * @param {Array} trackList - 歌曲列表
-     */
-    async preloadLyrics(trackList) {
-        if (!this.lyricsDirectory || !Array.isArray(trackList)) {
-            return;
-        }
-        console.log(`🔄 LocalLyricsManager: 开始预加载 ${trackList.length} 首歌曲的歌词`);
-
-        let loadedCount = 0;
-        for (const track of trackList.slice(0, 10)) { // 限制预加载数量
-            try {
-                await this.getLyrics(track.title, track.artist, track.album);
-                loadedCount++;
-            } catch (error) {
-            }
-        }
-        console.log(`✅ LocalLyricsManager: 预加载完成，成功加载 ${loadedCount} 首歌曲的歌词`);
-    }
 }
 
 let localLyricsManager = new LocalLyricsManager();
-export { localLyricsManager };
+export {localLyricsManager};
