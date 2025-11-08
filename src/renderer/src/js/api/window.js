@@ -1,10 +1,6 @@
-import {EventEmitter} from "@utils";
 import {cacheManager} from "@services/CacheManager";
 
-class WindowAPI extends EventEmitter {
-    constructor() {
-        super();
-    }
+class WindowAPI {
 
     // 初始化窗口状态管理
     initWindowStateManagement() {

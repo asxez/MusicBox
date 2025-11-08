@@ -7,6 +7,7 @@ import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {formatTime} from "@utils";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
+import {coverAPI} from "@api/CoverAPI";
 
 class RecentPage extends Component {
     constructor(container) {
@@ -285,7 +286,7 @@ class RecentPage extends Component {
         try {
             // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
             const loadCover = async () => {
-                const coverResult = await api.getCover(
+                const coverResult = await coverAPI.getCover(
                     track.title, track.artist, track.album
                 );
 
