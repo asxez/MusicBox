@@ -34,7 +34,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'src/index.html'),
-        'desktop-lyrics': path.resolve(__dirname, 'src/DesktopLyrics.html')
+        'DesktopLyrics': path.resolve(__dirname, 'src/DesktopLyrics.html')
       },
       output: {
         // 静态资源输出配置
