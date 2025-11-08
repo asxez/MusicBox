@@ -338,7 +338,7 @@ class UpdateModal extends Component {
     }
 
     openRepository() {
-        window.open('https://github.com/asxez/MusicBox', '_blank');
+        window.open('https://github.com/asxez/MusicBox/releases', '_blank');
         this.hide();
     }
 }
