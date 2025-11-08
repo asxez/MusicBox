@@ -5,6 +5,8 @@
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
+import {coverAPI} from "@api/CoverAPI";
+import {lyricsAPI} from "@api/LyricsAPI";
 
 class Lyrics extends Component {
     constructor(element) {
@@ -464,9 +466,9 @@ class Lyrics extends Component {
         this.showLoading();
 
         try {
-            const lyricsResult = await api.getLyrics(track.title, track.artist, track.album, track.filePath);
+            const lyricsResult = await lyricsAPI.getLyrics(track.title, track.artist, track.album, track.filePath);
             if (lyricsResult.success) {
-                this.lyrics = api.parseLRC(lyricsResult.lrc);
+                this.lyrics = lyricsAPI.parseLRC(lyricsResult.lrc);
                 if (this.lyrics.length > 0) {
                     // 缓存歌词到track对象
                     track.lyrics = this.lyrics;
@@ -517,8 +519,7 @@ class Lyrics extends Component {
             // 如果没有本地封面，尝试从API获取
             if (!finalImageUrl && track.title && track.artist) {
                 // 添加forceRefresh参数以确保首次播放时能正确获取封面，特别是网络磁盘文件
-                const coverResult = await api.getCover(track.title, track.artist, track.album, track.filePath, true);
-
+                const coverResult = await coverAPI.getCover(track.title, track.artist, track.album, track.filePath, true);
                 if (coverResult.success && coverResult.imageUrl) {
                     // 验证URL格式
                     if (typeof coverResult.imageUrl === 'string') {

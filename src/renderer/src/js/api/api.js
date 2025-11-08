@@ -1,11 +1,7 @@
 import {EventEmitter} from '@utils';
 import {cacheManager} from "@services/CacheManager";
-import {localLyricsManager} from "@services/lyrics/LocalLyricsManager";
-import {localCoverManager} from "@services/cover/LocalCoverManager";
-import {embeddedLyricsManager} from "@services/lyrics/EmbeddedLyricsManager";
-import {embeddedCoverManager} from "@services/cover/EmbeddedCoverManager";
 import {WebAudioEngine} from "@services/audio/WebAudioEngine";
-import {urlValidator} from "@utils/URLValidator";
+import {lyricsAPI} from "@api/LyricsAPI";
 
 class MusicBoxAPI extends EventEmitter {
     constructor() {
@@ -626,53 +622,6 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    // 网络请求工具方法
-    async fetchWithRetry(url, options = {}, maxRetries = 3) {
-        const defaultOptions = {
-            timeout: 10000,
-            headers: {
-                'User-Agent': 'MusicBox'
-            },
-            ...options
-        };
-
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                console.log(`🌐 网络请求 (尝试 ${attempt}/${maxRetries}): ${url}`);
-
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), defaultOptions.timeout);
-
-                const response = await fetch(url, {
-                    ...defaultOptions,
-                    signal: controller.signal
-                });
-
-                clearTimeout(timeoutId);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                console.log(`✅ 网络请求成功: ${url}`);
-                return response;
-
-            } catch (error) {
-                console.warn(`❌ 网络请求失败 (尝试 ${attempt}/${maxRetries}): ${error.message}`);
-
-                if (attempt === maxRetries) {
-                    console.error(`🚫 网络请求最终失败: ${url}`);
-                    throw error;
-                }
-
-                // 指数退避重试
-                const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-                console.log(`⏳ ${delay}ms 后重试...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-            }
-        }
-    }
-
     async getTracks(options = {}) {
         try {
             return await window.electronAPI.library.getTracks(options);
@@ -831,46 +780,31 @@ class MusicBoxAPI extends EventEmitter {
 
     // 歌单封面管理方法
     async updatePlaylistCover(playlistId, imagePath) {
-        try {
-            const result = await window.electronAPI.library.updatePlaylistCover(playlistId, imagePath);
-            if (result.success) {
-                this.emit('playlistCoverUpdated', {playlistId, imagePath});
-                return {success: true};
-            } else {
-                throw new Error(result.error || '更新歌单封面失败');
-            }
-        } catch (error) {
-            console.error('❌ 更新歌单封面失败:', error);
-            return {success: false, error: error.message};
+        const result = await window.electronAPI.library.updatePlaylistCover(playlistId, imagePath);
+        if (result.success) {
+            this.emit('playlistCoverUpdated', {playlistId, imagePath});
+            return {success: true};
+        } else {
+            return {success: false, error: '更新歌单封面失败'};
         }
     }
 
     async getPlaylistCover(playlistId) {
-        try {
-            const result = await window.electronAPI.library.getPlaylistCover(playlistId);
-            if (result.success) {
-                return {success: true, coverPath: result.coverPath};
-            } else {
-                throw new Error(result.error || '获取歌单封面失败');
-            }
-        } catch (error) {
-            console.error('❌ 获取歌单封面失败:', error);
-            return {success: false, error: error.message};
+        const result = await window.electronAPI.library.getPlaylistCover(playlistId);
+        if (result.success) {
+            return {success: true, coverPath: result.coverPath};
+        } else {
+            return {success: false, error: '获取歌单封面失败'};
         }
     }
 
     async removePlaylistCover(playlistId) {
-        try {
-            const result = await window.electronAPI.library.removePlaylistCover(playlistId);
-            if (result.success) {
-                this.emit('playlistCoverRemoved', {playlistId});
-                return {success: true};
-            } else {
-                throw new Error(result.error || '移除歌单封面失败');
-            }
-        } catch (error) {
-            console.error('❌ 移除歌单封面失败:', error);
-            return {success: false, error: error.message};
+        const result = await window.electronAPI.library.removePlaylistCover(playlistId);
+        if (result.success) {
+            this.emit('playlistCoverRemoved', {playlistId});
+            return {success: true};
+        } else {
+            return {success: false, error: '移除歌单封面失败'};
         }
     }
 
@@ -1008,265 +942,6 @@ class MusicBoxAPI extends EventEmitter {
         this.emit('libraryTrackDurationUpdated', {filePath, duration});
     }
 
-    async getCover(title, artist, album, filePath = null, forceRefresh = false) {
-        try {
-            // 如果强制刷新，先清理缓存
-            if (forceRefresh) {
-                if (filePath) {
-                    embeddedCoverManager.clearCacheForFile(filePath);
-                    localCoverManager.clearCacheForTrack(title, artist, album);
-                }
-            }
-
-            // 优先级1: 检查内嵌封面
-            if (filePath) {
-                try {
-                    const embeddedResult = await embeddedCoverManager.getEmbeddedCover(filePath);
-                    if (embeddedResult.success && embeddedResult.url) {
-                        // 对于blob URL，跳过验证以避免过早释放
-                        // URL验证会在DOM加载时自然进行
-                        if (embeddedResult.url.startsWith('blob:')) {
-                            return {
-                                success: true,
-                                imageUrl: embeddedResult.url,
-                                type: 'embedded',
-                                source: 'embedded-cover',
-                                format: embeddedResult.format,
-                                size: embeddedResult.size,
-                                mimeType: embeddedResult.mimeType
-                            };
-                        } else {
-                            // 对于非blob URL，进行验证
-                            const isValidUrl = urlValidator ?
-                                await urlValidator.isValidUrl(embeddedResult.url) : true;
-                            if (isValidUrl) {
-                                return {
-                                    success: true,
-                                    imageUrl: embeddedResult.url,
-                                    type: 'embedded',
-                                    source: 'embedded-cover',
-                                    format: embeddedResult.format,
-                                    size: embeddedResult.size,
-                                    mimeType: embeddedResult.mimeType
-                                };
-                            }
-                        }
-                    }
-                } catch (embeddedError) {
-                    console.warn('内嵌封面获取失败:', embeddedError.message);
-                }
-            }
-
-            // 优先级2: 检查本地封面缓存
-            if (localCoverManager && localCoverManager.getCoverDirectory()) {
-                try {
-                    const localCoverResult = await localCoverManager.checkLocalCover(title, artist, album);
-                    if (localCoverResult.success) {
-                        return {
-                            success: true,
-                            imageUrl: `file://${localCoverResult.filePath}`,
-                            type: 'local-file',
-                            source: 'local-cache',
-                            filePath: localCoverResult.filePath
-                        };
-                    }
-                } catch (localError) {
-                    console.warn('本地封面缓存获取失败:', localError.message);
-                }
-            }
-
-            // 优先级3: 从第三方API获取封面
-            const params = new URLSearchParams();
-            if (title) params.append('title', title);
-            if (artist) params.append('artist', artist);
-            if (album) params.append('album', album);
-
-            const url = `https://api.lrc.cx/cover?${params.toString()}`;
-            const response = await this.fetchWithRetry(url);
-
-            let result;
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.startsWith('image/')) {
-                // 直接返回图片数据
-                const blob = await response.blob();
-                const imageUrl = URL.createObjectURL(blob);
-                result = {success: true, imageUrl, type: 'blob', source: 'api'};
-                await this.saveCoverToLocalCache(title, artist, album, blob);
-            } else if (response.redirected) {
-                // 处理重定向
-                result = {success: true, imageUrl: response.url, type: 'url', source: 'api'};
-                await this.saveCoverToLocalCache(title, artist, album, response.url);
-            } else {
-                // 尝试解析为JSON或文本
-                const text = await response.text();
-                if (text.startsWith('http')) {
-                    result = {success: true, imageUrl: text.trim(), type: 'url', source: 'api'};
-                    await this.saveCoverToLocalCache(title, artist, album, text.trim());
-                } else {
-                    throw new Error('无效的封面响应格式');
-                }
-            }
-            return result;
-        } catch (error) {
-            console.error(`封面获取失败: ${title} - ${error.message}`);
-            return {success: false, error: error.message};
-        }
-    }
-
-    // 保存封面到本地
-    async saveCoverToLocalCache(title, artist, album, imageData) {
-        try {
-            if (!localCoverManager.getCoverDirectory()) {
-                console.log('⚠️ 未设置封面缓存目录，跳过本地缓存保存');
-                return;
-            }
-
-            // 确定图片格式
-            let imageFormat = 'jpg';
-            if (imageData instanceof Blob) {
-                console.log(`🔍 API: Blob MIME类型 - ${imageData.type}`);
-                if (imageData.type.includes('png')) imageFormat = 'png';
-                else if (imageData.type.includes('webp')) imageFormat = 'webp';
-                else if (imageData.type.includes('gif')) imageFormat = 'gif';
-                else if (imageData.type.includes('jpeg') || imageData.type.includes('jpg')) imageFormat = 'jpg';
-            } else if (typeof imageData === 'string') {
-                if (imageData.includes('.png') || imageData.includes('png')) imageFormat = 'png';
-                else if (imageData.includes('.webp') || imageData.includes('webp')) imageFormat = 'webp';
-                else if (imageData.includes('.gif') || imageData.includes('gif')) imageFormat = 'gif';
-            }
-
-            const saveResult = await localCoverManager.saveCoverToCache(
-                title, artist, album, imageData, imageFormat
-            );
-        } catch (error) {
-            console.error('❌ 保存封面到本地缓存时发生错误:', error);
-        }
-    }
-
-    async getLyrics(title, artist, album, filePath = null) {
-        // 生成歌词请求的唯一标识
-        const lyricsKey = `${title}_${artist}_${album || ''}`;
-
-        try {
-            // 检查是否已经在请求中，防止重复请求
-            if (this._lyricsRequestLock.has(lyricsKey)) {
-                return {success: false, error: '歌词获取已在进行中'};
-            }
-
-            // 添加到请求锁
-            this._lyricsRequestLock.add(lyricsKey);
-            console.log(`🎵 获取歌词: ${title} - ${artist}${filePath ? ` (${filePath})` : ''}`);
-
-            // 优先级1: 检查内嵌歌词
-            if (filePath) {
-                try {
-                    const embeddedResult = await embeddedLyricsManager.getEmbeddedLyrics(filePath);
-                    if (embeddedResult.success) {
-                        // 释放请求锁
-                        this._lyricsRequestLock.delete(lyricsKey);
-                        return embeddedResult;
-                    }
-                } catch (embeddedError) {
-                    console.warn(`⚠️ 内嵌歌词获取异常: ${title} - ${embeddedError.message}`);
-                }
-            }
-
-            // 优先级2: 检查本地歌词文件
-            if (localLyricsManager) {
-                try {
-                    const localResult = await localLyricsManager.getLyrics(title, artist, album);
-                    if (localResult.success) {
-                        // 释放请求锁
-                        this._lyricsRequestLock.delete(lyricsKey);
-                        return localResult;
-                    }
-                } catch (localError) {
-                    console.warn(`⚠️ 本地歌词获取异常: ${title} - ${localError.message}`);
-                }
-            }
-
-            // 优先级3: 检查localStorage缓存
-            if (cacheManager) {
-                const cached = cacheManager.getLyricsCache(title, artist, album);
-                if (cached) {
-                    // 释放请求锁
-                    this._lyricsRequestLock.delete(lyricsKey);
-                    return cached;
-                }
-            }
-
-            // 优先级4: 通过网络接口获取
-            console.log(`🌐 尝试网络获取歌词: ${title}`);
-            const params = new URLSearchParams();
-            if (title) params.append('title', title);
-            if (artist) params.append('artist', artist);
-            if (album) params.append('album', album);
-
-            const url = `https://api.lrc.cx/lyrics?${params.toString()}`;
-            const response = await this.fetchWithRetry(url);
-            const lrcText = await response.text();
-            if (!lrcText || lrcText.trim() === '') {
-                console.error(`⚠️ 歌词内容为空`);
-            }
-            const result = {
-                success: true,
-                lrc: lrcText.trim(),
-                source: 'network'
-            };
-            cacheManager.setLyricsCache(title, artist, album, result);
-
-            // 释放请求锁
-            this._lyricsRequestLock.delete(lyricsKey);
-            return result;
-        } catch (error) {
-            console.error(`❌ 歌词获取失败: ${title} - ${error.message}`);
-
-            // 异常情况释放锁
-            this._lyricsRequestLock.delete(lyricsKey);
-            return {
-                success: false,
-                error: error.message,
-                source: 'error'
-            };
-        }
-    }
-
-    // LRC歌词解析方法
-    parseLRC(lrcText) {
-        try {
-            const lines = lrcText.split('\n');
-            const lyrics = [];
-            const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})]/g;
-
-            for (const line of lines) {
-                const matches = [...line.matchAll(timeRegex)];
-                if (matches.length > 0) {
-                    const content = line.replace(timeRegex, '').trim();
-                    if (content) {
-                        for (const match of matches) {
-                            const minutes = parseInt(match[1]);
-                            const seconds = parseInt(match[2]);
-                            const milliseconds = parseInt(match[3].padEnd(3, '0'));
-                            const time = minutes * 60 + seconds + milliseconds / 1000;
-
-                            lyrics.push({
-                                time: time,
-                                content: content
-                            });
-                        }
-                    }
-                }
-            }
-            // 按时间排序
-            lyrics.sort((a, b) => a.time - b.time);
-            console.log(`✅ LRC解析成功，共 ${lyrics.length} 行歌词`);
-            return lyrics;
-        } catch (error) {
-            console.error('❌ LRC解析失败:', error);
-            return [];
-        }
-    }
-
     // 获取均衡器实例
     getEqualizer() {
         if (this.webAudioEngine) {
@@ -1329,9 +1004,9 @@ class MusicBoxAPI extends EventEmitter {
 
     async loadLyricsForDesktop(track) {
         try {
-            const lyricsResult = await this.getLyrics(track.title, track.artist, track.album, track.filePath);
+            const lyricsResult = await lyricsAPI.getLyrics(track.title, track.artist, track.album, track.filePath);
             if (lyricsResult.success) {
-                const parsedLyrics = this.parseLRC(lyricsResult.lrc);
+                const parsedLyrics = lyricsAPI.parseLRC(lyricsResult.lrc);
                 await this.syncToDesktopLyrics('lyrics', parsedLyrics);
             }
         } catch (error) {

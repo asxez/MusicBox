@@ -1,10 +1,6 @@
-import {EventEmitter} from "@utils";
 import {cacheManager} from "@services/CacheManager";
 
-class Tray extends EventEmitter {
-    constructor() {
-        super();
-    }
+class Tray {
 
     // 初始化系统托盘
     async initSystemTray() {

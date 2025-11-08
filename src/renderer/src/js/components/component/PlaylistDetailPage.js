@@ -7,6 +7,7 @@ import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
+import {coverAPI} from "@api/CoverAPI";
 
 class PlaylistDetailPage extends Component {
     constructor(container) {
@@ -856,7 +857,7 @@ class PlaylistDetailPage extends Component {
 
             // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
             const loadCover = async () => {
-                const coverResult = await api.getCover(
+                const coverResult = await coverAPI.getCover(
                     track.title, track.artist, track.album
                 );
 

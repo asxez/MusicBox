@@ -1,9 +1,6 @@
-import {EventEmitter} from "@utils";
+import {showToast} from "@utils";
 
-class CheckUpdate extends EventEmitter {
-    constructor() {
-        super();
-    }
+class CheckUpdate {
 
     // 自动检查更新
     async autoCheckForUpdates() {
@@ -18,7 +15,7 @@ class CheckUpdate extends EventEmitter {
                 this.showUpdateNotification(currentVersion, latestVersion, releaseInfo);
             }
         } catch (error) {
-            this.showError('检查更新失败，请检查网络连接')
+            showToast('检查更新失败，请检查网络连接', 'error');
         }
     }
 

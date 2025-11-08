@@ -5,6 +5,7 @@ import {cacheManager} from "@services/CacheManager";
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
+import {coverAPI} from "@api/CoverAPI";
 
 class Player extends Component {
     constructor() {
@@ -304,7 +305,7 @@ class Player extends Component {
 
             // 获取封面
             if (track.title && track.artist) {
-                const coverResult = await api.getCover(track.title, track.artist, track.album, track.filePath, true);
+                const coverResult = await coverAPI.getCover(track.title, track.artist, track.album, track.filePath, true);
                 if (coverResult.success && coverResult.imageUrl) {
                     if (typeof coverResult.imageUrl === 'string') {
                         // 使用安全的图片设置方法
@@ -336,7 +337,7 @@ class Player extends Component {
     }
 
     async handleCoverUpdate(data) {
-        const { filePath, title, artist, type } = data;
+        const {filePath, title, artist, type} = data;
 
         // 只处理封面更新事件
         if (type && type !== 'cover-updated' && type !== 'manual-refresh') {
@@ -596,4 +597,4 @@ class Player extends Component {
     }
 }
 
-export { Player };
+export {Player};

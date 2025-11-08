@@ -5,6 +5,7 @@
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
+import {coverAPI} from "@api/CoverAPI";
 
 class EditTrackInfoDialog extends Component {
     constructor() {
@@ -153,12 +154,7 @@ class EditTrackInfoDialog extends Component {
     // 使用API加载封面
     async loadCoverFromAPI(track) {
         try {
-            if (!api || !api.getCover) {
-                return false;
-            }
-
-            const result = await api.getCover(track.title, track.artist, track.album, track.filePath);
-
+            const result = await coverAPI.getCover(track.title, track.artist, track.album, track.filePath);
             if (result.success && typeof result.imageUrl === 'string') {
                 track.cover = result.imageUrl;
 
@@ -784,7 +780,7 @@ class EditTrackInfoDialog extends Component {
                 // 如果保存了新封面，更新封面URL
                 if (this.selectedCoverFile && result.updatedMetadata && result.updatedMetadata.cover) {
                     try {
-                        const coverResult = await api.getCover(
+                        const coverResult = await coverAPI.getCover(
                             result.updatedMetadata.title,
                             result.updatedMetadata.artist,
                             result.updatedMetadata.album,

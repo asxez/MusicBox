@@ -5,6 +5,7 @@
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
+import {coverAPI} from "@api/CoverAPI";
 
 class ArtistsPage extends Component {
     constructor(container) {
@@ -501,7 +502,7 @@ class ArtistsPage extends Component {
 
             // 调用API获取艺术家封面
             // 只传艺术家名称，不传专辑名
-            const result = await api.getCover('', artistName, '', null, false);
+            const result = await coverAPI.getCover('', artistName, '', null, false);
             if (result && result.success && result.imageUrl) {
                 // 更新艺术家数据
                 artist.cover = result.imageUrl;
@@ -1359,8 +1360,7 @@ class ArtistsPage extends Component {
             this._coverLoading.add(albumKey);
 
             // 调用API获取专辑封面
-            const result = await api.getCover('', artistName, albumName, null, false);
-
+            const result = await coverAPI.getCover('', artistName, albumName, null, false);
             if (result && result.success && result.imageUrl) {
                 // 更新专辑封面显示
                 this.updateAlbumCoverDisplay(albumName, result.imageUrl);
