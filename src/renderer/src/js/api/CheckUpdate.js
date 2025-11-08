@@ -1,6 +1,9 @@
 import {EventEmitter} from "@utils";
 
 class CheckUpdate extends EventEmitter {
+    constructor() {
+        super();
+    }
 
     // 自动检查更新
     async autoCheckForUpdates() {
@@ -21,13 +24,9 @@ class CheckUpdate extends EventEmitter {
 
     // 获取当前版本
     async getCurrentVersion() {
-        try {
-            const response = await fetch('../../../package.json');
-            const packageInfo = await response.json();
-            return packageInfo.version;
-        } catch (error) {
-            return '';
-        }
+        const response = await fetch('../../../package.json');
+        const packageInfo = await response.json();
+        return packageInfo.version;
     }
 
     // 获取最新版本

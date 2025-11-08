@@ -405,7 +405,7 @@ class Settings extends Component {
     initializeSettings() {
         this.languageSelect.value = this.settings.language || 'zh-CN';
         this.autoplayToggle.checked = this.settings.autoplay || false;
-        this.rememberPositionToggle.checked = this.settings.rememberPosition || false;
+        this.rememberPositionToggle.checked = this.settings.hasOwnProperty('rememberPosition') ? this.settings.rememberPosition : false;
         this.desktopLyricsToggle.checked = this.settings.hasOwnProperty('desktopLyrics') ? this.settings.desktopLyrics : true;
         this.statisticsToggle.checked = this.settings.hasOwnProperty('statistics') ? this.settings.statistics : true;
         this.recentPlayToggle.checked = this.settings.hasOwnProperty('recentPlay') ? this.settings.recentPlay : true;
