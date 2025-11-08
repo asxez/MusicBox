@@ -36,6 +36,8 @@ import {ActivationEvents} from "@extensions/core/ExtensionsRegistry";
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import {checkUpdate} from "@api/CheckUpdate";
+import {tray} from "@api/tray";
+import {windowAPI} from "@api/window";
 
 class MusicBoxApp extends EventEmitter {
     constructor() {
@@ -606,10 +608,10 @@ class MusicBoxApp extends EventEmitter {
         });
 
         // 初始化窗口状态管理
-        this.initWindowStateManagement();
+        windowAPI.initWindowStateManagement();
 
         // 初始化系统托盘
-        await this.initSystemTray();
+        await tray.initSystemTray();
 
         // 初始化统一的快捷键管理器
         this.initKeyboardShortcuts();
@@ -1473,7 +1475,6 @@ class MusicBoxApp extends EventEmitter {
             // 执行对应的快捷键操作
             this.executeShortcutAction(shortcutId);
         });
-
     }
 
     showCreatePlaylistDialog() {
@@ -1654,9 +1655,7 @@ class MusicBoxApp extends EventEmitter {
             await this.handleFileDrop(e);
         });
 
-        if (window.electronAPI) {
-            this.addFileMenuItems();
-        }
+        this.addFileMenuItems();
     }
 
     async handleFileDrop(e) {
@@ -1919,14 +1918,10 @@ class MusicBoxApp extends EventEmitter {
     }
 
     async handleSelectMusicFolder() {
-        try {
-            const result = await api.selectMusicFolder();
-            if (result && result.path) {
-                this.components.settings.updateMusicFolderPath(result.path);
-                console.log('📁 选择音乐文件夹:', result.path);
-            }
-        } catch (error) {
-            console.error('❌ 选择音乐文件夹失败:', error);
+        const result = await api.selectMusicFolder();
+        if (result && result.path) {
+            this.components.settings.updateMusicFolderPath(result.path);
+            console.log('📁 选择音乐文件夹:', result.path);
         }
     }
 
@@ -2034,96 +2029,6 @@ class MusicBoxApp extends EventEmitter {
         }
     }
 
-    // 初始化窗口状态管理
-    initWindowStateManagement() {
-        try {
-            // 窗口尺寸变化监听
-            let resizeTimeout = null;
-            window.addEventListener('resize', () => {
-                if (resizeTimeout) {
-                    clearTimeout(resizeTimeout);
-                }
-
-                resizeTimeout = setTimeout(async () => {
-                    await this.saveWindowSize();
-                }, 1500);
-            });
-
-            // 窗口最大化状态变化监听
-            window.electronAPI.window.onMaximizedChanged((isMaximized) => {
-                if (!isMaximized) {
-                    setTimeout(async () => {
-                        await this.restoreWindowSize();
-                    }, 100);
-                }
-            });
-        } catch (error) {
-            console.error('❌ 窗口状态管理初始化失败:', error);
-        }
-    }
-
-    // 保存窗口尺寸
-    async saveWindowSize() {
-        try {
-            const isMaximized = await window.electronAPI.window.isMaximized();
-            if (isMaximized) {
-                return;
-            }
-
-            const size = await window.electronAPI.window.getSize();
-            if (size && size.length === 2) {
-                const [width, height] = size;
-                if (this.isValidWindowSize(width, height)) {
-                    const sizeData = {
-                        width,
-                        height,
-                        timestamp: Date.now()
-                    };
-                    cacheManager.setLocalCache('mainWindow-size', sizeData);
-                }
-            }
-        } catch (error) {
-            console.error('❌ 保存窗口尺寸失败:', error);
-        }
-    }
-
-    // 恢复窗口尺寸
-    async restoreWindowSize() {
-        try {
-            const savedSize = cacheManager.getLocalCache('mainWindow-size');
-            if (!savedSize) {
-                return;
-            }
-
-            const {width, height} = savedSize;
-            if (this.isValidWindowSize(width, height)) {
-                const result = await window.electronAPI.window.setSize(width, height);
-                if (!result || !result.success) {
-                    cacheManager.removeLocalCache('mainWindow-size');
-                }
-            } else {
-                cacheManager.removeLocalCache('mainWindow-size');
-            }
-        } catch (error) {
-            console.error('❌ 恢复窗口尺寸失败:', error);
-        }
-    }
-
-    // 验证窗口尺寸有效性
-    isValidWindowSize(width, height) {
-        const minWidth = 1080;
-        const minHeight = 720;
-        const maxWidth = 3840;
-        const maxHeight = 2160;
-
-        return (
-            typeof width === 'number' &&
-            typeof height === 'number' &&
-            width >= minWidth && width <= maxWidth &&
-            height >= minHeight && height <= maxHeight
-        );
-    }
-
     // 恢复播放状态
     async restorePlaybackState() {
         try {
@@ -2223,86 +2128,45 @@ class MusicBoxApp extends EventEmitter {
 
     // 自动播放第一首歌曲
     async autoplayFirstTrack() {
-        try {
-            setTimeout(async () => {
-                const tracks = await api.getTracks();
-                if (tracks && tracks.length > 0) {
-                    console.log('🎵 App: 加载第一首歌曲:', tracks[0].title);
-                    const loadResult = await api.loadTrack(tracks[0].filePath);
-                    console.log('📂 App: 加载结果:', loadResult);
-                    if (loadResult) {
-                        await api.play();
-                    }
-                } else {
-                    console.warn('⚠️ App: 音乐库为空，无法自动播放');
+        setTimeout(async () => {
+            const tracks = await api.getTracks();
+            if (tracks && tracks.length > 0) {
+                console.log('🎵 App: 加载第一首歌曲:', tracks[0].title);
+                const loadResult = await api.loadTrack(tracks[0].filePath);
+                console.log('📂 App: 加载结果:', loadResult);
+                if (loadResult) {
+                    await api.play();
                 }
-            }, 1000);
-        } catch (error) {
-            console.error('❌ App: 自动播放第一首歌曲失败:', error);
-        }
+            } else {
+                console.warn('⚠️ App: 音乐库为空，无法自动播放');
+            }
+        }, 1000);
     }
 
     // 保存播放状态
     async savePlaybackState() {
-        try {
-            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
+        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
 
-            // 只有启用记住播放位置时才保存
-            if (settings.rememberPosition) {
-                const currentTrack = api.currentTrack;
-                const position = api.position;
-                const isPlaying = api.isPlaying;
-                const playlist = api.playlist;
-                const currentIndex = api.currentIndex;
-                const playMode = api.playMode;
+        // 只有启用记住播放位置时才保存
+        if (settings.rememberPosition) {
+            const currentTrack = api.currentTrack;
+            const position = api.position;
+            const isPlaying = api.isPlaying;
+            const playlist = api.playlist;
+            const currentIndex = api.currentIndex;
+            const playMode = api.playMode;
 
-                const playbackState = {
-                    currentTrack,
-                    position,
-                    isPlaying,
-                    playlist,
-                    currentIndex,
-                    playMode,
-                    timestamp: Date.now()
-                };
-                cacheManager.setLocalCache('playback-state', playbackState);
-            }
-        } catch (error) {
-            console.error('❌ App: 保存播放状态失败:', error);
+            const playbackState = {
+                currentTrack,
+                position,
+                isPlaying,
+                playlist,
+                currentIndex,
+                playMode,
+                timestamp: Date.now()
+            };
+            cacheManager.setLocalCache('playback-state', playbackState);
         }
-    }
-
-    // 初始化系统托盘
-    async initSystemTray() {
-        try {
-            // 获取托盘设置
-            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
-            const trayEnabled = settings.hasOwnProperty('systemTray') ? settings.systemTray : true;
-
-            if (trayEnabled) {
-                // 创建托盘
-                await window.electronAPI.tray.create();
-
-                // 更新托盘设置
-                await window.electronAPI.tray.updateSettings({
-                    enabled: true,
-                    closeToTray: settings.trayCloseBehavior === 'minimize',
-                    startMinimized: settings.trayStartMinimized || false
-                });
-            }
-            this.setupTrayEventListeners();
-        } catch (error) {
-            console.error('❌ 系统托盘初始化失败:', error);
-        }
-    }
-
-    // 设置托盘事件监听器
-    setupTrayEventListeners() {
-        // 退出应用
-        window.electronAPI.tray.onQuit(() => {
-            this.forceQuit = true;
-            window.close();
-        });
     }
 }
 
