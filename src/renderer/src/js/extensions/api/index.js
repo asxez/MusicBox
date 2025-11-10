@@ -22,6 +22,7 @@ import {
     DiagnosticSeverity
 } from './diagnostics.js';
 import {CancellationToken, createTasksAPI, Task, TaskState} from './tasks.js';
+import {createKeybindingsAPI, KeybindingScope, KeybindingWhen} from './keybindings.js';
 import {APICallLogger, createExtensionAPIProxy, createLoggingAPIProxy} from '@extensions/core/ExtensionAPIProxy.js';
 import {createWindowAPI} from "@extensions/api/window";
 import {createSettingsAPI} from "@extensions/api/settings";
@@ -98,6 +99,9 @@ function createExtensionAPI(context, options = {}) {
 
         // 窗口 API
         window: createWindowAPI(context),
+
+        // 快捷键 API
+        keybindings: createKeybindingsAPI(context),
     };
 
     // 如果启用了权限代理且提供了权限管理器，则创建代理
@@ -172,7 +176,11 @@ export {
     CancellationToken,
 
     // Views
-    TreeView
+    TreeView,
+
+    // Keybindings
+    KeybindingScope,
+    KeybindingWhen,
 };
 
 // 导出错误类

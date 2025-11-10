@@ -51,6 +51,10 @@ MusicBox 的新插件系统参考了 VSCode 的扩展系统架构，提供了强
 - `events`：事件监听
 - `commands`：命令注册和执行
 - `views`：视图管理
+- `keybindings`：快捷键注册和管理
+- `diagnostics`：诊断信息管理
+- `tasks`：任务管理
+- `window`：窗口操作
 
 ## 扩展结构
 
@@ -72,6 +76,15 @@ MusicBox 的新插件系统参考了 VSCode 的扩展系统架构，提供了强
       {
         "command": "myExtension.doSomething",
         "title": "Do Something"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "myExtension.doSomething",
+        "key": "Ctrl+Shift+D",
+        "mac": "Cmd+Shift+D",
+        "when": "always",
+        "scope": "local"
       }
     ]
   },
@@ -145,129 +158,10 @@ if (typeof window !== 'undefined') {
 
 扩展上下文提供了扩展运行所需的环境和工具：
 
-```javascript
-{
-    // 扩展信息
-    extensionId: 'my-extension',
-        extensionPath
-:
-    '/path/to/extension',
-        extensionUri
-:
-    '/path/to/extension',
-
-        // 订阅管理 - 用于资源清理
-        subscriptions
-:
-    DisposableStore,
-
-        // 全局状态存储
-        globalState
-:
-    {
-        get(key, defaultValue),
-            update(key, value),
-            keys()
-    }
-,
-
-    // 工作区状态存储
-    workspaceState: {
-        get(key, defaultValue),
-            update(key, value),
-            keys()
-    }
-}
-```
 
 ## API 使用示例
 
-### 播放器 API
-
-```javascript
-const api = createExtensionAPI(context);
-
-// 播放歌曲
-await api.player.play(track);
-
-// 暂停
-await api.player.pause();
-
-// 设置音量
-await api.player.setVolume(0.5);
-
-// 获取当前播放状态
-const state = api.player.getState();
-```
-
-### 音乐库 API
-
-```javascript
-// 获取所有歌曲
-const tracks = api.library.getAllTracks();
-
-// 搜索歌曲
-const results = api.library.searchTracks('关键词');
-
-// 获取播放列表
-const playlists = api.library.getPlaylists();
-```
-
-### UI API
-
-```javascript
-// 显示通知
-api.ui.showNotification('操作成功', 'success');
-
-// 显示对话框
-const confirmed = await api.ui.showDialog({
-    message: '确认删除吗？'
-});
-```
-
-### 存储 API
-
-```javascript
-// 读取数据
-const value = api.storage.get('myKey', 'defaultValue');
-
-// 保存数据
-await api.storage.update('myKey', 'newValue');
-
-// 工作区存储
-const workspaceValue = api.storage.getWorkspace('key', 'default');
-await api.storage.updateWorkspace('key', 'value');
-```
-
-### 事件 API
-
-```javascript
-// 监听事件
-const disposable = api.events.on('trackChanged', (track) => {
-    console.log('歌曲变化:', track);
-});
-
-// 添加到订阅列表
-context.subscriptions.add(disposable);
-
-// 触发事件
-api.events.emit('customEvent', {data: 'value'});
-```
-
-### 命令 API
-
-```javascript
-// 注册命令
-const disposable = api.commands.registerCommand('myExtension.command', (...args) => {
-    console.log('命令执行:', args);
-    return 'result';
-});
-
-context.subscriptions.add(disposable);
-
-// 执行命令
-const result = await api.commands.executeCommand('myExtension.command', 'arg1', 'arg2');
-```
+[见API接口文档](../api/README.md)
 
 ## 资源管理
 

@@ -1465,9 +1465,7 @@ class MusicBoxApp extends EventEmitter {
 
     // 初始化全局快捷键
     async initGlobalShortcuts() {
-        if (shortcutConfig) {
-            await shortcutConfig.initializeGlobalShortcuts();
-        }
+        await shortcutConfig.initializeGlobalShortcuts();
 
         // 监听全局快捷键触发事件
         window.addEventListener('globalShortcutTriggered', (event) => {
