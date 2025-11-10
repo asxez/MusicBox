@@ -47,9 +47,6 @@ class Navigation extends Component {
         this.sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
         this.app = document.getElementById('app');
 
-        // 全屏状态
-        this.isFullscreen = false;
-
         // 窗口最大化状态
         this.isMaximized = false;
 

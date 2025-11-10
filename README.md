@@ -82,20 +82,13 @@ cd MusicBox
 #### 2. 安装依赖
 
 ```bash
-# 安装主进程依赖
-npm install
-
-# 安装渲染进程依赖并构建
-cd src/renderer
-npm install
-npm run build
-cd ../..
+npm run install
 ```
 
 #### 3. 开发模式运行
 
 ```bash
-npm run dev:main
+npm run dev
 ```
 
 #### 4. 构建应用

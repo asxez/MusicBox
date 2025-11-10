@@ -1,6 +1,6 @@
 {
   "name": "musicbox",
-  "version": "0.2.1-beta",
+  "version": "0.2.2",
   "description": "A visually stunning, plugin-based local music player.",
   "main": "src/main/main.js",
   "author": {
@@ -11,22 +11,19 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "chcp 65001 && electron src/main/main.js --expose-gc",
-    "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
-    "dev:main": "chcp 65001 && electron src/main/main.js --expose-gc",
+    "install": "npm install && cd src/renderer && npm install",
+    "dev": "npm run build:renderer && npm run dev:main",
+    "dev:main": "electron src/main/main.js --expose-gc",
     "dev:renderer": "cd src/renderer && npm run dev",
     "build": "npm run build:python && npm run build:renderer && npm run build:main",
-    "build:renderer": "cd src/renderer && npm run build",
     "build:main": "electron-builder",
-    "build:win": "npm run build:python && electron-builder --win",
-    "build:mac": "npm run build:python && electron-builder --mac",
-    "build:linux": "npm run build:python && electron-builder --linux",
-    "build:cross-platform": "node scripts/build-cross-platform.js --all",
+    "build:renderer": "cd src/renderer && npm run build",
+    "build:win": "npm run build:python && npm run build:renderer && electron-builder --win",
+    "build:mac": "npm run build:python && npm run build:renderer && electron-builder --mac",
+    "build:linux": "npm run build:python && npm run build:renderer && electron-builder --linux",
     "build:icons": "electron-icon-builder --input=./docs/images/logo.png --output=build --flatten",
     "build:python": "node scripts/build-python-module.js",
-    "postinstall": "cd src/renderer && npm install",
-    "clean": "rimraf dist",
-    "clean:all": "rimraf dist && cd src/renderer && npm run clean"
+    "clean": "rimraf dist && cd src/renderer && npm run clean"
   },
   "devDependencies": {
     "concurrently": "^7.6.0",

@@ -9,11 +9,7 @@
     "serve": "vite preview --port 8080",
     "lint": "eslint src/**/*.js",
     "clean": "rimraf public",
-    "build:old": "npm run build:css && npm run build:js && npm run copy:assets && npm run copy:js-html",
-    "build:css": "sass src/styles/main.scss public/styles/main.css --style=compressed",
-    "build:js": "node scripts/build.js",
-    "copy:assets": "node scripts/copy-assets.js",
-    "copy:js-html": "node scripts/copy-js-html.js"
+    "build:css": "sass src/styles/main.scss public/styles/main.css --style=compressed"
   },
   "dependencies": {
     "dayjs": "^1.11.7",
