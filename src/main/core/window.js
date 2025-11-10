@@ -145,7 +145,7 @@ async function createWindow() {
         height: windowConfig.height,
         minWidth: windowConfig.minWidth || 1080,
         minHeight: windowConfig.minHeight || 720,
-        titleBarStyle: false,
+        titleBarStyle: 'hidden',
         frame: false,
         show: false,
         webPreferences: {
