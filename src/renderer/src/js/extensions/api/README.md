@@ -23,6 +23,7 @@ api/
 ├── diagnostics.js        # 诊断 API
 ├── tasks.js              # 任务 API
 ├── window.js             # 窗口 API
+├── keybindings.js        # 快捷键 API
 └── common/
     ├── errors.js         # 错误定义
     └── validation.js     # 参数验证
@@ -38,15 +39,17 @@ function activate(context) {
     
     // 使用播放器 API
     const track = api.player.getCurrentTrack();
-    console.log('当前播放:', track?.title);
     
     // 使用 UI API
-    api.ui.showInformationMessage('扩展已激活');
+    api.ui.showInformationMessage(`当前播放：${track.title}`);
     
     // 注册命令
     const disposable = api.commands.registerCommand('myext.hello', () => {
         api.ui.showSuccessMessage('Hello, MusicBox!');
     });
+    
+    // 调用命令
+    api.commands.executeCommand('myext.hello');
     
     context.subscriptions.push(disposable);
 }
@@ -62,10 +65,12 @@ function activate(context) {
 // 播放控制
 await api.player.play(track);
 await api.player.pause();
-await api.player.resume();
 await api.player.stop();
-await api.player.next();
-await api.player.previous();
+await api.player.nextTrack();
+await api.player.previousTrack();
+
+// 从路径播放
+api.player.playTrack("G:/音乐/晴天-周杰伦.flac")
 
 // 音量控制
 await api.player.setVolume(0.5);
@@ -108,7 +113,7 @@ const tracks = api.library.getAllTracks();
 const track = api.library.getTrackById('track-id');
 
 // 搜索
-const results = api.library.searchTracks('关键词');
+const results = await api.library.searchTracks('关键词');
 
 // 添加/删除歌曲
 await api.library.addTrack(track);
@@ -380,7 +385,7 @@ task.cancel();
 
 ```javascript
 // 导航到视图
-api.navigation.navigateTo('library');
+api.navigation.navigateToView('library');
 
 // 返回/前进
 api.navigation.goBack();
@@ -388,9 +393,6 @@ api.navigation.goForward();
 
 // 获取当前视图
 const currentView = api.navigation.getCurrentView();
-
-// 获取导航历史
-const history = api.navigation.getHistory();
 ```
 
 ### Network API
@@ -427,14 +429,14 @@ const blob = await api.network.downloadFile('https://example.com/file.mp3');
 
 ```javascript
 // 获取版本和平台
-const version = api.system.getVersion();
-const platform = api.system.getPlatform();
-const os = api.system.getOS();
+const version = await api.system.getVersion();
+const platform = await api.system.getPlatform();
+const os = await api.system.getOS();
 
 // 获取路径
-const appPath = api.system.getAppPath();
-const userDataPath = api.system.getUserDataPath();
-const tempPath = api.system.getTempPath();
+const appPath = await api.system.getAppPath();
+const userDataPath = await api.system.getUserDataPath();
+const tempPath = await api.system.getTempPath();
 
 // 获取语言
 const language = api.system.getLanguage();
@@ -474,6 +476,44 @@ const obj = await api.window.setSize();
 await api.window.onMaximizedChanged((isMaximized) => {
     console.log(isMaximized);
 });
+```
+
+### Keybindings API
+
+快捷键。
+
+```javascript
+// 注册局部快捷键（仅在应用窗口激活时生效）
+const disposable = await api.keybindings.registerKeybinding('Ctrl+Shift+P', () => {
+    console.log('快捷键触发');
+    api.ui.showNotification('快捷键已触发', 'info');
+}, {
+    commandId: 'myExtension.command',
+    description: '打开命令面板',
+    when: 'always'  // 上下文条件
+});
+
+context.subscriptions.add(disposable);
+
+// 注册全局快捷键（系统级，即使应用未激活也生效）
+const globalDisposable = await api.keybindings.registerGlobalKeybinding('Alt+Ctrl+M', () => {
+    console.log('全局快捷键触发');
+}, {
+    id: 'globalCtrl',
+    name: '控制音乐',
+    description: '全局音乐控制'
+});
+
+context.subscriptions.add(globalDisposable);
+
+// 获取所有已注册的快捷键
+const keybindings = api.keybindings.getKeybindings();
+
+// 检查快捷键是否已注册
+const hasKeybinding = api.keybindings.hasKeybinding('Ctrl+Shift+P');
+
+// 模拟触发快捷键
+await api.keybindings.triggerKeybinding('Ctrl+Shift+P');
 ```
 
 ## 🛡️ 错误处理

@@ -17,7 +17,7 @@ export function createNavigationAPI(context) {
         /**
          * 导航到视图
          * @param {string} viewId - 视图 ID
-         * @returns {void}
+         * @returns {*}
          */
         navigateToView(viewId) {
             validate.viewId(viewId);
@@ -33,7 +33,7 @@ export function createNavigationAPI(context) {
 
         /**
          * 返回上一个视图
-         * @returns {void}
+         * @returns {*}
          */
         goBack() {
             return ErrorUtils.wrapSync(() => {
@@ -44,7 +44,7 @@ export function createNavigationAPI(context) {
 
         /**
          * 前进到下一个视图
-         * @returns {void}
+         * @returns {*}
          */
         goForward() {
             return ErrorUtils.wrapSync(() => {

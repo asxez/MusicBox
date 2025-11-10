@@ -40,7 +40,7 @@ export function createPlayerAPI(context) {
          */
         async play() {
             return ErrorUtils.wrapAsync(async () => {
-                if (api && typeof api.play === 'function') {
+                if (typeof api.play === 'function') {
                     await api.play();
                 } else {
                     throw new NotAvailableError('player.play', 'API 未初始化');
@@ -57,7 +57,7 @@ export function createPlayerAPI(context) {
             Validator.assertString(filePath, 'filePath');
 
             return ErrorUtils.wrapAsync(async () => {
-                if (app && typeof app.loadAndPlayFile === 'function') {
+                if (typeof app.loadAndPlayFile === 'function') {
                     await app.loadAndPlayFile(filePath);
                 } else {
                     throw new NotAvailableError('player.playTrack', 'app 未初始化');
@@ -71,7 +71,7 @@ export function createPlayerAPI(context) {
          */
         async pause() {
             return ErrorUtils.wrapAsync(async () => {
-                if (api && typeof api.pause === 'function') {
+                if (typeof api.pause === 'function') {
                     await api.pause();
                 } else {
                     throw new NotAvailableError('player.pause', 'API 未初始化');
@@ -85,7 +85,7 @@ export function createPlayerAPI(context) {
          */
         async stop() {
             return ErrorUtils.wrapAsync(async () => {
-                if (api && typeof api.stop === 'function') {
+                if (typeof api.stop === 'function') {
                     await api.stop();
                 } else {
                     throw new NotAvailableError('player.stop', 'API 未初始化');
@@ -99,7 +99,7 @@ export function createPlayerAPI(context) {
          */
         async nextTrack() {
             return ErrorUtils.wrapAsync(async () => {
-                if (api && typeof api.nextTrack === 'function') {
+                if (typeof api.nextTrack === 'function') {
                     await api.nextTrack();
                 } else {
                     throw new NotAvailableError('player.nextTrack', 'API 未初始化');
@@ -113,7 +113,7 @@ export function createPlayerAPI(context) {
          */
         async previousTrack() {
             return ErrorUtils.wrapAsync(async () => {
-                if (api && typeof api.previousTrack === 'function') {
+                if (typeof api.previousTrack === 'function') {
                     await api.previousTrack();
                 } else {
                     throw new NotAvailableError('player.previousTrack', 'API 未初始化');
@@ -130,7 +130,7 @@ export function createPlayerAPI(context) {
             validate.volume(volume);
 
             return ErrorUtils.wrapAsync(async () => {
-                if (api && typeof api.setVolume === 'function') {
+                if (typeof api.setVolume === 'function') {
                     await api.setVolume(volume);
                 } else {
                     throw new NotAvailableError('player.setVolume', 'API 未初始化');
@@ -144,7 +144,7 @@ export function createPlayerAPI(context) {
          */
         getVolume() {
             return ErrorUtils.wrapSync(() => {
-                if (api && typeof api.volume !== 'undefined') {
+                if (typeof api.volume !== 'undefined') {
                     return api.volume;
                 }
                 return 0.7; // 默认音量
@@ -157,16 +157,13 @@ export function createPlayerAPI(context) {
          */
         getState() {
             return ErrorUtils.wrapSync(() => {
-                if (api) {
-                    return {
-                        isPlaying: api.isPlaying || false,
-                        currentTrack: api.currentTrack || null,
-                        position: api.position || 0,
-                        duration: api.duration || 0,
-                        volume: api.volume || 0.7
-                    };
-                }
-                return null;
+                return {
+                    isPlaying: api.isPlaying || false,
+                    currentTrack: api.currentTrack || null,
+                    position: api.position || 0,
+                    duration: api.duration || 0,
+                    volume: api.volume || 0.7
+                };
             }, 'player.getState');
         },
 
@@ -176,10 +173,10 @@ export function createPlayerAPI(context) {
          */
         getCurrentTrack() {
             return ErrorUtils.wrapSync(() => {
-                if (api && typeof api.getCurrentTrack === 'function') {
+                if (typeof api.getCurrentTrack === 'function') {
                     return api.getCurrentTrack();
                 }
-                if (api && api.currentTrack) {
+                if (api.currentTrack) {
                     return api.currentTrack;
                 }
                 return null;
@@ -195,7 +192,7 @@ export function createPlayerAPI(context) {
             validate.time(time);
 
             return ErrorUtils.wrapAsync(async () => {
-                if (api && typeof api.seek === 'function') {
+                if (typeof api.seek === 'function') {
                     await api.seek(time);
                 } else {
                     throw new NotAvailableError('player.seek', 'API 未初始化');
@@ -209,7 +206,7 @@ export function createPlayerAPI(context) {
          */
         getPosition() {
             return ErrorUtils.wrapSync(() => {
-                if (api && typeof api.getPosition === 'function') {
+                if (typeof api.getPosition === 'function') {
                     return api.getPosition();
                 }
                 return 0;
@@ -222,7 +219,7 @@ export function createPlayerAPI(context) {
          */
         getDuration() {
             return ErrorUtils.wrapSync(() => {
-                if (api && typeof api.getDuration === 'function') {
+                if (typeof api.getDuration === 'function') {
                     return api.getDuration();
                 }
                 return 0;
@@ -242,7 +239,7 @@ export function createPlayerAPI(context) {
             }
 
             return ErrorUtils.wrapAsync(async () => {
-                if (api && typeof api.setPlaylist === 'function') {
+                if (typeof api.setPlaylist === 'function') {
                     await api.setPlaylist(tracks, startIndex);
                 } else {
                     throw new NotAvailableError('player.setPlaylist', 'API 未初始化');
@@ -256,7 +253,7 @@ export function createPlayerAPI(context) {
          */
         getPlaylist() {
             return ErrorUtils.wrapSync(() => {
-                if (api && Array.isArray(api.playlist)) {
+                if (Array.isArray(api.playlist)) {
                     return [...api.playlist];
                 }
                 return [];
@@ -276,13 +273,9 @@ export function createPlayerAPI(context) {
             );
 
             return ErrorUtils.wrapSync(() => {
-                if (api && typeof api.setPlayMode === 'function') {
+                if (typeof api.setPlayMode === 'function') {
                     api.setPlayMode(mode);
-                } else if (api) {
-                    api.playMode = mode;
-                } else {
-                    throw new NotAvailableError('player.setPlayMode', 'API 未初始化');
-                }
+                } else api.playMode = mode;
             }, 'player.setPlayMode');
         },
 
@@ -292,7 +285,7 @@ export function createPlayerAPI(context) {
          */
         getPlayMode() {
             return ErrorUtils.wrapSync(() => {
-                if (api && api.playMode) {
+                if (api.playMode) {
                     return api.playMode;
                 }
                 return PlayMode.SEQUENCE;
@@ -308,7 +301,7 @@ export function createPlayerAPI(context) {
             Validator.assertFunction(callback, 'callback');
 
             return ErrorUtils.wrapSync(() => {
-                if (api && typeof api.on === 'function') {
+                if (typeof api.on === 'function') {
                     api.on('trackChanged', callback);
                     return toDisposable(() => {
                         if (api && typeof api.off === 'function') {
@@ -330,7 +323,7 @@ export function createPlayerAPI(context) {
             Validator.assertFunction(callback, 'callback');
 
             return ErrorUtils.wrapSync(() => {
-                if (api && typeof api.on === 'function') {
+                if (typeof api.on === 'function') {
                     api.on('playbackStateChanged', callback);
                     return toDisposable(() => {
                         if (api && typeof api.off === 'function') {
