@@ -14,7 +14,7 @@ class EqualizerComponent extends Component {
         this.currentPreset = 'flat';
         this.setupElements();
         this.setupEventListeners();
-        this.initializeEqualizer().then(r => {
+        this.initializeEqualizer().then(_r => {
         });
         // 设置全局引用，供HTML中的onclick事件使用
         window.equalizerComponent = this;
@@ -249,14 +249,9 @@ class EqualizerComponent extends Component {
         this.saveTimeout = setTimeout(() => {
             this.saveSettingsImmediate();
         }, 500);
-
-        // console.log(`✅ 频段 ${bandIndex} 增益已更新为 ${gain}dB`);
     }
 
     updateBandValueDisplay(bandIndex, gain) {
-        // console.log(`🎛️ 更新频段 ${bandIndex} 显示值: ${gain}dB`);
-        // console.log(`🎛️ 数值元素:`, this.bandValues[bandIndex]);
-
         if (this.bandValues[bandIndex]) {
             const displayValue = gain >= 0 ? `+${gain.toFixed(1)}dB` : `${gain.toFixed(1)}dB`;
             this.bandValues[bandIndex].textContent = displayValue;
@@ -285,13 +280,11 @@ class EqualizerComponent extends Component {
 
             if (optionExists) {
                 this.presetSelect.value = this.currentPreset;
-                // console.log(`🎛️ 预设选择器已更新为: ${this.currentPreset}`);
             } else {
                 console.warn(`⚠️ 预设选择器中没有找到选项: ${this.currentPreset}`);
                 // 如果是自定义预设但选项不存在，回退到'custom'
                 if (this.currentPreset.startsWith('custom:')) {
                     this.presetSelect.value = 'custom';
-                    // console.log('🔄 回退到通用自定义选项');
                 }
             }
         }
@@ -311,7 +304,6 @@ class EqualizerComponent extends Component {
             const customPresets = cacheManager.getLocalCache('musicbox-equalizer-custom-presets') || {};
             console.log('📋 从缓存加载的自定义预设:', Object.keys(customPresets));
             this.isEnabled = settings.enabled === true;
-            // console.log(`🎛️ 均衡器启用状态: ${this.isEnabled}`);
 
             // 更新UI但不触发事件
             if (this.equalizerToggle) {
@@ -470,10 +462,6 @@ class EqualizerComponent extends Component {
 
         // 保存到缓存
         try {
-            if (!cacheManager) {
-                throw new Error('CacheManager未加载');
-            }
-
             const customPresets = this.getCustomPresets();
             // 检查是否已存在同名预设
             if (customPresets[name]) {
@@ -551,10 +539,6 @@ class EqualizerComponent extends Component {
         }
 
         try {
-            if (!cacheManager) {
-                throw new Error('CacheManager未加载');
-            }
-
             const customPresets = this.getCustomPresets();
             delete customPresets[name];
 

@@ -294,7 +294,7 @@ class MusicBoxApp extends EventEmitter {
             await this.handleTrackPlayed(track, index);
         });
 
-        this.components.contextMenu.on('addToPlaylist', ({track, index}) => {
+        this.components.contextMenu.on('addToPlaylist', ({track, _index}) => {
             this.addToPlaylist(track);
         });
 
@@ -452,19 +452,6 @@ class MusicBoxApp extends EventEmitter {
 
         // 新组件事件监听
         this.setupComponentEvents();
-
-        // Lyrics events
-        this.components.lyrics.on('togglePlay', () => {
-            this.components.player.togglePlayPause();
-        });
-
-        this.components.lyrics.on('previousTrack', () => {
-            this.components.player.previousTrack();
-        });
-
-        this.components.lyrics.on('nextTrack', () => {
-            this.components.player.nextTrack();
-        });
     }
 
     // 按需初始化页面组件
@@ -631,7 +618,7 @@ class MusicBoxApp extends EventEmitter {
         this.setupFileLoading();
 
         // API events - 使用管理的API事件监听器
-        this.addManagedAPIEventListener('libraryUpdated', async (data) => {
+        this.addManagedAPIEventListener('libraryUpdated', async (_data) => {
             await this.refreshLibrary();
         });
 
@@ -1105,7 +1092,7 @@ class MusicBoxApp extends EventEmitter {
                         await this.handleTrackPlayed(track, index);
                     });
 
-                    this.components.networkDriveDetailPage.on('playTracks', async (tracks, startIndex) => {
+                    this.components.networkDriveDetailPage.on('playTracks', async (tracks, _startIndex) => {
                         await this.handlePlayAllTracks(tracks);
                     });
                 }
@@ -1195,7 +1182,7 @@ class MusicBoxApp extends EventEmitter {
         if (this.components.trackList) this.components.trackList.hide();
     }
 
-    async handleTrackPlayed(track, index) {
+    async handleTrackPlayed(track, _index) {
         console.log('🎵 从音乐库播放歌曲:', track.title, '当前视图:', this.currentView);
 
         if (this.components.playlist) {
@@ -1363,7 +1350,7 @@ class MusicBoxApp extends EventEmitter {
 
     // 查找匹配的快捷键
     findMatchingShortcut(pressedKey, shortcuts) {
-        for (const [id, shortcut] of Object.entries(shortcuts)) {
+        for (const [_id, shortcut] of Object.entries(shortcuts)) {
             if (shortcut.key === pressedKey) {
                 return shortcut;
             }
@@ -1482,21 +1469,21 @@ class MusicBoxApp extends EventEmitter {
     }
 
     // 处理添加到自定义歌单
-    async handleAddToCustomPlaylist(track, index) {
+    async handleAddToCustomPlaylist(track, _index) {
         if (this.components.addToPlaylistDialog) {
             await this.components.addToPlaylistDialog.show(track);
         }
     }
 
     // 处理歌单创建成功
-    async handlePlaylistCreated(playlist) {
+    async handlePlaylistCreated() {
         if (this.components.navigation && this.components.navigation.refreshPlaylists) {
             await this.components.navigation.refreshPlaylists();
         }
     }
 
     // 处理歌曲添加到歌单成功
-    async handleTrackAddedToPlaylist(playlist, track) {
+    async handleTrackAddedToPlaylist() {
         if (this.components.navigation && this.components.navigation.refreshPlaylists) {
             await this.components.navigation.refreshPlaylists();
         }
@@ -1523,7 +1510,7 @@ class MusicBoxApp extends EventEmitter {
     }
 
     // 处理网络磁盘移除
-    async handleDriveRemoved(drive) {
+    async handleDriveRemoved() {
         await this.components.navigation.loadNetworkDrives();
         await this.refreshLibrary();
     }
@@ -1557,14 +1544,14 @@ class MusicBoxApp extends EventEmitter {
     }
 
     // 处理歌单更新
-    async handlePlaylistUpdated(playlist) {
+    async handlePlaylistUpdated() {
         if (this.components.navigation && this.components.navigation.refreshPlaylists) {
             await this.components.navigation.refreshPlaylists();
         }
     }
 
     // 处理歌单重命名成功
-    async handlePlaylistRenamed(playlist) {
+    async handlePlaylistRenamed() {
         if (this.components.navigation && this.components.navigation.refreshPlaylists) {
             await this.components.navigation.refreshPlaylists();
         }
@@ -1576,7 +1563,7 @@ class MusicBoxApp extends EventEmitter {
     }
 
     // 处理歌曲添加到歌单成功
-    async handleTracksAddedToPlaylist(data) {
+    async handleTracksAddedToPlaylist() {
         if (this.currentView === 'playlist-detail' && this.components.playlistDetailPage) {
             // loadPlaylistTracks() 方法内部已经调用了 render()，不需要重复调用
             await this.components.playlistDetailPage.loadPlaylistTracks();
@@ -1758,7 +1745,7 @@ class MusicBoxApp extends EventEmitter {
     }
 
     // Playlist event handlers
-    handlePlaylistTrackSelected(track, index) {
+    handlePlaylistTrackSelected(track, _index) {
         console.log('🎵 播放列表选择歌曲:', track.title);
         // Just select, don't play automatically
     }
@@ -1810,7 +1797,7 @@ class MusicBoxApp extends EventEmitter {
                     // 加载并播放指定的歌曲
                     const loadResult = await api.loadTrack(track.filePath);
                     if (loadResult) {
-                        const playResult = await api.play();
+                        await api.play();
                     }
                 }
             }
@@ -1931,7 +1918,7 @@ class MusicBoxApp extends EventEmitter {
     }
 
     // 处理编辑歌曲信息
-    async handleEditTrackInfo(track, index) {
+    async handleEditTrackInfo(track, _index) {
         await this.components.editTrackInfoDialog.show(track);
     }
 

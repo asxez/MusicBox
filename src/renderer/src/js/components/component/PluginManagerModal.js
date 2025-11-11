@@ -231,11 +231,6 @@ class PluginManagerModal extends Component {
                 return;
             }
 
-            // 通过 ExtensionService 安装
-            if (!window.extensionService) {
-                throw new Error('扩展服务未初始化');
-            }
-
             console.log('📦 PluginManagerModal: 调用 ExtensionService.installExtensionFromFile');
             const extensionInfo = await window.extensionService.installExtensionFromFile(filePath);
 
@@ -250,13 +245,9 @@ class PluginManagerModal extends Component {
     /**
      * 处理启用扩展
      */
-    async handleEnableExtension(extensionId, extensionName) {
+    async handleEnableExtension(extensionId, _extensionName) {
         try {
-            if (!window.extensionService) {
-                throw new Error('扩展服务未初始化');
-            }
             await window.extensionService.enableExtension(extensionId);
-            // 刷新插件列表
             await this.loadPluginList();
         } catch (error) {
             console.error('❌ PluginManagerModal: 启用扩展失败:', error);
@@ -267,11 +258,8 @@ class PluginManagerModal extends Component {
     /**
      * 处理禁用扩展
      */
-    async handleDisableExtension(extensionId, extensionName) {
+    async handleDisableExtension(extensionId, _extensionName) {
         try {
-            if (!window.extensionService) {
-                throw new Error('扩展服务未初始化');
-            }
             await window.extensionService.disableExtension(extensionId);
             await this.loadPluginList();
         } catch (error) {
@@ -290,13 +278,7 @@ class PluginManagerModal extends Component {
                 return;
             }
 
-            if (!window.extensionService) {
-                throw new Error('扩展服务未初始化');
-            }
-
             await window.extensionService.uninstallExtensionFromDisk(extensionId);
-
-            // 刷新插件列表
             await this.loadPluginList();
         } catch (error) {
             console.error('❌ PluginManagerModal: 卸载扩展失败:', error);

@@ -702,14 +702,14 @@ class DesktopLyricsManager {
 
         this.elements.container.classList.remove('horizontal-layout', 'vertical-layout');
         this.elements.container.classList.add(`${newLayout}-layout`);
-        this.animateLayoutTransition(oldLayout, newLayout);
+        this.animateLayoutTransition();
         this.adjustFontSizeForLayout(newLayout);
         cacheManager.setLocalCache('desktopLyrics-lastLayout', newLayout);
         this.showLayoutToast(newLayout);
     }
 
     // 布局切换动画
-    animateLayoutTransition(oldLayout, newLayout) {
+    animateLayoutTransition() {
         const lyricsContent = this.elements.container.querySelector('.lyrics-content');
         if (!lyricsContent) return;
 

@@ -19,8 +19,6 @@ class NetworkDriveDetailPage extends Component {
         // 文件夹结构相关
         this.currentPath = '/';  // 当前浏览的路径
         this.directoryStructure = [];  // 当前目录的文件和文件夹列表
-        this.expandedFolders = new Set();  // 已展开的文件夹路径集合
-
         this.showCovers = this.getShowCoversSettings();
 
         this.setupElements();
@@ -310,12 +308,6 @@ class NetworkDriveDetailPage extends Component {
         this.emit('playTrack', track, index);
     }
 
-    showTrackContextMenu(x, y, track, index) {
-        if (app && app.components && app.components.contextMenu) {
-            app.components.contextMenu.show(x, y, track, index);
-        }
-    }
-
     // 播放网络磁盘中的音乐文件
     async playMusicFile(filePath) {
         try {
@@ -412,13 +404,6 @@ class NetworkDriveDetailPage extends Component {
         } else {
             return `${minutes} 分钟`;
         }
-    }
-
-    formatDuration(seconds) {
-        if (!seconds || isNaN(seconds)) return '--:--';
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
     formatDrivePath() {

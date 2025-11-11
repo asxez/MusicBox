@@ -773,13 +773,13 @@ class PlaylistDetailPage extends Component {
         }
     }
 
-    toggleTrackLike(track, index) {
+    toggleTrackLike(track, _index) {
         // 可以实现喜欢/取消喜欢功能
         console.log('🎵 切换歌曲喜欢状态:', track.title);
         // TODO: 实现喜欢功能
     }
 
-    async removeTrackFromPlaylist(track, index) {
+    async removeTrackFromPlaylist(track, _index) {
         if (!confirm(`确定要从歌单中移除 "${track.title}" 吗？`)) {
             return;
         }
@@ -1041,7 +1041,8 @@ class PlaylistDetailPage extends Component {
     async setCover(imagePath) {
         try {
             if (!this.isValidImageFile(imagePath)) {
-                throw new Error('不支持的图片格式，请选择 JPG、PNG、GIF、WebP 或 BMP 格式的图片');
+                app.showError('不支持的图片格式，请选择 JPG、PNG、GIF、WebP 或 BMP 格式的图片');
+                console.error('不支持的图片格式，请选择 JPG、PNG、GIF、WebP 或 BMP 格式的图片');
             }
 
             console.log(`🖼️ 设置歌单封面: ${this.currentPlaylist.id} -> ${imagePath}`);
@@ -1057,7 +1058,8 @@ class PlaylistDetailPage extends Component {
                 this.emit('playlistCoverUpdated', this.currentPlaylist);
                 app.showInfo('歌单封面设置成功');
             } else {
-                throw new Error(result.error || '设置封面失败');
+                app.showError(result.error || '设置封面失败');
+                console.error('设置封面失败', result.error);
             }
         } catch (error) {
             app.showError(error.message || '设置封面失败，请重试');
@@ -1084,7 +1086,8 @@ class PlaylistDetailPage extends Component {
                 this.emit('playlistCoverUpdated', this.currentPlaylist);
                 app.showInfo('歌单封面已移除');
             } else {
-                throw new Error(result.error || '移除封面失败');
+                app.showError(result.error || '移除封面失败');
+                console.error('移除封面失败', result.error);
             }
         } catch (error) {
             app.showError(error.message || '移除封面失败，请重试');
@@ -1111,12 +1114,8 @@ class PlaylistDetailPage extends Component {
     }
 
     showTrackContextMenu(x, y, track, index) {
-        const contextMenu = app?.components?.contextMenu;
-        if (contextMenu) {
-            contextMenu.show(x, y, track, index);
-        } else {
-            console.warn('⚠️ PlaylistDetailPage: 未找到全局右键菜单组件');
-        }
+        const contextMenu = app.components.contextMenu;
+        contextMenu.show(x, y, track, index);
     }
 
     // 扫描文件夹中的音频文件
