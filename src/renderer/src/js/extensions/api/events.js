@@ -64,7 +64,7 @@ export function createEventsAPI(context) {
          * 触发事件
          * @param {string} eventName - 事件名
          * @param {*} data - 数据
-         * @returns {void}
+         * @returns {undefined}
          */
         emit(eventName, data) {
             Validator.assertNonEmptyString(eventName, 'eventName');
@@ -78,7 +78,7 @@ export function createEventsAPI(context) {
          * 移除事件监听器
          * @param {string} eventName - 事件名
          * @param {Function} callback - 回调函数
-         * @returns {void}
+         * @returns {undefined}
          */
         off(eventName, callback) {
             Validator.assertNonEmptyString(eventName, 'eventName');
@@ -92,7 +92,7 @@ export function createEventsAPI(context) {
         /**
          * 移除所有事件监听器
          * @param {string} [eventName] - 事件名，如果不提供则移除所有事件的监听器
-         * @returns {void}
+         * @returns {undefined}
          */
         removeAllListeners(eventName) {
             if (eventName !== undefined) {
