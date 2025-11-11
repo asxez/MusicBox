@@ -323,7 +323,7 @@ function registerSettingsPage(context, api) {
                 await applyTheme('light', api);
                 api.ui.showNotification('主题已重置', 'success');
             },
-            { secondary: true }
+            {secondary: true}
         );
         container.appendChild(resetButton);
     });
@@ -412,7 +412,7 @@ function setupConfigurationListener(context, api) {
     const configDisposable = api.settings.onDidChange((e) => {
         if (e.key.startsWith('themeEnhancer.')) {
             config = loadConfiguration(api.settings);
-            
+
             if (e.key === 'themeEnhancer.autoSwitchTheme') {
                 if (config.autoSwitchTheme) {
                     startAutoSwitchTheme(api);
@@ -420,7 +420,7 @@ function setupConfigurationListener(context, api) {
                     stopAutoSwitchTheme();
                 }
             }
-            
+
             console.log('⚙️ 主题增强配置已更新:', config);
         }
     });
@@ -502,15 +502,15 @@ async function applyCustomTheme(colors, api) {
  */
 function startAutoSwitchTheme(api) {
     stopAutoSwitchTheme();
-    
+
     // 立即检查一次
     checkAndSwitchTheme(api);
-    
+
     // 每分钟检查一次
     autoSwitchTimer = setInterval(() => {
         checkAndSwitchTheme(api);
     }, 60000);
-    
+
     console.log('🕐 自动切换主题已启动');
 }
 

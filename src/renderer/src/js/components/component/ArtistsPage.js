@@ -1349,7 +1349,7 @@ class ArtistsPage extends Component {
     }
 
     // 异步获取专辑封面
-    async fetchAlbumCoverAsync(albumName, artistName, tracks) {
+    async fetchAlbumCoverAsync(albumName, artistName, _tracks) {
         try {
             // 检查是否已经在获取中
             const albumKey = `${artistName}_${albumName}`;

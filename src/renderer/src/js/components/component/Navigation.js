@@ -281,7 +281,7 @@ class Navigation extends Component {
                     await window.electronAPI.window.sendPosition(data);
                 }
             };
-            document.onmouseup = async (ev) => {
+            document.onmouseup = async (_event) => {
                 this.isKeyDown = false;
 
                 // 主动尺寸保护机制 - 清理缓存的尺寸信息

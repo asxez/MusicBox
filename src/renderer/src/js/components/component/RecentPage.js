@@ -6,7 +6,6 @@ import {cacheManager} from "@services/CacheManager";
 import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {formatTime} from "@utils";
 import {Component} from "@components/base/Component";
-import {api} from "@api/api";
 import {coverAPI} from "@api/CoverAPI";
 
 class RecentPage extends Component {
@@ -312,7 +311,7 @@ class RecentPage extends Component {
                     // 使用requestAnimationFrame确保DOM更新在下一帧进行
                     requestAnimationFrame(() => {
                         const trackItems = this.container.querySelectorAll('.track-item');
-                        trackItems.forEach((item, index) => {
+                        trackItems.forEach((item, _index) => {
                             const itemIndex = parseInt(item.dataset.index);
                             if (this.recentTracks[itemIndex] === track) {
                                 const coverImg = item.querySelector('.track-cover img');
@@ -384,7 +383,6 @@ class RecentPage extends Component {
 
         // 歌曲项目事件
         this.container.querySelectorAll('.track-item').forEach(item => {
-            const trackPath = item.dataset.trackPath;
             const index = parseInt(item.dataset.index);
             const track = this.recentTracks[index];
 
