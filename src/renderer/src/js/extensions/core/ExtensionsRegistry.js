@@ -91,8 +91,14 @@ class ExtensionDescriptor {
         // canDisable: 是否允许被禁用（仅对内置扩展有效，外部扩展始终可禁用）
         // 默认值：内置扩展默认不可禁用(false)，外部扩展始终可禁用(true)
         this.canDisable = this.isBuiltin ? (manifest.canDisable === true) : true;
-        // 启用状态：内置扩展默认启用，第三方扩展从配置读取（默认启用）
-        this.enabled = manifest.enabled !== undefined ? manifest.enabled : true;
+        // enabledByDefault: 内置扩展的默认启用状态（仅对内置扩展有效）
+        // 默认值：true（内置扩展默认启用）
+        // 此字段用于首次加载时确定扩展是否应该启用
+        this.enabledByDefault = this.isBuiltin ? (manifest.enabledByDefault !== false) : true;
+        // enabled: 当前启用状态
+        // 对于内置扩展：首次加载时使用 enabledByDefault，之后从保存的状态恢复
+        // 对于外部扩展：从配置读取（默认启用）
+        this.enabled = manifest.enabled !== undefined ? manifest.enabled : this.enabledByDefault;
     }
 
     /**

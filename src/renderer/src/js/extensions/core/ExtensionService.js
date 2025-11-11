@@ -175,12 +175,6 @@ class ExtensionService extends Disposable {
 
             console.log(`🔌 ExtensionService: 发现 ${installedExtensions.length} 个已安装的扩展`);
 
-            // 🔍 调试：输出即将加载的扩展列表
-            console.log(`🔍 ExtensionService: 即将加载的扩展列表:`);
-            installedExtensions.forEach((ext, index) => {
-                console.log(`   [${index}] ${ext.id}: isBuiltin=${ext.isBuiltin || false}`);
-            });
-
             // 加载每个扩展
             for (const extensionManifest of installedExtensions) {
                 try {
@@ -217,24 +211,14 @@ class ExtensionService extends Disposable {
             const allMainProcessExtensions = result.extensions || [];
             console.log(`📋 ExtensionService: 主进程扩展总数: ${allMainProcessExtensions.length}`);
 
-            // 🔑 关键修复：过滤掉内置插件，只同步外部插件
+            // 过滤掉内置插件，只同步外部插件
             const mainProcessExtensions = allMainProcessExtensions.filter(ext => !ext.isBuiltin);
             console.log(`📋 ExtensionService: 主进程外部扩展数量: ${mainProcessExtensions.length}`);
-
-            // 输出主进程扩展的详细信息（用于调试）
-            allMainProcessExtensions.forEach(ext => {
-                console.log(`   - ${ext.id}: isBuiltin=${ext.isBuiltin}, enabled=${ext.enabled}, extensionLocation="${ext.extensionLocation || '(空)'}"`);
-            });
 
             // 获取本地存储的扩展配置
             const extensionsConfig = cacheManager?.getLocalCache('extensions-config') || {};
             const localExtensions = extensionsConfig.installed || [];
             console.log(`💾 ExtensionService: 本地存储扩展数量: ${localExtensions.length}`);
-
-            // 输出本地存储的扩展详细信息（用于调试）
-            localExtensions.forEach((ext, index) => {
-                console.log(`   [${index}] ${ext.id}: isBuiltin=${ext.isBuiltin || false}`);
-            });
 
             // 创建本地扩展映射（保留enabled状态）
             const localExtensionMap = new Map(localExtensions.map(ext => [ext.id, ext]));
@@ -267,7 +251,6 @@ class ExtensionService extends Disposable {
                 return mainExt;
             });
 
-            // 🔧 清理：移除错误添加到 installed 数组中的内置插件
             const cleanedExtensions = updatedExtensions.filter(ext => {
                 if (ext.isBuiltin) {
                     console.warn(`⚠️ ExtensionService: 检测到内置插件 ${ext.id} 在 installed 数组中，已移除`);
@@ -284,13 +267,6 @@ class ExtensionService extends Disposable {
             cacheManager?.setLocalCache('extensions-config', extensionsConfig);
 
             console.log(`✅ ExtensionService: 扩展列表同步完成，当前共 ${cleanedExtensions.length} 个外部扩展`);
-
-            // 🔍 调试：输出同步后的installed数组内容
-            console.log(`🔍 ExtensionService: 同步后的installed数组:`);
-            cleanedExtensions.forEach((ext, index) => {
-                console.log(`   [${index}] ${ext.id}: isBuiltin=${ext.isBuiltin || false}, enabled=${ext.enabled}`);
-            });
-
         } catch (error) {
             console.error('❌ ExtensionService: 同步扩展列表失败:', error);
         }
@@ -319,10 +295,13 @@ class ExtensionService extends Disposable {
                     // 标记为内置扩展
                     manifest.isBuiltin = true;
 
-                    // 恢复已保存的enabled状态
+                    // 恢复已保存的enabled状态，如果没有保存的状态则使用 enabledByDefault
                     if (builtinStates[manifest.id]) {
                         manifest.enabled = builtinStates[manifest.id].enabled;
                         console.log(`🔄 ExtensionService: 恢复内置扩展 ${manifest.id} 的状态: enabled=${manifest.enabled}`);
+                    } else {
+                        // 首次加载，使用 enabledByDefault（在 ExtensionDescriptor 构造函数中处理）
+                        console.log(`🆕 ExtensionService: 首次加载内置扩展 ${manifest.id}, 使用默认状态: enabledByDefault=${manifest.enabledByDefault !== false}`);
                     }
 
                     // 创建扩展描述符
@@ -343,7 +322,7 @@ class ExtensionService extends Disposable {
                         );
                     }
 
-                    console.log(`✅ ExtensionService: 已注册内置扩展 ${descriptor.id}, enabled=${descriptor.enabled}`);
+                    console.log(`✅ ExtensionService: 已注册内置扩展 ${descriptor.id}, enabled=${descriptor.enabled}, enabledByDefault=${descriptor.enabledByDefault}`);
                 } catch (error) {
                     console.error(`❌ ExtensionService: 注册内置扩展 ${manifest.id} 失败:`, error);
                 }
@@ -366,11 +345,8 @@ class ExtensionService extends Disposable {
         try {
             // 内置扩展列表（硬编码目录名，避免需要文件系统 API）
             const builtinExtensionDirs = [
-                'hello-world',
-                'extension-api-test',
-                'advanced-extension',
-                'keybindings-demo',
-            ];
+            'theme-enhancer',
+        ];
 
             for (const dirName of builtinExtensionDirs) {
                 try {
@@ -566,12 +542,12 @@ class ExtensionService extends Disposable {
             }
 
             // 保存到本地存储
-            const extensionsConfig = cacheManager?.getLocalCache('extensions-config') || {};
+            const extensionsConfig = cacheManager.getLocalCache('extensions-config') || {};
             if (!extensionsConfig.installed) {
                 extensionsConfig.installed = [];
             }
             extensionsConfig.installed.push(manifest);
-            cacheManager?.setLocalCache('extensions-config', extensionsConfig);
+            cacheManager.setLocalCache('extensions-config', extensionsConfig);
 
             // 加载扩展
             await this._loadExtension(manifest);
@@ -612,7 +588,7 @@ class ExtensionService extends Disposable {
                 extensionsConfig.installed = extensionsConfig.installed.filter(
                     ext => ext.id !== extensionId
                 );
-                cacheManager?.setLocalCache('extensions-config', extensionsConfig);
+                cacheManager.setLocalCache('extensions-config', extensionsConfig);
             }
 
             // 触发变化事件

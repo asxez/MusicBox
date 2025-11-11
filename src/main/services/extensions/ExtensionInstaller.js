@@ -13,10 +13,6 @@ const {app} = require('electron');
  * 它们由渲染进程通过扫描 builtin 目录动态注册
  */
 const BUILTIN_EXTENSION_IDS = [
-    'hello-world',
-    'extension-api-test',
-    'advanced-extension',
-    'keybindings-demo',
 ];
 
 class ExtensionInstaller {

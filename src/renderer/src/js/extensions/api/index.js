@@ -6,7 +6,7 @@
 // 导入各个 API 模块
 import {createPlayerAPI, PlaybackState, PlayMode} from './player.js';
 import {createLibraryAPI} from './library.js';
-import {createUIAPI, NotificationType, StatusBarAlignment, StatusBarItem, WebviewPanel} from './ui.js';
+import {createUIAPI, NotificationType} from './ui.js';
 import {createStorageAPI} from './storage.js';
 import {createNavigationAPI} from './navigation.js';
 import {createNetworkAPI} from './network.js';
@@ -160,9 +160,6 @@ export {
 
     // UI
     NotificationType,
-    StatusBarAlignment,
-    StatusBarItem,
-    WebviewPanel,
 
     // Diagnostics
     DiagnosticSeverity,
