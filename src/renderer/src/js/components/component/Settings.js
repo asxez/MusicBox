@@ -1080,8 +1080,11 @@ class Settings extends Component {
         // 更新当前区域
         this.currentSection = sectionName;
 
+        // 修改为实时性取元素，防止扩展动态添加的无法被正常监听
+
         // 更新导航按钮状态
-        this.navButtons.forEach(button => {
+        // 更改为实时性的全部按钮
+        document.querySelectorAll('.settings-nav-btn').forEach(button => {
             if (button.dataset.section === sectionName) {
                 button.classList.add('active');
             } else {
@@ -1090,7 +1093,8 @@ class Settings extends Component {
         });
 
         // 显示/隐藏设置区域
-        this.settingsSections.forEach(section => {
+        // 更改为实时性的全部区域
+        document.querySelectorAll('.settings-section').forEach(section => {
             if (section.dataset.section === sectionName) {
                 section.classList.add('active');
             } else {

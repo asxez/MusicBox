@@ -7,6 +7,7 @@ import {Validator} from './common/validation.js';
 import {ErrorUtils} from './common/errors.js';
 import {Disposable, toDisposable} from '../core/Lifecycle.js';
 import {showToast, theme} from '@utils';
+import {app} from "@core/app";
 
 /**
  * 通知类型枚举
@@ -122,7 +123,9 @@ class SettingsManagerClass {
 
         // 添加点击事件
         navBtn.addEventListener('click', (e) => {
-            this._switchToSection(e.currentTarget.dataset.section);
+            e.preventDefault();
+            e.stopPropagation();
+            window.settings.switchToSection(e.currentTarget.dataset.section);
         });
     }
 
@@ -185,29 +188,6 @@ class SettingsManagerClass {
         if (sectionElement && sectionElement.dataset.extensionSection) {
             sectionElement.remove();
         }
-    }
-
-    /**
-     * 切换到指定设置页
-     */
-    _switchToSection(sectionId) {
-        // 更新导航按钮状态
-        document.querySelectorAll('.settings-nav-btn').forEach(btn => {
-            if (btn.dataset.section === sectionId) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
-
-        // 显示/隐藏设置区域
-        document.querySelectorAll('.settings-section').forEach(section => {
-            if (section.dataset.section === sectionId) {
-                section.classList.add('active');
-            } else {
-                section.classList.remove('active');
-            }
-        });
     }
 
     /**
@@ -492,7 +472,7 @@ export function createUIAPI(context) {
          * 显示通知
          * @param {string} message - 消息内容
          * @param {string} [type='info'] - 类型 (info, success, warning, error)
-         * @returns {*}
+         * @returns {undefined}
          */
         showNotification(message, type = NotificationType.INFO) {
             Validator.assertNonEmptyString(message, 'message');
@@ -506,7 +486,7 @@ export function createUIAPI(context) {
         /**
          * 显示信息通知
          * @param {string} message - 消息内容
-         * @returns {*}
+         * @returns {undefined}
          */
         showInformationMessage(message) {
             return this.showNotification(message, NotificationType.INFO);
@@ -515,7 +495,7 @@ export function createUIAPI(context) {
         /**
          * 显示成功通知
          * @param {string} message - 消息内容
-         * @returns {*}
+         * @returns {undefined}
          */
         showSuccessMessage(message) {
             return this.showNotification(message, NotificationType.SUCCESS);
@@ -524,7 +504,7 @@ export function createUIAPI(context) {
         /**
          * 显示警告通知
          * @param {string} message - 消息内容
-         * @returns {*}
+         * @returns {undefined}
          */
         showWarningMessage(message) {
             return this.showNotification(message, NotificationType.WARNING);
@@ -533,7 +513,7 @@ export function createUIAPI(context) {
         /**
          * 显示错误通知
          * @param {string} message - 消息内容
-         * @returns {*}
+         * @returns {undefined}
          */
         showErrorMessage(message) {
             return this.showNotification(message, NotificationType.ERROR);
@@ -658,7 +638,7 @@ export function createUIAPI(context) {
         /**
          * 设置主题
          * @param {string} themeName - 主题名称 ('light' 或 'dark')
-         * @returns {*}
+         * @returns {undefined}
          */
         setTheme(themeName) {
             Validator.assertNonEmptyString(themeName, 'themeName');
@@ -670,7 +650,7 @@ export function createUIAPI(context) {
 
         /**
          * 切换主题
-         * @returns {*}
+         * @returns {undefined}
          */
         toggleTheme() {
             return ErrorUtils.wrapSync(() => {
@@ -698,7 +678,7 @@ export function createUIAPI(context) {
          * 设置 CSS 变量
          * @param {string} name - CSS 变量名（不包含 --）
          * @param {string} value - CSS 变量值
-         * @returns {*}
+         * @returns {undefined}
          */
         setCSSVariable(name, value) {
             Validator.assertNonEmptyString(name, 'name');
