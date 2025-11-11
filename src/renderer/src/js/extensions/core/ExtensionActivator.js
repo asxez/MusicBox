@@ -304,11 +304,6 @@ class ExtensionActivator extends Disposable {
     _resolveExtensionPath(descriptor) {
         const modulePath = descriptor.main;
 
-        console.log(`🔍 ExtensionActivator._resolveExtensionPath: ${descriptor.id}`);
-        console.log(`     modulePath: "${modulePath}"`);
-        console.log(`     extensionLocation: "${descriptor.extensionLocation || '(空)'}"`);
-        console.log(`     isBuiltin: ${descriptor.isBuiltin}`);
-
         // 外部插件判断：不是内置插件的都需要通过IPC加载
         if (!descriptor.isBuiltin) {
             console.log(`     ➡️ 外部插件，返回null触发IPC加载`);

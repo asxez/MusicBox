@@ -77,7 +77,7 @@ async function activate(context) {
                     await api.player.pause();
                     api.ui.showNotification('已暂停', 'info');
                 } else {
-                    await api.player.resume();
+                    await api.player.play();
                     api.ui.showNotification('正在播放', 'info');
                 }
                 console.log('🎹 全局快捷键 Alt+Ctrl+M 被触发');

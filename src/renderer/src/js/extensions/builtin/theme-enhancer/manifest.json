@@ -1,0 +1,99 @@
+{
+  "id": "theme-enhancer",
+  "name": "主题增强",
+  "version": "1.0.0",
+  "description": "提供多种预设主题和自定义主题功能，让您的音乐播放器更加个性化",
+  "author": "ASXE",
+  "main": "extension.js",
+  "canDisable": true,
+  "enabledByDefault": false,
+  "activationEvents": [
+    "onStartUp"
+  ],
+  "permissions": [
+    "ui.notification",
+    "ui.theme",
+    "storage.read",
+    "storage.write",
+    "settings.read",
+    "settings.write",
+    "commands.register"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "themeEnhancer.setTheme",
+        "title": "主题增强: 切换主题"
+      },
+      {
+        "command": "themeEnhancer.customizeTheme",
+        "title": "主题增强: 自定义主题"
+      },
+      {
+        "command": "themeEnhancer.exportTheme",
+        "title": "主题增强: 导出主题"
+      },
+      {
+        "command": "themeEnhancer.importTheme",
+        "title": "主题增强: 导入主题"
+      },
+      {
+        "command": "themeEnhancer.resetTheme",
+        "title": "主题增强: 重置主题"
+      }
+    ],
+    "configuration": {
+      "title": "主题增强设置",
+      "properties": {
+        "themeEnhancer.currentTheme": {
+          "type": "string",
+          "default": "light",
+          "enum": ["light", "dark", "blue", "purple", "green", "custom"],
+          "enumDescriptions": [
+            "浅色主题",
+            "深色主题",
+            "蓝色主题",
+            "紫色主题",
+            "绿色主题",
+            "自定义主题"
+          ],
+          "description": "当前使用的主题"
+        },
+        "themeEnhancer.autoSwitchTheme": {
+          "type": "boolean",
+          "default": true,
+          "description": "根据系统时间自动切换主题"
+        },
+        "themeEnhancer.darkModeStartTime": {
+          "type": "string",
+          "default": "18:00",
+          "description": "深色模式开始时间（24小时制，如 18:00）"
+        },
+        "themeEnhancer.lightModeStartTime": {
+          "type": "string",
+          "default": "06:00",
+          "description": "浅色模式开始时间（24小时制，如 06:00）"
+        },
+        "themeEnhancer.customColors": {
+          "type": "object",
+          "default": {},
+          "description": "自定义主题颜色配置"
+        }
+      }
+    }
+  },
+  "engines": {
+    "musicbox": "^1.0.0"
+  },
+  "categories": [
+    "Themes",
+    "Customization"
+  ],
+  "keywords": [
+    "theme",
+    "主题",
+    "外观",
+    "颜色",
+    "自定义"
+  ]
+}
