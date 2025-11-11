@@ -32,7 +32,7 @@ export function createNetworkAPI(context) {
          * 发送 GET 请求
          * @param {string} url - URL
          * @param {Object} [options={}] - 请求选项
-         * @returns {Promise<any>} 响应数据
+         * @returns {Promise<string>} 响应数据
          */
         async get(url, options = {}) {
             Validator.assertNonEmptyString(url, 'url');

@@ -112,7 +112,7 @@ export function createKeybindingsAPI(context) {
          * 注销快捷键
          * @param {string} keybinding - 快捷键组合
          * @param {string} [scope='local'] - 作用域
-         * @returns {Promise}
+         * @returns {Promise<undefined>}
          */
         async unregisterKeybinding(keybinding, scope = KeybindingScope.LOCAL) {
             Validator.assertNonEmptyString(keybinding, 'keybinding');

@@ -13,6 +13,7 @@ const {app} = require('electron');
  * 它们由渲染进程通过扫描 builtin 目录动态注册
  */
 const BUILTIN_EXTENSION_IDS = [
+    'theme-enhancer',
 ];
 
 class ExtensionInstaller {

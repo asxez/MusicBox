@@ -36,12 +36,12 @@ export function createPlayerAPI(context) {
     return {
         /**
          * 播放歌曲
-         * @returns {Promise<void>}
+         * @returns {Promise<boolean>}
          */
         async play() {
             return ErrorUtils.wrapAsync(async () => {
                 if (typeof api.play === 'function') {
-                    await api.play();
+                    return await api.play();
                 } else {
                     throw new NotAvailableError('player.play', 'API 未初始化');
                 }
@@ -51,7 +51,7 @@ export function createPlayerAPI(context) {
         /**
          * 按路径播放歌曲
          * @param {string} filePath
-         * @returns {Promise<void>}
+         * @returns {Promise<undefined>}
          */
         playTrack(filePath) {
             Validator.assertString(filePath, 'filePath');
@@ -67,12 +67,12 @@ export function createPlayerAPI(context) {
 
         /**
          * 暂停播放
-         * @returns {Promise<void>}
+         * @returns {Promise<boolean>}
          */
         async pause() {
             return ErrorUtils.wrapAsync(async () => {
                 if (typeof api.pause === 'function') {
-                    await api.pause();
+                    return await api.pause();
                 } else {
                     throw new NotAvailableError('player.pause', 'API 未初始化');
                 }
@@ -81,12 +81,12 @@ export function createPlayerAPI(context) {
 
         /**
          * 停止播放
-         * @returns {Promise<void>}
+         * @returns {Promise<boolean>}
          */
         async stop() {
             return ErrorUtils.wrapAsync(async () => {
                 if (typeof api.stop === 'function') {
-                    await api.stop();
+                    return await api.stop();
                 } else {
                     throw new NotAvailableError('player.stop', 'API 未初始化');
                 }
@@ -95,12 +95,12 @@ export function createPlayerAPI(context) {
 
         /**
          * 下一首
-         * @returns {Promise<void>}
+         * @returns {Promise<boolean>}
          */
         async nextTrack() {
             return ErrorUtils.wrapAsync(async () => {
                 if (typeof api.nextTrack === 'function') {
-                    await api.nextTrack();
+                    return await api.nextTrack();
                 } else {
                     throw new NotAvailableError('player.nextTrack', 'API 未初始化');
                 }
@@ -109,12 +109,12 @@ export function createPlayerAPI(context) {
 
         /**
          * 上一首
-         * @returns {Promise<void>}
+         * @returns {Promise<boolean>}
          */
         async previousTrack() {
             return ErrorUtils.wrapAsync(async () => {
                 if (typeof api.previousTrack === 'function') {
-                    await api.previousTrack();
+                    return await api.previousTrack();
                 } else {
                     throw new NotAvailableError('player.previousTrack', 'API 未初始化');
                 }
@@ -124,14 +124,14 @@ export function createPlayerAPI(context) {
         /**
          * 设置音量
          * @param {number} volume - 音量 (0-1)
-         * @returns {Promise<void>}
+         * @returns {Promise<undefined>}
          */
         async setVolume(volume) {
             validate.volume(volume);
 
             return ErrorUtils.wrapAsync(async () => {
                 if (typeof api.setVolume === 'function') {
-                    await api.setVolume(volume);
+                    return await api.setVolume(volume);
                 } else {
                     throw new NotAvailableError('player.setVolume', 'API 未初始化');
                 }
@@ -186,14 +186,14 @@ export function createPlayerAPI(context) {
         /**
          * 跳转到指定时间
          * @param {number} time - 时间（秒）
-         * @returns {Promise<void>}
+         * @returns {Promise<boolean>}
          */
         async seek(time) {
             validate.time(time);
 
             return ErrorUtils.wrapAsync(async () => {
                 if (typeof api.seek === 'function') {
-                    await api.seek(time);
+                    return await api.seek(time);
                 } else {
                     throw new NotAvailableError('player.seek', 'API 未初始化');
                 }
@@ -230,7 +230,7 @@ export function createPlayerAPI(context) {
          * 设置播放列表
          * @param {Array<Object>} tracks - 歌曲列表
          * @param {number} [startIndex=-1] - 起始播放索引
-         * @returns {Promise<void>}
+         * @returns {Promise<boolean>}
          */
         async setPlaylist(tracks, startIndex = -1) {
             Validator.assertArray(tracks, 'tracks');
@@ -240,7 +240,7 @@ export function createPlayerAPI(context) {
 
             return ErrorUtils.wrapAsync(async () => {
                 if (typeof api.setPlaylist === 'function') {
-                    await api.setPlaylist(tracks, startIndex);
+                    return await api.setPlaylist(tracks, startIndex);
                 } else {
                     throw new NotAvailableError('player.setPlaylist', 'API 未初始化');
                 }
@@ -263,7 +263,7 @@ export function createPlayerAPI(context) {
         /**
          * 设置播放模式
          * @param {string} mode - 播放模式 (sequence, shuffle, repeat-one, repeat-all)
-         * @returns {Promise<void>}
+         * @returns {Promise<boolean>}
          */
         setPlayMode(mode) {
             Validator.assertEnum(
@@ -274,7 +274,7 @@ export function createPlayerAPI(context) {
 
             return ErrorUtils.wrapSync(() => {
                 if (typeof api.setPlayMode === 'function') {
-                    api.setPlayMode(mode);
+                    return api.setPlayMode(mode);
                 } else api.playMode = mode;
             }, 'player.setPlayMode');
         },

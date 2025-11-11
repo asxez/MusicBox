@@ -121,7 +121,7 @@ export function createCommandsAPI(context) {
         /**
          * 启用命令
          * @param {string} commandId - 命令 ID
-         * @returns {void}
+         * @returns {undefined}
          */
         enableCommand(commandId) {
             validate.commandId(commandId);
@@ -138,7 +138,7 @@ export function createCommandsAPI(context) {
         /**
          * 禁用命令
          * @param {string} commandId - 命令 ID
-         * @returns {void}
+         * @returns {undefined}
          */
         disableCommand(commandId) {
             validate.commandId(commandId);
