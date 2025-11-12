@@ -6,6 +6,7 @@ import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
+import {fileAPI} from "@api/FileAPI";
 
 class HomePage extends Component {
     constructor(container) {
@@ -619,7 +620,7 @@ class HomePage extends Component {
         if (scanBtn) {
             scanBtn.addEventListener('click', async () => {
                 try {
-                    const directory = await api.openDirectory();
+                    const directory = await fileAPI.openDirectory();
                     if (directory) {
                         const success = await api.scanDirectory(directory);
                         if (success) {

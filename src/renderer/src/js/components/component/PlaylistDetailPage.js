@@ -8,6 +8,7 @@ import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
 import {coverAPI} from "@api/CoverAPI";
+import {fileAPI} from "@api/FileAPI";
 
 class PlaylistDetailPage extends Component {
     constructor(container) {
@@ -1027,7 +1028,7 @@ class PlaylistDetailPage extends Component {
     // 选择并设置封面
     async selectAndSetCover() {
         try {
-            const result = await api.selectImageFile();
+            const result = await fileAPI.selectImageFile();
             if (result.success && result.path) {
                 console.log('✅ 选择的图片路径:', result.path);
                 await this.setCover(result.path);

@@ -38,6 +38,7 @@ import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import {checkUpdate} from "@api/CheckUpdate";
 import {tray} from "@api/tray";
 import {windowAPI} from "@api/window";
+import {fileAPI} from "@api/FileAPI";
 
 class MusicBoxApp extends EventEmitter {
     constructor() {
@@ -855,7 +856,7 @@ class MusicBoxApp extends EventEmitter {
 
     async scanMusicFolder() {
         try {
-            const folderPath = await api.openDirectory();
+            const folderPath = await fileAPI.openDirectory();
             if (folderPath) {
                 this.showScanProgress();
                 const success = await api.scanDirectory(folderPath);
@@ -873,7 +874,7 @@ class MusicBoxApp extends EventEmitter {
 
     async addMusicFiles() {
         try {
-            const filePaths = await api.openFiles();
+            const filePaths = await fileAPI.openFiles();
             if (filePaths.length > 0) {
                 let successCount = 0;
                 for (const filePath of filePaths) {
@@ -1663,7 +1664,7 @@ class MusicBoxApp extends EventEmitter {
 
     async openDirectoryDialog() {
         try {
-            const directory = await api.openDirectoryDialog();
+            const directory = await fileAPI.openDirectoryDialog();
             if (directory) {
                 await this.scanDirectory(directory);
             }
@@ -1903,7 +1904,7 @@ class MusicBoxApp extends EventEmitter {
     }
 
     async handleSelectMusicFolder() {
-        const result = await api.selectMusicFolder();
+        const result = await fileAPI.selectMusicFolder();
         if (result && result.path) {
             this.components.settings.updateMusicFolderPath(result.path);
             console.log('📁 选择音乐文件夹:', result.path);
