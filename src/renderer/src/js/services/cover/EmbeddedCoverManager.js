@@ -2,7 +2,6 @@
  * 内嵌封面管理器
  * 负责内嵌封面的提取、格式转换和缓存管理
  */
-import {app} from "@core/app";
 
 class EmbeddedCoverManager {
     constructor() {
@@ -155,9 +154,7 @@ class EmbeddedCoverManager {
     convertCoverToUrl(coverData) {
         try {
             if (!coverData || !coverData.data) {
-                app.showError('封面数据无效');
-                console.error('封面数据无效');
-                return;
+                throw new Error('封面数据无效');
             }
 
             let imageData = coverData.data;
@@ -187,15 +184,13 @@ class EmbeddedCoverManager {
                     imageData = new Uint8Array(imageData);
                     console.log('✅ EmbeddedCoverManager: 降级转换成功');
                 } else {
-                    console.error('无法转换数据类型');
-                    return;
+                    throw new Error('无法转换数据类型');
                 }
             }
 
             // 验证数据长度
             if (!imageData.length || imageData.length === 0) {
-                console.error('封面数据长度为0');
-                return;
+                throw new Error('封面数据长度为0');
             }
 
             // 创建Blob
@@ -204,8 +199,7 @@ class EmbeddedCoverManager {
 
             // 验证Blob
             if (blob.size === 0) {
-                console.error('创建的Blob大小为0');
-                return;
+                throw new Error('创建的Blob大小为0');
             }
 
             // 创建Object URL
@@ -217,7 +211,7 @@ class EmbeddedCoverManager {
                     type: typeof objectUrl,
                     value: objectUrl
                 });
-                return;
+                throw new Error('创建的Object URL格式无效');
             }
 
             // 记录URL用于后续清理
