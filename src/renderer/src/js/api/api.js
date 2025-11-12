@@ -568,48 +568,24 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    // 打开文件对话框
-    async openFileDialog() {
-        try {
-            return await window.electronAPI.openFiles();
-        } catch (error) {
-            console.error('Failed to open file dialog:', error);
-            return [];
-        }
-    }
-
-    async openDirectoryDialog() {
-        try {
-            return await window.electronAPI.openDirectory();
-        } catch (error) {
-            console.error('Failed to open directory dialog:', error);
-            return null;
-        }
-    }
-
     async scanDirectory(path) {
         try {
-            this.emit('scanStarted', path);
             const result = await window.electronAPI.library.scanDirectory(path);
             if (result) {
-                this.emit('scanCompleted', path);
                 const tracks = await this.getTracks();
                 this.emit('libraryUpdated', tracks);
             }
             return result;
         } catch (error) {
             console.error('Failed to scan directory:', error);
-            this.emit('scanError', error.message);
             return false;
         }
     }
 
     async scanNetworkDrive(driveId, relativePath = '/') {
         try {
-            this.emit('scanStarted', `network://${driveId}`);
             const result = await window.electronAPI.library.scanNetworkDrive(driveId, relativePath);
             if (result) {
-                this.emit('scanCompleted', `network://${driveId}`);
                 // 刷新音乐库列表
                 const tracks = await this.getTracks();
                 this.emit('libraryUpdated', tracks);
@@ -617,7 +593,6 @@ class MusicBoxAPI extends EventEmitter {
             return result;
         } catch (error) {
             console.error('❌ 网络磁盘扫描失败:', error);
-            this.emit('scanError', error.message);
             return false;
         }
     }
@@ -805,53 +780,6 @@ class MusicBoxAPI extends EventEmitter {
             return {success: true};
         } else {
             return {success: false, error: '移除歌单封面失败'};
-        }
-    }
-
-    async openDirectory() {
-        try {
-            // 使用原始的openDirectory方法，返回字符串路径（用于音乐目录扫描等）
-            return await window.electronAPI.openDirectory(); // 直接返回字符串路径或null
-        } catch (error) {
-            console.error('Failed to open directory dialog:', error);
-            return null;
-        }
-    }
-
-    async openFiles() {
-        try {
-            return await window.electronAPI.openFiles();
-        } catch (error) {
-            console.error('Failed to open files dialog:', error);
-            return [];
-        }
-    }
-
-    // 选择音乐文件夹方法（用于设置页面）
-    async selectMusicFolder() {
-        try {
-            const result = await window.electronAPI.selectFolder();
-            if (result && result.filePaths && result.filePaths.length > 0 && !result.canceled) {
-                return {path: result.filePaths[0], success: true};
-            }
-            return {success: false};
-        } catch (error) {
-            console.error('Failed to select music folder:', error);
-            return {success: false, error: error.message};
-        }
-    }
-
-    // 选择图片文件方法（用于歌单封面）
-    async selectImageFile() {
-        try {
-            const imagePath = await window.electronAPI.openImageFile();
-            if (imagePath) {
-                return {path: imagePath, success: true};
-            }
-            return {success: false};
-        } catch (error) {
-            console.error('Failed to select image file:', error);
-            return {success: false, error: error.message};
         }
     }
 
