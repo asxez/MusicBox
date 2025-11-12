@@ -81,7 +81,7 @@ class MetadataHandler {
 
                 // 检查文件权限和大小
                 const stats = fs.statSync(this.executablePath);
-                console.log(`📊 可执行文件信息: 大小=${(stats.size / 1024 / 1024).toFixed(2)}MB, 可执行=${!!(stats.mode & parseInt('111', 8))}`);
+                console.log(`📊 可执行文件信息: 大小=${(stats.size / 1024 / 1024).toFixed(2)}MB`);
             } else {
                 console.log(`❌ 可执行文件不存在: ${this.executablePath}`);
 
