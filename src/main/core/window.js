@@ -169,17 +169,12 @@ async function createWindow() {
         htmlPath = path.join(appPath, 'src/renderer/public/index.html');
         console.log(`📦 生产环境 - App path: ${appPath}`);
         console.log(`📦 生产环境 - Loading HTML from: ${htmlPath}`);
-        console.log(`📦 生产环境 - __dirname: ${__dirname}`);
-        console.log(`📦 生产环境 - File exists: ${fs.existsSync(htmlPath)}`);
     }
 
-    try {
+    if (fs.existsSync(htmlPath)) {
         await mainWindow.loadFile(htmlPath);
-    } catch (error) {
-        console.error(`❌ HTML文件加载失败: ${error.message}`);
-        console.error(`❌ 尝试的路径: ${htmlPath}`);
-
-        // 如果加载失败，尝试备用路径
+    } else {
+        console.warn(`⚠️ ${htmlPath}不存在，尝试备用路径`);
         const fallbackPath = path.join(__dirname, '../../renderer/public/index.html');
         console.log(`🔄 尝试备用路径: ${fallbackPath}`);
         try {

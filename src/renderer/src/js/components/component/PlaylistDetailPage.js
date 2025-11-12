@@ -1041,8 +1041,7 @@ class PlaylistDetailPage extends Component {
     async setCover(imagePath) {
         try {
             if (!this.isValidImageFile(imagePath)) {
-                app.showError('不支持的图片格式，请选择 JPG、PNG、GIF、WebP 或 BMP 格式的图片');
-                console.error('不支持的图片格式，请选择 JPG、PNG、GIF、WebP 或 BMP 格式的图片');
+                throw new Error('不支持的图片格式，请选择 JPG、PNG、GIF、WebP 或 BMP 格式的图片');
             }
 
             console.log(`🖼️ 设置歌单封面: ${this.currentPlaylist.id} -> ${imagePath}`);
@@ -1058,8 +1057,7 @@ class PlaylistDetailPage extends Component {
                 this.emit('playlistCoverUpdated', this.currentPlaylist);
                 app.showInfo('歌单封面设置成功');
             } else {
-                app.showError(result.error || '设置封面失败');
-                console.error('设置封面失败', result.error);
+                throw new Error(result.error || '设置封面失败');
             }
         } catch (error) {
             app.showError(error.message || '设置封面失败，请重试');
@@ -1086,8 +1084,7 @@ class PlaylistDetailPage extends Component {
                 this.emit('playlistCoverUpdated', this.currentPlaylist);
                 app.showInfo('歌单封面已移除');
             } else {
-                app.showError(result.error || '移除封面失败');
-                console.error('移除封面失败', result.error);
+                throw new Error(result.error || '移除封面失败');
             }
         } catch (error) {
             app.showError(error.message || '移除封面失败，请重试');

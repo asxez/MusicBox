@@ -79,7 +79,7 @@ class WebAudioEngine {
                 const fileUrl = filePath.startsWith('file://') ? filePath : `file:///${filePath.replace(/\\/g, '/')}`;
                 const response = await fetch(fileUrl);
                 if (!response.ok) {
-                    console.error('无法获取音频文件：', response.status);
+                    throw new Error(`Failed to fetch audio file: ${response.status}`);
                 }
                 arrayBuffer = await response.arrayBuffer();
             }

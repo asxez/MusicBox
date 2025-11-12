@@ -115,8 +115,7 @@ class EmbeddedLyricsManager {
     convertToLRC(embeddedLyrics) {
         try {
             if (!embeddedLyrics || !embeddedLyrics.text) {
-                console.error('内嵌歌词数据无效');
-                return;
+                throw new Error('内嵌歌词数据无效');
             }
 
             let lrcContent = '';
