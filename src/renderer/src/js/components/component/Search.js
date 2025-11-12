@@ -5,6 +5,7 @@
 import {debounce, showToast} from "@utils";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
+import {libraryAPI} from "@api/LibraryAPI";
 
 class Search extends Component {
     constructor() {
@@ -36,7 +37,7 @@ class Search extends Component {
 
     async performSearch(query) {
         try {
-            const results = await api.searchLibrary(query);
+            const results = await libraryAPI.searchLibrary(query);
             this.emit('searchResults', results);
         } catch (error) {
             console.error('Search failed:', error);

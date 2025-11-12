@@ -2,6 +2,7 @@ import {EventEmitter} from '@utils';
 import {cacheManager} from "@services/CacheManager";
 import {WebAudioEngine} from "@services/audio/WebAudioEngine";
 import {lyricsAPI} from "@api/LyricsAPI";
+import {libraryAPI} from "@api/LibraryAPI";
 
 class MusicBoxAPI extends EventEmitter {
     constructor() {
@@ -572,7 +573,7 @@ class MusicBoxAPI extends EventEmitter {
         try {
             const result = await window.electronAPI.library.scanDirectory(path);
             if (result) {
-                const tracks = await this.getTracks();
+                const tracks = await libraryAPI.getTracks();
                 this.emit('libraryUpdated', tracks);
             }
             return result;
@@ -587,7 +588,7 @@ class MusicBoxAPI extends EventEmitter {
             const result = await window.electronAPI.library.scanNetworkDrive(driveId, relativePath);
             if (result) {
                 // 刷新音乐库列表
-                const tracks = await this.getTracks();
+                const tracks = await libraryAPI.getTracks();
                 this.emit('libraryUpdated', tracks);
             }
             return result;
@@ -597,57 +598,12 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async getTracks(options = {}) {
-        try {
-            return await window.electronAPI.library.getTracks(options);
-        } catch (error) {
-            console.error('Failed to get tracks:', error);
-            return [];
-        }
-    }
-
-    async getAlbums() {
-        try {
-            return await window.electronAPI.library.getAlbums();
-        } catch (error) {
-            console.error('Failed to get albums:', error);
-            return [];
-        }
-    }
-
-    async getArtists() {
-        try {
-            return await window.electronAPI.library.getArtists();
-        } catch (error) {
-            console.error('Failed to get artists:', error);
-            return [];
-        }
-    }
-
-    async searchLibrary(query) {
-        try {
-            return await window.electronAPI.library.search(query);
-        } catch (error) {
-            console.error('Failed to search library:', error);
-            return [];
-        }
-    }
-
-    async getTrackMetadata(filePath) {
-        try {
-            return await window.electronAPI.library.getTrackMetadata(filePath);
-        } catch (error) {
-            console.error('Failed to get track metadata:', error);
-            return null;
-        }
-    }
-
     async addTrackToLibrary(audioFile) {
         try {
             const result = await window.electronAPI.library.addTrackToLibrary(audioFile);
             if (result && result.success) {
                 // 关键步骤：与扫描文件夹功能保持一致，重新获取最新数据
-                const tracks = await this.getTracks();
+                const tracks = await libraryAPI.getTracks();
                 this.emit('libraryUpdated', tracks);
             }
             return result;
@@ -661,9 +617,7 @@ class MusicBoxAPI extends EventEmitter {
     async loadCachedTracks() {
         try {
             const tracks = await window.electronAPI.library.loadCachedTracks();
-
             if (tracks && tracks.length > 0) {
-                this.emit('libraryLoaded', tracks);
                 // 注意：这里不触发libraryUpdated，避免重复的封面查找
                 // libraryUpdated事件应该只在真正的库更新时触发
                 return tracks;
@@ -672,15 +626,12 @@ class MusicBoxAPI extends EventEmitter {
             }
         } catch (error) {
             console.error('❌ 加载缓存音乐库失败:', error);
-            this.emit('cacheError', error.message);
             return [];
         }
     }
 
     async validateCache() {
         try {
-            this.emit('cacheValidationStarted');
-
             // 设置验证进度监听器
             const progressListener = window.electronAPI.library.onCacheValidationProgress((progress) => {
                 this.emit('cacheValidationProgress', progress);
@@ -712,24 +663,10 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async getCacheStatistics() {
-        try {
-            const stats = await window.electronAPI.library.getCacheStatistics();
-            if (stats) {
-                return stats;
-            }
-            return null;
-        } catch (error) {
-            console.error('❌ 获取缓存统计失败:', error);
-            return null;
-        }
-    }
-
     async clearCache() {
         try {
             const success = await window.electronAPI.library.clearCache();
             if (success) {
-                this.emit('cacheCleared');
                 this.emit('libraryUpdated', []);
                 return true;
             } else {
@@ -737,18 +674,6 @@ class MusicBoxAPI extends EventEmitter {
             }
         } catch (error) {
             console.error('❌ 清空缓存失败:', error);
-            this.emit('cacheError', error.message);
-            return false;
-        }
-    }
-
-    // 检查是否有缓存的音乐库
-    async hasCachedLibrary() {
-        try {
-            const stats = await this.getCacheStatistics();
-            return stats && stats.totalTracks > 0;
-        } catch (error) {
-            console.error('❌ 检查缓存状态失败:', error);
             return false;
         }
     }

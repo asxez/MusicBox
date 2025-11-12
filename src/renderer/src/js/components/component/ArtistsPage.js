@@ -4,8 +4,8 @@
 
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@components/base/Component";
-import {api} from "@api/api";
 import {coverAPI} from "@api/CoverAPI";
+import {libraryAPI} from "@api/LibraryAPI";
 
 class ArtistsPage extends Component {
     constructor(container) {
@@ -35,7 +35,7 @@ class ArtistsPage extends Component {
 
         // 只有在没有tracks数据时才获取，避免重复调用
         if (!this.tracks || this.tracks.length === 0) {
-            this.tracks = await api.getTracks();
+            this.tracks = await libraryAPI.getTracks();
             this._lastTracksHash = this._generateTracksHash(this.tracks);
             this.processArtists();
         }

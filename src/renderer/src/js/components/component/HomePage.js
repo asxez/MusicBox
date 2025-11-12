@@ -7,6 +7,7 @@ import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
 import {fileAPI} from "@api/FileAPI";
+import {libraryAPI} from "@api/LibraryAPI";
 
 class HomePage extends Component {
     constructor(container) {
@@ -24,7 +25,7 @@ class HomePage extends Component {
 
         // 只有在没有tracks数据时才获取，避免重复调用
         if (!this.tracks || this.tracks.length === 0) {
-            this.tracks = await api.getTracks();
+            this.tracks = await libraryAPI.getTracks();
             this._lastTracksHash = this._generateTracksHash(this.tracks);
         }
 
@@ -624,7 +625,7 @@ class HomePage extends Component {
                     if (directory) {
                         const success = await api.scanDirectory(directory);
                         if (success) {
-                            this.tracks = await api.getTracks();
+                            this.tracks = await libraryAPI.getTracks();
                             this.render();
                         }
                     }
@@ -640,7 +641,7 @@ class HomePage extends Component {
             addFilesBtn.addEventListener('click', async () => {
                 try {
                     await app.addMusicFiles();
-                    this.tracks = await api.getTracks();
+                    this.tracks = await libraryAPI.getTracks();
                     this.render();
                 } catch (error) {
                     console.error('添加文件失败:', error);

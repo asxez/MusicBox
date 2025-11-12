@@ -12,6 +12,7 @@ import {api} from "@api/api";
 import {app} from "@core/app";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
+import {libraryAPI} from "@api/LibraryAPI";
 
 class Settings extends Component {
     constructor(element) {
@@ -654,7 +655,7 @@ class Settings extends Component {
             this.viewCacheStatsBtn.disabled = true;
             this.viewCacheStatsBtn.textContent = '获取中...';
 
-            const stats = await api.getCacheStatistics();
+            const stats = await libraryAPI.getCacheStatistics();
             if (stats) {
                 const totalSizeMB = (stats.totalSize / (1024 * 1024)).toFixed(2);
                 const cacheAgeDays = Math.floor(stats.cacheAge / (1000 * 60 * 60 * 24));
