@@ -8,6 +8,7 @@ import {ErrorUtils, NotAvailableError} from './common/errors.js';
 import {cacheManager} from '@services/CacheManager';
 import {app} from '@core/app';
 import {api} from "@api/api";
+import {libraryAPI} from "@api/LibraryAPI";
 
 /**
  * 创建音乐库 API
@@ -56,11 +57,11 @@ export function createLibraryAPI(context) {
             Validator.assertString(query, 'query');
 
             return await ErrorUtils.wrapAsync(async () => {
-                if (api && typeof api.searchLibrary === 'function') {
-                    return await api.searchLibrary(query);
+                if (typeof libraryAPI.searchLibrary === 'function') {
+                    return await libraryAPI.searchLibrary(query);
                 }
                 // 简单的搜索实现
-                if (app && app.library) {
+                if (app.library) {
                     const lowerQuery = query.toLowerCase();
                     return app.library.filter(track => {
                         return (

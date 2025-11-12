@@ -39,6 +39,7 @@ import {checkUpdate} from "@api/CheckUpdate";
 import {tray} from "@api/tray";
 import {windowAPI} from "@api/window";
 import {fileAPI} from "@api/FileAPI";
+import {libraryAPI} from "@api/LibraryAPI";
 
 class MusicBoxApp extends EventEmitter {
     constructor() {
@@ -671,8 +672,7 @@ class MusicBoxApp extends EventEmitter {
     async loadInitialData() {
         try {
             // 首先尝试从缓存加载音乐库
-            const hasCachedLibrary = await api.hasCachedLibrary();
-
+            const hasCachedLibrary = await libraryAPI.hasCachedLibrary();
             if (hasCachedLibrary) {
                 this.showCacheLoadingStatus();
 
@@ -693,7 +693,7 @@ class MusicBoxApp extends EventEmitter {
             }
 
             // 如果没有缓存或缓存为空，检查内存中的音乐库
-            this.library = await api.getTracks();
+            this.library = await libraryAPI.getTracks();
             if (this.library.length === 0) {
                 this.showWelcomeScreen();
             } else {
@@ -879,7 +879,7 @@ class MusicBoxApp extends EventEmitter {
                 let successCount = 0;
                 for (const filePath of filePaths) {
                     // 获取文件元数据
-                    const metadata = await api.getTrackMetadata(filePath);
+                    const metadata = await libraryAPI.getTrackMetadata(filePath);
                     if (metadata) {
                         // 添加到音乐库缓存
                         const result = await api.addTrackToLibrary(metadata);
@@ -936,7 +936,7 @@ class MusicBoxApp extends EventEmitter {
 
     async refreshLibrary() {
         try {
-            this.library = await api.getTracks();
+            this.library = await libraryAPI.getTracks();
             this.filteredLibrary = [...this.library];
             this.updateTrackList('refresh');
         } catch (error) {
@@ -2115,7 +2115,7 @@ class MusicBoxApp extends EventEmitter {
     // 自动播放第一首歌曲
     async autoplayFirstTrack() {
         setTimeout(async () => {
-            const tracks = await api.getTracks();
+            const tracks = await libraryAPI.getTracks();
             if (tracks && tracks.length > 0) {
                 console.log('🎵 App: 加载第一首歌曲:', tracks[0].title);
                 const loadResult = await api.loadTrack(tracks[0].filePath);

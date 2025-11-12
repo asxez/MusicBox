@@ -4,7 +4,7 @@
 
 import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
-import {api} from "@api/api";
+import {libraryAPI} from "@api/LibraryAPI";
 
 class StatisticsPage extends Component {
     constructor(container) {
@@ -24,7 +24,7 @@ class StatisticsPage extends Component {
         if (this.element) {
             this.element.style.display = 'block';
         }
-        this.tracks = await api.getTracks();
+        this.tracks = await libraryAPI.getTracks();
         this.loadPlayHistory();
         this.calculatePlayStats();
         this.render();
