@@ -533,7 +533,7 @@ class Player extends Component {
         // 根据设置显示或隐藏按钮
         if (enabled) {
             // 启用时显示按钮并启用功能
-            this.desktopLyricsBtn.style.display = 'block';
+            this.desktopLyricsBtn.style.display = '';
             this.desktopLyricsBtn.disabled = false;
 
             // 如果启用，检查当前桌面歌词窗口状态
