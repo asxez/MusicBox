@@ -59,21 +59,6 @@
           ],
           "description": "当前使用的主题"
         },
-        "themeEnhancer.autoSwitchTheme": {
-          "type": "boolean",
-          "default": true,
-          "description": "根据系统时间自动切换主题"
-        },
-        "themeEnhancer.darkModeStartTime": {
-          "type": "string",
-          "default": "18:00",
-          "description": "深色模式开始时间（24小时制，如 18:00）"
-        },
-        "themeEnhancer.lightModeStartTime": {
-          "type": "string",
-          "default": "06:00",
-          "description": "浅色模式开始时间（24小时制，如 06:00）"
-        },
         "themeEnhancer.customColors": {
           "type": "object",
           "default": {},
@@ -83,7 +68,7 @@
     }
   },
   "engines": {
-    "musicbox": "^1.0.0"
+    "musicbox": "^0.2.2"
   },
   "categories": [
     "Themes",
