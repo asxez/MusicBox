@@ -726,8 +726,7 @@ class MusicBoxAPI extends EventEmitter {
         if (validModes.includes(mode)) {
             this.playMode = mode;
             this.emit('playModeChanged', mode);
-            // 播放模式变更时保存状态
-            this.saveCurrentPlaybackState();
+            cacheManager.setLocalCache('playMode', mode);
             return true;
         }
         return false;
@@ -754,10 +753,10 @@ class MusicBoxAPI extends EventEmitter {
             case 'shuffle':
                 // 随机选择一个不同的索引
                 if (this.playlist.length === 1) return 0;
-                let randomIndex;
-                do {
+                let randomIndex = Math.floor(Math.random() * this.playlist.length);
+                while (randomIndex === this.currentIndex) {
                     randomIndex = Math.floor(Math.random() * this.playlist.length);
-                } while (randomIndex === this.currentIndex);
+                }
                 return randomIndex;
             case 'repeat-one':
                 return this.currentIndex;
