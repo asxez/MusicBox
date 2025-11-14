@@ -92,6 +92,8 @@ class Settings extends Component {
         this.albumsPageToggle = this.element.querySelector('#albums-page-toggle');
         this.showTrackCoversToggle = this.element.querySelector('#show-track-covers-toggle');
         this.gaplessPlaybackToggle = this.element.querySelector('#gapless-playback-toggle');
+        this.exclusiveModeToggle = this.element.querySelector('#exclusive-mode-toggle');
+        this.exclusiveModeItem = this.element.querySelector('#exclusive-mode-item');
 
         // 系统托盘相关元素
         this.systemTrayToggle = this.element.querySelector('#system-tray-toggle');
@@ -225,6 +227,35 @@ class Settings extends Component {
         this.showTrackCoversToggle.addEventListener('change', (e) => {
             this.updateSetting('showTrackCovers', e.target.checked);
             this.emit('showTrackCoversEnabled', e.target.checked);
+        });
+
+        // 音频独占模式设置
+        this.exclusiveModeToggle.addEventListener('change', async (e) => {
+            const enabled = e.target.checked;
+            this.updateSetting('exclusiveMode', enabled);
+
+            console.log(`🎵 Settings: 音频独占模式${enabled ? '启用' : '禁用'}`);
+
+            // 切换音频引擎
+            try {
+                const engineType = enabled ? 'wasapi' : 'webaudio';
+                const result = await api.switchAudioEngine(engineType);
+                if (result) {
+                    this.showNotification(`已切换到${enabled ? 'WASAPI独占模式' : 'WebAudio模式'}，当前歌曲将重新加载`);
+                } else {
+                    console.error('❌ Settings: 音频引擎切换失败');
+                    // 切换失败，恢复开关状态
+                    e.target.checked = !enabled;
+                    this.updateSetting('exclusiveMode', !enabled);
+                    this.showNotification('音频引擎切换失败，请查看控制台日志', 'error');
+                }
+            } catch (error) {
+                console.error('❌ Settings: 音频引擎切换异常:', error);
+                // 切换失败，恢复开关状态
+                e.target.checked = !enabled;
+                this.updateSetting('exclusiveMode', !enabled);
+                this.showNotification('音频引擎切换失败: ' + error.message, 'error');
+            }
         });
 
         // 无间隙播放设置
@@ -416,6 +447,9 @@ class Settings extends Component {
         this.gaplessPlaybackToggle.checked = this.settings.hasOwnProperty('gaplessPlayback') ? this.settings.gaplessPlayback : false;
         this.autoScanToggle.checked = this.settings.autoScan || false;
 
+        // 初始化音频独占模式设置（仅Windows平台）
+        this.initializeExclusiveModeSettings();
+
         // 初始化系统托盘设置
         this.systemTrayToggle.checked = this.settings.hasOwnProperty('systemTray') ? this.settings.systemTray : true;
         this.trayCloseBehaviorSelect.value = this.settings.trayCloseBehavior || 'exit';
@@ -496,6 +530,30 @@ class Settings extends Component {
             this.trayCloseBehaviorItem.style.display = enabled ? 'flex' : 'none';
             this.trayStartMinimizedItem.style.display = enabled ? 'flex' : 'none';
         }
+    }
+
+    // 初始化音频独占模式设置
+    initializeExclusiveModeSettings() {
+        // 检查是否为Windows平台
+        const isWindows = navigator.platform.toLowerCase().includes('win');
+
+        if (!isWindows) {
+            // 非Windows平台，隐藏音频独占模式选项
+            if (this.exclusiveModeItem) {
+                this.exclusiveModeItem.style.display = 'none';
+            }
+            console.log('ℹ️ Settings: 非Windows平台，音频独占模式不可用');
+            return;
+        }
+
+        // Windows平台，显示选项并初始化状态
+        if (this.exclusiveModeItem) {
+            this.exclusiveModeItem.style.display = 'flex';
+        }
+
+        // 初始化开关状态
+        this.exclusiveModeToggle.checked = this.settings.hasOwnProperty('exclusiveMode') ? this.settings.exclusiveMode : false;
+        console.log(`🎵 Settings: 音频独占模式初始化完成，当前状态: ${this.exclusiveModeToggle.checked ? '启用' : '禁用'}`);
     }
 
     // 初始化硬件加速设置

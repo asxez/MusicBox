@@ -1,0 +1,30 @@
+{
+  "name": "musicbox-native-audio",
+  "version": "0.1.0",
+  "description": "Native audio engine for MusicBox with WASAPI exclusive mode support",
+  "main": "NativeAudio.node",
+  "scripts": {
+    "build": "cargo-cp-artifact -nc ../src/main/NativeAudio.node -- cargo build --message-format=json-render-diagnostics --release",
+    "build-debug": "cargo-cp-artifact -nc NativeAudio.node -- cargo build --message-format=json-render-diagnostics"
+  },
+  "napi": {
+    "name": "musicbox-native-audio",
+    "triples": {
+      "defaults": true,
+      "additional": [
+        "x86_64-pc-windows-msvc",
+        "i686-pc-windows-msvc"
+      ]
+    }
+  },
+  "devDependencies": {
+    "cargo-cp-artifact": "^0.1"
+  },
+  "keywords": [
+    "audio",
+    "wasapi",
+    "native",
+    "napi"
+  ],
+  "license": "MIT"
+}

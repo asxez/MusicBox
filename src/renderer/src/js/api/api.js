@@ -1,6 +1,6 @@
 import {EventEmitter} from '@utils';
 import {cacheManager} from "@services/CacheManager";
-import {WebAudioEngine} from "@services/audio/WebAudioEngine";
+import AudioEngineManager from "@services/audio/AudioEngineManager";
 import {lyricsAPI} from "@api/LyricsAPI";
 import {libraryAPI} from "@api/LibraryAPI";
 
@@ -23,6 +23,9 @@ class MusicBoxAPI extends EventEmitter {
         // 播放位置保存节流
         this.savePositionTimeout = null;
 
+        // 音频引擎（使用AudioEngineManager统一管理）
+        this.audioEngine = null;
+        // 保留webAudioEngine引用以支持向后兼容（指向audioEngine）
         this.webAudioEngine = null;
 
         // 音频切换锁，防止快速切换时的竞态条件
@@ -38,36 +41,63 @@ class MusicBoxAPI extends EventEmitter {
 
     async initializeWebAudio() {
         try {
-            if (WebAudioEngine) {
-                this.webAudioEngine = new WebAudioEngine();
-                const initialized = await this.webAudioEngine.initialize();
-                if (initialized) {
-                    this.webAudioEngine.setVolume(cacheManager.getLocalCache('volume'));
+            // 从设置中读取引擎类型
+            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
+            const exclusiveMode = settings.exclusiveMode === true;
+            const engineType = exclusiveMode ? 'wasapi' : 'webaudio';
 
-                    // 设置无间隙播放状态
-                    const gaplessEnabled = cacheManager.getLocalCache('musicbox-settings')?.gaplessPlayback !== false;
-                    this.webAudioEngine.setGaplessPlayback(gaplessEnabled);
+            console.log(`🎵 API: 初始化音频引擎，类型: ${engineType}${exclusiveMode ? ' (独占模式)' : ''}`);
 
-                    // 设置播放模式回调函数，让WebAudioEngine能够根据播放模式计算下一首/上一首
-                    this.webAudioEngine.getNextTrackIndex = () => this.getNextTrackIndex();
-                    this.webAudioEngine.getPreviousTrackIndex = () => this.getPreviousTrackIndex();
-                }
+            // 使用AudioEngineManager统一管理引擎
+            this.audioEngine = new AudioEngineManager();
+            const initialized = await this.audioEngine.initialize(engineType);
+
+            if (initialized) {
+                // 设置音量
+                const volume = cacheManager.getLocalCache('volume') || 0.7;
+                this.audioEngine.setVolume(volume);
+
+                // 设置无间隙播放状态
+                const gaplessEnabled = settings.gaplessPlayback !== false;
+                this.audioEngine.setGaplessPlayback(gaplessEnabled);
+
+                // 设置播放模式回调函数，让引擎能够根据播放模式计算下一首/上一首
+                this.audioEngine.getNextTrackIndex = () => this.getNextTrackIndex();
+                this.audioEngine.getPreviousTrackIndex = () => this.getPreviousTrackIndex();
+
+                // 保持向后兼容：webAudioEngine指向audioEngine
+                this.webAudioEngine = this.audioEngine;
+
+                console.log(`✅ API: 音频引擎初始化成功 (${this.audioEngine.getEngineType()})`);
+            } else {
+                console.error('❌ API: 音频引擎初始化失败');
             }
         } catch (error) {
-            console.error('Web Audio Engine 初始化错误:', error);
+            console.error('❌ API: 音频引擎初始化错误:', error);
+            // 发生错误时，尝试回退到WebAudioEngine
+            try {
+                console.log('🔄 API: 尝试回退到WebAudioEngine...');
+                this.audioEngine = new AudioEngineManager();
+                await this.audioEngine.initialize('webaudio');
+                this.webAudioEngine = this.audioEngine;
+                console.log('✅ API: 已回退到WebAudioEngine');
+            } catch (fallbackError) {
+                console.error('❌ API: 回退到WebAudioEngine也失败:', fallbackError);
+            }
         }
     }
 
     setupEventListeners() {
-        // Web Audio Engine events
-        if (this.webAudioEngine) {
-            this.webAudioEngine.onTrackChanged = (track) => {
-                console.log('🎵 API: Web Audio Engine 歌曲变化:', track);
+        // 音频引擎事件监听
+        if (this.audioEngine) {
+            this.audioEngine.onTrackChanged = (track) => {
+                console.log('🎵 API: 音频引擎歌曲变化:', track);
                 this.currentTrack = track;
 
-                // 从WebAudioEngine获取最新的索引
-                if (this.webAudioEngine.currentIndex !== this.currentIndex) {
-                    this.currentIndex = this.webAudioEngine.currentIndex;
+                // 从音频引擎获取最新的索引
+                if (this.audioEngine.currentIndex !== this.currentIndex) {
+                    this.currentIndex = this.audioEngine.currentIndex;
+                    console.log('🔄 API: 同步更新播放索引:', this.currentIndex);
                     this.emit('trackIndexChanged', this.currentIndex);
                 }
 
@@ -78,8 +108,8 @@ class MusicBoxAPI extends EventEmitter {
                 this.saveCurrentPlaybackState();
             };
 
-            this.webAudioEngine.onPlaybackStateChanged = (isPlaying) => {
-                console.log('🎵 API: Web Audio Engine 播放状态变化:', isPlaying);
+            this.audioEngine.onPlaybackStateChanged = (isPlaying) => {
+                console.log('🎵 API: 音频引擎播放状态变化:', isPlaying);
                 this.isPlaying = isPlaying;
                 this.emit('playbackStateChanged', isPlaying ? 'playing' : 'paused');
                 // 同步到桌面歌词
@@ -88,7 +118,7 @@ class MusicBoxAPI extends EventEmitter {
                 this.saveCurrentPlaybackState();
             };
 
-            this.webAudioEngine.onPositionChanged = (position) => {
+            this.audioEngine.onPositionChanged = (position) => {
                 this.position = position;
                 this.emit('positionChanged', position);
                 // 同步到桌面歌词
@@ -97,38 +127,38 @@ class MusicBoxAPI extends EventEmitter {
                 this.throttledSavePosition(position);
             };
 
-            this.webAudioEngine.onVolumeChanged = (volume) => {
+            this.audioEngine.onVolumeChanged = (volume) => {
                 this.volume = volume;
                 this.emit('volumeChanged', volume);
             };
 
-            this.webAudioEngine.onDurationChanged = (filePath, duration) => {
+            this.audioEngine.onDurationChanged = (filePath, duration) => {
                 console.log('🎵 API: 音频时长更新:', filePath, duration.toFixed(2) + 's');
                 this.updateTrackDuration(filePath, duration);
                 this.emit('trackDurationUpdated', {filePath, duration});
             };
         } else {
-            console.warn('⚠️ API: Web Audio Engine 不可用，无法设置事件监听器');
+            console.warn('⚠️ API: 音频引擎不可用，无法设置事件监听器');
         }
 
-        // Electron IPC events
+        // Electron IPC events（仅在音频引擎不可用时使用）
         if (window.electronAPI.audio) {
             window.electronAPI.audio.onTrackChanged((event, track) => {
-                if (!this.webAudioEngine) {
+                if (!this.audioEngine) {
                     this.currentTrack = track;
                     this.emit('trackChanged', track);
                 }
             });
 
             window.electronAPI.audio.onPlaybackStateChanged((event, state) => {
-                if (!this.webAudioEngine) {
+                if (!this.audioEngine) {
                     this.isPlaying = state === 'playing';
                     this.emit('playbackStateChanged', state);
                 }
             });
 
             window.electronAPI.audio.onPositionChanged((event, position) => {
-                if (!this.webAudioEngine) {
+                if (!this.audioEngine) {
                     this.position = position;
                     this.emit('positionChanged', position);
                 }
@@ -161,15 +191,15 @@ class MusicBoxAPI extends EventEmitter {
 
     async loadTrack(filePath) {
         try {
-            if (this.webAudioEngine) {
-                const result = await this.webAudioEngine.loadTrack(filePath);
+            if (this.audioEngine) {
+                const result = await this.audioEngine.loadTrack(filePath);
                 if (result) {
-                    this.currentTrack = this.webAudioEngine.getCurrentTrack();
-                    this.duration = this.webAudioEngine.getDuration();
+                    this.currentTrack = this.audioEngine.getCurrentTrack();
+                    this.duration = this.audioEngine.getDuration();
                     this.position = 0;
 
                     // 更新当前索引
-                    this.currentIndex = this.webAudioEngine.currentIndex;
+                    this.currentIndex = this.audioEngine.currentIndex;
 
                     // 如果当前索引仍然是-1，尝试在播放列表中查找
                     if (this.currentIndex === -1 && this.playlist.length > 0) {
@@ -178,9 +208,9 @@ class MusicBoxAPI extends EventEmitter {
                             return trackPath === filePath;
                         });
 
-                        // 如果找到了，同步到Web Audio Engine
+                        // 如果找到了，同步到音频引擎
                         if (this.currentIndex !== -1) {
-                            this.webAudioEngine.currentIndex = this.currentIndex;
+                            this.audioEngine.currentIndex = this.currentIndex;
                         }
                     }
 
@@ -216,10 +246,10 @@ class MusicBoxAPI extends EventEmitter {
 
     async play() {
         try {
-            if (this.webAudioEngine) {
-                const result = await this.webAudioEngine.play();
+            if (this.audioEngine) {
+                const result = await this.audioEngine.play();
                 if (result) {
-                    // 不在这里手动设置状态，让Web Audio Engine的事件回调来处理
+                    // 不在这里手动设置状态，让音频引擎的事件回调来处理
 
                     // 同步到主进程
                     await window.electronAPI.audio.play();
@@ -243,10 +273,10 @@ class MusicBoxAPI extends EventEmitter {
 
     async pause() {
         try {
-            if (this.webAudioEngine) {
-                const result = this.webAudioEngine.pause();
+            if (this.audioEngine) {
+                const result = this.audioEngine.pause();
                 if (result) {
-                    // 不在这里手动设置状态，让Web Audio Engine的事件回调来处理
+                    // 不在这里手动设置状态，让音频引擎的事件回调来处理
 
                     // 同步到主进程
                     await window.electronAPI.audio.pause();
@@ -286,8 +316,8 @@ class MusicBoxAPI extends EventEmitter {
 
     async seek(position) {
         try {
-            if (this.webAudioEngine) {
-                const result = await this.webAudioEngine.seek(position);
+            if (this.audioEngine) {
+                const result = await this.audioEngine.seek(position);
                 if (result) {
                     this.position = position;
                     this.emit('positionChanged', position);
@@ -353,8 +383,8 @@ class MusicBoxAPI extends EventEmitter {
 
     async setVolume(volume) {
         try {
-            if (this.webAudioEngine) {
-                const result = this.webAudioEngine.setVolume(volume);
+            if (this.audioEngine) {
+                const result = this.audioEngine.setVolume(volume);
                 if (result) {
                     this.volume = volume;
                     this.emit('volumeChanged', volume);
@@ -380,7 +410,7 @@ class MusicBoxAPI extends EventEmitter {
 
     getPosition() {
         try {
-            this.position = this.webAudioEngine.getPosition();
+            this.position = this.audioEngine.getPosition();
             return this.position;
         } catch (error) {
             console.error('Failed to get position:', error);
@@ -390,7 +420,7 @@ class MusicBoxAPI extends EventEmitter {
 
     getCurrentTrack() {
         try {
-            this.currentTrack = this.webAudioEngine.getCurrentTrack();
+            this.currentTrack = this.audioEngine.getCurrentTrack();
             return this.currentTrack;
         } catch (error) {
             console.error('Failed to get track:', error);
@@ -400,7 +430,7 @@ class MusicBoxAPI extends EventEmitter {
 
     getDuration() {
         try {
-            this.duration = this.webAudioEngine.getDuration();
+            this.duration = this.audioEngine.getDuration();
             return this.duration;
         } catch (error) {
             console.error('Failed to get duration:', error);
@@ -412,8 +442,8 @@ class MusicBoxAPI extends EventEmitter {
     async setPlaylist(tracks, startIndex = -1) {
         try {
             console.log(`🔄 API: 设置播放列表，${tracks.length}首歌曲，起始索引: ${startIndex}`);
-            if (this.webAudioEngine) {
-                const result = this.webAudioEngine.setPlaylist(tracks, startIndex);
+            if (this.audioEngine) {
+                const result = this.audioEngine.setPlaylist(tracks, startIndex);
                 if (result) {
                     this.playlist = tracks;
                     this.currentIndex = startIndex;
@@ -475,16 +505,16 @@ class MusicBoxAPI extends EventEmitter {
                 return false;
             }
 
-            if (this.webAudioEngine) {
-                // 将计算好的nextIndex传递给WebAudioEngine
-                const result = await this.webAudioEngine.nextTrack(nextIndex);
+            if (this.audioEngine) {
+                // 将计算好的nextIndex传递给音频引擎
+                const result = await this.audioEngine.nextTrack(nextIndex);
                 if (result) {
                     // 更新API状态
-                    this.currentIndex = this.webAudioEngine.currentIndex;
-                    this.currentTrack = this.webAudioEngine.getCurrentTrack();
-                    this.duration = this.webAudioEngine.getDuration();
+                    this.currentIndex = this.audioEngine.currentIndex;
+                    this.currentTrack = this.audioEngine.getCurrentTrack();
+                    this.duration = this.audioEngine.getDuration();
                     this.position = 0;
-                    this.isPlaying = this.webAudioEngine.isPlaying;
+                    this.isPlaying = this.audioEngine.isPlaying;
 
                     // 手动切换时，onTrackChanged回调已经在nextTrack()内部被触发
                     // 由于回调中会检查索引是否变化，这里的emit不会导致重复的trackIndexChanged
@@ -546,16 +576,16 @@ class MusicBoxAPI extends EventEmitter {
                 return false;
             }
 
-            if (this.webAudioEngine) {
-                // 将计算好的prevIndex传递给WebAudioEngine
-                const result = await this.webAudioEngine.previousTrack(prevIndex);
+            if (this.audioEngine) {
+                // 将计算好的prevIndex传递给音频引擎
+                const result = await this.audioEngine.previousTrack(prevIndex);
                 if (result) {
                     // 更新API状态
-                    this.currentIndex = this.webAudioEngine.currentIndex;
-                    this.currentTrack = this.webAudioEngine.getCurrentTrack();
-                    this.duration = this.webAudioEngine.getDuration();
+                    this.currentIndex = this.audioEngine.currentIndex;
+                    this.currentTrack = this.audioEngine.getCurrentTrack();
+                    this.duration = this.audioEngine.getDuration();
                     this.position = 0;
-                    this.isPlaying = this.webAudioEngine.isPlaying;
+                    this.isPlaying = this.audioEngine.isPlaying;
 
                     this.emit('trackIndexChanged', this.currentIndex);
                     this.emit('trackChanged', this.currentTrack);
@@ -812,33 +842,61 @@ class MusicBoxAPI extends EventEmitter {
 
     // 获取均衡器实例
     getEqualizer() {
-        if (this.webAudioEngine) {
-            return this.webAudioEngine.getEqualizer();
+        if (this.audioEngine) {
+            return this.audioEngine.getEqualizer();
         }
         return null;
     }
 
     // 启用/禁用均衡器
     setEqualizerEnabled(enabled) {
-        if (this.webAudioEngine) {
-            this.webAudioEngine.setEqualizerEnabled(enabled);
+        if (this.audioEngine) {
+            this.audioEngine.setEqualizerEnabled(enabled);
         }
     }
 
     // 设置无间隙播放状态
     setGaplessPlayback(enabled) {
-        if (this.webAudioEngine) {
-            this.webAudioEngine.setGaplessPlayback(enabled);
+        if (this.audioEngine) {
+            this.audioEngine.setGaplessPlayback(enabled);
             console.log(`🎵 API: 无间隙播放${enabled ? '启用' : '禁用'}`);
         }
     }
 
     // 获取无间隙播放状态
     getGaplessPlayback() {
-        if (this.webAudioEngine) {
-            return this.webAudioEngine.getGaplessPlayback();
+        if (this.audioEngine) {
+            return this.audioEngine.getGaplessPlayback();
         }
         return false;
+    }
+
+    // 切换音频引擎
+    async switchAudioEngine(engineType) {
+        if (!this.audioEngine) {
+            console.error('❌ API: 音频引擎未初始化');
+            return false;
+        }
+
+        console.log(`🔄 API: 切换音频引擎到 ${engineType}`);
+        const result = await this.audioEngine.switchEngine(engineType);
+
+        if (result) {
+            console.log(`✅ API: 音频引擎切换成功`);
+            // 更新设置
+            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
+            settings.exclusiveMode = (engineType === 'wasapi');
+            cacheManager.setLocalCache('musicbox-settings', settings);
+        } else {
+            console.error(`❌ API: 音频引擎切换失败`);
+        }
+
+        return result;
+    }
+
+    // 获取当前引擎类型
+    getAudioEngineType() {
+        return this.audioEngine?.getEngineType() || 'unknown';
     }
 
     // 桌面歌词同步方法

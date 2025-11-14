@@ -28,6 +28,7 @@ files:
 
 asarUnpack:
   - "src/main/metadata_editor*"
+  - "src/main/NativeAudio.node"
 
 extraResources:
   - from: "src/main/metadata_editor.exe"
@@ -35,6 +36,9 @@ extraResources:
     filter: ["**/*"]
   - from: "src/main/metadata_editor"
     to: "metadata_editor"
+    filter: ["**/*"]
+  - from: "src/main/NativeAudio.node"
+    to: "NativeAudio.node"
     filter: ["**/*"]
 
 # macOS 配置

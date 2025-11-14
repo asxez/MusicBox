@@ -102,7 +102,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         }
     },
 
-    // 音频引擎
+    // 音频引擎（传统IPC音频引擎，作为后备）
     audio: {
         // Initialize the audio engine
         init: () => ipcRenderer.invoke('audio:init'),
@@ -138,6 +138,39 @@ contextBridge.exposeInMainWorld('electronAPI', {
             ipcRenderer.on('audio:positionChanged', callback);
             return () => ipcRenderer.removeListener('audio:positionChanged', callback);
         }
+    },
+
+    // Native音频引擎（WASAPI独占模式）
+    nativeAudio: {
+        // 初始化Native音频引擎
+        initialize: () => ipcRenderer.invoke('native-audio:initialize'),
+
+        // 播放控制
+        loadTrack: (filePath) => ipcRenderer.invoke('native-audio:load-track', filePath),
+        play: () => ipcRenderer.invoke('native-audio:play'),
+        pause: () => ipcRenderer.invoke('native-audio:pause'),
+        stop: () => ipcRenderer.invoke('native-audio:stop'),
+        seek: (position) => ipcRenderer.invoke('native-audio:seek', position),
+
+        // 音量控制
+        setVolume: (volume) => ipcRenderer.invoke('native-audio:set-volume', volume),
+        getVolume: () => ipcRenderer.invoke('native-audio:get-volume'),
+
+        // 播放状态查询
+        getPosition: () => ipcRenderer.invoke('native-audio:get-position'),
+        getDuration: () => ipcRenderer.invoke('native-audio:get-duration'),
+        isPlaying: () => ipcRenderer.invoke('native-audio:is-playing'),
+
+        // 销毁引擎
+        destroy: () => ipcRenderer.invoke('native-audio:destroy'),
+    },
+
+    // Native音频引擎事件监听
+    onNativeAudioEvent: (eventName, callback) => {
+        const channel = `native-audio:${eventName}`;
+        const wrappedCallback = (event, data) => callback(data);
+        ipcRenderer.on(channel, wrappedCallback);
+        return () => ipcRenderer.removeListener(channel, wrappedCallback);
     },
 
     // 音乐库

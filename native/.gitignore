@@ -1,0 +1,18 @@
+# Rust
+/target
+Cargo.lock
+
+# Node.js
+node_modules/
+*.node
+
+# Build artifacts
+*.dll
+*.so
+*.dylib
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
