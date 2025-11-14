@@ -31,6 +31,10 @@ class WebAudioEngine {
         this.onPositionChanged = null;
         this.onVolumeChanged = null;
 
+        // 播放模式回调：用于获取下一首/上一首的索引
+        this.getNextTrackIndex = null;
+        this.getPreviousTrackIndex = null;
+
         // 进度更新定时器
         this.progressTimer = null;
 
@@ -532,7 +536,7 @@ class WebAudioEngine {
     }
 
     // 预加载下一首歌曲
-    async preloadNextTrack() {
+    async preloadNextTrack(nextIndex = null) {
         if (!this.gaplessPlaybackEnabled || this.playlist.length <= 1) {
             return false;
         }
@@ -542,8 +546,14 @@ class WebAudioEngine {
             return await this.preloadPromise;
         }
 
-        // 计算下一首歌曲的索引
-        const nextIndex = (this.currentIndex + 1) % this.playlist.length;
+        // 计算下一首歌曲的索引：优先使用提供的nextIndex，其次使用回调函数，最后使用顺序播放逻辑
+        if (nextIndex === null || nextIndex < 0 || nextIndex >= this.playlist.length) {
+            if (typeof this.getNextTrackIndex === 'function') {
+                nextIndex = this.getNextTrackIndex();
+            } else {
+                nextIndex = (this.currentIndex + 1) % this.playlist.length;
+            }
+        }
         const nextTrackInfo = this.playlist[nextIndex];
 
         if (!nextTrackInfo) {
@@ -598,7 +608,7 @@ class WebAudioEngine {
     }
 
     // 播放下一首
-    async nextTrack() {
+    async nextTrack(nextIndex = null) {
         if (this.playlist.length === 0) {
             console.log('⚠️ 播放列表为空');
             return false;
@@ -617,8 +627,14 @@ class WebAudioEngine {
         // 停止当前播放，确保音频资源完全释放
         this.stop();
 
-        // 切换到下一首
-        this.currentIndex = (this.currentIndex + 1) % this.playlist.length;
+        // 切换到下一首：优先使用提供的nextIndex，其次使用回调函数，最后使用顺序播放逻辑
+        if (nextIndex !== null && nextIndex >= 0 && nextIndex < this.playlist.length) {
+            this.currentIndex = nextIndex;
+        } else if (typeof this.getNextTrackIndex === 'function') {
+            this.currentIndex = this.getNextTrackIndex();
+        } else {
+            this.currentIndex = (this.currentIndex + 1) % this.playlist.length;
+        }
         const nextTrack = this.playlist[this.currentIndex];
 
         // 获取文件路径，支持多种数据结构
@@ -683,7 +699,7 @@ class WebAudioEngine {
     }
 
     // 播放上一首
-    async previousTrack() {
+    async previousTrack(prevIndex = null) {
         if (this.playlist.length === 0) {
             console.log('⚠️ 播放列表为空');
             return false;
@@ -702,8 +718,14 @@ class WebAudioEngine {
         // 停止当前播放，确保音频资源完全释放
         this.stop();
 
-        // 切换到上一首
-        this.currentIndex = this.currentIndex > 0 ? this.currentIndex - 1 : this.playlist.length - 1;
+        // 切换到上一首：优先使用提供的prevIndex，其次使用回调函数，最后使用顺序播放逻辑
+        if (prevIndex !== null && prevIndex >= 0 && prevIndex < this.playlist.length) {
+            this.currentIndex = prevIndex;
+        } else if (typeof this.getPreviousTrackIndex === 'function') {
+            this.currentIndex = this.getPreviousTrackIndex();
+        } else {
+            this.currentIndex = this.currentIndex > 0 ? this.currentIndex - 1 : this.playlist.length - 1;
+        }
         const prevTrack = this.playlist[this.currentIndex];
 
         // 获取文件路径，支持多种数据结构
