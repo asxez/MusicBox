@@ -647,8 +647,13 @@ class WebAudioEngine {
 
         console.log(`⏭️ 切换到下一首 (索引 ${this.currentIndex}): ${nextTrack.title || filePath}`);
 
-        // 若启用无间隙播放且已预加载，使用预加载的缓冲区
-        if (this.gaplessPlaybackEnabled && this.nextAudioBuffer && this.nextTrackInfo && this.nextTrackInfo.filePath === filePath) {
+        // 若启用无间隙播放且已预加载，检查预加载的歌曲是否与当前要播放的歌曲一致
+        const canUsePreloadedBuffer = this.gaplessPlaybackEnabled &&
+            this.nextAudioBuffer &&
+            this.nextTrackInfo &&
+            this.nextTrackInfo.filePath === filePath;
+
+        if (canUsePreloadedBuffer) {
             console.log('🎵 使用预加载的音频缓冲区进行无间隙播放');
             this.stop();
             this.audioBuffer = null;
@@ -677,7 +682,12 @@ class WebAudioEngine {
 
             return playResult;
         } else {
-            // 普通加载方式
+            // 普通加载方式（预加载不可用或预加载的歌曲不匹配）
+            if (this.nextAudioBuffer && this.nextTrackInfo && this.nextTrackInfo.filePath !== filePath) {
+                console.log('⚠️ 预加载的歌曲与目标歌曲不一致，清理预加载缓冲区');
+                this.clearNextTrackBuffer();
+            }
+
             const loadResult = await this.loadTrack(filePath);
             if (loadResult) {
                 // 播放
@@ -1298,4 +1308,4 @@ class AudioEqualizer {
     }
 }
 
-export { WebAudioEngine, AudioEqualizer};
+export {WebAudioEngine, AudioEqualizer};

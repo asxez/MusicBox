@@ -64,6 +64,13 @@ class MusicBoxAPI extends EventEmitter {
             this.webAudioEngine.onTrackChanged = (track) => {
                 console.log('🎵 API: Web Audio Engine 歌曲变化:', track);
                 this.currentTrack = track;
+
+                // 从WebAudioEngine获取最新的索引
+                if (this.webAudioEngine.currentIndex !== this.currentIndex) {
+                    this.currentIndex = this.webAudioEngine.currentIndex;
+                    this.emit('trackIndexChanged', this.currentIndex);
+                }
+
                 this.emit('trackChanged', track);
                 // 同步到桌面歌词
                 this.syncToDesktopLyrics('track', track);
@@ -479,6 +486,9 @@ class MusicBoxAPI extends EventEmitter {
                     this.position = 0;
                     this.isPlaying = this.webAudioEngine.isPlaying;
 
+                    // 手动切换时，onTrackChanged回调已经在nextTrack()内部被触发
+                    // 由于回调中会检查索引是否变化，这里的emit不会导致重复的trackIndexChanged
+                    // 但trackChanged会重复触发，这是可以接受的（UI更新是幂等的）
                     this.emit('trackIndexChanged', this.currentIndex);
                     this.emit('trackChanged', this.currentTrack);
                     this.emit('durationChanged', this.duration);
