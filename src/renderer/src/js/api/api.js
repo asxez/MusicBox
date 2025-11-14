@@ -47,6 +47,10 @@ class MusicBoxAPI extends EventEmitter {
                     // 设置无间隙播放状态
                     const gaplessEnabled = cacheManager.getLocalCache('musicbox-settings')?.gaplessPlayback !== false;
                     this.webAudioEngine.setGaplessPlayback(gaplessEnabled);
+
+                    // 设置播放模式回调函数，让WebAudioEngine能够根据播放模式计算下一首/上一首
+                    this.webAudioEngine.getNextTrackIndex = () => this.getNextTrackIndex();
+                    this.webAudioEngine.getPreviousTrackIndex = () => this.getPreviousTrackIndex();
                 }
             }
         } catch (error) {
@@ -465,7 +469,8 @@ class MusicBoxAPI extends EventEmitter {
             }
 
             if (this.webAudioEngine) {
-                const result = await this.webAudioEngine.nextTrack();
+                // 将计算好的nextIndex传递给WebAudioEngine
+                const result = await this.webAudioEngine.nextTrack(nextIndex);
                 if (result) {
                     // 更新API状态
                     this.currentIndex = this.webAudioEngine.currentIndex;
@@ -532,7 +537,8 @@ class MusicBoxAPI extends EventEmitter {
             }
 
             if (this.webAudioEngine) {
-                const result = await this.webAudioEngine.previousTrack();
+                // 将计算好的prevIndex传递给WebAudioEngine
+                const result = await this.webAudioEngine.previousTrack(prevIndex);
                 if (result) {
                     // 更新API状态
                     this.currentIndex = this.webAudioEngine.currentIndex;
