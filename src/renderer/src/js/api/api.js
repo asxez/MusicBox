@@ -774,10 +774,10 @@ class MusicBoxAPI extends EventEmitter {
             case 'shuffle':
                 // 随机选择一个不同的索引
                 if (this.playlist.length === 1) return 0;
-                let randomIndex;
-                do {
+                let randomIndex = Math.floor(Math.random() * this.playlist.length);
+                while (randomIndex === this.currentIndex) {
                     randomIndex = Math.floor(Math.random() * this.playlist.length);
-                } while (randomIndex === this.currentIndex);
+                }
                 return randomIndex;
             case 'repeat-one':
                 return this.currentIndex;
