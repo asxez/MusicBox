@@ -4,7 +4,6 @@
  */
 
 // 插件状态
-let autoSwitchTimer = null;
 let config = {};
 let currentTheme = 'light';
 let themeSelectorUI = null;
@@ -115,11 +114,6 @@ async function activate(context) {
     // 恢复保存的主题
     await restoreTheme(api);
 
-    // 启动自动切换主题
-    if (config.autoSwitchTheme) {
-        startAutoSwitchTheme(api);
-    }
-
     // 返回公共 API
     return {
         setTheme(themeName) {
@@ -141,11 +135,7 @@ async function activate(context) {
  * 停用扩展
  */
 async function deactivate() {
-    // 清理定时器
-    if (autoSwitchTimer) {
-        clearInterval(autoSwitchTimer);
-        autoSwitchTimer = null;
-    }
+    console.log('主题增强已停用');
 }
 
 /**
@@ -154,9 +144,6 @@ async function deactivate() {
 function loadConfiguration(settings) {
     return {
         currentTheme: settings.get('themeEnhancer.currentTheme', 'light'),
-        autoSwitchTheme: settings.get('themeEnhancer.autoSwitchTheme', false),
-        darkModeStartTime: settings.get('themeEnhancer.darkModeStartTime', '18:00'),
-        lightModeStartTime: settings.get('themeEnhancer.lightModeStartTime', '06:00'),
         customColors: settings.get('themeEnhancer.customColors', {})
     };
 }
@@ -173,25 +160,6 @@ function registerSettingsPage(context, api) {
 
     // 注册设置页内容
     const pageDisposable = api.ui.registerSettingsPage('themeEnhancer', (container) => {
-        // 自动切换主题设置
-        const autoSwitchToggle = api.ui.createToggleSetting(
-            '自动切换主题',
-            '根据时间自动在浅色和深色主题之间切换（6:00-18:00 使用浅色主题）',
-            config.autoSwitchTheme,
-            (value) => {
-                config.autoSwitchTheme = value;
-                api.settings.set('themeEnhancer.autoSwitchTheme', value);
-
-                if (value) {
-                    startAutoSwitchTheme(api);
-                    api.ui.showNotification('已启用自动切换主题', 'success');
-                } else {
-                    stopAutoSwitchTheme();
-                    api.ui.showNotification('已禁用自动切换主题', 'info');
-                }
-            }
-        );
-        container.appendChild(autoSwitchToggle);
 
         // 默认主题设置
         const themeOptions = Object.entries(PRESET_THEMES).map(([value, theme]) => ({
@@ -412,15 +380,6 @@ function setupConfigurationListener(context, api) {
     const configDisposable = api.settings.onDidChange((e) => {
         if (e.key.startsWith('themeEnhancer.')) {
             config = loadConfiguration(api.settings);
-
-            if (e.key === 'themeEnhancer.autoSwitchTheme') {
-                if (config.autoSwitchTheme) {
-                    startAutoSwitchTheme(api);
-                } else {
-                    stopAutoSwitchTheme();
-                }
-            }
-
             console.log('⚙️ 主题增强配置已更新:', config);
         }
     });
@@ -495,55 +454,6 @@ async function applyCustomTheme(colors, api) {
     await api.settings.set('themeEnhancer.customColors', colors);
     await api.settings.set('themeEnhancer.currentTheme', 'custom');
     api.ui.showNotification('自定义主题已应用', 'success');
-}
-
-/**
- * 启动自动切换主题
- */
-function startAutoSwitchTheme(api) {
-    stopAutoSwitchTheme();
-
-    // 立即检查一次
-    checkAndSwitchTheme(api);
-
-    // 每分钟检查一次
-    autoSwitchTimer = setInterval(() => {
-        checkAndSwitchTheme(api);
-    }, 60000);
-
-    console.log('🕐 自动切换主题已启动');
-}
-
-/**
- * 停止自动切换主题
- */
-function stopAutoSwitchTheme() {
-    if (autoSwitchTimer) {
-        clearInterval(autoSwitchTimer);
-        autoSwitchTimer = null;
-        console.log('🕐 自动切换主题已停止');
-    }
-}
-
-/**
- * 检查并切换主题
- */
-function checkAndSwitchTheme(api) {
-    const now = new Date();
-    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-    const darkStart = config.darkModeStartTime;
-    const lightStart = config.lightModeStartTime;
-
-    let targetTheme = 'light';
-
-    if (currentTime >= darkStart || currentTime < lightStart) {
-        targetTheme = 'dark';
-    }
-
-    if (currentTheme !== targetTheme) {
-        applyTheme(targetTheme, api, true);
-    }
 }
 
 /**
