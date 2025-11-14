@@ -53,6 +53,7 @@
 - 🔄 重构插件系统
 - ✅ 修复随机播放不随机的问题
 - ❌ 歌词逐字
+- 🔄 WASAPI 音频独占功能
 - ✅ 修复播放列表存在的问题
 - 🔄 歌词样式调整
 
@@ -68,7 +69,8 @@
 #### 环境要求
 
 - Node.js >= 22.18.0
-- python >= 3.8
+- Python >= 3.8
+- Rust == 1.89.0
 
 从源码构建 MusicBox，请按照以下步骤操作：
 
@@ -82,7 +84,9 @@ cd MusicBox
 #### 2. 安装依赖
 
 ```bash
-npm run install
+npm install
+npm run install:renderer
+npm run install:rs
 ```
 
 #### 3. 开发模式运行
