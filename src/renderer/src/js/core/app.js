@@ -109,6 +109,7 @@ class MusicBoxApp extends EventEmitter {
     }
 
     async initializeAPI() {
+        api.setPlayMode(cacheManager.getLocalCache('playMode'));
         const success = await api.initializeAudio();
         if (!success) {
             throw new Error('Failed to initialize audio engine');
