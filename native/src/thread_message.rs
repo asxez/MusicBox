@@ -4,4 +4,5 @@
 pub enum ThreadMessage {
     Error(String),
     DecoderFinished,
+    SeekRequest(f64),
 }

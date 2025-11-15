@@ -8,19 +8,43 @@ use std::fs::File;
 use std::io::BufReader;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::Receiver;
 use std::time::{Duration as StdDuration, Instant};
 
 /// 直接解码（无需重采样）
 pub fn decode_direct(
-    source: Decoder<BufReader<File>>,
+    mut source: Decoder<BufReader<File>>,
     producer: &mut HeapProd<f32>,
     is_playing: &Arc<AtomicBool>,
     is_paused: &Arc<AtomicBool>,
+    seek_receiver: &Receiver<f64>,
+    source_sample_rate: u32,
+    source_channels: u16,
 ) -> Result<(), String> {
     let mut sample_count = 0u64;
     let mut last_log_time = Instant::now();
 
-    for sample in source {
+    loop {
+        // 检查是否有跳转请求
+        if let Ok(target_position) = seek_receiver.try_recv() {
+            println!("🎯 解码: 收到跳转请求 {:.2}秒", target_position);
+            let target_sample = (target_position * source_sample_rate as f64 * source_channels as f64) as u64;
+
+            if target_sample > sample_count {
+                let skip_count = target_sample - sample_count;
+                println!("⏩ 解码: 跳过 {} 样本", skip_count);
+
+                for _ in 0..skip_count {
+                    if source.next().is_none() {
+                        break;
+                    }
+                    sample_count += 1;
+                }
+            }
+
+            continue;
+        }
+
         if !is_playing.load(Ordering::SeqCst) {
             break;
         }
@@ -31,6 +55,11 @@ pub fn decode_direct(
             }
             std::thread::sleep(StdDuration::from_millis(10));
         }
+
+        let sample = match source.next() {
+            Some(s) => s,
+            None => break,
+        };
 
         sample_count += 1;
         let sample_f32 = sample as f32 / 32768.0;
@@ -59,10 +88,11 @@ pub fn decode_direct(
 
 /// 带重采样的解码
 pub fn decode_with_resampling(
-    source: Decoder<BufReader<File>>,
+    mut source: Decoder<BufReader<File>>,
     producer: &mut HeapProd<f32>,
     is_playing: &Arc<AtomicBool>,
     is_paused: &Arc<AtomicBool>,
+    seek_receiver: &Receiver<f64>,
     source_sample_rate: u32,
     source_channels: u16,
     device_sample_rate: u32,
@@ -75,9 +105,35 @@ pub fn decode_with_resampling(
     let samples_per_chunk = chunk_size * source_channels as usize;
     let mut interleaved_samples: Vec<f32> = Vec::with_capacity(samples_per_chunk);
     let mut chunk_count = 0u64;
+    let mut sample_count = 0u64;
     let mut last_log_time = Instant::now();
 
-    for sample in source {
+    loop {
+        // 检查是否有跳转请求
+        if let Ok(target_position) = seek_receiver.try_recv() {
+            println!("🎯 解码: 收到跳转请求 {:.2}秒", target_position);
+            let target_sample = (target_position * source_sample_rate as f64 * source_channels as f64) as u64;
+
+            if target_sample > sample_count {
+                let skip_count = target_sample - sample_count;
+                println!("⏩ 解码: 跳过 {} 样本", skip_count);
+
+                for _ in 0..skip_count {
+                    if source.next().is_none() {
+                        break;
+                    }
+                    sample_count += 1;
+                }
+            }
+
+            // 清空缓冲区和重采样器
+            interleaved_samples.clear();
+
+            // 重置重采样器
+            resampler = AudioResampler::new(source_sample_rate, device_sample_rate, source_channels)?;
+            continue;
+        }
+
         if !is_playing.load(Ordering::SeqCst) {
             break;
         }
@@ -89,8 +145,14 @@ pub fn decode_with_resampling(
             std::thread::sleep(StdDuration::from_millis(10));
         }
 
+        let sample = match source.next() {
+            Some(s) => s,
+            None => break,
+        };
+
         let sample_f32 = sample as f32 / 32768.0;
         interleaved_samples.push(sample_f32);
+        sample_count += 1;
 
         if interleaved_samples.len() >= samples_per_chunk {
             chunk_count += 1;
