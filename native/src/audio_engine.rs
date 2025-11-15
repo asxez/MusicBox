@@ -40,6 +40,7 @@ pub struct AudioEngine {
     volume: Arc<Mutex<f32>>,
     buffer_size: usize,
     error_receiver: Option<Receiver<ThreadMessage>>,
+    seek_sender: Option<Sender<f64>>,
     initialized: bool,
 }
 
@@ -63,6 +64,7 @@ impl AudioEngine {
             volume: Arc::new(Mutex::new(0.7)),
             buffer_size,
             error_receiver: None,
+            seek_sender: None,
             initialized: false,
         })
     }
@@ -352,6 +354,7 @@ impl AudioEngine {
         }
 
         self.renderer.stop();
+        self.seek_sender = None;
 
         println!("✅ AudioEngine: 已停止");
         Ok(())
@@ -359,6 +362,25 @@ impl AudioEngine {
 
     pub fn seek(&mut self, position: f64) -> Result<(), String> {
         println!("🎵 AudioEngine: 跳转到 {:.2}秒", position);
+
+        if self.current_file.is_none() {
+            return Err("未加载音频文件".to_string());
+        }
+
+        let clamped_position = position.max(0.0).min(self.duration);
+
+        if let Some(ref seek_sender) = self.seek_sender {
+            seek_sender
+                .send(clamped_position)
+                .map_err(|e| format!("发送跳转请求失败: {}", e))?;
+
+            self.tracker.lock().set_position(clamped_position);
+
+            println!("✅ AudioEngine: 已请求跳转到 {:.2}秒", clamped_position);
+        } else {
+            return Err("跳转功能未就绪".to_string());
+        }
+
         Ok(())
     }
 
@@ -392,6 +414,10 @@ impl AudioEngine {
         let device_channels = self.device_channels;
         let source_sample_rate = self.source_sample_rate.ok_or("源采样率未设置")?;
         let source_channels = self.source_channels.ok_or("源声道数未设置")?;
+
+        // 创建跳转通道
+        let (seek_sender, seek_receiver) = channel();
+        self.seek_sender = Some(seek_sender);
 
         let decoder_thread = std::thread::spawn(move || {
             let file = match File::open(&file_path) {
@@ -430,13 +456,22 @@ impl AudioEngine {
                     &mut producer,
                     &is_playing,
                     &is_paused,
+                    &seek_receiver,
                     source_sample_rate,
                     source_channels,
                     device_sample_rate,
                     device_channels,
                 )
             } else {
-                decoder::decode_direct(source, &mut producer, &is_playing, &is_paused)
+                decoder::decode_direct(
+                    source,
+                    &mut producer,
+                    &is_playing,
+                    &is_paused,
+                    &seek_receiver,
+                    source_sample_rate,
+                    source_channels,
+                )
             };
 
             if let Err(e) = result {

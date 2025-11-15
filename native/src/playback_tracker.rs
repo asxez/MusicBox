@@ -49,7 +49,12 @@ impl PlaybackTracker {
 
     /// 设置位置（用于seek）
     pub fn set_position(&mut self, position: f64) {
+        let was_playing = self.last_play_time.is_some();
         self.accumulated_time = position;
-        self.last_play_time = None;
+        if was_playing {
+            self.last_play_time = Some(Instant::now());
+        } else {
+            self.last_play_time = None;
+        }
     }
 }
