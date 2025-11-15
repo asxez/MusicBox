@@ -273,14 +273,16 @@ impl AudioEngine {
         let (producer, consumer) = ring_buffer.split();
         let consumer = Arc::new(Mutex::new(consumer));
 
+        // 创建消息通道(用于解码器->渲染器的通信)
         let (error_sender, error_receiver) = channel();
+        let (render_msg_sender, render_msg_receiver) = channel();
         self.error_receiver = Some(error_receiver);
 
         self.is_playing.store(true, Ordering::SeqCst);
         self.is_paused.store(false, Ordering::SeqCst);
 
-        // 启动解码线程
-        self.start_decoder_thread(producer, error_sender.clone())?;
+        // 启动解码线程(传递render_msg_sender用于发送跳转消息)
+        self.start_decoder_thread(producer, error_sender.clone(), render_msg_sender)?;
 
         // 等待缓冲区预填充
         println!("🔧 等待缓冲区预填充...");
@@ -309,7 +311,7 @@ impl AudioEngine {
             std::thread::sleep(StdDuration::from_millis(10));
         }
 
-        // 启动渲染器
+        // 启动渲染器(传递render_msg_receiver用于接收跳转消息)
         let device_format = self.device_format.clone().ok_or("设备格式未初始化")?;
         self.renderer.start(
             consumer,
@@ -318,6 +320,7 @@ impl AudioEngine {
             self.is_paused.clone(),
             device_format,
             error_sender,
+            render_msg_receiver,
         )?;
 
         self.tracker.lock().start();
@@ -406,6 +409,7 @@ impl AudioEngine {
         &mut self,
         mut producer: HeapProd<f32>,
         error_sender: Sender<ThreadMessage>,
+        render_msg_sender: Sender<ThreadMessage>,
     ) -> Result<(), String> {
         let file_path = self.current_file.clone().ok_or("未加载音频文件")?;
         let is_playing = self.is_playing.clone();
@@ -420,28 +424,6 @@ impl AudioEngine {
         self.seek_sender = Some(seek_sender);
 
         let decoder_thread = std::thread::spawn(move || {
-            let file = match File::open(&file_path) {
-                Ok(f) => f,
-                Err(e) => {
-                    let err_msg = format!("打开文件失败: {}", e);
-                    eprintln!("❌ 解码: {}", err_msg);
-                    let _ = error_sender.send(ThreadMessage::Error(err_msg));
-                    is_playing.store(false, Ordering::SeqCst);
-                    return;
-                }
-            };
-
-            let source = match Decoder::new(BufReader::new(file)) {
-                Ok(s) => s,
-                Err(e) => {
-                    let err_msg = format!("解码失败: {}", e);
-                    eprintln!("❌ 解码: {}", err_msg);
-                    let _ = error_sender.send(ThreadMessage::Error(err_msg));
-                    is_playing.store(false, Ordering::SeqCst);
-                    return;
-                }
-            };
-
             let needs_resampling = source_sample_rate != device_sample_rate;
             let needs_channel_conversion = source_channels != device_channels;
 
@@ -452,11 +434,12 @@ impl AudioEngine {
                 );
 
                 decoder::decode_with_resampling(
-                    source,
+                    file_path,
                     &mut producer,
                     &is_playing,
                     &is_paused,
                     &seek_receiver,
+                    &render_msg_sender,
                     source_sample_rate,
                     source_channels,
                     device_sample_rate,
@@ -464,11 +447,12 @@ impl AudioEngine {
                 )
             } else {
                 decoder::decode_direct(
-                    source,
+                    file_path,
                     &mut producer,
                     &is_playing,
                     &is_paused,
                     &seek_receiver,
+                    &render_msg_sender,
                     source_sample_rate,
                     source_channels,
                 )
