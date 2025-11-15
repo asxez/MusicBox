@@ -6,7 +6,7 @@ use ringbuf::consumer::Consumer;
 use ringbuf::traits::Observer;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{Receiver, Sender};
 use std::time::Duration as StdDuration;
 use wasapi::*;
 
@@ -37,6 +37,7 @@ impl WasapiRenderer {
         is_paused: Arc<AtomicBool>,
         device_format: AudioFormat,
         error_sender: Sender<ThreadMessage>,
+        message_receiver: Receiver<ThreadMessage>,
     ) -> Result<(), String> {
         let channels = device_format.channels as usize;
         let sample_rate = device_format.sample_rate;
@@ -50,6 +51,7 @@ impl WasapiRenderer {
                 device_format,
                 channels,
                 sample_rate,
+                message_receiver,
             ) {
                 eprintln!("❌ 渲染线程错误: {}", e);
                 let _ = error_sender.send(ThreadMessage::Error(e));
@@ -75,6 +77,7 @@ fn run_render_loop(
     device_format: AudioFormat,
     channels: usize,
     sample_rate: u32,
+    message_receiver: Receiver<ThreadMessage>,
 ) -> Result<(), String> {
     // 初始化COM
     let hr = initialize_mta();
@@ -146,6 +149,27 @@ fn run_render_loop(
 
     // 渲染循环
     loop {
+        // 检查来自解码器的消息
+        while let Ok(message) = message_receiver.try_recv() {
+            match message {
+                ThreadMessage::SeekRequest(position) => {
+                    println!("🔄 渲染器: 收到跳转请求 {:.2}秒,清空缓冲区", position);
+
+                    // 清空环形缓冲区
+                    let mut consumer_guard = consumer.lock();
+                    let cleared_count = consumer_guard.occupied_len();
+
+                    // 清空所有待播放的样本
+                    while consumer_guard.try_pop().is_some() {}
+
+                    drop(consumer_guard);
+
+                    println!("✅ 渲染器: 已清空 {} 个样本", cleared_count);
+                }
+                _ => {} // 忽略其他消息
+            }
+        }
+
         if !is_playing.load(Ordering::SeqCst) {
             break;
         }
