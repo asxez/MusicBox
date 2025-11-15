@@ -10,6 +10,13 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 mod audio_engine;
+mod audio_format;
+mod decoder;
+mod playback_tracker;
+mod renderer;
+mod resampler;
+mod thread_message;
+
 use audio_engine::AudioEngine;
 
 /// 创建成功响应对象
@@ -35,7 +42,6 @@ pub struct NativeAudioEngine {
 
 #[napi]
 impl NativeAudioEngine {
-    /// 创建新的音频引擎实例
     #[napi(constructor)]
     pub fn new() -> Result<Self> {
         println!("🎵 NativeAudioEngine: 创建新实例");
@@ -47,7 +53,6 @@ impl NativeAudioEngine {
         })
     }
 
-    /// 初始化音频引擎
     #[napi]
     pub fn initialize(&mut self, mut env: Env) -> Result<JsObject> {
         println!("🎵 NativeAudioEngine: 初始化WASAPI引擎");
@@ -64,7 +69,6 @@ impl NativeAudioEngine {
         }
     }
 
-    /// 加载音频文件
     #[napi]
     pub fn load_track(&mut self, mut env: Env, file_path: String) -> Result<JsObject> {
         let mut engine = self.engine.lock();
@@ -79,39 +83,15 @@ impl NativeAudioEngine {
         }
     }
 
-    /// 播放（在后台线程中执行，避免阻塞UI）
     #[napi]
     pub fn play(&mut self, mut env: Env) -> Result<JsObject> {
-        println!("🎮 napi::play() 开始");
-        let start = std::time::Instant::now();
-
         let mut engine = self.engine.lock();
-        println!("🔓 napi::play() 获取锁耗时: {:?}", start.elapsed());
-
-        let play_start = std::time::Instant::now();
-        let result = match engine.play() {
-            Ok(_) => {
-                println!(
-                    "✅ napi::play() engine.play()成功，耗时: {:?}",
-                    play_start.elapsed()
-                );
-                create_success_response(&mut env)
-            }
-            Err(e) => {
-                println!(
-                    "❌ napi::play() engine.play()失败: {}, 耗时: {:?}",
-                    e,
-                    play_start.elapsed()
-                );
-                create_error_response(&mut env, &e)
-            }
-        };
-
-        println!("🎮 napi::play() 总耗时: {:?}", start.elapsed());
-        result
+        match engine.play() {
+            Ok(_) => create_success_response(&mut env),
+            Err(e) => create_error_response(&mut env, &e),
+        }
     }
 
-    /// 暂停
     #[napi]
     pub fn pause(&mut self, mut env: Env) -> Result<JsObject> {
         let mut engine = self.engine.lock();
@@ -121,7 +101,6 @@ impl NativeAudioEngine {
         }
     }
 
-    /// 停止
     #[napi]
     pub fn stop(&mut self, mut env: Env) -> Result<JsObject> {
         let mut engine = self.engine.lock();
@@ -131,7 +110,6 @@ impl NativeAudioEngine {
         }
     }
 
-    /// 跳转到指定位置
     #[napi]
     pub fn seek(&mut self, mut env: Env, position: f64) -> Result<JsObject> {
         let mut engine = self.engine.lock();
@@ -141,14 +119,12 @@ impl NativeAudioEngine {
         }
     }
 
-    /// 设置音量
     #[napi]
     pub fn set_volume(&mut self, volume: f64) {
         let mut engine = self.engine.lock();
         engine.set_volume(volume as f32);
     }
 
-    /// 获取当前播放位置
     #[napi]
     pub fn get_position(&self, mut env: Env) -> Result<JsObject> {
         let engine = self.engine.lock();
@@ -159,7 +135,6 @@ impl NativeAudioEngine {
         Ok(response)
     }
 
-    /// 获取音频时长
     #[napi]
     pub fn get_duration(&self, mut env: Env) -> Result<JsObject> {
         let engine = self.engine.lock();
@@ -170,14 +145,12 @@ impl NativeAudioEngine {
         Ok(response)
     }
 
-    /// 检查是否正在播放
     #[napi]
     pub fn is_playing(&self) -> bool {
         let engine = self.engine.lock();
         engine.is_playing()
     }
 
-    /// 销毁引擎
     #[napi]
     pub fn destroy(&mut self, mut env: Env) -> Result<JsObject> {
         println!("🎵 NativeAudioEngine: 销毁引擎");
@@ -190,7 +163,6 @@ impl NativeAudioEngine {
     }
 }
 
-// 模块信息
 #[napi]
 pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
