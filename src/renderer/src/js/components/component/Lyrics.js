@@ -215,6 +215,10 @@ class Lyrics extends Component {
                 await this.updateVolumeFromEvent(e);
             }
         });
+        this.addEventListenerManaged(this.volumeSliderContainer, 'mousewheel', async (e) => {
+            if (e.wheelDelta < 0) await this.setVolume(Math.min(100, this.currentVolume + 1));
+            else await this.setVolume(Math.max(0, this.currentVolume - 1));
+        });
 
         // 播放模式切换事件
         this.addEventListenerManaged(this.playModeBtn, 'click', () => {
