@@ -1,1 +1,2 @@
 mutagen>=1.45.0
+pyinstaller
