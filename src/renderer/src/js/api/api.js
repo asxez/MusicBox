@@ -90,8 +90,7 @@ class MusicBoxAPI extends EventEmitter {
     setupEventListeners() {
         // 音频引擎事件监听
         if (this.audioEngine) {
-            this.audioEngine.onTrackChanged = (track) => {
-                console.log('🎵 API: 音频引擎歌曲变化:', track);
+            this.audioEngine.onTrackChanged = async (track) => {
                 this.currentTrack = track;
 
                 // 从音频引擎获取最新的索引
@@ -102,28 +101,21 @@ class MusicBoxAPI extends EventEmitter {
                 }
 
                 this.emit('trackChanged', track);
-                // 同步到桌面歌词
-                this.syncToDesktopLyrics('track', track);
-                // 保存当前播放状态
+                await this.syncToDesktopLyrics('track', track);
                 this.saveCurrentPlaybackState();
             };
 
-            this.audioEngine.onPlaybackStateChanged = (isPlaying) => {
-                console.log('🎵 API: 音频引擎播放状态变化:', isPlaying);
+            this.audioEngine.onPlaybackStateChanged = async (isPlaying) => {
                 this.isPlaying = isPlaying;
                 this.emit('playbackStateChanged', isPlaying ? 'playing' : 'paused');
-                // 同步到桌面歌词
-                this.syncToDesktopLyrics('playbackState', {isPlaying, position: this.position});
-                // 保存播放状态
+                await this.syncToDesktopLyrics('playbackState', {isPlaying, position: this.position});
                 this.saveCurrentPlaybackState();
             };
 
-            this.audioEngine.onPositionChanged = (position) => {
+            this.audioEngine.onPositionChanged = async (position) => {
                 this.position = position;
                 this.emit('positionChanged', position);
-                // 同步到桌面歌词
-                this.syncToDesktopLyrics('position', position);
-                // 保存播放位置（节流保存，避免频繁写入）
+                await this.syncToDesktopLyrics('position', position);
                 this.throttledSavePosition(position);
             };
 
@@ -274,7 +266,7 @@ class MusicBoxAPI extends EventEmitter {
     async pause() {
         try {
             if (this.audioEngine) {
-                const result = this.audioEngine.pause();
+                const result = await this.audioEngine.pause();
                 if (result) {
                     // 不在这里手动设置状态，让音频引擎的事件回调来处理
 
@@ -350,7 +342,7 @@ class MusicBoxAPI extends EventEmitter {
     // 快进
     async seekForward(seconds = 10) {
         try {
-            const currentPosition = this.getPosition();
+            const currentPosition = await this.getPosition();
             const duration = this.getDuration();
 
             if (!duration || duration <= 0) {
@@ -370,7 +362,7 @@ class MusicBoxAPI extends EventEmitter {
     // 回退
     async seekBackward(seconds = 10) {
         try {
-            const currentPosition = this.getPosition();
+            const currentPosition = await this.getPosition();
 
             // 计算新位置，确保不小于0
             const newPosition = Math.max(currentPosition - seconds, 0);
@@ -408,9 +400,9 @@ class MusicBoxAPI extends EventEmitter {
         return this.volume;
     }
 
-    getPosition() {
+    async getPosition() {
         try {
-            this.position = this.audioEngine.getPosition();
+            this.position = await this.audioEngine.getPosition();
             return this.position;
         } catch (error) {
             console.error('Failed to get position:', error);

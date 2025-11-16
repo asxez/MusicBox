@@ -192,7 +192,7 @@ class AudioEngineManager {
                 volume: this.currentEngine.getVolume(),
                 playlist: this.currentEngine.playlist || [],
                 currentIndex: this.currentEngine.currentIndex || -1,
-                position: this.currentEngine.getPosition(),
+                position: await this.currentEngine.getPosition(),
                 isPlaying: this.currentEngine.isPlaying,
                 gaplessEnabled: this.currentEngine.getGaplessPlayback(),
                 currentTrack: this.currentEngine.getCurrentTrack()
@@ -264,11 +264,11 @@ class AudioEngineManager {
     }
 
     async play() {
-        return this.currentEngine?.play() || false;
+        return await this.currentEngine?.play() || false;
     }
 
     async pause() {
-        return this.currentEngine?.pause() || false;
+        return await this.currentEngine?.pause() || false;
     }
 
     async stop() {
@@ -287,8 +287,8 @@ class AudioEngineManager {
         return this.currentEngine?.getVolume() || 0.7;
     }
 
-    getPosition() {
-        return this.currentEngine?.getPosition() || 0;
+    async getPosition() {
+        return await this.currentEngine?.getPosition() || 0;
     }
 
     getDuration() {
