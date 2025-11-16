@@ -28,8 +28,7 @@ pub fn decode_direct(
 
     // 初始化解码器
     let file = File::open(&file_path).map_err(|e| format!("打开文件失败: {}", e))?;
-    let mut source = Decoder::new(BufReader::new(file))
-        .map_err(|e| format!("解码失败: {}", e))?;
+    let mut source = Decoder::new(BufReader::new(file)).map_err(|e| format!("解码失败: {}", e))?;
 
     loop {
         // 检查是否有跳转请求
@@ -40,37 +39,36 @@ pub fn decode_direct(
             let _ = error_sender.send(ThreadMessage::SeekRequest(target_position));
             println!("📣 解码: 已通知渲染器清空缓冲区");
 
-            let target_sample = (target_position * source_sample_rate as f64 * source_channels as f64) as u64;
-            let current_position = sample_count as f64 / (source_sample_rate as f64 * source_channels as f64);
+            let target_sample =
+                (target_position * source_sample_rate as f64 * source_channels as f64) as u64;
+            let current_position =
+                sample_count as f64 / (source_sample_rate as f64 * source_channels as f64);
 
             // 向后跳转: 重新打开文件
             if target_position < current_position {
-                println!("⏪ 解码: 向后跳转,重新打开文件");
+                println!("🔄 解码: 重新打开文件以执行跳转");
 
                 // 重新打开文件
-                let file = File::open(&file_path).map_err(|e| format!("重新打开文件失败: {}", e))?;
+                let file =
+                    File::open(&file_path).map_err(|e| format!("重新打开文件失败: {}", e))?;
                 source = Decoder::new(BufReader::new(file))
                     .map_err(|e| format!("重新解码失败: {}", e))?;
                 sample_count = 0;
-
-                println!("✅ 解码: 文件已重新打开");
             }
 
             // 跳转到目标位置
             if target_sample > sample_count {
                 let skip_count = target_sample - sample_count;
-                println!("⏩ 解码: 批量跳过 {} 样本", skip_count);
 
-                // 批量跳过样本,每次跳过一大块以提高性能
+                // 批量跳过样本
                 let batch_size = 44100 * 2 * 5; // 每批5秒的样本
                 let mut remaining = skip_count;
 
                 while remaining > 0 {
                     let current_batch = remaining.min(batch_size as u64);
 
-                    // 使用nth跳过样本,比逐个next()快得多
+                    // 使用nth跳过样本
                     if source.nth(current_batch as usize - 1).is_none() {
-                        println!("⚠️ 解码: 到达文件末尾");
                         break;
                     }
 
@@ -79,7 +77,10 @@ pub fn decode_direct(
                 }
             }
 
-            println!("✅ 解码: 跳转完成,当前位置 {:.2}秒", sample_count as f64 / (source_sample_rate as f64 * source_channels as f64));
+            println!(
+                "✅ 解码: 跳转完成,当前位置 {:.2}秒",
+                sample_count as f64 / (source_sample_rate as f64 * source_channels as f64)
+            );
             continue;
         }
 
@@ -149,8 +150,7 @@ pub fn decode_with_resampling(
 
     // 初始化解码器
     let file = File::open(&file_path).map_err(|e| format!("打开文件失败: {}", e))?;
-    let mut source = Decoder::new(BufReader::new(file))
-        .map_err(|e| format!("解码失败: {}", e))?;
+    let mut source = Decoder::new(BufReader::new(file)).map_err(|e| format!("解码失败: {}", e))?;
 
     loop {
         // 检查是否有跳转请求
@@ -161,37 +161,35 @@ pub fn decode_with_resampling(
             let _ = error_sender.send(ThreadMessage::SeekRequest(target_position));
             println!("📣 解码: 已通知渲染器清空缓冲区");
 
-            let target_sample = (target_position * source_sample_rate as f64 * source_channels as f64) as u64;
-            let current_position = sample_count as f64 / (source_sample_rate as f64 * source_channels as f64);
+            let target_sample =
+                (target_position * source_sample_rate as f64 * source_channels as f64) as u64;
+            let current_position =
+                sample_count as f64 / (source_sample_rate as f64 * source_channels as f64);
 
             // 向后跳转: 重新打开文件
             if target_position < current_position {
-                println!("⏪ 解码: 向后跳转,重新打开文件");
+                println!("🔄 解码: 重新打开文件以执行跳转");
 
                 // 重新打开文件
-                let file = File::open(&file_path).map_err(|e| format!("重新打开文件失败: {}", e))?;
+                let file =
+                    File::open(&file_path).map_err(|e| format!("重新打开文件失败: {}", e))?;
                 source = Decoder::new(BufReader::new(file))
                     .map_err(|e| format!("重新解码失败: {}", e))?;
                 sample_count = 0;
-
-                println!("✅ 解码: 文件已重新打开");
             }
 
             // 跳转到目标位置
             if target_sample > sample_count {
                 let skip_count = target_sample - sample_count;
-                println!("⏩ 解码: 批量跳过 {} 样本", skip_count);
 
-                // 批量跳过样本,每次跳过一大块以提高性能
+                // 批量跳过样本
                 let batch_size = 44100 * 2 * 5; // 每批5秒的样本
                 let mut remaining = skip_count;
-
                 while remaining > 0 {
                     let current_batch = remaining.min(batch_size as u64);
 
-                    // 使用nth跳过样本,比逐个next()快得多
+                    // 使用nth跳过样本
                     if source.nth(current_batch as usize - 1).is_none() {
-                        println!("⚠️ 解码: 到达文件末尾");
                         break;
                     }
 
@@ -200,13 +198,17 @@ pub fn decode_with_resampling(
                 }
             }
 
-            println!("✅ 解码: 跳转完成,当前位置 {:.2}秒", sample_count as f64 / (source_sample_rate as f64 * source_channels as f64));
+            println!(
+                "✅ 解码: 跳转完成,当前位置 {:.2}秒",
+                sample_count as f64 / (source_sample_rate as f64 * source_channels as f64)
+            );
 
             // 清空缓冲区和重采样器
             interleaved_samples.clear();
 
             // 重置重采样器
-            resampler = AudioResampler::new(source_sample_rate, device_sample_rate, source_channels)?;
+            resampler =
+                AudioResampler::new(source_sample_rate, device_sample_rate, source_channels)?;
             continue;
         }
 

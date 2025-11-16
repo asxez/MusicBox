@@ -178,7 +178,7 @@ fn run_render_loop(
         let paused = is_paused.load(Ordering::SeqCst);
 
         if paused && stream_running {
-            // 暂停：停止流
+            // 暂停：停止流，但不清空缓冲区
             let _ = audio_client.stop_stream();
             stream_running = false;
             println!("⏸️ WASAPI流已暂停");
