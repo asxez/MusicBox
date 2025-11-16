@@ -93,7 +93,7 @@ pub fn decode_direct(
             if !is_playing.load(Ordering::SeqCst) {
                 return Ok(());
             }
-            std::thread::sleep(StdDuration::from_millis(10));
+            std::thread::sleep(StdDuration::from_millis(5));
         }
 
         let sample = match source.next() {
@@ -113,7 +113,7 @@ pub fn decode_direct(
                 if !is_playing.load(Ordering::SeqCst) {
                     return Ok(());
                 }
-                std::thread::sleep(StdDuration::from_millis(10));
+                std::thread::sleep(StdDuration::from_millis(5));
             }
             std::thread::sleep(StdDuration::from_millis(5));
         }
@@ -231,7 +231,7 @@ pub fn decode_with_resampling(
             if !is_playing.load(Ordering::SeqCst) {
                 return Ok(());
             }
-            std::thread::sleep(StdDuration::from_millis(10));
+            std::thread::sleep(StdDuration::from_millis(5));
         }
 
         let sample = match source.next() {
@@ -317,7 +317,7 @@ fn process_chunk(
                     if !is_playing.load(Ordering::SeqCst) {
                         return Ok(());
                     }
-                    std::thread::sleep(StdDuration::from_millis(10));
+                    std::thread::sleep(StdDuration::from_millis(5));
                 }
                 std::thread::sleep(StdDuration::from_millis(5));
             }
