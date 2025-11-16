@@ -251,7 +251,7 @@ fn run_render_loop(
             let _ = audio_client.stop_stream();
             stream_running = false;
             println!("⏸️ WASAPI流已暂停");
-            std::thread::sleep(StdDuration::from_millis(50));
+            std::thread::sleep(StdDuration::from_millis(20));
             continue;
         } else if !paused && !stream_running {
             // 恢复：重启流
@@ -263,7 +263,7 @@ fn run_render_loop(
         }
 
         if !stream_running {
-            std::thread::sleep(StdDuration::from_millis(50));
+            std::thread::sleep(StdDuration::from_millis(20));
             continue;
         }
 

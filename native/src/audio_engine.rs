@@ -228,12 +228,9 @@ impl AudioEngine {
         println!("   时长: {:.2}秒", duration);
         println!("   源采样率: {} Hz", sample_rate);
         println!("   源声道数: {}", channels);
-        println!("   设备采样率: {} Hz", self.device_sample_rate);
-        println!("   设备声道数: {}", self.device_channels);
 
         let needs_resampling = sample_rate != self.device_sample_rate;
         let needs_channel_conversion = channels != self.device_channels;
-
         if needs_resampling {
             println!(
                 "   ⚙️ 需要重采样: {} Hz -> {} Hz",
@@ -378,7 +375,6 @@ impl AudioEngine {
     pub fn set_volume(&mut self, volume: f32) {
         let clamped_volume = volume.clamp(0.0, 1.0);
         *self.volume.lock() = clamped_volume;
-        println!("🎵 AudioEngine: 音量设置为 {:.2}", clamped_volume);
     }
 
     pub fn get_position(&self) -> f64 {
