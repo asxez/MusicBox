@@ -2,14 +2,14 @@
 
 use crate::resampler::AudioResampler;
 use crate::thread_message::ThreadMessage;
-use ringbuf::HeapProd;
 use ringbuf::producer::Producer;
+use ringbuf::HeapProd;
 use rodio::Decoder;
 use std::fs::File;
 use std::io::BufReader;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
+use std::sync::Arc;
 use std::time::{Duration as StdDuration, Instant};
 
 /// 直接解码（无需重采样）
