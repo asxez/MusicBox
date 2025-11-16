@@ -1,12 +1,12 @@
 //! WASAPI音频渲染器
 
 use parking_lot::Mutex;
-use ringbuf::HeapCons;
 use ringbuf::consumer::Consumer;
 use ringbuf::traits::Observer;
-use std::sync::Arc;
+use ringbuf::HeapCons;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
+use std::sync::Arc;
 use std::time::Duration as StdDuration;
 use wasapi::*;
 

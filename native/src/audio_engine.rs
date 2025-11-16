@@ -4,9 +4,9 @@ use parking_lot::Mutex;
 use rodio::{Decoder, Source};
 use std::fs::File;
 use std::io::BufReader;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::Arc;
 use std::time::Duration as StdDuration;
 use wasapi::*;
 
@@ -252,9 +252,6 @@ impl AudioEngine {
     }
 
     pub fn play(&mut self) -> Result<(), String> {
-        let start_time = std::time::Instant::now();
-        println!("🎵 AudioEngine::play() 开始");
-
         if self.current_file.is_none() {
             return Err("未加载音频文件".to_string());
         }
@@ -263,7 +260,6 @@ impl AudioEngine {
         if self.is_paused.load(Ordering::SeqCst) {
             self.is_paused.store(false, Ordering::SeqCst);
             self.tracker.lock().start();
-            println!("✅ AudioEngine::play() 恢复播放（立即生效）");
             return Ok(());
         }
 
@@ -285,7 +281,6 @@ impl AudioEngine {
         self.start_decoder_thread(producer, error_sender.clone(), render_msg_sender)?;
 
         // 等待缓冲区预填充
-        println!("🔧 等待缓冲区预填充...");
         let buffer_threshold = (self.buffer_size / 5).max(4800);
         let mut wait_count = 0;
         loop {
@@ -324,30 +319,16 @@ impl AudioEngine {
         )?;
 
         self.tracker.lock().start();
-
-        println!(
-            "✅ AudioEngine::play() 播放已启动，耗时: {:?}",
-            start_time.elapsed()
-        );
-
         Ok(())
     }
 
     pub fn pause(&mut self) -> Result<(), String> {
-        println!("🎵 AudioEngine: 暂停播放");
         self.is_paused.store(true, Ordering::SeqCst);
         self.tracker.lock().pause();
-
-        println!(
-            "✅ AudioEngine: 已暂停，当前位置: {:.2}秒",
-            self.get_position()
-        );
         Ok(())
     }
 
     pub fn stop(&mut self) -> Result<(), String> {
-        println!("🎵 AudioEngine: 停止播放");
-
         self.is_playing.store(false, Ordering::SeqCst);
         self.is_paused.store(false, Ordering::SeqCst);
         self.tracker.lock().reset();
@@ -358,8 +339,6 @@ impl AudioEngine {
 
         self.renderer.stop();
         self.seek_sender = None;
-
-        println!("✅ AudioEngine: 已停止");
         Ok(())
     }
 
@@ -371,14 +350,12 @@ impl AudioEngine {
         }
 
         let clamped_position = position.max(0.0).min(self.duration);
-
         if let Some(ref seek_sender) = self.seek_sender {
             seek_sender
                 .send(clamped_position)
                 .map_err(|e| format!("发送跳转请求失败: {}", e))?;
 
             self.tracker.lock().set_position(clamped_position);
-
             println!("✅ AudioEngine: 已请求跳转到 {:.2}秒", clamped_position);
         } else {
             return Err("跳转功能未就绪".to_string());
