@@ -52,23 +52,17 @@ class WasapiEngine {
 
     setupEventListeners() {
         // 监听播放结束事件
-        window.electronAPI.onNativeAudioEvent?.('track-ended', () => {
+        window.electronAPI.onNativeAudioEvent('track-ended', () => {
             this.onTrackEnded();
         });
 
-        // 监听播放状态变化
-        window.electronAPI.onNativeAudioEvent?.('playback-state-changed', (isPlaying) => {
-            this.isPlaying = isPlaying;
-            this.isPaused = !isPlaying;
+        // 监听错误事件
+        window.electronAPI.onNativeAudioEvent('error', (errorMsg) => {
+            console.error('❌ Native音频错误:', errorMsg);
+            this.isPlaying = false;
+            this.isPaused = false;
             if (this.onPlaybackStateChanged) {
-                this.onPlaybackStateChanged(isPlaying);
-            }
-        });
-
-        // 监听播放位置更新
-        window.electronAPI.onNativeAudioEvent?.('position-changed', (position) => {
-            if (this.onPositionChanged) {
-                this.onPositionChanged(position);
+                this.onPlaybackStateChanged(false);
             }
         });
     }

@@ -405,6 +405,26 @@ impl AudioEngine {
         self.is_playing.load(Ordering::SeqCst)
     }
 
+    pub fn poll_events(&mut self) -> Option<String> {
+        if let Some(ref receiver) = self.error_receiver {
+            if let Ok(message) = receiver.try_recv() {
+                match message {
+                    ThreadMessage::DecoderFinished => {
+                        self.is_playing.store(false, Ordering::SeqCst);
+                        return Some("finished".to_string());
+                    }
+                    ThreadMessage::Error(err) => {
+                        eprintln!("❌ AudioEngine: 收到错误: {}", err);
+                        self.is_playing.store(false, Ordering::SeqCst);
+                        return Some(format!("error:{}", err));
+                    }
+                    _ => {}
+                }
+            }
+        }
+        None
+    }
+
     fn start_decoder_thread(
         &mut self,
         mut producer: HeapProd<f32>,

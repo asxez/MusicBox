@@ -238,7 +238,11 @@ const {registerNativeAudioIpcHandlers} = require('./ipc/NativeAudio');
 const nativeModulePath = path.join(__dirname, 'NativeAudio.node');
 if (fs.existsSync(nativeModulePath)) {
     nativeAudioModule = require(nativeModulePath);
-    registerNativeAudioIpcHandlers({ipcMain, nativeAudioModule});
+    registerNativeAudioIpcHandlers({
+        ipcMain,
+        nativeAudioModule,
+        getMainWindow: () => mainWindow
+    });
     console.log('✅ Native音频模块加载成功');
 } else {
     console.log('ℹ️ Native音频模块不存在，将使用WebAudio引擎');
