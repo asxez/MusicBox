@@ -28,6 +28,10 @@ features:
   - icon: 🔧
     title: 强大的插件系统
     details: 允许在插件中实现任何功能，高权限插件系统让你的播放器无限可能
+    
+  - icon: 🎶
+    title: WASAPI 音频独占模式
+    details: 支持音频独占，享受至高音乐效果
 
   - icon: 📔
     title: 在线获取歌词封面
