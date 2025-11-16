@@ -1,15 +1,16 @@
 //! 音频解码器
 
-use crate::resampler::AudioResampler;
+use crate::dither::PrecisionConverter;
+use crate::resampler::{AudioResampler, ResamplingQuality};
 use crate::thread_message::ThreadMessage;
-use ringbuf::producer::Producer;
 use ringbuf::HeapProd;
+use ringbuf::producer::Producer;
 use rodio::Decoder;
 use std::fs::File;
 use std::io::BufReader;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::Arc;
 use std::time::{Duration as StdDuration, Instant};
 
 /// 直接解码（无需重采样）
@@ -101,7 +102,8 @@ pub fn decode_direct(
         };
 
         sample_count += 1;
-        let sample_f32 = sample as f32 / 32768.0;
+        // 使用精确转换，避免精度损失
+        let sample_f32 = PrecisionConverter::i16_to_f32_precise(sample);
 
         while producer.try_push(sample_f32).is_err() {
             if !is_playing.load(Ordering::SeqCst) {
@@ -137,9 +139,14 @@ pub fn decode_with_resampling(
     source_channels: u16,
     device_sample_rate: u32,
     device_channels: u16,
+    resampling_quality: ResamplingQuality,
 ) -> Result<(), String> {
-    let mut resampler =
-        AudioResampler::new(source_sample_rate, device_sample_rate, source_channels)?;
+    let mut resampler = AudioResampler::with_quality(
+        source_sample_rate,
+        device_sample_rate,
+        source_channels,
+        resampling_quality,
+    )?;
 
     let chunk_size = resampler.chunk_size();
     let samples_per_chunk = chunk_size * source_channels as usize;
@@ -207,8 +214,12 @@ pub fn decode_with_resampling(
             interleaved_samples.clear();
 
             // 重置重采样器
-            resampler =
-                AudioResampler::new(source_sample_rate, device_sample_rate, source_channels)?;
+            resampler = AudioResampler::with_quality(
+                source_sample_rate,
+                device_sample_rate,
+                source_channels,
+                resampling_quality,
+            )?;
             continue;
         }
 
@@ -228,7 +239,8 @@ pub fn decode_with_resampling(
             None => break,
         };
 
-        let sample_f32 = sample as f32 / 32768.0;
+        // 使用精确转换，避免精度损失
+        let sample_f32 = PrecisionConverter::i16_to_f32_precise(sample);
         interleaved_samples.push(sample_f32);
         sample_count += 1;
 

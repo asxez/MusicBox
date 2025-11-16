@@ -1,12 +1,14 @@
 //! WASAPI音频渲染器
 
+use crate::audio_config::AudioConfig;
+use crate::dither::{DitherType, Ditherer};
 use parking_lot::Mutex;
+use ringbuf::HeapCons;
 use ringbuf::consumer::Consumer;
 use ringbuf::traits::Observer;
-use ringbuf::HeapCons;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::Arc;
 use std::time::Duration as StdDuration;
 use wasapi::*;
 
@@ -38,9 +40,12 @@ impl WasapiRenderer {
         device_format: AudioFormat,
         error_sender: Sender<ThreadMessage>,
         message_receiver: Receiver<ThreadMessage>,
+        dither_type: DitherType,
+        config: &AudioConfig,
     ) -> Result<(), String> {
         let channels = device_format.channels as usize;
         let sample_rate = device_format.sample_rate;
+        let buffer_durations = config.get_wasapi_buffer_durations();
 
         let stream_thread = std::thread::spawn(move || {
             if let Err(e) = run_render_loop(
@@ -52,6 +57,8 @@ impl WasapiRenderer {
                 channels,
                 sample_rate,
                 message_receiver,
+                dither_type,
+                buffer_durations,
             ) {
                 eprintln!("❌ 渲染线程错误: {}", e);
                 let _ = error_sender.send(ThreadMessage::Error(e));
@@ -78,6 +85,8 @@ fn run_render_loop(
     channels: usize,
     sample_rate: u32,
     message_receiver: Receiver<ThreadMessage>,
+    dither_type: DitherType,
+    buffer_durations: Vec<i64>,
 ) -> Result<(), String> {
     // 初始化COM
     let hr = initialize_mta();
@@ -112,15 +121,40 @@ fn run_render_loop(
     );
 
     // 初始化独占模式
-    let desired_period = 10_000_000; // 10ms
-    let stream_mode = StreamMode::PollingExclusive {
-        buffer_duration_hns: desired_period,
-        period_hns: desired_period,
-    };
+    // 尝试使用更小的缓冲区以降低延迟
+    // 从最低延迟开始尝试，如果失败则逐步增加
+    let mut audio_client_result = None;
+    let mut actual_buffer_duration = 0i64;
 
-    audio_client
-        .initialize_client(&wave_format, &Direction::Render, &stream_mode)
-        .map_err(|e| format!("初始化AudioClient失败: {:?}", e))?;
+    for &duration in &buffer_durations {
+        let stream_mode = StreamMode::PollingExclusive {
+            buffer_duration_hns: duration,
+            period_hns: duration,
+        };
+
+        match audio_client.initialize_client(&wave_format, &Direction::Render, &stream_mode) {
+            Ok(()) => {
+                actual_buffer_duration = duration;
+                audio_client_result = Some(());
+                println!("   ✅ 使用缓冲区大小: {:.1}ms", duration as f64 / 10000.0);
+                break;
+            }
+            Err(e) => {
+                if duration == buffer_durations[buffer_durations.len() - 1] {
+                    // 最后一次尝试也失败了
+                    return Err(format!("初始化AudioClient失败: {:?}", e));
+                }
+                println!(
+                    "   ⚠️ {:.1}ms缓冲区不支持，尝试更大的缓冲区",
+                    duration as f64 / 10000.0
+                );
+            }
+        }
+    }
+
+    if audio_client_result.is_none() {
+        return Err("无法找到支持的缓冲区大小".to_string());
+    }
 
     let buffer_frame_count = audio_client
         .get_buffer_size()
@@ -134,18 +168,48 @@ fn run_render_loop(
         .start_stream()
         .map_err(|e| format!("启动音频流失败: {:?}", e))?;
 
+    println!("✅ WASAPI独占流已启动");
     println!(
-        "✅ WASAPI独占流已启动 ({} Hz, {} 声道, 缓冲 {} 帧)",
-        device_format.sample_rate, device_format.channels, buffer_frame_count
+        "   设备: {} Hz, {} 声道, 缓冲 {} 帧 ({:.2}ms)",
+        device_format.sample_rate,
+        device_format.channels,
+        buffer_frame_count,
+        buffer_frame_count as f64 / sample_rate as f64 * 1000.0
     );
 
-    let poll_interval_ms = ((buffer_frame_count as f64 / sample_rate as f64 * 1000.0 / 2.0) as u64)
-        .max(5)
-        .min(20);
+    // 计算最优的轮询间隔
+    // 使用缓冲区时长的1/3到1/2，避免欠载和过度轮询
+    let buffer_duration_ms = actual_buffer_duration as f64 / 10000.0;
+    let poll_interval_ms = (buffer_duration_ms / 3.0).max(1.0).min(10.0) as u64;
 
     let mut callback_counter = 0u64;
     let is_float = matches!(device_format.sample_type, SampleType::Float);
     let mut stream_running = true;
+
+    // 如果输出格式是Int16，创建抖动器以提高音质
+    let mut ditherer = if !is_float {
+        Some(Ditherer::new(dither_type, channels))
+    } else {
+        None
+    };
+
+    let dither_name = match dither_type {
+        DitherType::None => "无",
+        DitherType::Rectangular => "RPDF",
+        DitherType::Triangular => "TPDF",
+        DitherType::NoiseShaped => "噪声整形",
+    };
+
+    println!(
+        "   音频处理: {} 位 {:?}{}",
+        device_format.bits_per_sample,
+        device_format.sample_type,
+        if ditherer.is_some() {
+            &format!(" ({}抖动)", dither_name)
+        } else {
+            ""
+        }
+    );
 
     // 渲染循环
     loop {
@@ -165,6 +229,11 @@ fn run_render_loop(
                     drop(consumer_guard);
 
                     println!("✅ 渲染器: 已清空 {} 个样本", cleared_count);
+
+                    // 重置抖动器状态，避免跳转时的伪影
+                    if let Some(ref mut dither) = ditherer {
+                        dither.reset();
+                    }
                 }
                 _ => {} // 忽略其他消息
             }
@@ -231,18 +300,29 @@ fn run_render_loop(
 
             // 根据设备格式转换数据
             let byte_data: Vec<u8> = if is_float {
+                // Float32格式: 直接转换为字节
                 audio_data
                     .iter()
                     .flat_map(|&sample| sample.to_le_bytes())
                     .collect()
             } else {
-                audio_data
-                    .iter()
-                    .flat_map(|&sample| {
-                        let sample_i16 = (sample.clamp(-1.0, 1.0) * 32767.0) as i16;
-                        sample_i16.to_le_bytes()
-                    })
-                    .collect()
+                // Int16格式: 使用抖动器进行高质量转换
+                if let Some(ref mut dither) = ditherer {
+                    let i16_samples = dither.convert_batch(&audio_data, channels);
+                    i16_samples
+                        .iter()
+                        .flat_map(|&sample| sample.to_le_bytes())
+                        .collect()
+                } else {
+                    // 回退方案
+                    audio_data
+                        .iter()
+                        .flat_map(|&sample| {
+                            let sample_i16 = (sample.clamp(-1.0, 1.0) * 32767.0) as i16;
+                            sample_i16.to_le_bytes()
+                        })
+                        .collect()
+                }
             };
 
             if let Err(e) =

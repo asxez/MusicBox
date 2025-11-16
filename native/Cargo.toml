@@ -9,23 +9,25 @@ description = "Native audio engine for MusicBox with WASAPI exclusive mode suppo
 crate-type = ["cdylib"]
 
 [dependencies]
-# napi-rs for Node.js native addon
 napi = { version = "2.16.17", features = ["compat-mode", "tokio_rt"] }
 napi-derive = "2"
 
-# Rodio - 用于音频解码和处理
+# Rodio - 音频解码和处理
 rodio = { version = "0.19", default-features = false, features = ["symphonia-all", "symphonia-mp3", "symphonia-flac", "symphonia-wav", "symphonia-aac"] }
 
-# wasapi - 用于WASAPI独占模式音频输出
+# wasapi - WASAPI独占模式音频输出
 wasapi = "0.21"
 
-# Thread-safe primitives
+# 线程安全
 parking_lot = "0.12"
 
-# Ringbuf - 用于音频缓冲区
+# 随机数
+rand = "0.8"
+
+# Ringbuf - 音频缓冲区
 ringbuf = "0.4"
 
-# Rubato - 用于高质量重采样
+# Rubato - 高质量重采样
 rubato = "0.15"
 
 [build-dependencies]
