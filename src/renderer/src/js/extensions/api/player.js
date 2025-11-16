@@ -202,12 +202,11 @@ export function createPlayerAPI(context) {
 
         /**
          * 获取当前播放位置
-         * @returns {number} 播放位置（秒）
-         */
-        getPosition() {
-            return ErrorUtils.wrapSync(() => {
+         * @returns {Promise<number>} 播放位置（秒）
+         */ async getPosition() {
+            return await ErrorUtils.wrapAsync(async () => {
                 if (typeof api.getPosition === 'function') {
-                    return api.getPosition();
+                    return await api.getPosition();
                 }
                 return 0;
             }, 'player.getPosition');

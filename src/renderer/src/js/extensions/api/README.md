@@ -78,7 +78,7 @@ const volume = api.player.getVolume();
 
 // 进度控制
 await api.player.seek(60); // 跳转到 60 秒
-const position = api.player.getPosition();
+const position = await api.player.getPosition();
 const duration = api.player.getDuration();
 
 // 播放列表

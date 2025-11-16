@@ -256,7 +256,7 @@ class WebAudioEngine {
     }
 
     // 暂停播放
-    pause() {
+    async pause() {
         try {
             if (!this.isPlaying && !this.sourceNode) {
                 console.log('⚠️ 音频未在播放且无音频源，无法暂停');
@@ -274,7 +274,7 @@ class WebAudioEngine {
 
             // 如果计算出的位置异常，使用当前进度
             if (this.pauseTime < 0 || this.pauseTime >= this.duration) {
-                const fallbackPosition = this.getPosition();
+                const fallbackPosition = await this.getPosition();
                 console.log(`⚠️ 暂停位置异常，使用备用位置: ${fallbackPosition.toFixed(2)}s`);
                 this.pauseTime = Math.max(0, Math.min(fallbackPosition, this.duration - 0.1));
             }
@@ -466,7 +466,7 @@ class WebAudioEngine {
     }
 
     // 获取当前播放位置
-    getPosition() {
+    async getPosition() {
         if (!this.isPlaying && !this.isPaused) {
             return 0;
         }
@@ -809,9 +809,9 @@ class WebAudioEngine {
     // 开始进度更新定时器
     startProgressTimer() {
         this.stopProgressTimer();
-        this.progressTimer = setInterval(() => {
+        this.progressTimer = setInterval(async () => {
             if (this.isPlaying && this.onPositionChanged) {
-                this.onPositionChanged(this.getPosition());
+                this.onPositionChanged(await this.getPosition());
             }
         }, 1000);
     }
