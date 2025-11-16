@@ -331,14 +331,14 @@ fn run_render_loop(
                 eprintln!("❌ 渲染: 写入设备失败: {:?}", e);
             }
 
-            if callback_counter % 2000 == 0 && callback_counter > 0 {
+            if callback_counter % 5000 == 0 && callback_counter > 0 {
                 println!(
                     "🔊 音频回调 #{}: 缓冲区 {} 样本",
                     callback_counter, buffer_len
                 );
             }
 
-            if underrun && callback_counter % 500 == 0 {
+            if underrun && callback_counter % 1000 == 0 {
                 eprintln!("⚠️ 音频回调 #{}: 缓冲区欠载", callback_counter);
             }
         }

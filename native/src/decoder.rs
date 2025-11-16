@@ -118,7 +118,7 @@ pub fn decode_direct(
             std::thread::sleep(StdDuration::from_millis(5));
         }
 
-        if last_log_time.elapsed() > StdDuration::from_secs(10) {
+        if last_log_time.elapsed() > StdDuration::from_secs(20) {
             println!("📊 解码: 已处理 {} 样本", sample_count);
             last_log_time = Instant::now();
         }
@@ -260,7 +260,7 @@ pub fn decode_with_resampling(
 
             interleaved_samples.drain(..samples_per_chunk);
 
-            if last_log_time.elapsed() > StdDuration::from_secs(10) {
+            if last_log_time.elapsed() > StdDuration::from_secs(20) {
                 println!("📊 解码: 已处理 {} 块", chunk_count);
                 last_log_time = Instant::now();
             }
