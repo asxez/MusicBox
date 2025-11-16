@@ -49,6 +49,7 @@ class Player extends Component {
 
         this.volumeBtn = this.element.querySelector('#volume-btn');
         this.volumeSlider = this.element.querySelector('.volume-slider');
+        this.volumeSliderContainer = this.element.querySelector('.volume-slider-container');
         this.volumeFill = this.element.querySelector('#volume-fill');
         this.volumeHandle = this.element.querySelector('#volume-handle');
 
@@ -136,6 +137,11 @@ class Player extends Component {
             this.updateVolume(e.target.value);
             const volume = parseFloat(this.volumeFill.style.width) / 100;
             await api.setVolume(volume);
+        });
+
+        this.volumeSliderContainer.addEventListener('mousewheel', async (e) => {
+            if (e.wheelDelta < 0) await api.setVolume(Math.min(1, this.volume + 0.01));
+            else await api.setVolume(Math.max(0, this.volume - 0.01));
         });
 
         document.addEventListener('mousemove', async (e) => {
