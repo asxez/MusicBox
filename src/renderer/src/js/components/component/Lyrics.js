@@ -301,6 +301,11 @@ class Lyrics extends Component {
                 await this.updateTrackInfo(track);
             }
         });
+
+        this.addAPIEventListenerManaged('volumeChanged', (volume) => {
+            this.currentVolume = volume * 100;
+            this.updateVolumeDisplay();
+        });
     }
 
     async toggle(track) {
@@ -826,7 +831,11 @@ class Lyrics extends Component {
     // 音量控制方法
     async setVolume(volume) {
         this.currentVolume = Math.max(0, Math.min(100, volume));
+        this.updateVolumeDisplay();
+        await api.setVolume(this.currentVolume / 100);
+    }
 
+    updateVolumeDisplay() {
         // 更新音量条填充和滑块位置
         if (this.volumeFill) {
             this.volumeFill.style.width = `${this.currentVolume}%`;
@@ -848,9 +857,6 @@ class Lyrics extends Component {
             this.volumeMuteIcon.style.display = 'none';
             this.volumeHalfIcon.style.display = 'none';
         }
-
-        // 同步到主播放器
-        await api.setVolume(this.currentVolume / 100);
     }
 
     // 从鼠标事件更新音量
@@ -1085,4 +1091,4 @@ class Lyrics extends Component {
     }
 }
 
-export { Lyrics };
+export {Lyrics};
