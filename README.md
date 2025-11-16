@@ -88,6 +88,7 @@ cd MusicBox
 npm install
 npm run install:renderer
 npm run install:rs
+pip install -r requirements.txt
 ```
 
 #### 3. 开发模式运行
