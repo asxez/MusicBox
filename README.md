@@ -120,11 +120,11 @@ npm run build
 
 ### 可用插件列表
 
-已内置部分测试插件。
+内置插件：主题增强插件
 
 ## 🤝 贡献
 
-我们欢迎所有形式的贡献！无论是报告 bug、提出功能建议、提交代码改进，或者说提交你开发的插件！
+我们欢迎所有形式的贡献！无论是报告 bug、提出功能建议、提交代码，或者说提交你开发的插件！
 
 ## 📄 许可证
 
@@ -132,10 +132,6 @@ npm run build
 
 ## 🙏 致谢
 
-- [YesPlayMusic](https://github.com/qier222/YesPlayMusic) - 设计灵感来源
-- [Electron](https://electronjs.org/) - 跨平台桌面应用框架
-- [LrcApi](https://github.com/HisAtri/LrcApi) - 提供相关接口
-- [music-metadata](https://github.com/borewit/music-metadata) - 音频元数据解析
 - 所有为项目做出贡献的开发者们
 
 ## 📌 相关截图
