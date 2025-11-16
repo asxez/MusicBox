@@ -14,6 +14,9 @@ class WasapiEngine {
         this.currentIndex = -1;
         this.gaplessPlaybackEnabled = true;
 
+        // 待应用的播放位置（用于loadTrack后play前的seek）
+        this.pendingSeekPosition = null;
+
         // 事件回调
         this.onTrackChanged = null;
         this.onPlaybackStateChanged = null;
@@ -89,7 +92,8 @@ class WasapiEngine {
                 cover: metadata.cover
             };
 
-            console.log(`✅ 加载音频文件: ${this.currentTrack.title}`);
+            // 重置pending seek位置
+            this.pendingSeekPosition = null;
             return true;
         } catch (error) {
             console.error('❌ 加载音频文件失败:', error);
@@ -114,6 +118,23 @@ class WasapiEngine {
 
             if (this.onPlaybackStateChanged) {
                 this.onPlaybackStateChanged(true);
+            }
+
+            // 如果有待应用的seek位置，在播放开始后立即执行seek
+            if (this.pendingSeekPosition !== null && this.pendingSeekPosition > 0) {
+                const seekPos = this.pendingSeekPosition;
+                this.pendingSeekPosition = null;
+                console.log(`🎵 WasapiEngine: 播放后应用待定的播放位置: ${seekPos.toFixed(2)}s`);
+
+                // 等待一小段时间让播放稳定
+                await new Promise(resolve => setTimeout(resolve, 50));
+
+                const seekResult = await this.nativeEngine.seek(seekPos);
+                if (!seekResult.success) {
+                    console.warn('⚠️ WasapiEngine: 应用待定播放位置失败');
+                } else if (this.onPositionChanged) {
+                    this.onPositionChanged(seekPos);
+                }
             }
 
             return true;
@@ -151,6 +172,7 @@ class WasapiEngine {
 
             this.isPlaying = false;
             this.isPaused = false;
+            this.pendingSeekPosition = null;
             this.stopProgressTimer();
 
             if (this.onPlaybackStateChanged) {
@@ -166,16 +188,29 @@ class WasapiEngine {
 
     async seek(position) {
         try {
-            const result = await this.nativeEngine.seek(position);
-            if (!result.success) {
-                throw new Error(result.error || '跳转失败');
-            }
+            // 如果正在播放或暂停，立即执行seek
+            if (this.isPlaying || this.isPaused) {
+                const result = await this.nativeEngine.seek(position);
+                if (!result.success) {
+                    throw new Error(result.error || '跳转失败');
+                }
 
-            if (this.onPositionChanged) {
-                this.onPositionChanged(position);
-            }
+                if (this.onPositionChanged) {
+                    this.onPositionChanged(position);
+                }
 
-            return true;
+                return true;
+            } else {
+                // 如果还未开始播放，保存位置待play时应用
+                this.pendingSeekPosition = position;
+                console.log(`🎵 WasapiEngine: 保存待定的播放位置: ${position.toFixed(2)}s`);
+
+                if (this.onPositionChanged) {
+                    this.onPositionChanged(position);
+                }
+
+                return true;
+            }
         } catch (error) {
             console.error('❌ 跳转失败:', error);
             return false;
