@@ -46,7 +46,7 @@ pub struct AudioEngine {
 
 impl AudioEngine {
     pub fn new() -> Result<Self, String> {
-        let buffer_size = 48000 * 2 * 10; // 10秒缓冲
+        let buffer_size = 48000 * 2 * 1; // 1秒缓冲
 
         Ok(Self {
             renderer: WasapiRenderer::new(),
