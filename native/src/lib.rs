@@ -9,9 +9,11 @@ use napi::{Env, JsObject, Result};
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+mod audio_config;
 mod audio_engine;
 mod audio_format;
 mod decoder;
+mod dither;
 mod playback_tracker;
 mod renderer;
 mod resampler;

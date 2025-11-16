@@ -1,12 +1,13 @@
 //! WASAPI音频引擎核心实现
 
+use crate::audio_config::AudioConfig;
 use parking_lot::Mutex;
 use rodio::{Decoder, Source};
 use std::fs::File;
 use std::io::BufReader;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::Duration as StdDuration;
 use wasapi::*;
 
@@ -42,11 +43,18 @@ pub struct AudioEngine {
     error_receiver: Option<Receiver<ThreadMessage>>,
     seek_sender: Option<Sender<f64>>,
     initialized: bool,
+    config: AudioConfig,
 }
 
 impl AudioEngine {
     pub fn new() -> Result<Self, String> {
-        let buffer_size = 48000 * 2 * 1; // 1秒缓冲
+        Self::with_config(AudioConfig::default())
+    }
+
+    pub fn with_config(config: AudioConfig) -> Result<Self, String> {
+        // 使用配置的缓冲区大小
+        let buffer_size = config.get_ring_buffer_size(48000, 2);
+        println!("🎵 创建音频引擎，配置: {:?}", config);
 
         Ok(Self {
             renderer: WasapiRenderer::new(),
@@ -66,6 +74,7 @@ impl AudioEngine {
             error_receiver: None,
             seek_sender: None,
             initialized: false,
+            config,
         })
     }
 
@@ -316,6 +325,8 @@ impl AudioEngine {
             device_format,
             error_sender,
             render_msg_receiver,
+            self.config.dither_type,
+            &self.config,
         )?;
 
         self.tracker.lock().start();
@@ -415,6 +426,7 @@ impl AudioEngine {
         let device_channels = self.device_channels;
         let source_sample_rate = self.source_sample_rate.ok_or("源采样率未设置")?;
         let source_channels = self.source_channels.ok_or("源声道数未设置")?;
+        let resampling_quality = self.config.resampling_quality;
 
         // 创建跳转通道
         let (seek_sender, seek_receiver) = channel();
@@ -441,6 +453,7 @@ impl AudioEngine {
                     source_channels,
                     device_sample_rate,
                     device_channels,
+                    resampling_quality,
                 )
             } else {
                 decoder::decode_direct(
