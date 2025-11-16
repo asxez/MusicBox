@@ -152,6 +152,12 @@ impl NativeAudioEngine {
     }
 
     #[napi]
+    pub fn poll_events(&mut self) -> Option<String> {
+        let mut engine = self.engine.lock();
+        engine.poll_events()
+    }
+
+    #[napi]
     pub fn destroy(&mut self, mut env: Env) -> Result<JsObject> {
         println!("🎵 NativeAudioEngine: 销毁引擎");
 
