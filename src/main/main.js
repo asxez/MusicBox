@@ -79,6 +79,7 @@ const isDev = process.env.NODE_ENV === 'development';
 let mainWindow;
 let desktopLyricsWindow = null; // 桌面歌词窗口
 let libraryCacheManager = null; // 初始化音乐库缓存管理器
+let autoScanScheduler = null; // 自动扫描调度器
 
 // 初始化网络磁盘管理器
 let networkDriveManager = null;
@@ -165,6 +166,126 @@ async function initializeCacheManager() {
     }
 }
 
+// 初始化自动扫描调度器
+async function initializeAutoScanScheduler() {
+    try {
+        if (autoScanScheduler) {
+            return true;
+        }
+
+        const AutoScanScheduler = require('./services/library/AutoScanScheduler');
+        autoScanScheduler = new AutoScanScheduler();
+
+        // 扫描处理函数
+        const scanHandler = async (folders) => {
+            for (const folder of folders) {
+                try {
+                    console.log(`🔍 自动扫描文件夹: ${folder}`);
+                    await scanLocalDirectory(folder);
+                } catch (error) {
+                    console.error(`❌ 扫描文件夹失败 ${folder}:`, error);
+                }
+            }
+        };
+
+        // 设置加载函数
+        const settingsLoader = async () => {
+            const fs = require('fs');
+            const path = require('path');
+            const userDataPath = app.getPath('userData');
+            const settingsFilePath = path.join(userDataPath, 'music-folders-settings.json');
+
+            try {
+                if (fs.existsSync(settingsFilePath)) {
+                    const data = fs.readFileSync(settingsFilePath, 'utf8');
+                    return JSON.parse(data);
+                }
+            } catch (error) {
+                console.error('加载音乐文件夹设置失败:', error);
+            }
+
+            return {
+                musicFolders: [],
+                autoScanEnabled: false,
+                scanFrequency: 'on_startup',
+                lastScanTime: 0
+            };
+        };
+
+        // 扫描本地目录的辅助函数
+        const scanLocalDirectory = async (directoryPath) => {
+            const fs = require('fs');
+            const path = require('path');
+            const audioExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma'];
+            const tracksToCache = [];
+
+            async function scanDir(dir) {
+                try {
+                    const items = fs.readdirSync(dir);
+                    for (const item of items) {
+                        const fullPath = path.join(dir, item);
+                        const stat = fs.statSync(fullPath);
+                        if (stat.isDirectory()) {
+                            await scanDir(fullPath);
+                        } else if (audioExtensions.includes(path.extname(item).toLowerCase())) {
+                            try {
+                                const metadata = await parseMetadataWrapper(fullPath);
+                                const trackData = {
+                                    filePath: fullPath,
+                                    fileName: item,
+                                    title: metadata.title,
+                                    artist: metadata.artist,
+                                    album: metadata.album,
+                                    duration: metadata.duration,
+                                    bitrate: metadata.bitrate,
+                                    sampleRate: metadata.sampleRate,
+                                    year: metadata.year,
+                                    genre: metadata.genre,
+                                    track: metadata.track,
+                                    disc: metadata.disc,
+                                    fileSize: stat.size,
+                                    embeddedLyrics: metadata.embeddedLyrics,
+                                };
+                                tracksToCache.push({trackData, filePath: fullPath, stats: stat});
+                            } catch (metadataError) {
+                                console.warn(`⚠️ 解析元数据失败: ${fullPath}`, metadataError.message);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error(`扫描目录错误 ${dir}:`, error.message);
+                }
+            }
+
+            await scanDir(directoryPath);
+
+            if (libraryCacheManager) {
+                if (tracksToCache.length > 0) {
+                    libraryCacheManager.addTracks(tracksToCache);
+                    libraryCacheManager.addScannedDirectory(directoryPath);
+                    await libraryCacheManager.saveCache();
+                }
+
+                // 更新audioEngineState并通知渲染进程
+                const allTracks = libraryCacheManager.getAllTracks();
+                audioEngineState.scannedTracks = allTracks;
+
+                if (mainWindow && mainWindow.webContents) {
+                    console.log(`📢 AutoScan: 通知渲染进程更新，本次扫描 ${tracksToCache.length} 首，总计 ${allTracks.length} 首歌曲`);
+                    mainWindow.webContents.send('library:updated', allTracks);
+                }
+            }
+        };
+
+        autoScanScheduler.initialize(scanHandler, settingsLoader);
+        console.log('✅ AutoScanScheduler: 初始化成功');
+        return true;
+    } catch (error) {
+        console.error('❌ 自动扫描调度器初始化失败:', error);
+        return false;
+    }
+}
+
 // 窗口管理包装函数，保持全局变量同步
 async function createWindow() {
     mainWindow = await createWindowFromUtils();
@@ -195,6 +316,15 @@ app.whenReady().then(async () => {
 
     await createWindow();
 
+    // 确保渲染进程已准备好接收library:updated事件
+    if (mainWindow) {
+        // 初始化并启动自动扫描调度器
+        await initializeAutoScanScheduler();
+        if (autoScanScheduler) {
+            await autoScanScheduler.start();
+        }
+    }
+
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
             createWindow();
@@ -211,6 +341,9 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
     if (networkDriveManager) {
         networkDriveManager.cleanup();
+    }
+    if (autoScanScheduler) {
+        autoScanScheduler.stop();
     }
 });
 
@@ -326,7 +459,7 @@ registerLibraryScanIpcHandlers({
 });
 
 // 注册 Settings IPC
-registerSettingsIpcHandlers({ipcMain});
+registerSettingsIpcHandlers({ipcMain, app});
 
 // 注册硬件加速IPC
 registerHardwareAccelerationIpcHandlers({ipcMain});
