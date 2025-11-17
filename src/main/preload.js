@@ -216,6 +216,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         removeTrack: (trackFileId) => ipcRenderer.invoke('library:removeTrack', trackFileId),
         getTracksByDrive: (driveId) => ipcRenderer.invoke('library:getTracksByDrive', driveId),
         removeTracksByDrive: (driveId) => ipcRenderer.invoke('library:removeTracksByDrive', driveId),
+        clearIgnoreList: () => ipcRenderer.invoke('library:clearIgnoreList'),
 
         // 歌单封面
         updatePlaylistCover: (playlistId, imagePath) => ipcRenderer.invoke('library:updatePlaylistCover', playlistId, imagePath),

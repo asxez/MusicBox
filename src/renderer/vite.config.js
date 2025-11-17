@@ -60,7 +60,7 @@ export default defineConfig({
             return 'extensions';
           }
           // 组件
-          if (id.includes('components/')) {
+          if (id.includes('components/') || id.includes('WasapiEngine')) {
             return 'components';
           }
         }

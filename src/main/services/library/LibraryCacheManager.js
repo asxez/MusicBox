@@ -17,6 +17,7 @@ class LibraryCacheManager {
             scannedDirectories: [], // 已扫描的目录列表
             tracks: [], // 音乐文件缓存
             playlists: [], // 用户创建的歌单
+            ignoredFiles: [], // 用户手动删除的文件路径列表，自动扫描时会跳过这些文件
             statistics: {
                 totalTracks: 0,
                 totalSize: 0,
@@ -80,6 +81,7 @@ class LibraryCacheManager {
             scannedDirectories: [],
             tracks: [],
             playlists: [],
+            ignoredFiles: [],
             statistics: {
                 totalTracks: 0,
                 totalSize: 0,
@@ -95,6 +97,7 @@ class LibraryCacheManager {
             scannedDirectories: Array.isArray(cacheData.scannedDirectories) ? cacheData.scannedDirectories : defaultCache.scannedDirectories,
             tracks: Array.isArray(cacheData.tracks) ? cacheData.tracks : defaultCache.tracks,
             playlists: Array.isArray(cacheData.playlists) ? cacheData.playlists : defaultCache.playlists,
+            ignoredFiles: Array.isArray(cacheData.ignoredFiles) ? cacheData.ignoredFiles : defaultCache.ignoredFiles,
             statistics: {
                 totalTracks: (cacheData.statistics && typeof cacheData.statistics.totalTracks === 'number') ? cacheData.statistics.totalTracks : defaultCache.statistics.totalTracks,
                 totalSize: (cacheData.statistics && typeof cacheData.statistics.totalSize === 'number') ? cacheData.statistics.totalSize : defaultCache.statistics.totalSize,
@@ -264,6 +267,11 @@ class LibraryCacheManager {
 
     // 添加音乐文件到缓存
     addTrack(trackData, filePath, stats) {
+        // 检查文件是否在忽略列表中
+        if (this.isFileIgnored(filePath)) {
+            return null;
+        }
+
         const fileId = this.generateFileId(filePath, stats);
 
         // 对于网络文件，标准化时间精度
@@ -304,7 +312,10 @@ class LibraryCacheManager {
 
         for (const {trackData, filePath, stats} of tracksData) {
             const cacheTrack = this.addTrack(trackData, filePath, stats);
-            addedTracks.push(cacheTrack);
+            // 只添加非null的track（被忽略的文件会返回null）
+            if (cacheTrack) {
+                addedTracks.push(cacheTrack);
+            }
         }
 
 
@@ -339,6 +350,9 @@ class LibraryCacheManager {
         const track = this.cache.tracks[index];
         this.cache.tracks.splice(index, 1);
         console.log(`🗑️ LibraryCacheManager: 从音乐库删除歌曲 - ${track.title}`);
+
+        // 将删除的文件添加到忽略列表，避免自动扫描时重新添加
+        this.addToIgnoreList(track.filePath);
 
         // 从所有歌单中移除该歌曲的引用
         if (Array.isArray(this.cache.playlists)) {
@@ -455,6 +469,7 @@ class LibraryCacheManager {
             scannedDirectories: [],
             tracks: [],
             playlists: [],
+            ignoredFiles: [],
             statistics: {
                 totalTracks: 0,
                 totalSize: 0,
@@ -835,6 +850,55 @@ class LibraryCacheManager {
         playlist.updatedAt = Date.now();
         console.log(`✅ LibraryCacheManager: 移除歌单封面 - ${playlist.name}`);
         return true;
+    }
+
+    // 检查文件是否在忽略列表中
+    isFileIgnored(filePath) {
+        if (!Array.isArray(this.cache.ignoredFiles)) {
+            this.cache.ignoredFiles = [];
+            return false;
+        }
+        return this.cache.ignoredFiles.includes(filePath);
+    }
+
+    // 将文件添加到忽略列表
+    addToIgnoreList(filePath) {
+        if (!Array.isArray(this.cache.ignoredFiles)) {
+            this.cache.ignoredFiles = [];
+        }
+
+        if (!this.cache.ignoredFiles.includes(filePath)) {
+            this.cache.ignoredFiles.push(filePath);
+        }
+    }
+
+    // 从忽略列表中移除文件
+    removeFromIgnoreList(filePath) {
+        if (!Array.isArray(this.cache.ignoredFiles)) {
+            this.cache.ignoredFiles = [];
+            return false;
+        }
+
+        const index = this.cache.ignoredFiles.indexOf(filePath);
+        if (index !== -1) {
+            this.cache.ignoredFiles.splice(index, 1);
+            console.log(`✅ LibraryCacheManager: 从忽略列表移除 - ${filePath}`);
+            return true;
+        }
+        return false;
+    }
+
+    // 清空忽略列表
+    clearIgnoreList() {
+        this.cache.ignoredFiles = [];
+    }
+
+    // 获取忽略列表
+    getIgnoreList() {
+        if (!Array.isArray(this.cache.ignoredFiles)) {
+            this.cache.ignoredFiles = [];
+        }
+        return [...this.cache.ignoredFiles];
     }
 }
 
