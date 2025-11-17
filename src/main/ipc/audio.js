@@ -5,10 +5,14 @@
  * @param {object} deps 依赖注入对象
  * @param {Electron.IpcMain} deps.ipcMain - 主进程 IPC 对象
  * @param {object} deps.audioEngineState - 音频引擎状态对象
+ * @param {(filePath: string) => Promise<any>} deps.parseMetadata - 统一的元数据解析函数
  */
-function registerAudioIpcHandlers({ipcMain, audioEngineState}) {
+function registerAudioIpcHandlers({ipcMain, audioEngineState, parseMetadata}) {
     if (!ipcMain || !audioEngineState) {
         throw new Error('registerAudioIpcHandlers: 缺少必要依赖');
+    }
+    if (!parseMetadata) {
+        throw new Error('registerAudioIpcHandlers: 缺少 parseMetadata');
     }
 
     // 初始化
@@ -24,7 +28,6 @@ function registerAudioIpcHandlers({ipcMain, audioEngineState}) {
 
     // 加载歌曲
     ipcMain.handle('audio:loadTrack', async (event, filePath) => {
-        const {parseMetadata} = require('../utils/metadata')
         try {
             console.log(`🔄 加载音频文件: ${filePath}`);
 
