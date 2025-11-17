@@ -118,6 +118,7 @@ class Settings extends Component {
         this.viewCacheStatsBtn = this.element.querySelector('#view-cache-stats-btn');
         this.validateCacheBtn = this.element.querySelector('#validate-cache-btn');
         this.clearCacheBtn = this.element.querySelector('#clear-cache-btn');
+        this.clearIgnoreListBtn = this.element.querySelector('#clear-ignore-list-btn');
         this.cacheStatsDescription = this.element.querySelector('#cache-stats-description');
 
         // 内嵌歌词测试元素
@@ -359,6 +360,10 @@ class Settings extends Component {
 
         this.clearCacheBtn.addEventListener('click', async () => {
             await this.clearCache();
+        });
+
+        this.clearIgnoreListBtn.addEventListener('click', async () => {
+            await this.handleClearIgnoreList();
         });
 
         // 内嵌歌词测试事件监听器
@@ -1322,6 +1327,24 @@ class Settings extends Component {
 
     toggleScanFrequencyVisibility(visible) {
         this.scanFrequencyContainer.style.display = visible ? 'flex' : 'none';
+    }
+
+    async handleClearIgnoreList() {
+        if (!confirm('确定要清空忽略列表吗？\n\n清空后，之前手动删除的歌曲在下次自动扫描时会被重新添加到音乐库。')) {
+            return;
+        }
+
+        try {
+            const result = await window.electronAPI.library.clearIgnoreList();
+            if (result.success) {
+                showToast('忽略列表已清空', 'success');
+            } else {
+                showToast('清空忽略列表失败', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Settings: 清空忽略列表失败:', error);
+            showToast('清空忽略列表失败', 'error');
+        }
     }
 }
 

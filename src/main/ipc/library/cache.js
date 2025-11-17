@@ -208,6 +208,24 @@ function registerLibraryCacheIpcHandlers(
             return {success: false, error: error.message};
         }
     });
+
+    // 清空忽略列表
+    ipcMain.handle('library:clearIgnoreList', async () => {
+        try {
+            if (!getLibraryCacheManager()) {
+                await initializeCacheManager();
+            }
+            const libraryCacheManager = getLibraryCacheManager();
+            libraryCacheManager.clearIgnoreList();
+            await libraryCacheManager.saveCache();
+
+            console.log('✅ 忽略列表已清空');
+            return {success: true};
+        } catch (error) {
+            console.error('❌ 清空忽略列表失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
 }
 
 module.exports = {
