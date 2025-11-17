@@ -103,6 +103,10 @@ class Settings extends Component {
         this.trayStartMinimizedItem = this.element.querySelector('#tray-start-minimized-item');
         this.autoScanToggle = this.element.querySelector('#auto-scan-toggle');
         this.selectFolderBtn = this.element.querySelector('#select-folder-btn');
+        this.musicFoldersContainer = this.element.querySelector('#music-folders-container');
+        this.musicFoldersList = this.element.querySelector('#music-folders-list');
+        this.scanFrequencyContainer = this.element.querySelector('#scan-frequency-container');
+        this.scanFrequencySelect = this.element.querySelector('#scan-frequency-select');
         this.selectLyricsFolderBtn = this.element.querySelector('#select-lyrics-folder-btn');
         this.lyricsFolderPath = this.element.querySelector('#lyrics-folder-path');
         this.selectCoverCacheFolderBtn = this.element.querySelector('#select-cover-cache-folder-btn');
@@ -264,18 +268,18 @@ class Settings extends Component {
             this.emit('gaplessPlaybackEnabled', e.target.checked);
         });
 
-        this.autoScanToggle.addEventListener('change', (e) => {
-            this.updateSetting('autoScan', e.target.checked);
+        this.autoScanToggle.addEventListener('change', async (e) => {
+            await this.handleAutoScanToggle(e.target.checked);
         });
 
-        // 自动播放设置
-        this.autoplayToggle.addEventListener('change', (e) => {
-            this.updateSetting('autoplay', e.target.checked);
+        // 按钮事件
+        this.selectFolderBtn.addEventListener('click', async () => {
+            await this.handleAddMusicFolder();
         });
 
-        // 记住播放位置设置
-        this.rememberPositionToggle.addEventListener('change', (e) => {
-            this.updateSetting('rememberPosition', e.target.checked);
+        // 扫描频率更改
+        this.scanFrequencySelect.addEventListener('change', async (e) => {
+            await this.handleScanFrequencyChange(e.target.value);
         });
 
         // 系统托盘设置
@@ -299,11 +303,6 @@ class Settings extends Component {
             await window.electronAPI.tray.updateSettings({
                 startMinimized: e.target.checked
             });
-        });
-
-        // 按钮事件
-        this.selectFolderBtn.addEventListener('click', () => {
-            this.emit('selectMusicFolder');
         });
 
         this.selectLyricsFolderBtn.addEventListener('click', async () => {
@@ -445,15 +444,17 @@ class Settings extends Component {
         this.albumsPageToggle.checked = this.settings.hasOwnProperty('albumsPage') ? this.settings.albumsPage : true;
         this.showTrackCoversToggle.checked = this.settings.hasOwnProperty('showTrackCovers') ? this.settings.showTrackCovers : true;
         this.gaplessPlaybackToggle.checked = this.settings.hasOwnProperty('gaplessPlayback') ? this.settings.gaplessPlayback : false;
-        this.autoScanToggle.checked = this.settings.autoScan || false;
+
+        // 初始化音乐文件夹和自动扫描设置
+        this.initializeMusicFoldersAndAutoScan();
 
         // 初始化音频独占模式设置（仅Windows平台）
         this.initializeExclusiveModeSettings();
 
         // 初始化系统托盘设置
         this.systemTrayToggle.checked = this.settings.hasOwnProperty('systemTray') ? this.settings.systemTray : true;
-        this.trayCloseBehaviorSelect.value = this.settings.trayCloseBehavior || 'exit';
-        this.trayStartMinimizedToggle.checked = this.settings.trayStartMinimized || false;
+        this.trayCloseBehaviorSelect.value = this.settings.hasOwnProperty('trayCloseBehavior') ? this.settings.trayCloseBehavior : 'exit';
+        this.trayStartMinimizedToggle.checked = this.settings.hasOwnProperty('trayStartMinimized') ? this.settings.trayStartMinimized : false;
         this.toggleTraySettings(this.systemTrayToggle.checked);
 
         // 初始化本地歌词目录
@@ -563,7 +564,6 @@ class Settings extends Component {
             if (result.success) {
                 this.hardwareAccelerationToggle.checked = result.settings.enabled !== false;
             } else {
-                console.warn('⚠️ Settings: 加载硬件加速设置失败，使用默认值');
                 this.hardwareAccelerationToggle.checked = true; // 默认启用
             }
         } catch (error) {
@@ -575,7 +575,7 @@ class Settings extends Component {
     // 初始化封面缓存目录
     async initializeCoverCacheDirectory() {
         try {
-            let coverCacheDirectory = this.settings.coverCacheDirectory;
+            let coverCacheDirectory = this.settings.hasOwnProperty('coverCacheDirectory') ? this.settings.coverCacheDirectory : null;
 
             // 如果用户未设置封面缓存目录，使用默认路径
             if (!coverCacheDirectory) {
@@ -1187,19 +1187,141 @@ class Settings extends Component {
         window.open(repositoryUrl, '_blank');
     }
 
-    // HTML转义
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
     async openPluginManager() {
         if (app.components.pluginManagerModal) {
             await app.components.pluginManagerModal.show();
         } else {
             this.showNotification('插件管理器不可用', 'error');
         }
+    }
+
+    // 音乐文件夹和自动扫描相关方法
+    async initializeMusicFoldersAndAutoScan() {
+        try {
+            // 加载音乐文件夹列表
+            const folders = await window.electronAPI.settings.getMusicFolders();
+            this.renderMusicFolders(folders);
+
+            // 加载自动扫描设置
+            const autoScanSettings = await window.electronAPI.settings.getAutoScanSettings();
+            this.autoScanToggle.checked = autoScanSettings.enabled || false;
+            this.scanFrequencySelect.value = autoScanSettings.frequency || 'on_startup';
+
+            // 根据自动扫描状态显示/隐藏扫描频率设置
+            this.toggleScanFrequencyVisibility(autoScanSettings.enabled);
+        } catch (error) {
+            console.error('❌ Settings: 初始化音乐文件夹和自动扫描设置失败:', error);
+        }
+    }
+
+    async handleAddMusicFolder() {
+        try {
+            const result = await window.electronAPI.selectFolder();
+            if (result && result.filePaths && result.filePaths.length > 0) {
+                const selectedPath = result.filePaths[0];
+
+                const addResult = await window.electronAPI.settings.addMusicFolder(selectedPath);
+                if (addResult.success) {
+                    this.renderMusicFolders(addResult.folders);
+                    showToast('文件夹已添加', 'success');
+
+                    // 询问是否立即扫描
+                    if (confirm('是否立即扫描该文件夹？')) {
+                        showToast('正在扫描...', 'info');
+                        await window.electronAPI.library.scanDirectory(selectedPath);
+                        showToast('扫描完成', 'success');
+                    }
+                } else {
+                    showToast(addResult.error || '添加文件夹失败', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('❌ Settings: 添加音乐文件夹失败:', error);
+            showToast('添加文件夹失败', 'error');
+        }
+    }
+
+    async handleRemoveMusicFolder(folderPath) {
+        if (!confirm(`确定要移除文件夹吗？\n\n${folderPath}\n\n移除后该文件夹中的音乐将不会被自动扫描。`)) {
+            return;
+        }
+
+        try {
+            const result = await window.electronAPI.settings.removeMusicFolder(folderPath);
+            if (result.success) {
+                this.renderMusicFolders(result.folders);
+                showToast('文件夹已移除', 'success');
+            } else {
+                showToast(result.error || '移除文件夹失败', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Settings: 移除音乐文件夹失败:', error);
+            showToast('移除文件夹失败', 'error');
+        }
+    }
+
+    renderMusicFolders(folders) {
+        if (!folders || folders.length === 0) {
+            this.musicFoldersContainer.style.display = 'none';
+            return;
+        }
+
+        this.musicFoldersContainer.style.display = 'flex';
+        this.musicFoldersList.innerHTML = '';
+
+        folders.forEach(folder => {
+            const li = document.createElement('li');
+            li.className = 'folder-item';
+
+            const pathSpan = document.createElement('span');
+            pathSpan.className = 'folder-path-text';
+            pathSpan.textContent = folder;
+            pathSpan.title = folder;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'folder-remove-btn';
+            removeBtn.textContent = '移除';
+            removeBtn.addEventListener('click', () => this.handleRemoveMusicFolder(folder));
+
+            li.appendChild(pathSpan);
+            li.appendChild(removeBtn);
+            this.musicFoldersList.appendChild(li);
+        });
+    }
+
+    async handleAutoScanToggle(enabled) {
+        try {
+            const result = await window.electronAPI.settings.updateAutoScanSettings({enabled});
+            if (result.success) {
+                this.toggleScanFrequencyVisibility(enabled);
+                showToast(enabled ? '自动扫描已启用' : '自动扫描已禁用', 'success');
+            } else {
+                showToast('更新自动扫描设置失败', 'error');
+                this.autoScanToggle.checked = !enabled;
+            }
+        } catch (error) {
+            console.error('❌ Settings: 更新自动扫描设置失败:', error);
+            showToast('更新自动扫描设置失败', 'error');
+            this.autoScanToggle.checked = !enabled;
+        }
+    }
+
+    async handleScanFrequencyChange(frequency) {
+        try {
+            const result = await window.electronAPI.settings.updateAutoScanSettings({frequency});
+            if (result.success) {
+                showToast('扫描频率已更新', 'success');
+            } else {
+                showToast('更新扫描频率失败', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Settings: 更新扫描频率失败:', error);
+            showToast('更新扫描频率失败', 'error');
+        }
+    }
+
+    toggleScanFrequencyVisibility(visible) {
+        this.scanFrequencyContainer.style.display = visible ? 'flex' : 'none';
     }
 }
 

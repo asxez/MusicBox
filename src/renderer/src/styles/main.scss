@@ -5174,6 +5174,86 @@ a {
   }
 }
 
+// 音乐文件夹列表样式
+.folder-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 600px;
+}
+
+.folder-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  background: var(--color-secondary-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+
+  &:hover {
+    background: var(--color-hover);
+    border-color: var(--color-primary);
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.folder-path-text {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: var(--spacing-md);
+}
+
+.folder-remove-btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border: 1px solid #e74c3c;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #e74c3c;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+
+  &:hover {
+    background: #e74c3c;
+    color: white;
+  }
+}
+
+// 设置选择框样式
+.settings-select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-secondary-bg);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-width: 150px;
+
+  &:hover {
+    border-color: var(--color-primary);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.1);
+  }
+}
+
 // 设置页面滑块样式
 .slider-container {
   display: flex;

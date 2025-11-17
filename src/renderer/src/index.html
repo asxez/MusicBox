@@ -779,11 +779,49 @@
                         <h2 class="section-title">音乐库</h2>
                         <div class="settings-item">
                             <div class="item-info">
-                                <label class="item-label">音乐文件夹（未实现）</label>
-                                <p class="item-description">选择包含音乐文件的文件夹</p>
+                                <label class="item-label">音乐文件夹</label>
+                                <p class="item-description">添加包含音乐文件的文件夹，支持多个文件夹</p>
                             </div>
                             <div class="item-control">
-                                <button class="settings-button" id="select-folder-btn">选择文件夹</button>
+                                <button class="settings-button" id="select-folder-btn">添加文件夹</button>
+                            </div>
+                        </div>
+
+                        <!-- 音乐文件夹列表 -->
+                        <div class="settings-item" id="music-folders-container" style="display: none;">
+                            <div class="item-info">
+                                <label class="item-label">已添加的文件夹</label>
+                            </div>
+                            <div class="item-control">
+                                <ul id="music-folders-list" class="folder-list"></ul>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">自动扫描</label>
+                                <p class="item-description">定期自动扫描音乐文件夹中的新文件</p>
+                            </div>
+                            <div class="item-control">
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="auto-scan-toggle" class="toggle-input">
+                                    <label for="auto-scan-toggle" class="toggle-label"></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 扫描频率设置 -->
+                        <div class="settings-item" id="scan-frequency-container" style="display: none;">
+                            <div class="item-info">
+                                <label class="item-label">扫描频率</label>
+                                <p class="item-description">设置自动扫描的时间间隔</p>
+                            </div>
+                            <div class="item-control">
+                                <select id="scan-frequency-select" class="settings-select">
+                                    <option value="on_startup">每次启动时</option>
+                                    <option value="daily">每天一次</option>
+                                    <option value="weekly">每周一次</option>
+                                </select>
                             </div>
                         </div>
 
@@ -809,19 +847,6 @@
                                 <div class="folder-path-container">
                                     <span class="folder-path" id="cover-cache-folder-path">未选择</span>
                                     <button class="settings-button" id="select-cover-cache-folder-btn">选择文件夹</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="settings-item">
-                            <div class="item-info">
-                                <label class="item-label">自动扫描（未实现）</label>
-                                <p class="item-description">定期自动扫描音乐文件夹中的新文件</p>
-                            </div>
-                            <div class="item-control">
-                                <div class="toggle-switch">
-                                    <input type="checkbox" id="auto-scan-toggle" class="toggle-input">
-                                    <label for="auto-scan-toggle" class="toggle-label"></label>
                                 </div>
                             </div>
                         </div>

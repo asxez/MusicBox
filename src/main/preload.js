@@ -249,7 +249,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
         get: (key) => ipcRenderer.invoke('settings:get', key),
         set: (key, value) => ipcRenderer.invoke('settings:set', key, value),
         getAll: () => ipcRenderer.invoke('settings:getAll'),
-        reset: () => ipcRenderer.invoke('settings:reset')
+        reset: () => ipcRenderer.invoke('settings:reset'),
+
+        // 音乐文件夹管理
+        getMusicFolders: () => ipcRenderer.invoke('settings:getMusicFolders'),
+        addMusicFolder: (folderPath) => ipcRenderer.invoke('settings:addMusicFolder', folderPath),
+        removeMusicFolder: (folderPath) => ipcRenderer.invoke('settings:removeMusicFolder', folderPath),
+
+        // 自动扫描设置
+        getAutoScanSettings: () => ipcRenderer.invoke('settings:getAutoScanSettings'),
+        updateAutoScanSettings: (settings) => ipcRenderer.invoke('settings:updateAutoScanSettings', settings),
+        updateLastScanTime: (timestamp) => ipcRenderer.invoke('settings:updateLastScanTime', timestamp)
     },
 
     // 硬件加速
