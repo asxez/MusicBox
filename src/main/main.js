@@ -75,7 +75,7 @@ async function parseMetadataWrapper(filePath) {
     return await parseMetadata(filePath, networkFileAdapter);
 }
 
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = !app.isPackaged;
 let mainWindow;
 let desktopLyricsWindow = null; // 桌面歌词窗口
 let libraryCacheManager = null; // 初始化音乐库缓存管理器
@@ -89,7 +89,6 @@ let networkFileAdapter = null;
 async function initializeNetworkDriveManager() {
     try {
         if (networkDriveManager) {
-            console.log('🔧 NetworkDriveManager已存在，跳过重复初始化');
             return true;
         }
 
@@ -114,7 +113,6 @@ async function initializeNetworkDriveManager() {
 
         networkDriveManager.on('driveDisconnected', (driveId, config) => {
             console.log(`🔌 网络磁盘已断开: ${config.displayName}`);
-            // 通知渲染进程
             if (mainWindow) {
                 mainWindow.webContents.send('network-drive:disconnected', driveId, config);
             }
@@ -122,7 +120,6 @@ async function initializeNetworkDriveManager() {
 
         networkDriveManager.on('driveError', (driveId, error) => {
             console.error(`❌ 网络磁盘错误: ${driveId} - ${error}`);
-            // 通知渲染进程
             if (mainWindow) {
                 mainWindow.webContents.send('network-drive:error', driveId, error);
             }
@@ -338,6 +335,7 @@ app.on('window-all-closed', () => {
     }
 });
 
+const {cleanupTempFile} = require('./ipc/NativeAudio');
 app.on('before-quit', () => {
     if (networkDriveManager) {
         networkDriveManager.cleanup();
@@ -345,6 +343,7 @@ app.on('before-quit', () => {
     if (autoScanScheduler) {
         autoScanScheduler.stop();
     }
+    cleanupTempFile();
 });
 
 // 音频引擎状态管理
@@ -374,7 +373,8 @@ if (fs.existsSync(nativeModulePath)) {
     registerNativeAudioIpcHandlers({
         ipcMain,
         nativeAudioModule,
-        getMainWindow: () => mainWindow
+        getMainWindow: () => mainWindow,
+        getNetworkFileAdapter: () => networkFileAdapter
     });
     console.log('✅ Native音频模块加载成功');
 } else {
