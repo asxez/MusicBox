@@ -1,15 +1,24 @@
 // 原生音频引擎
 
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
 let nativeAudioEngine = null;
 let eventPollInterval = null;
 let getMainWindowFn = null;
+let networkFileAdapterFn = null;
+let currentTempFilePath = null; // 跟踪当前临时文件
 
 /**
  * 注册 原生音频引擎 相关的 IPC
  * @param {object} deps
  * @param {Electron.IpcMain} deps.ipcMain
+ * @param {object} deps.nativeAudioModule - Native音频模块
+ * @param {() => any} deps.getMainWindow - 获取主窗口函数
+ * @param {() => any} deps.getNetworkFileAdapter - 获取网络文件适配器函数
  */
-function registerNativeAudioIpcHandlers({ipcMain, nativeAudioModule, getMainWindow}) {
+function registerNativeAudioIpcHandlers({ipcMain, nativeAudioModule, getMainWindow, getNetworkFileAdapter}) {
     if (!ipcMain) throw new Error('registerNativeAudioIpcHandlers: 缺少 ipcMain');
 
     // 保存主窗口获取函数
@@ -17,9 +26,14 @@ function registerNativeAudioIpcHandlers({ipcMain, nativeAudioModule, getMainWind
         getMainWindowFn = getMainWindow;
     }
 
+    // 保存网络文件适配器获取函数
+    if (getNetworkFileAdapter) {
+        networkFileAdapterFn = getNetworkFileAdapter;
+    }
+
     ipcMain.handle('native-audio:initialize', async () => {
         try {
-            if (!nativeAudioModule.NativeAudioEngine) {
+            if (!nativeAudioModule.hasOwnProperty('NativeAudioEngine')) {
                 return {success: false, error: 'NativeAudioEngine类不存在'};
             }
 
@@ -43,9 +57,61 @@ function registerNativeAudioIpcHandlers({ipcMain, nativeAudioModule, getMainWind
             if (!nativeAudioEngine) {
                 return {success: false, error: '引擎未初始化'};
             }
-            return await nativeAudioEngine.loadTrack(filePath);
+
+            const oldTempFilePath = currentTempFilePath;
+            currentTempFilePath = null;
+
+            let actualFilePath = filePath;
+            const networkFileAdapter = networkFileAdapterFn ? networkFileAdapterFn() : null;
+
+            // 检测是否为网络路径
+            if (networkFileAdapter && networkFileAdapter.isNetworkPath(filePath)) {
+                console.log(`🌐 NativeAudio: 检测到网络路径，下载到临时文件: ${filePath}`);
+
+                try {
+                    // 创建临时文件路径
+                    const tempDir = os.tmpdir();
+                    const fileExtension = path.extname(filePath);
+                    const tempFileName = `musicbox_native_audio_${Date.now()}${fileExtension}`;
+                    const newTempFilePath = path.join(tempDir, tempFileName);
+
+                    console.log(`📁 临时文件路径: ${newTempFilePath}`);
+
+                    // 下载网络文件到临时位置
+                    console.log(`⬇️ 开始下载网络文件...`);
+                    const buffer = await networkFileAdapter.readFile(filePath);
+                    fs.writeFileSync(newTempFilePath, buffer);
+                    console.log(`✅ 文件下载完成，大小: ${buffer.length} 字节`);
+
+                    actualFilePath = newTempFilePath;
+                    currentTempFilePath = newTempFilePath;
+                } catch (networkError) {
+                    console.error(`❌ 下载网络文件失败:`, networkError);
+                    // 恢复旧的临时文件路径
+                    currentTempFilePath = oldTempFilePath;
+                    return {success: false, error: `下载网络文件失败: ${networkError.message}`};
+                }
+            }
+
+            // 加载音频
+            const result = await nativeAudioEngine.loadTrack(actualFilePath);
+
+            // 只有在新音频加载成功后，才清理旧的临时文件
+            if (result.success !== 0 && oldTempFilePath && oldTempFilePath !== currentTempFilePath) {
+                try {
+                    if (fs.existsSync(oldTempFilePath)) {
+                        fs.unlinkSync(oldTempFilePath);
+                        console.log(`🧹 已清理旧临时文件: ${oldTempFilePath}`);
+                    }
+                } catch (cleanupError) {
+                    console.warn(`⚠️ 清理旧临时文件失败: ${cleanupError.message}`);
+                }
+            }
+
+            return result;
         } catch (error) {
             console.error('❌ 加载音轨失败:', error);
+            cleanupTempFile();
             return {success: false, error: error.message};
         }
     });
@@ -133,18 +199,35 @@ function registerNativeAudioIpcHandlers({ipcMain, nativeAudioModule, getMainWind
     ipcMain.handle('native-audio:destroy', async () => {
         try {
             if (nativeAudioEngine) {
-                // 如果Native模块提供了destroy方法，调用它
-                if (typeof nativeAudioEngine.destroy === 'function') {
-                    await nativeAudioEngine.destroy();
-                }
+                await nativeAudioEngine.destroy();
                 nativeAudioEngine = null;
             }
+            // 销毁时清理临时文件
+            cleanupTempFile();
             return {success: true};
         } catch (error) {
             console.error('❌ 销毁引擎失败:', error);
             return {success: false, error: error.message};
         }
     });
+}
+
+/**
+ * 清理临时文件
+ */
+function cleanupTempFile() {
+    if (currentTempFilePath) {
+        try {
+            if (fs.existsSync(currentTempFilePath)) {
+                fs.unlinkSync(currentTempFilePath);
+                console.log(`🧹 已清理临时文件: ${currentTempFilePath}`);
+            }
+        } catch (error) {
+            console.warn(`⚠️ 清理临时文件失败: ${error.message}`);
+        } finally {
+            currentTempFilePath = null;
+        }
+    }
 }
 
 /**
@@ -162,13 +245,15 @@ function startEventPolling() {
             return;
         }
 
-        try {
-            const event = nativeAudioEngine.pollEvents();
-            if (event) {
-                handleNativeAudioEvent(event);
+        if (nativeAudioEngine.hasOwnProperty('pollEvents')) {
+            try {
+                const event = nativeAudioEngine.pollEvents();
+                if (event) {
+                    handleNativeAudioEvent(event);
+                }
+            } catch (error) {
+                console.error('❌ 轮询原生音频事件失败:', error);
             }
-        } catch (error) {
-            console.error('❌ 轮询原生音频事件失败:', error);
         }
     }, 500);
 
@@ -210,4 +295,5 @@ function handleNativeAudioEvent(event) {
 
 module.exports = {
     registerNativeAudioIpcHandlers,
+    cleanupTempFile
 };
