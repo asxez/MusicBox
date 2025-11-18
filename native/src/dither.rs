@@ -96,39 +96,6 @@ impl Ditherer {
     }
 }
 
-/// 精度转换工具
-pub struct PrecisionConverter;
-
-impl PrecisionConverter {
-    /// 从i16样本转换为归一化的f32 [-1.0, 1.0]
-    /// 使用精确的除法而不是近似值
-    pub fn i16_to_f32_precise(sample: i16) -> f32 {
-        // 使用32768.0而不是32767.0以避免不对称
-        // i16范围: -32768 to 32767
-        // 正值: sample / 32767.0
-        // 负值: sample / 32768.0
-        if sample >= 0 {
-            sample as f32 / 32767.0
-        } else {
-            sample as f32 / 32768.0
-        }
-    }
-
-    /// 批量转换i16到f32
-    pub fn i16_batch_to_f32(samples: &[i16]) -> Vec<f32> {
-        samples
-            .iter()
-            .map(|&s| Self::i16_to_f32_precise(s))
-            .collect()
-    }
-
-    /// 检查样本是否需要抖动
-    /// 如果位深度减少，建议使用抖动
-    pub fn should_dither(source_bits: u8, target_bits: u8) -> bool {
-        source_bits > target_bits
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -140,12 +107,5 @@ mod tests {
         let result = ditherer.float_to_i16(sample, 0);
         // 应该接近 0.5 * 32767 = 16383
         assert!((result as f32 - 16383.5).abs() < 5.0);
-    }
-
-    #[test]
-    fn test_precision_conversion() {
-        let original = 16384i16;
-        let float = PrecisionConverter::i16_to_f32_precise(original);
-        assert!((float - 0.5).abs() < 0.0001);
     }
 }
