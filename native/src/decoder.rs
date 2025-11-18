@@ -1,17 +1,42 @@
 //! 音频解码器
 
-use crate::dither::PrecisionConverter;
 use crate::resampler::{AudioResampler, ResamplingQuality};
 use crate::thread_message::ThreadMessage;
-use ringbuf::HeapProd;
 use ringbuf::producer::Producer;
+use ringbuf::HeapProd;
 use rodio::Decoder;
 use std::fs::File;
-use std::io::BufReader;
-use std::sync::Arc;
+use std::io::{Cursor, Read, Seek};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
+use std::sync::Arc;
 use std::time::{Duration as StdDuration, Instant};
+
+/// 组合 Read 和 Seek traits 的 trait，用于动态分发
+trait ReadSeek: Read + Seek + Send + Sync {}
+
+/// 自动为所有实现了 Read + Seek + Send + Sync 的类型实现 ReadSeek
+impl<T: Read + Seek + Send + Sync> ReadSeek for T {}
+
+/// 创建解码器
+fn create_decoder(file_path: &str) -> Result<Decoder<Box<dyn ReadSeek>>, String> {
+    // 检查文件扩展名，对于 M4A 文件使用内存缓冲以避免 seek 问题
+    let is_m4a = file_path.to_lowercase().ends_with(".m4a");
+    if is_m4a {
+        println!("🎵 解码: M4A 文件，加载到内存中");
+        let mut file = File::open(file_path).map_err(|e| format!("打开文件失败: {}", e))?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)
+            .map_err(|e| format!("读取文件失败: {}", e))?;
+        println!("🎵 解码: M4A 文件已加载 {} 字节", buffer.len());
+        let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(buffer));
+        Decoder::new(cursor).map_err(|e| format!("解码失败: {:?}", e))
+    } else {
+        let file = File::open(file_path).map_err(|e| format!("打开文件失败: {}", e))?;
+        let boxed: Box<dyn ReadSeek> = Box::new(file);
+        Decoder::new(boxed).map_err(|e| format!("解码失败: {:?}", e))
+    }
+}
 
 /// 直接解码（无需重采样）
 pub fn decode_direct(
@@ -28,8 +53,7 @@ pub fn decode_direct(
     let mut last_log_time = Instant::now();
 
     // 初始化解码器
-    let file = File::open(&file_path).map_err(|e| format!("打开文件失败: {}", e))?;
-    let mut source = Decoder::new(BufReader::new(file)).map_err(|e| format!("解码失败: {}", e))?;
+    let mut source = create_decoder(&file_path)?;
 
     loop {
         // 检查是否有跳转请求
@@ -49,11 +73,8 @@ pub fn decode_direct(
             if target_position < current_position {
                 println!("🔄 解码: 重新打开文件以执行跳转");
 
-                // 重新打开文件
-                let file =
-                    File::open(&file_path).map_err(|e| format!("重新打开文件失败: {}", e))?;
-                source = Decoder::new(BufReader::new(file))
-                    .map_err(|e| format!("重新解码失败: {}", e))?;
+                // 重新创建解码器
+                source = create_decoder(&file_path)?;
                 sample_count = 0;
             }
 
@@ -100,12 +121,9 @@ pub fn decode_direct(
             Some(s) => s,
             None => break,
         };
-
         sample_count += 1;
-        // 使用精确转换，避免精度损失
-        let sample_f32 = PrecisionConverter::i16_to_f32_precise(sample);
 
-        while producer.try_push(sample_f32).is_err() {
+        while producer.try_push(sample).is_err() {
             if !is_playing.load(Ordering::SeqCst) {
                 return Ok(());
             }
@@ -156,8 +174,7 @@ pub fn decode_with_resampling(
     let mut last_log_time = Instant::now();
 
     // 初始化解码器
-    let file = File::open(&file_path).map_err(|e| format!("打开文件失败: {}", e))?;
-    let mut source = Decoder::new(BufReader::new(file)).map_err(|e| format!("解码失败: {}", e))?;
+    let mut source = create_decoder(&file_path)?;
 
     loop {
         // 检查是否有跳转请求
@@ -177,11 +194,8 @@ pub fn decode_with_resampling(
             if target_position < current_position {
                 println!("🔄 解码: 重新打开文件以执行跳转");
 
-                // 重新打开文件
-                let file =
-                    File::open(&file_path).map_err(|e| format!("重新打开文件失败: {}", e))?;
-                source = Decoder::new(BufReader::new(file))
-                    .map_err(|e| format!("重新解码失败: {}", e))?;
+                // 重新创建解码器
+                source = create_decoder(&file_path)?;
                 sample_count = 0;
             }
 
@@ -238,10 +252,7 @@ pub fn decode_with_resampling(
             Some(s) => s,
             None => break,
         };
-
-        // 使用精确转换，避免精度损失
-        let sample_f32 = PrecisionConverter::i16_to_f32_precise(sample);
-        interleaved_samples.push(sample_f32);
+        interleaved_samples.push(sample);
         sample_count += 1;
 
         if interleaved_samples.len() >= samples_per_chunk {

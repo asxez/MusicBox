@@ -4,10 +4,10 @@ use crate::audio_config::AudioConfig;
 use parking_lot::Mutex;
 use rodio::{Decoder, Source};
 use std::fs::File;
-use std::io::BufReader;
-use std::sync::Arc;
+use std::io::{Cursor, Read, Seek};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::Arc;
 use std::time::Duration as StdDuration;
 use wasapi::*;
 
@@ -19,6 +19,12 @@ use crate::decoder;
 use crate::playback_tracker::PlaybackTracker;
 use crate::renderer::WasapiRenderer;
 use crate::thread_message::ThreadMessage;
+
+/// 组合 Read 和 Seek traits 的 trait，用于动态分发
+trait ReadSeek: Read + Seek + Send + Sync {}
+
+/// 自动为所有实现了 Read + Seek + Send + Sync 的类型实现 ReadSeek
+impl<T: Read + Seek + Send + Sync> ReadSeek for T {}
 
 // Windows HRESULT 错误码常量
 const S_FALSE: i32 = 1;
@@ -211,11 +217,21 @@ impl AudioEngine {
 
         self.stop()?;
 
-        let file_for_duration =
-            File::open(file_path).map_err(|e| format!("打开文件失败: {}", e))?;
-
-        let source_for_duration = Decoder::new(BufReader::new(file_for_duration))
-            .map_err(|e| format!("解码失败: {}", e))?;
+        // 对于 M4A 文件，加载到内存中以避免 seek 问题
+        let is_m4a = file_path.to_lowercase().ends_with(".m4a");
+        let source_for_duration: Decoder<Box<dyn ReadSeek>> = if is_m4a {
+            println!("🎵 AudioEngine: M4A 文件，加载到内存中");
+            let mut file = File::open(file_path).map_err(|e| format!("打开文件失败: {}", e))?;
+            let mut buffer = Vec::new();
+            file.read_to_end(&mut buffer)
+                .map_err(|e| format!("读取文件失败: {}", e))?;
+            let cursor: Box<dyn ReadSeek> = Box::new(Cursor::new(buffer));
+            Decoder::new(cursor).map_err(|e| format!("解码失败: {:?}", e))?
+        } else {
+            let file = File::open(file_path).map_err(|e| format!("打开文件失败: {}", e))?;
+            let boxed: Box<dyn ReadSeek> = Box::new(file);
+            Decoder::new(boxed).map_err(|e| format!("解码失败: {:?}", e))?
+        };
 
         let duration = source_for_duration
             .total_duration()

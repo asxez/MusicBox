@@ -13,7 +13,13 @@ napi = { version = "2.16.17", features = ["compat-mode", "tokio_rt"] }
 napi-derive = "2"
 
 # Rodio - 音频解码和处理
-rodio = { version = "0.19", default-features = false, features = ["symphonia-all", "symphonia-mp3", "symphonia-flac", "symphonia-wav", "symphonia-aac"] }
+rodio = { version = "0.21", default-features = false, features = ["symphonia-all",
+    "symphonia-mp3",
+    "symphonia-flac",
+    "symphonia-wav",
+    "symphonia-aac",
+    "symphonia-isomp4",
+]}
 
 # wasapi - WASAPI独占模式音频输出
 wasapi = "0.21"
