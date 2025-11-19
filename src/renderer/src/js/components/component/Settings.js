@@ -653,13 +653,12 @@ class Settings extends Component {
 
     // 显示硬件加速确认对话框
     async showHardwareAccelerationConfirmDialog() {
-        return new Promise((resolve) => {
-            const message = '关闭硬件加速可能会降低应用性能，但可以解决某些显卡兼容性问题。\n\n更改此设置需要重启应用才能生效。\n\n是否要关闭硬件加速并立即重启应用？';
-            if (confirm(message)) {
-                resolve(true);
-            } else {
-                resolve(false);
-            }
+        const message = '关闭硬件加速可能会降低应用性能，但可以解决某些显卡兼容性问题。\n\n更改此设置需要重启应用才能生效。\n\n是否要关闭硬件加速并立即重启应用？';
+        return await app.confirm({
+            title: '硬件加速设置',
+            message: message,
+            confirmText: '重启应用',
+            type: 'warning'
         });
     }
 
@@ -762,7 +761,14 @@ class Settings extends Component {
     }
 
     async clearCache() {
-        if (!confirm('确定要清空所有缓存吗？这将删除所有已缓存的音乐文件信息，下次启动时需要重新扫描。')) {
+        const confirmed = await app.confirm({
+            title: '清空缓存',
+            message: '确定要清空所有缓存吗？这将删除所有已缓存的音乐文件信息，下次启动时需要重新扫描。',
+            type: 'warning',
+            confirmText: '清空'
+        });
+
+        if (!confirmed) {
             return;
         }
 
@@ -892,8 +898,8 @@ class Settings extends Component {
         });
 
         // 重置快捷键按钮
-        this.resetShortcutsBtn.addEventListener('click', () => {
-            this.showResetShortcutsDialog();
+        this.resetShortcutsBtn.addEventListener('click', async () => {
+            await this.showResetShortcutsDialog();
         });
 
         // 初始化快捷键配置
@@ -1006,7 +1012,7 @@ class Settings extends Component {
         // 检查冲突
         const conflicts = shortcutConfig.checkConflicts(type, id, shortcutString);
         if (conflicts.length > 0) {
-            this.showShortcutConflict(conflicts, shortcutString, async () => {
+            await this.showShortcutConflict(conflicts, shortcutString, async () => {
                 // 用户确认覆盖
                 await this.updateShortcut(type, id, shortcutString, element);
             });
@@ -1085,17 +1091,31 @@ class Settings extends Component {
         }
     }
 
-    showShortcutConflict(conflicts, newShortcut, onConfirm) {
+    async showShortcutConflict(conflicts, newShortcut, onConfirm) {
         const conflictNames = conflicts.map(c => `${c.name} (${c.type === 'local' ? '应用内' : '全局'})`).join('、');
         const message = `快捷键 "${this.formatShortcutKey(newShortcut)}" 与以下快捷键冲突：\n${conflictNames}\n\n是否要覆盖现有快捷键？`;
-        if (confirm(message)) {
+        const confirmed = await app.confirm({
+            title: '快捷键冲突',
+            message: message,
+            confirmText: '覆盖',
+            type: 'warning'
+        });
+
+        if (confirmed) {
             onConfirm();
         }
     }
 
-    showResetShortcutsDialog() {
+    async showResetShortcutsDialog() {
         const message = '确定要将所有快捷键重置为默认设置吗？\n\n此操作将清除您的所有自定义快捷键配置。';
-        if (confirm(message)) {
+        const confirmed = await app.confirm({
+            title: '重置快捷键',
+            message: message,
+            confirmText: '重置',
+            type: 'warning'
+        });
+
+        if (confirmed) {
             this.resetShortcuts();
         }
     }
@@ -1231,7 +1251,13 @@ class Settings extends Component {
                     showToast('文件夹已添加', 'success');
 
                     // 询问是否立即扫描
-                    if (confirm('是否立即扫描该文件夹？')) {
+                    const shouldScan = await app.confirm({
+                        title: '扫描文件夹',
+                        message: '是否立即扫描该文件夹？',
+                        confirmText: '扫描'
+                    });
+
+                    if (shouldScan) {
                         showToast('正在扫描...', 'info');
                         await window.electronAPI.library.scanDirectory(selectedPath);
                         showToast('扫描完成', 'success');
@@ -1247,7 +1273,14 @@ class Settings extends Component {
     }
 
     async handleRemoveMusicFolder(folderPath) {
-        if (!confirm(`确定要移除文件夹吗？\n\n${folderPath}\n\n移除后该文件夹中的音乐将不会被自动扫描。`)) {
+        const confirmed = await app.confirm({
+            title: '移除文件夹',
+            message: `确定要移除文件夹吗？\n\n${folderPath}\n\n移除后该文件夹中的音乐将不会被自动扫描。`,
+            confirmText: '移除',
+            type: 'warning'
+        });
+
+        if (!confirmed) {
             return;
         }
 
@@ -1330,7 +1363,14 @@ class Settings extends Component {
     }
 
     async handleClearIgnoreList() {
-        if (!confirm('确定要清空忽略列表吗？\n\n清空后，之前手动删除的歌曲在下次自动扫描时会被重新添加到音乐库。')) {
+        const confirmed = await app.confirm({
+            title: '清空忽略列表',
+            message: '确定要清空忽略列表吗？\n\n清空后，之前手动删除的歌曲在下次自动扫描时会被重新添加到音乐库。',
+            confirmText: '清空',
+            type: 'warning'
+        });
+
+        if (!confirmed) {
             return;
         }
 

@@ -615,7 +615,14 @@ class PlaylistDetailPage extends Component {
         if (!this.currentPlaylist || !this.tracks.length) return;
 
         const confirmMessage = `确定要清空歌单"${this.currentPlaylist.name}"吗？\n这将移除歌单中的所有 ${this.tracks.length} 首歌曲，此操作无法撤销。`;
-        if (!confirm(confirmMessage)) {
+        const confirmed = await app.confirm({
+            title: '清空歌单',
+            message: confirmMessage,
+            confirmText: '清空',
+            type: 'warning'
+        });
+
+        if (!confirmed) {
             return;
         }
 
@@ -724,7 +731,14 @@ class PlaylistDetailPage extends Component {
         if (this.selectedTracks.size === 0) return;
 
         const selectedCount = this.selectedTracks.size;
-        if (!confirm(`确定要从歌单中移除选中的 ${selectedCount} 首歌曲吗？`)) {
+        const confirmed = await app.confirm({
+            title: '移除歌曲',
+            message: `确定要从歌单中移除选中的 ${selectedCount} 首歌曲吗？`,
+            confirmText: '移除',
+            type: 'warning'
+        });
+
+        if (!confirmed) {
             return;
         }
 

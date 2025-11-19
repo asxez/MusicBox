@@ -394,6 +394,27 @@
             </div>
         </div>
 
+        <!-- Confirm Dialog -->
+        <div id="confirm-dialog" class="modal-overlay" style="display: none;">
+            <div class="modal-dialog modal-dialog-small">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="confirm-dialog-title">确认操作</h3>
+                    <button class="modal-close-btn" id="confirm-dialog-close">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p class="confirm-message" id="confirm-dialog-message"></p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="confirm-dialog-cancel">取消</button>
+                    <button class="btn btn-primary" id="confirm-dialog-confirm">确定</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Rename Playlist Dialog -->
         <div id="rename-playlist-dialog" class="modal-overlay" style="display: none;">
             <div class="modal-dialog">
