@@ -992,18 +992,16 @@
                             </div>
 
                             <!-- 已挂载的网络磁盘列表 -->
-                            <div class="settings-item">
-                                <div class="item-info">
-                                    <label class="item-label">已挂载的磁盘</label>
-                                    <p class="item-description">管理已连接的网络磁盘</p>
+                            <div class="settings-item network-drives-section">
+                                <div class="network-drives-header">
+                                    <div class="header-info">
+                                        <label class="item-label">已挂载的磁盘</label>
+                                        <p class="item-description">管理已连接的网络磁盘</p>
+                                    </div>
+                                    <button class="settings-button secondary" id="refresh-drives-btn">刷新状态</button>
                                 </div>
-                                <div class="item-control">
-                                    <div class="drives-header">
-                                        <button class="settings-button secondary" id="refresh-drives-btn">刷新状态</button>
-                                    </div>
-                                    <div class="mounted-drives-list" id="mounted-drives-list">
-                                        <div class="no-drives-message">暂无已挂载的网络磁盘</div>
-                                    </div>
+                                <div class="mounted-drives-list" id="mounted-drives-list">
+                                    <div class="no-drives-message">暂无已挂载的网络磁盘</div>
                                 </div>
                             </div>
                         </div>

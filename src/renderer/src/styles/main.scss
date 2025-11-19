@@ -6122,10 +6122,39 @@ a {
   gap: var(--spacing-sm);
 }
 
-.drives-header {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: var(--spacing-sm);
+// 网络磁盘设置区域样式
+.network-drives-section {
+  flex-direction: column;
+  align-items: stretch !important;
+
+  .network-drives-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-md);
+
+    .header-info {
+      flex: 1;
+
+      .item-label {
+        display: block;
+        margin-bottom: var(--spacing-xs);
+      }
+
+      .item-description {
+        margin: 0;
+      }
+    }
+
+    #refresh-drives-btn {
+      flex-shrink: 0;
+      margin-left: var(--spacing-md);
+    }
+  }
+
+  .mounted-drives-list {
+    width: 100%;
+  }
 }
 
 // 网络磁盘模态框样式
