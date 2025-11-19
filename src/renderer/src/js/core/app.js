@@ -364,11 +364,6 @@ class MusicBoxApp extends EventEmitter {
             await this.handlePlaylistCoverUpdated(playlist);
         });
 
-        // Settings events
-        this.components.settings.on('selectMusicFolder', async () => {
-            await this.handleSelectMusicFolder();
-        });
-
         // 监听检查更新事件
         this.components.settings.on('checkUpdates', () => {
             this.components.updateModal.show();
@@ -979,17 +974,13 @@ class MusicBoxApp extends EventEmitter {
         }
 
         // 设置所有页面组件的事件
-        // HomePage events (始终存在)
+        // HomePage events
         this.components.homePage.on('trackPlayed', async (track, index) => {
             await this.handleTrackPlayed(track, index);
         });
 
         this.components.homePage.on('viewChange', (view) => {
             this.components.navigation.navigateToView(view);
-        });
-
-        this.components.homePage.on('addMusic', async () => {
-            await this.handleSelectMusicFolder();
         });
 
         // 按需设置其他组件的事件
@@ -1914,14 +1905,6 @@ class MusicBoxApp extends EventEmitter {
         } catch (error) {
             console.error('❌ 删除歌曲失败:', error);
             this.showError('删除失败，请重试');
-        }
-    }
-
-    async handleSelectMusicFolder() {
-        const result = await fileAPI.selectMusicFolder();
-        if (result && result.path) {
-            this.components.settings.updateMusicFolderPath(result.path);
-            console.log('📁 选择音乐文件夹:', result.path);
         }
     }
 
