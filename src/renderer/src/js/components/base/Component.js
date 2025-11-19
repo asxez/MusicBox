@@ -2,7 +2,7 @@ import {EventEmitter} from '@utils';
 import {api} from "@api/api";
 
 class Component extends EventEmitter {
-    constructor(element=null, has=true) {
+    constructor(element = null, has = true) {
         super();
         this.element = typeof element === 'string' ? document.querySelector(element) : element;
         this.isDestroyed = false;
@@ -10,20 +10,11 @@ class Component extends EventEmitter {
         // 资源管理
         this.eventListeners = [];
         this.apiEventListeners = [];
-        this.timers = [];
-        this.observers = [];
-        this.disposables = [];
 
         if (has && !this.element) {
             console.error('❌ Component element not found');
         }
-
-        // this.init();
     }
-
-    // init() {
-    //     // 子类实现
-    // }
 
     // 添加事件监听器
     addEventListenerManaged(element, event, handler, options) {
@@ -55,23 +46,6 @@ class Component extends EventEmitter {
         );
     }
 
-    // 添加定时器
-    addTimerManaged(timerId) {
-        this.timers.push(timerId);
-        return timerId;
-    }
-
-    // 添加观察者
-    addObserverManaged(observer) {
-        this.observers.push(observer);
-        return observer;
-    }
-
-    // 添加可清理资源
-    addDisposable(disposable) {
-        this.disposables.push(disposable);
-    }
-
     destroy() {
         if (this.isDestroyed) return;
 
@@ -82,20 +56,11 @@ class Component extends EventEmitter {
 
         // 清理所有API事件监听器
         this.removeAllAPIListeners();
-
-        // 清理定时器
-        this.clearAllTimers();
-
-        // 清理观察者
-        this.disconnectAllObservers();
-
-        // 清理其他资源
-        this.disposeAllResources();
     }
 
     removeAllListeners() {
         // 移除所有DOM事件监听器
-        this.eventListeners.forEach(({ element, event, handler }) => {
+        this.eventListeners.forEach(({element, event, handler}) => {
             try {
                 element.removeEventListener(event, handler);
             } catch (error) {
@@ -108,7 +73,7 @@ class Component extends EventEmitter {
     removeAllAPIListeners() {
         // 移除所有API事件监听器
         console.log(`🗑️ Component: 移除 ${this.apiEventListeners.length} 个API事件监听器`);
-        this.apiEventListeners.forEach(({ event, handler }) => {
+        this.apiEventListeners.forEach(({event, handler}) => {
             try {
                 if (typeof api !== 'undefined' && api && api.off) {
                     console.log(`🗑️ Component: 移除API事件监听器 ${event}`);
@@ -120,49 +85,6 @@ class Component extends EventEmitter {
         });
         this.apiEventListeners = [];
     }
-
-    clearAllTimers() {
-        // 清理所有定时器
-        this.timers.forEach(timerId => {
-            try {
-                clearTimeout(timerId);
-                clearInterval(timerId);
-            } catch (error) {
-                console.warn('Failed to clear timer:', error);
-            }
-        });
-        this.timers = [];
-    }
-
-    disconnectAllObservers() {
-        // 断开所有观察者
-        this.observers.forEach(observer => {
-            try {
-                if (observer && typeof observer.disconnect === 'function') {
-                    observer.disconnect();
-                }
-            } catch (error) {
-                console.warn('⚠️ Failed to disconnect observer:', error);
-            }
-        });
-        this.observers = [];
-    }
-
-    disposeAllResources() {
-        // 清理其他资源
-        this.disposables.forEach(disposable => {
-            try {
-                if (typeof disposable === 'function') {
-                    disposable();
-                } else if (disposable && typeof disposable.dispose === 'function') {
-                    disposable.dispose();
-                }
-            } catch (error) {
-                console.warn('⚠️ Failed to dispose resource:', error);
-            }
-        });
-        this.disposables = [];
-    }
 }
 
-export { Component };
+export {Component};
