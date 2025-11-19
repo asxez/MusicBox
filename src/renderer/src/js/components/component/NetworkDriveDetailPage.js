@@ -276,7 +276,14 @@ class NetworkDriveDetailPage extends Component {
     async removeDrive() {
         const displayName = this.currentDrive.config?.displayName || this.currentDrive.displayName || '未命名磁盘';
 
-        if (!confirm(`确定要移除网络磁盘 "${displayName}" 吗？\n\n这将删除该磁盘下的所有音乐缓存，但不会删除网络磁盘上的文件。`)) {
+        const confirmed = await app.confirm({
+            title: '移除网络磁盘',
+            message: `确定要移除网络磁盘 "${displayName}" 吗？\n\n这将删除该磁盘下的所有音乐缓存，但不会删除网络磁盘上的文件。`,
+            confirmText: '移除',
+            type: 'warning'
+        });
+
+        if (!confirmed) {
             return;
         }
 

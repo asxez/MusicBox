@@ -533,9 +533,15 @@ export function createUIAPI(context) {
                 const title = options.title || '确认';
                 const confirmText = options.confirmText || '确定';
                 const cancelText = options.cancelText || '取消';
+                const type = options.type || 'default';
 
-                // TODO: 实现自定义对话框组件
-                return window.confirm(`${title}\n\n${message}`);
+                return await app.confirm({
+                    title: title,
+                    message: message,
+                    confirmText: confirmText,
+                    cancelText: cancelText,
+                    type: type
+                });
             }, 'ui.showConfirmDialog');
         },
 

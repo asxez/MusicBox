@@ -21,6 +21,7 @@ import {TrackList} from "@components/component/TrackList";
 import {UpdateModal} from "@components/component/UpdateModal";
 
 import {AddToPlaylistDialog} from "@components/dialogs/AddToPlaylistDialog";
+import {ConfirmDialog} from "@components/dialogs/ConfirmDialog";
 import {CreatePlaylistDialog} from "@components/dialogs/CreatePlaylistDialog";
 import {EditTrackInfoDialog} from "@components/dialogs/EditTrackInfoDialog";
 import {MusicLibrarySelectionDialog} from "@components/dialogs/MusicLibrarySelectionDialog";
@@ -187,7 +188,8 @@ class MusicBoxApp extends EventEmitter {
         this.components.lyrics = new Lyrics(document.getElementById('lyrics-page'));
         this.components.equalizer = new EqualizerComponent();
 
-        // 初始化歌单对话框组件
+        // 初始化对话框组件
+        this.components.confirmDialog = new ConfirmDialog();
         this.components.createPlaylistDialog = new CreatePlaylistDialog();
         this.components.addToPlaylistDialog = new AddToPlaylistDialog();
         this.components.renamePlaylistDialog = new RenamePlaylistDialog();
@@ -1746,6 +1748,10 @@ class MusicBoxApp extends EventEmitter {
         showToast(message, 'info');
     }
 
+    async confirm(options) {
+        return await this.components.confirmDialog.show(options);
+    }
+
     // Playlist event handlers
     handlePlaylistTrackSelected(track, _index) {
         console.log('🎵 播放列表选择歌曲:', track.title);
@@ -1863,7 +1869,14 @@ class MusicBoxApp extends EventEmitter {
         }
 
         // 在音乐库或其他页面，从音乐库中删除，同时从所有歌单中移除
-        if (!confirm(`确定要从音乐库中删除 "${track.title}" 吗？\n\n此操作将从音乐库和所有歌单中移除该歌曲，但不会删除本地文件。`)) {
+        const confirmed = await this.confirm({
+            title: '删除歌曲',
+            message: `确定要从音乐库中删除 "${track.title}" 吗？\n\n此操作将从音乐库和所有歌单中移除该歌曲，但不会删除本地文件。`,
+            type: 'danger',
+            confirmText: '删除'
+        });
+
+        if (!confirmed) {
             return;
         }
 

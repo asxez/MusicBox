@@ -5,6 +5,7 @@
 import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
+import {app} from "@core/app";
 
 class EqualizerComponent extends Component {
     constructor() {
@@ -103,17 +104,17 @@ class EqualizerComponent extends Component {
             this.hideCustomPresetsPanel();
         });
 
-        this.addEventListenerManaged(this.savePresetBtn, 'click', () => {
-            this.saveCustomPreset();
+        this.addEventListenerManaged(this.savePresetBtn, 'click', async () => {
+            await this.saveCustomPreset();
         });
 
         this.addEventListenerManaged(this.newPresetNameInput, 'input', () => {
             this.updateSaveButtonState();
         });
 
-        this.addEventListenerManaged(this.newPresetNameInput, 'keypress', (e) => {
+        this.addEventListenerManaged(this.newPresetNameInput, 'keypress', async (e) => {
             if (e.key === 'Enter') {
-                this.saveCustomPreset();
+                await this.saveCustomPreset();
             }
         });
 
@@ -447,7 +448,7 @@ class EqualizerComponent extends Component {
         this.savePresetBtn.disabled = !isValid;
     }
 
-    saveCustomPreset() {
+    async saveCustomPreset() {
         const name = this.newPresetNameInput.value.trim();
         if (!name || name.length > 20) {
             alert('请输入有效的预设名称（1-20个字符）');
@@ -465,7 +466,14 @@ class EqualizerComponent extends Component {
             const customPresets = this.getCustomPresets();
             // 检查是否已存在同名预设
             if (customPresets[name]) {
-                if (!confirm(`预设"${name}"已存在，是否覆盖？`)) {
+                const shouldOverwrite = await app.confirm({
+                    title: '覆盖预设',
+                    message: `预设"${name}"已存在，是否覆盖？`,
+                    confirmText: '覆盖',
+                    type: 'warning'
+                });
+
+                if (!shouldOverwrite) {
                     return;
                 }
             }
@@ -533,8 +541,15 @@ class EqualizerComponent extends Component {
         }
     }
 
-    deleteCustomPreset(name) {
-        if (!confirm(`确定要删除预设"${name}"吗？此操作无法撤销。`)) {
+    async deleteCustomPreset(name) {
+        const shouldDelete = await app.confirm({
+            title: '删除预设',
+            message: `确定要删除预设"${name}"吗？此操作无法撤销。`,
+            confirmText: '删除',
+            type: 'danger'
+        });
+
+        if (!shouldDelete) {
             return;
         }
 
@@ -643,4 +658,4 @@ class EqualizerComponent extends Component {
     }
 }
 
-export { EqualizerComponent };
+export {EqualizerComponent};

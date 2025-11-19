@@ -1931,6 +1931,18 @@ a {
   border-top: 1px solid var(--color-border);
 }
 
+.modal-dialog-small {
+  max-width: 400px;
+}
+
+.confirm-message {
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-line;
+}
+
 // Form styles
 .form-group {
   margin-bottom: var(--spacing-lg);
@@ -2023,6 +2035,24 @@ a {
 
   &:hover:not(:disabled) {
     background: var(--color-bg-hover);
+  }
+}
+
+.btn-danger {
+  background: var(--color-danger);
+  color: white;
+
+  &:hover:not(:disabled) {
+    background: #dc2626;
+  }
+}
+
+.btn-warning {
+  background: var(--color-warning);
+  color: white;
+
+  &:hover:not(:disabled) {
+    background: #d97706;
   }
 }
 
@@ -11571,7 +11601,7 @@ body.focus-mode {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  z-index: 400;
   opacity: 0;
   visibility: hidden;
   transition: all var(--transition-smooth);

@@ -511,7 +511,14 @@ class Navigation extends Component {
 
     // 删除歌单
     async deletePlaylist(playlist) {
-        if (!confirm(`确定要删除歌单 "${playlist.name}" 吗？此操作不可撤销。`)) {
+        const confirmed = await app.confirm({
+            title: '删除歌单',
+            message: `确定要删除歌单 "${playlist.name}" 吗？此操作不可撤销。`,
+            confirmText: '删除',
+            type: 'danger'
+        });
+
+        if (!confirmed) {
             return;
         }
 

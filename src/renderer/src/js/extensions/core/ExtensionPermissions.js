@@ -5,6 +5,7 @@
 
 import {Disposable} from "@extensions/core/Lifecycle";
 import {Emitter} from "@extensions/core/Event";
+import {app} from "@core/app";
 
 /**
  * 权限定义
@@ -304,15 +305,16 @@ export class PermissionManager extends Disposable {
      * 询问用户
      */
     async _promptUser(extensionId, permission) {
-        // TODO: 实现用户授权对话框
-        // 暂时默认授予
         console.warn(`⚠️ PermissionManager: 需要用户授权 ${extensionId} 的权限 ${permission}`);
 
         const description = PermissionDescriptions[permission] || permission;
         const message = `扩展 "${extensionId}" 请求权限：${description}\n\n是否允许？`;
-
-        // 使用简单的 confirm 对话框（后续可以替换为自定义 UI）
-        return confirm(message);
+        return await app.confirm({
+            title: '扩展权限请求',
+            message: message,
+            confirmText: '允许',
+            cancelText: '拒绝'
+        });
     }
 
     /**

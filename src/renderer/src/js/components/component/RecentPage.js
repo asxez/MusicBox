@@ -7,6 +7,7 @@ import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {formatTime} from "@utils";
 import {Component} from "@components/base/Component";
 import {coverAPI} from "@api/CoverAPI";
+import {app} from "@core/app";
 
 class RecentPage extends Component {
     constructor(container) {
@@ -366,8 +367,15 @@ class RecentPage extends Component {
         // 清空历史按钮
         const clearBtn = this.container.querySelector('#clear-history');
         if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
-                if (confirm('确定要清空播放历史吗？此操作无法撤销。')) {
+            clearBtn.addEventListener('click', async () => {
+                const confirmed = await app.confirm({
+                    title: '清空播放历史',
+                    message: '确定要清空播放历史吗？此操作无法撤销。',
+                    confirmText: '清空',
+                    type: 'warning'
+                });
+
+                if (confirmed) {
                     this.clearHistory();
                 }
             });

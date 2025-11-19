@@ -4,6 +4,7 @@
 
 import {showToast} from "@utils";
 import {Component} from "@components/base/Component";
+import {app} from "@core/app";
 
 class PluginManagerModal extends Component {
     constructor() {
@@ -273,7 +274,13 @@ class PluginManagerModal extends Component {
      */
     async handleUninstallExtension(extensionId, extensionName) {
         try {
-            const confirmed = confirm(`确定要卸载扩展 "${extensionName}" 吗？\n\n卸载后需要重启应用才能完全移除。`);
+            const confirmed = await app.confirm({
+                title: '卸载扩展',
+                message: `确定要卸载扩展 "${extensionName}" 吗？\n\n卸载后需要重启应用才能完全移除。`,
+                confirmText: '卸载',
+                type: 'warning'
+            });
+
             if (!confirmed) {
                 return;
             }
