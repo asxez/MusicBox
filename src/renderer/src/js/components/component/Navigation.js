@@ -129,6 +129,15 @@ class Navigation extends Component {
                 }
             });
         });
+
+        // 监听网络磁盘事件
+        window.electronAPI.networkDrive.onConnected(async () => {
+            await this.loadNetworkDrives();
+        });
+
+        window.electronAPI.networkDrive.onDisconnected(async () => {
+            await this.loadNetworkDrives();
+        });
     }
 
     updateThemeIcon() {
