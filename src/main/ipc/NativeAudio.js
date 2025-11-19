@@ -245,15 +245,14 @@ function startEventPolling() {
             return;
         }
 
-        if (nativeAudioEngine.hasOwnProperty('pollEvents')) {
-            try {
-                const event = nativeAudioEngine.pollEvents();
-                if (event) {
-                    handleNativeAudioEvent(event);
-                }
-            } catch (error) {
-                console.error('❌ 轮询原生音频事件失败:', error);
+        // Rust创建的JS对象的所有属性均在原型上，即nativeAudioEngine.__proto__
+        try {
+            const event = nativeAudioEngine.pollEvents();
+            if (event) {
+                handleNativeAudioEvent(event);
             }
+        } catch (error) {
+            console.error('❌ 轮询原生音频事件失败:', error);
         }
     }, 500);
 
