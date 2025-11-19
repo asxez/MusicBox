@@ -78,7 +78,6 @@ class Settings extends Component {
 
         // 侧边栏导航元素
         this.navButtons = this.element.querySelectorAll('.settings-nav-btn');
-        this.settingsSections = this.element.querySelectorAll('.settings-section');
         this.currentSection = 'appearance'; // 默认显示外观设置
 
         // 设置控件元素
@@ -522,12 +521,6 @@ class Settings extends Component {
     // 获取设置值
     getSetting(key, defaultValue = null) {
         return this.settings[key] !== undefined ? this.settings[key] : defaultValue;
-    }
-
-    // 更新音乐文件夹路径显示
-    updateMusicFolderPath(path) {
-        this.updateSetting('musicDirectory', path);
-        // TODO
     }
 
     // 切换托盘设置显示
