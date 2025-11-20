@@ -93,7 +93,7 @@ class CoverAPI {
             }
             return {success: false};
         } catch (embeddedError) {
-            return {success: false, error: error.message};
+            return {success: false, error: embeddedError.message};
         }
     }
 
@@ -115,7 +115,7 @@ class CoverAPI {
                 filePath: localCoverResult.filePath
             };
         } else {
-            return {success: false, error: error.message};
+            return {success: false, error: "获取本地缓存封面失败"};
         }
     }
 

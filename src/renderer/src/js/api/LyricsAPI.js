@@ -89,7 +89,7 @@ class LyricsAPI {
             if (embeddedResult.success) return embeddedResult;
             return {success: false};
         } catch (embeddedError) {
-            return {success: false, error: error.message};
+            return {success: false, error: embeddedError.message};
         }
     }
 
