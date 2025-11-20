@@ -288,23 +288,31 @@ function getMimeTypeFromExtension(filePath) {
  * 全局元数据解析函数
  * @param {string} filePath - 音频文件路径
  * @param {object} networkFileAdapter - 网络文件适配器
+ * @param {object} options - 解析选项
+ * @param {boolean} options.skipCover - 跳过封面解析
+ * @param {boolean} options.skipLyrics - 跳过歌词解析
  * @returns {object} 解析后的元数据对象
  */
-async function parseMetadata(filePath, networkFileAdapter = null) {
+async function parseMetadata(filePath, networkFileAdapter = null, options = {}) {
     const {fixStringEncoding} = require('./string');
+    const {skipCover = false, skipLyrics = false} = options;
     try {
-        // console.log(`🔍 解析音频元数据: ${filePath}`);
-
         let metadata;
+        const parseOptions = {
+            skipCovers: skipCover,
+            skipPostHeaders: skipLyrics
+        };
+
         if (networkFileAdapter && networkFileAdapter.isNetworkPath(filePath)) {
             // console.log(`🌐 检测到网络路径，使用网络文件解析: ${filePath}`);
             const buffer = await networkFileAdapter.readFile(filePath);
             metadata = await mm.parseBuffer(buffer, {
                 mimeType: getMimeTypeFromExtension(filePath),
-                size: buffer.length
+                size: buffer.length,
+                ...parseOptions
             });
         } else {
-            metadata = await mm.parseFile(filePath);
+            metadata = await mm.parseFile(filePath, parseOptions);
         }
 
         if (!metadata) {
@@ -326,7 +334,7 @@ async function parseMetadata(filePath, networkFileAdapter = null) {
 
         // 提取专辑封面
         let cover = null;
-        if (metadata.common.picture && metadata.common.picture.length > 0) {
+        if (!skipCover && metadata.common.picture && metadata.common.picture.length > 0) {
             const picture = metadata.common.picture[0];
             cover = {
                 format: picture.format,
@@ -336,13 +344,15 @@ async function parseMetadata(filePath, networkFileAdapter = null) {
 
         // 提取内嵌歌词
         let embeddedLyrics = null;
-        try {
-            embeddedLyrics = extractEmbeddedLyrics(metadata);
-            if (embeddedLyrics) {
-                console.log(`🎵 发现内嵌歌词: ${embeddedLyrics.type} 格式`);
+        if (!skipLyrics) {
+            try {
+                embeddedLyrics = extractEmbeddedLyrics(metadata);
+                if (embeddedLyrics) {
+                    console.log(`🎵 发现内嵌歌词: ${embeddedLyrics.type} 格式`);
+                }
+            } catch (error) {
+                console.warn(`⚠️ 提取内嵌歌词失败: ${error.message}`);
             }
-        } catch (error) {
-            console.warn(`⚠️ 提取内嵌歌词失败: ${error.message}`);
         }
 
         return {

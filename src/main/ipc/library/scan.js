@@ -77,14 +77,14 @@ function registerLibraryScanIpcHandlers(
 
             if (existingTrack) {
                 console.log(`✅ 文件已在缓存中: ${networkPath}`);
-                return { success: true, track: existingTrack, isNew: false };
+                return {success: true, track: existingTrack, isNew: false};
             }
 
             // 检查文件扩展名
             const audioExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.ape'];
             const ext = path.extname(networkPath).toLowerCase();
             if (!audioExtensions.includes(ext)) {
-                return { success: false, error: '不支持的音频格式' };
+                return {success: false, error: '不支持的音频格式'};
             }
 
             // 获取文件统计信息
@@ -94,7 +94,7 @@ function registerLibraryScanIpcHandlers(
                 : Boolean(stats.isDirectory);
 
             if (isDir) {
-                return { success: false, error: '这是一个文件夹，不是音频文件' };
+                return {success: false, error: '这是一个文件夹，不是音频文件'};
             }
 
             // 解析元数据
@@ -136,10 +136,10 @@ function registerLibraryScanIpcHandlers(
                 mainWindow.webContents.send('library:updated', [trackData]);
             }
 
-            return { success: true, track: addedTracks[0], isNew: true };
+            return {success: true, track: addedTracks[0], isNew: true};
         } catch (error) {
             console.error('❌ 扫描单个文件失败:', error);
-            return { success: false, error: error.message };
+            return {success: false, error: error.message};
         }
     });
 
@@ -179,60 +179,78 @@ function registerLibraryScanIpcHandlers(
         try {
             const audioExtensions = ['.mp3', '.flac', '.wav', '.ogg', '.m4a', '.aac', '.wma'];
             const audioFiles = [];
+            const fsPromises = fs.promises;
+            const BATCH_SIZE = 20;
 
-            async function scanDir(dir) {
+            async function collectFiles(dir) {
+                const files = [];
                 try {
-                    const items = fs.readdirSync(dir);
-                    for (const item of items) {
-                        const fullPath = path.join(dir, item);
-                        const stat = fs.statSync(fullPath);
+                    const items = await fsPromises.readdir(dir);
+                    const itemPaths = items.map(item => path.join(dir, item));
+                    const stats = await Promise.all(
+                        itemPaths.map(p => fsPromises.stat(p).catch(() => null))
+                    );
+
+                    for (let i = 0; i < items.length; i++) {
+                        const stat = stats[i];
+                        if (!stat) continue;
+
                         if (stat.isDirectory()) {
-                            await scanDir(fullPath);
-                        } else if (audioExtensions.includes(path.extname(item).toLowerCase())) {
-                            try {
-                                const metadata = await parseMetadata(fullPath);
-                                const audioFile = {
-                                    filePath: fullPath,
-                                    fileName: item,
-                                    title: metadata.title,
-                                    artist: metadata.artist,
-                                    album: metadata.album,
-                                    duration: metadata.duration,
-                                    bitrate: metadata.bitrate,
-                                    sampleRate: metadata.sampleRate,
-                                    year: metadata.year,
-                                    genre: metadata.genre,
-                                    track: metadata.track,
-                                    disc: metadata.disc,
-                                    fileSize: stat.size,
-                                    embeddedLyrics: metadata.embeddedLyrics,
-                                };
-                                audioFiles.push(audioFile);
-                            } catch (metadataError) {
-                                console.warn(`⚠️ 解析元数据失败: ${fullPath}`, metadataError.message);
-                                // 即使元数据解析失败，也添加基本信息
-                                audioFiles.push({
-                                    filePath: fullPath,
-                                    fileName: item,
-                                    title: path.basename(item, path.extname(item)),
-                                    artist: '未知艺术家',
-                                    album: '未知专辑',
-                                    duration: 0,
-                                    fileSize: stat.size,
-                                });
-                            }
+                            const subFiles = await collectFiles(itemPaths[i]);
+                            files.push(...subFiles);
+                        } else if (audioExtensions.includes(path.extname(items[i]).toLowerCase())) {
+                            files.push({path: itemPaths[i], stat, name: items[i]});
                         }
                     }
                 } catch (error) {
                     console.error(`扫描目录错误 ${dir}:`, error.message);
                 }
+                return files;
             }
 
-            await scanDir(directoryPath);
-            return { success: true, files: audioFiles };
+            const files = await collectFiles(directoryPath);
+
+            for (let i = 0; i < files.length; i += BATCH_SIZE) {
+                const batch = files.slice(i, i + BATCH_SIZE);
+                const results = await Promise.all(batch.map(async ({path: fullPath, stat, name}) => {
+                    try {
+                        const metadata = await parseMetadata(fullPath, null, {skipCover: true, skipLyrics: true});
+                        return {
+                            filePath: fullPath,
+                            fileName: name,
+                            title: metadata.title,
+                            artist: metadata.artist,
+                            album: metadata.album,
+                            duration: metadata.duration,
+                            bitrate: metadata.bitrate,
+                            sampleRate: metadata.sampleRate,
+                            year: metadata.year,
+                            genre: metadata.genre,
+                            track: metadata.track,
+                            disc: metadata.disc,
+                            fileSize: stat.size,
+                            embeddedLyrics: metadata.embeddedLyrics,
+                        };
+                    } catch (metadataError) {
+                        console.warn(`⚠️ 解析元数据失败: ${fullPath}`, metadataError.message);
+                        return {
+                            filePath: fullPath,
+                            fileName: name,
+                            title: path.basename(name, path.extname(name)),
+                            artist: '未知艺术家',
+                            album: '未知专辑',
+                            duration: 0,
+                            fileSize: stat.size,
+                        };
+                    }
+                }));
+                audioFiles.push(...results);
+            }
+
+            return {success: true, files: audioFiles};
         } catch (error) {
             console.error('❌ 扫描文件夹失败:', error);
-            return { success: false, error: error.message, files: [] };
+            return {success: false, error: error.message, files: []};
         }
     });
 
@@ -251,7 +269,7 @@ function registerLibraryScanIpcHandlers(
             );
 
             if (existingTrack) {
-                return { success: true, track: existingTrack, isNew: false };
+                return {success: true, track: existingTrack, isNew: false};
             }
 
             // 获取文件统计信息
@@ -284,10 +302,10 @@ function registerLibraryScanIpcHandlers(
             if (mainWindow) {
                 mainWindow.webContents.send('library:updated', tracks);
             }
-            return { success: true, track: cacheTrack, isNew: true };
+            return {success: true, track: cacheTrack, isNew: true};
         } catch (error) {
             console.error('❌ 添加音频文件到音乐库失败:', error);
-            return { success: false, error: error.message };
+            return {success: false, error: error.message};
         }
     });
 
@@ -296,20 +314,43 @@ function registerLibraryScanIpcHandlers(
         const audioExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac'];
         const tracks = [];
         const tracksToCache = [];
+        const fsPromises = fs.promises;
+        const BATCH_SIZE = 20;
 
-        async function scanDir(dir) {
+        async function collectFiles(dir) {
+            const files = [];
             try {
-                const items = fs.readdirSync(dir);
-                for (const item of items) {
-                    const fullPath = path.join(dir, item);
-                    const stat = fs.statSync(fullPath);
+                const items = await fsPromises.readdir(dir);
+                const itemPaths = items.map(item => path.join(dir, item));
+                const stats = await Promise.all(
+                    itemPaths.map(p => fsPromises.stat(p).catch(() => null))
+                );
+
+                for (let i = 0; i < items.length; i++) {
+                    const stat = stats[i];
+                    if (!stat) continue;
+
                     if (stat.isDirectory()) {
-                        await scanDir(fullPath);
-                    } else if (audioExtensions.includes(path.extname(item).toLowerCase())) {
-                        const metadata = await parseMetadata(fullPath);
-                        const trackData = {
+                        const subFiles = await collectFiles(itemPaths[i]);
+                        files.push(...subFiles);
+                    } else if (audioExtensions.includes(path.extname(items[i]).toLowerCase())) {
+                        files.push({path: itemPaths[i], stat, name: items[i]});
+                    }
+                }
+            } catch (error) {
+                console.error(`扫描目录错误 ${dir}:`, error.message);
+            }
+            return files;
+        }
+
+        async function processBatch(batch) {
+            return Promise.all(batch.map(async ({path: fullPath, stat, name}) => {
+                try {
+                    const metadata = await parseMetadata(fullPath, null, {skipCover: true, skipLyrics: true});
+                    return {
+                        trackData: {
                             filePath: fullPath,
-                            fileName: item,
+                            fileName: name,
                             title: metadata.title,
                             artist: metadata.artist,
                             album: metadata.album,
@@ -322,17 +363,39 @@ function registerLibraryScanIpcHandlers(
                             disc: metadata.disc,
                             fileSize: stat.size,
                             embeddedLyrics: metadata.embeddedLyrics,
-                        };
-                        tracks.push(trackData);
-                        tracksToCache.push({trackData, filePath: fullPath, stats: stat});
-                    }
+                        },
+                        filePath: fullPath,
+                        stats: stat
+                    };
+                } catch (error) {
+                    console.warn(`解析失败 ${fullPath}:`, error.message);
+                    return null;
                 }
-            } catch (error) {
-                console.error(`扫描目录错误 ${dir}:`, error.message);
-            }
+            }));
         }
 
-        await scanDir(directoryPath);
+        const files = await collectFiles(directoryPath);
+        console.log(`找到 ${files.length} 个音频文件，开始解析...`);
+
+        for (let i = 0; i < files.length; i += BATCH_SIZE) {
+            const batch = files.slice(i, i + BATCH_SIZE);
+            const results = await processBatch(batch);
+
+            for (const result of results) {
+                if (result) {
+                    tracks.push(result.trackData);
+                    tracksToCache.push(result);
+                }
+            }
+
+            if (mainWindow && tracks.length > 0) {
+                mainWindow.webContents.send('library:scan-progress', {
+                    current: i + batch.length,
+                    total: files.length,
+                    tracks: tracks.length
+                });
+            }
+        }
 
         const libraryCacheManager = getLibraryCacheManager();
         if (libraryCacheManager && tracksToCache.length > 0) {
@@ -357,48 +420,91 @@ function registerLibraryScanIpcHandlers(
         const tracks = [];
         const tracksToCache = [];
         const networkFileAdapter = getNetworkFileAdapter();
+        const BATCH_SIZE = 20;
 
-        async function scanNetworkDir(dirPath) {
+        async function collectNetworkFiles(dirPath) {
+            const files = [];
             try {
                 const items = await networkFileAdapter.readdir(dirPath);
-                for (const item of items) {
-                    const fullPath = networkFileAdapter.joinNetworkPath(dirPath, item);
-                    try {
-                        const stat = await networkFileAdapter.stat(fullPath);
-                        if (stat.isDirectory()) {
-                            await scanNetworkDir(fullPath);
-                        } else if (audioExtensions.includes(path.extname(item).toLowerCase())) {
-                            const metadata = await parseMetadata(fullPath);
-                            const trackData = {
-                                filePath: fullPath,
-                                fileName: item,
-                                title: metadata.title,
-                                artist: metadata.artist,
-                                album: metadata.album,
-                                duration: metadata.duration,
-                                bitrate: metadata.bitrate,
-                                sampleRate: metadata.sampleRate,
-                                year: metadata.year,
-                                genre: metadata.genre,
-                                track: metadata.track,
-                                disc: metadata.disc,
-                                fileSize: stat.size,
-                                embeddedLyrics: metadata.embeddedLyrics,
-                                isNetworkFile: true,
-                            };
-                            tracks.push(trackData);
-                            tracksToCache.push({trackData, filePath: fullPath, stats: stat});
-                        }
-                    } catch (fileError) {
-                        console.warn(`⚠️ 处理网络文件失败 ${fullPath}:`, fileError.message);
+                const itemPaths = items.map(item => networkFileAdapter.joinNetworkPath(dirPath, item));
+                const stats = await Promise.all(
+                    itemPaths.map(p => networkFileAdapter.stat(p).catch(() => null))
+                );
+
+                for (let i = 0; i < items.length; i++) {
+                    const stat = stats[i];
+                    if (!stat) continue;
+
+                    if (stat.isDirectory()) {
+                        const subFiles = await collectNetworkFiles(itemPaths[i]);
+                        files.push(...subFiles);
+                    } else if (audioExtensions.includes(path.extname(items[i]).toLowerCase())) {
+                        files.push({path: itemPaths[i], stat, name: items[i]});
                     }
                 }
             } catch (error) {
                 console.error(`❌ 扫描网络目录错误 ${dirPath}:`, error.message);
             }
+            return files;
         }
 
-        await scanNetworkDir(networkPath);
+        async function processBatch(batch) {
+            return Promise.all(batch.map(async ({path: fullPath, stat, name}) => {
+                try {
+                    const metadata = await parseMetadata(fullPath, networkFileAdapter, {
+                        skipCover: true,
+                        skipLyrics: true
+                    });
+                    return {
+                        trackData: {
+                            filePath: fullPath,
+                            fileName: name,
+                            title: metadata.title,
+                            artist: metadata.artist,
+                            album: metadata.album,
+                            duration: metadata.duration,
+                            bitrate: metadata.bitrate,
+                            sampleRate: metadata.sampleRate,
+                            year: metadata.year,
+                            genre: metadata.genre,
+                            track: metadata.track,
+                            disc: metadata.disc,
+                            fileSize: stat.size,
+                            embeddedLyrics: metadata.embeddedLyrics,
+                            isNetworkFile: true,
+                        },
+                        filePath: fullPath,
+                        stats: stat
+                    };
+                } catch (error) {
+                    console.warn(`⚠️ 处理网络文件失败 ${fullPath}:`, error.message);
+                    return null;
+                }
+            }));
+        }
+
+        const files = await collectNetworkFiles(networkPath);
+        console.log(`找到 ${files.length} 个网络音频文件，开始解析...`);
+
+        for (let i = 0; i < files.length; i += BATCH_SIZE) {
+            const batch = files.slice(i, i + BATCH_SIZE);
+            const results = await processBatch(batch);
+
+            for (const result of results) {
+                if (result) {
+                    tracks.push(result.trackData);
+                    tracksToCache.push(result);
+                }
+            }
+
+            if (mainWindow && tracks.length > 0) {
+                mainWindow.webContents.send('library:scan-progress', {
+                    current: i + batch.length,
+                    total: files.length,
+                    tracks: tracks.length
+                });
+            }
+        }
 
         const libraryCacheManager = getLibraryCacheManager();
         if (libraryCacheManager && tracksToCache.length > 0) {

@@ -15,16 +15,42 @@ class TrackList extends Component {
         this.tracks = [];
         this.selectedTracks = new Set();
         this.showCovers = this.getShowCoversSettings();
-        this.loadingCovers = new Set(); // 跟踪正在加载的封面，避免重复请求
-        this.coversPreloaded = false; // 防重复标志：是否已经预加载过封面
-        this.lastTracksHash = null; // 上次tracks的哈希值，用于检测真正的变化
+        this.loadingCovers = new Set();
+        this.lastTracksHash = null;
+        this.coverObserver = null;
+        this.setupIntersectionObserver();
         this.setupSettingsListener();
         this.setupCoverUpdateListener();
+    }
+
+    setupIntersectionObserver() {
+        this.coverObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    const filePath = img.dataset.filePath;
+                    if (filePath && !this.loadingCovers.has(filePath)) {
+                        const track = this.tracks.find(t => t.filePath === filePath);
+                        if (track && !track.cover) {
+                            this.loadTrackCoverAsync(track);
+                        }
+                    }
+                    this.coverObserver.unobserve(img);
+                }
+            });
+        }, {
+            root: null,
+            rootMargin: '200px',
+            threshold: 0.01
+        });
     }
 
     show() {
         if (this.element) {
             this.element.style.display = 'block';
+        }
+        if (!this.coverObserver) {
+            this.setupIntersectionObserver();
         }
     }
 
@@ -32,15 +58,20 @@ class TrackList extends Component {
         if (this.element) {
             this.element.style.display = 'none';
         }
+        if (this.coverObserver) {
+            this.coverObserver.disconnect();
+            this.coverObserver = null;
+        }
     }
 
     destroy() {
-        // 清理封面更新订阅
+        if (this.coverObserver) {
+            this.coverObserver.disconnect();
+            this.coverObserver = null;
+        }
         if (this.coverUpdateUnsubscribe) {
             this.coverUpdateUnsubscribe = null;
         }
-
-        // 清理数据
         this.tracks = [];
         this.filteredTracks = [];
         this.currentTrackIndex = -1;
@@ -62,25 +93,13 @@ class TrackList extends Component {
     }
 
     setupSettingsListener() {
-        // 延迟设置监听器，确保app.components.settings已初始化
         const setupListener = () => {
             if (app && app.components && app.components.settings) {
                 app.components.settings.on('showTrackCoversEnabled', (enabled) => {
                     this.showCovers = enabled;
-                    // 重置预加载状态，因为设置发生了变化
-                    this.coversPreloaded = false;
-                    this.render(); // 重新渲染列表
-
-                    // 如果启用了封面显示，立即预加载
-                    if (enabled && this.tracks.length > 0) {
-                        setTimeout(() => {
-                            this.preloadVisibleCovers();
-                            this.coversPreloaded = true;
-                        }, 100);
-                    }
+                    this.render();
                 });
             } else {
-                // 如果还没有初始化，延迟重试
                 setTimeout(setupListener, 100);
             }
         };
@@ -95,35 +114,11 @@ class TrackList extends Component {
     }
 
     setTracks(tracks) {
-        // 检测tracks是否真正发生了变化
         const newTracksHash = this.generateTracksHash(tracks);
-        const tracksChanged = this.lastTracksHash !== newTracksHash;
-
         this.tracks = tracks;
         this.lastTracksHash = newTracksHash;
-
-        // 清理之前的加载状态
         this.loadingCovers.clear();
-
         this.render();
-
-        // 只有在tracks真正变化或首次加载时才预加载封面
-        if (this.showCovers && (tracksChanged || !this.coversPreloaded)) {
-            setTimeout(() => {
-                this.preloadVisibleCovers();
-                this.coversPreloaded = true;
-            }, 100);
-        }
-    }
-
-    // 预加载可见区域的封面
-    preloadVisibleCovers() {
-        const tracksToPreload = this.tracks.slice(0, 12);
-        tracksToPreload.forEach((track) => {
-            if (!track.cover && track.filePath && !this.loadingCovers.has(track.filePath)) {
-                this.loadTrackCoverAsync(track);
-            }
-        });
     }
 
     render() {
@@ -152,12 +147,12 @@ class TrackList extends Component {
         item.className = this.showCovers ? 'track-item with-cover' : 'track-item';
         item.dataset.index = index;
 
-        // 根据是否显示封面来调整布局
         if (this.showCovers) {
+            const coverSrc = track.cover || 'assets/images/default-cover.svg';
             item.innerHTML = `
                 <div class="track-number">${index + 1}</div>
                 <div class="track-cover-container">
-                    <img class="track-cover" src="${this.getTrackCover(track)}" alt="封面" loading="lazy" onerror="this.src='assets/images/default-cover.svg'">
+                    <img class="track-cover" src="${coverSrc}" alt="封面" data-file-path="${track.filePath || ''}" loading="lazy" onerror="this.src='assets/images/default-cover.svg'">
                 </div>
                 <div class="track-info">
                     <div class="track-title">${sanitizeHTML(track.title || 'Unknown Title')}</div>
@@ -166,6 +161,11 @@ class TrackList extends Component {
                 <div class="track-album">${sanitizeHTML(track.album || 'Unknown Album')}</div>
                 <div class="track-duration">${formatTime(track.duration || 0)}</div>
             `;
+
+            if (!track.cover && this.coverObserver) {
+                const img = item.querySelector('.track-cover');
+                if (img) this.coverObserver.observe(img);
+            }
         } else {
             item.innerHTML = `
                 <div class="track-number">${index + 1}</div>
@@ -196,26 +196,6 @@ class TrackList extends Component {
         });
 
         return item;
-    }
-
-    getTrackCover(track) {
-        if (track.cover) {
-            if (typeof track.cover !== 'string') {
-                console.error('❌ TrackList: track.cover不是字符串，返回默认封面', {
-                    type: typeof track.cover,
-                    value: track.cover
-                });
-                return 'assets/images/default-cover.svg';
-            }
-
-            return track.cover;
-        }
-
-        // 获取封面，先返回默认封面
-        if (!this.loadingCovers.has(track.filePath)) {
-            this.loadTrackCoverAsync(track);
-        }
-        return 'assets/images/default-cover.svg';
     }
 
     async loadTrackCoverAsync(track) {
@@ -361,7 +341,7 @@ class TrackList extends Component {
 
     // 处理封面更新事件
     async handleCoverUpdate(data) {
-        const { filePath, title, artist, type } = data;
+        const {filePath, title, artist, type} = data;
 
         // 只处理封面更新事件
         if (type && type !== 'cover-updated' && type !== 'manual-refresh') {
@@ -404,4 +384,4 @@ class TrackList extends Component {
     }
 }
 
-export { TrackList };
+export {TrackList};
