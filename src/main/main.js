@@ -55,6 +55,7 @@ const {registerTrayIpcHandlers} = require('./ipc/tray');
 const {registerHardwareAccelerationIpcHandlers} = require('./ipc/HardwareAcceleration');
 const {registerSecurityIntegration} = require('./security/SecurityIntegration');
 const {registerExtensionsIpcHandlers} = require('./ipc/extensions');
+const {registerUserDataIpcHandlers} = require('./ipc/userdata');
 
 // 导入音乐库相关IPC
 const {registerLibraryPlaylistIpcHandlers} = require('./ipc/library/playlist');
@@ -460,6 +461,9 @@ registerLibraryScanIpcHandlers({
 
 // 注册 Settings IPC
 registerSettingsIpcHandlers({ipcMain, app});
+
+// 注册用户数据IPC
+registerUserDataIpcHandlers({ipcMain, app});
 
 // 注册硬件加速IPC
 registerHardwareAccelerationIpcHandlers({ipcMain});

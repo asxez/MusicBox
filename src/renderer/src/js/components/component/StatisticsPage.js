@@ -5,6 +5,7 @@
 import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
 import {libraryAPI} from "@api/LibraryAPI";
+import {userDataAPI} from "@api/UserDataAPI";
 
 class StatisticsPage extends Component {
     constructor(container) {
@@ -12,7 +13,9 @@ class StatisticsPage extends Component {
         this.tracks = [];
         this.recentTracks = [];
         this.playStats = {};
-        this.listenersSetup = false; // 事件监听器是否已设置
+        this.moodHistory = [];
+        this.diaryHistory = [];
+        this.listenersSetup = false;
     }
 
     async show() {
@@ -26,6 +29,8 @@ class StatisticsPage extends Component {
         }
         this.tracks = await libraryAPI.getTracks();
         this.loadPlayHistory();
+        this.moodHistory = await userDataAPI.getMoodHistory();
+        this.diaryHistory = await userDataAPI.getDiaryHistory();
         this.calculatePlayStats();
         this.render();
     }
@@ -92,7 +97,6 @@ class StatisticsPage extends Component {
 
             // 保存统计数据
             cacheManager.setLocalCache('musicbox-play-count-stats', playCountStats);
-
             console.log(`📊 StatisticsPage: 更新播放次数 - ${track.title}: ${playCountStats[trackKey]} 次`);
         } catch (error) {
             console.error('❌ StatisticsPage: 更新播放次数失败:', error);
@@ -116,8 +120,8 @@ class StatisticsPage extends Component {
 
     // 获取最常播放的歌曲
     getMostPlayedTracks(playCountStats, limit = 10) {
-        const sortedTracks = Object.entries(playCountStats)
-            .sort(([,a], [,b]) => b - a)
+        return Object.entries(playCountStats)
+            .sort(([, a], [, b]) => b - a)
             .slice(0, limit)
             .map(([trackKey, playCount]) => {
                 const [title, artist, album] = trackKey.split('_');
@@ -128,43 +132,25 @@ class StatisticsPage extends Component {
                     playCount
                 };
             });
-
-        return sortedTracks;
     }
 
     calculatePlayStats() {
-        // 加载播放统计数据
         const playCountStats = this.loadPlayCountStats();
-
-        // 计算累计听歌数量（播放历史记录）
         const totalPlayedSongs = this.recentTracks.length;
-
-        // 计算累计听歌时长（播放历史中歌曲的实际时长）
-        const totalPlayedDuration = this.recentTracks.reduce((sum, track) => {
-            return sum + (track.duration || 0);
-        }, 0);
-
-        // 计算最常播放的歌曲
-        const mostPlayedTracks = this.getMostPlayedTracks(playCountStats);
-
-        // 计算播放次数统计
+        const totalPlayedDuration = this.recentTracks.reduce((sum, track) => sum + (track.duration || 0), 0);
+        const mostPlayedTracks = this.getMostPlayedTracks(playCountStats, 5);
         const totalPlayCount = Object.values(playCountStats).reduce((sum, count) => sum + count, 0);
 
         this.playStats = {
             totalTracks: this.tracks.length,
-            recentPlays: this.recentTracks.length,
             totalDuration: this.tracks.reduce((sum, track) => sum + (track.duration || 0), 0),
             favoriteArtist: this.getMostPlayedArtist(),
-            totalSize: this.tracks.reduce((sum, track) => sum + (track.fileSize || 0), 0),
             uniqueArtists: this.getUniqueArtists().length,
             uniqueAlbums: this.getUniqueAlbums().length,
-            averageDuration: this.tracks.length > 0 ?
-                this.tracks.reduce((sum, track) => sum + (track.duration || 0), 0) / this.tracks.length : 0,
             totalPlayedSongs: totalPlayedSongs,
             totalPlayedDuration: totalPlayedDuration,
-            totalPlayCount: totalPlayCount,
             mostPlayedTracks: mostPlayedTracks,
-            averagePlayCount: totalPlayCount > 0 ? totalPlayCount / Object.keys(playCountStats).length : 0
+            totalPlayCount: totalPlayCount
         };
     }
 
@@ -207,14 +193,6 @@ class StatisticsPage extends Component {
         return Array.from(albums);
     }
 
-    formatFileSize(bytes) {
-        if (bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
     formatDuration(seconds) {
         if (seconds < 3600) {
             const minutes = Math.floor(seconds / 60);
@@ -226,22 +204,73 @@ class StatisticsPage extends Component {
         }
     }
 
+    getMoodStats() {
+        const moodCounts = {};
+        const moodEmojis = {
+            happy: '😊',
+            calm: '😌',
+            sad: '😢',
+            excited: '🤩',
+            relaxed: '😎',
+            nostalgic: '🥺'
+        };
+        const moodNames = {
+            happy: '开心',
+            calm: '平静',
+            sad: '忧伤',
+            excited: '兴奋',
+            relaxed: '放松',
+            nostalgic: '怀念'
+        };
+
+        this.moodHistory.forEach(item => {
+            moodCounts[item.mood] = (moodCounts[item.mood] || 0) + 1;
+        });
+
+        return Object.entries(moodCounts)
+            .sort(([, a], [, b]) => b - a)
+            .map(([mood, count]) => ({
+                mood,
+                emoji: moodEmojis[mood] || '😊',
+                name: moodNames[mood] || mood,
+                count,
+                percentage: ((count / this.moodHistory.length) * 100).toFixed(1)
+            }));
+    }
+
+    formatDate(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diff = now - date;
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+        if (days === 0) return '今天';
+        if (days === 1) return '昨天';
+        if (days < 7) return `${days}天前`;
+        if (days < 30) return `${Math.floor(days / 7)}周前`;
+        if (days < 365) return `${Math.floor(days / 30)}个月前`;
+        return `${Math.floor(days / 365)}年前`;
+    }
+
     render() {
         if (!this.container) return;
+
+        const moodStats = this.getMoodStats();
+        const recentDiaries = this.diaryHistory.slice(-10).reverse();
+        const mostPlayedTracks = this.playStats.mostPlayedTracks || [];
+
         this.container.innerHTML = `
             <div class="page-content statistics-page">
-                <!-- 页面标题 -->
                 <div class="page-header">
                     <h1 class="page-title">
                         <svg class="page-icon" viewBox="0 0 24 24">
                             <path fill="currentColor" d="M16,11.78L20.24,4.45L21.97,5.45L16.74,14.5L10.23,10.75L5.46,19H22V21H2V3H4V17.54L9.5,8L16,11.78Z"/>
                         </svg>
-                        音乐库统计
+                        音乐统计
                     </h1>
-                    <p class="page-subtitle">详细的音乐库数据分析和播放统计</p>
+                    <p class="page-subtitle">你的音乐聆听数据与情感记录</p>
                 </div>
 
-                <!-- 核心统计数据 -->
                 <div class="stats-overview">
                     <div class="stats-grid">
                         <div class="stat-card primary">
@@ -262,22 +291,11 @@ class StatisticsPage extends Component {
                         <div class="stat-card">
                             <div class="stat-icon">⏱️</div>
                             <div class="stat-number">${this.formatDuration(this.playStats.totalDuration)}</div>
-                            <div class="stat-label">总时长</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">💾</div>
-                            <div class="stat-number">${this.formatFileSize(this.playStats.totalSize)}</div>
-                            <div class="stat-label">总大小</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">📊</div>
-                            <div class="stat-number">${this.formatDuration(this.playStats.averageDuration)}</div>
-                            <div class="stat-label">平均时长</div>
+                            <div class="stat-label">音乐库时长</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 播放统计 -->
                 <div class="stats-section">
                     <h2 class="section-title">
                         <svg class="title-icon" viewBox="0 0 24 24">
@@ -288,21 +306,103 @@ class StatisticsPage extends Component {
                     <div class="play-stats-grid">
                         <div class="stat-card">
                             <div class="stat-number">${this.playStats.totalPlayedSongs}</div>
-                            <div class="stat-label">累计听歌</div>
+                            <div class="stat-label">累计播放</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-number">${this.formatDuration(this.playStats.totalPlayedDuration)}</div>
-                            <div class="stat-label">听歌时长</div>
+                            <div class="stat-label">聆听时长</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-number">${this.playStats.favoriteArtist}</div>
-                            <div class="stat-label">最常听艺术家</div>
+                            <div class="stat-label">最爱艺术家</div>
                         </div>
                     </div>
                 </div>
+
+                ${mostPlayedTracks.length > 0 ? `
+                <div class="stats-section">
+                    <h2 class="section-title">
+                        <svg class="title-icon" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/>
+                        </svg>
+                        最常播放
+                    </h2>
+                    <div class="most-played-list">
+                        ${mostPlayedTracks.map((track, index) => `
+                            <div class="most-played-item">
+                                <div class="rank">${index + 1}</div>
+                                <div class="track-info">
+                                    <div class="track-title">${track.title}</div>
+                                    <div class="track-artist">${track.artist}</div>
+                                </div>
+                                <div class="play-count">${track.playCount}次</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                ${this.moodHistory.length > 0 ? `
+                <div class="stats-section">
+                    <h2 class="section-title">
+                        <svg class="title-icon" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z"/>
+                        </svg>
+                        聆听心情
+                    </h2>
+                    <div class="mood-stats-container">
+                        <div class="mood-overview">
+                            <div class="mood-total">共记录 <span>${this.moodHistory.length}</span> 次心情</div>
+                        </div>
+                        <div class="mood-distribution">
+                            ${moodStats.map(stat => `
+                                <div class="mood-stat-item">
+                                    <div class="mood-emoji">${stat.emoji}</div>
+                                    <div class="mood-info">
+                                        <div class="mood-name">${stat.name}</div>
+                                        <div class="mood-count">${stat.count}次 (${stat.percentage}%)</div>
+                                    </div>
+                                    <div class="mood-bar">
+                                        <div class="mood-bar-fill" style="width: ${stat.percentage}%"></div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                ${this.diaryHistory.length > 0 ? `
+                <div class="stats-section">
+                    <h2 class="section-title">
+                        <svg class="title-icon" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                        音乐日记
+                    </h2>
+                    <div class="diary-list">
+                        ${recentDiaries.map(diary => `
+                            <div class="diary-item">
+                                <div class="diary-header">
+                                    <div class="diary-date">${this.formatDate(diary.timestamp)}</div>
+                                    ${diary.currentTrack ? `
+                                        <div class="diary-track">
+                                            <svg viewBox="0 0 24 24" class="diary-track-icon">
+                                                <path fill="currentColor" d="M12,3V13.55C11.41,13.21 10.73,13 10,13A4,4 0 0,0 6,17A4,4 0 0,0 10,21A4,4 0 0,0 14,17V7H18V3H12Z"/>
+                                            </svg>
+                                            ${diary.currentTrack}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                <div class="diary-content">${diary.content}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
             </div>
         `;
     }
 }
 
-export { StatisticsPage };
+export {StatisticsPage};

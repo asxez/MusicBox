@@ -426,5 +426,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
         getInstalled: () => ipcRenderer.invoke('extensions:getInstalled'),
         scanUserExtensions: () => ipcRenderer.invoke('extensions:scanUserExtensions'),
         readExtensionFile: (extensionId, filePath) => ipcRenderer.invoke('extensions:readExtensionFile', extensionId, filePath),
+    },
+
+    userdata: {
+        getMoodHistory: () => ipcRenderer.invoke('userdata:getMoodHistory'),
+        saveMood: (moodData) => ipcRenderer.invoke('userdata:saveMood', moodData),
+        getDiaryHistory: () => ipcRenderer.invoke('userdata:getDiaryHistory'),
+        saveDiary: (diaryData) => ipcRenderer.invoke('userdata:saveDiary', diaryData),
+        deleteMood: (timestamp) => ipcRenderer.invoke('userdata:deleteMood', timestamp),
+        deleteDiary: (timestamp) => ipcRenderer.invoke('userdata:deleteDiary', timestamp),
     }
 });

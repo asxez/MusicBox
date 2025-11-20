@@ -10664,6 +10664,203 @@ a {
         }
       }
     }
+
+    .most-played-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-sm);
+
+      .most-played-item {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+        padding: var(--spacing-md);
+        background: var(--color-secondary-bg);
+        border-radius: var(--border-radius-md);
+        transition: all var(--transition-fast);
+
+        &:hover {
+          background: var(--color-hover);
+          transform: translateX(4px);
+        }
+
+        .rank {
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--gradient-primary);
+          color: white;
+          border-radius: 50%;
+          font-weight: 700;
+          font-size: var(--font-size-sm);
+          flex-shrink: 0;
+        }
+
+        .track-info {
+          flex: 1;
+          min-width: 0;
+
+          .track-title {
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .track-artist {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+
+        .play-count {
+          font-weight: 600;
+          color: var(--color-primary);
+          font-size: var(--font-size-sm);
+          flex-shrink: 0;
+        }
+      }
+    }
+
+    .mood-stats-container {
+      .mood-overview {
+        margin-bottom: var(--spacing-lg);
+        padding: var(--spacing-md);
+        background: var(--gradient-card);
+        border-radius: var(--border-radius-md);
+        text-align: center;
+
+        .mood-total {
+          font-size: var(--font-size-base);
+          color: var(--color-text-secondary);
+
+          span {
+            font-size: var(--font-size-xl);
+            font-weight: 700;
+            color: var(--color-primary);
+            margin: 0 4px;
+          }
+        }
+      }
+
+      .mood-distribution {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-md);
+
+        .mood-stat-item {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-md);
+          padding: var(--spacing-md);
+          background: var(--color-secondary-bg);
+          border-radius: var(--border-radius-md);
+          transition: all var(--transition-fast);
+
+          &:hover {
+            background: var(--color-hover);
+            transform: translateX(4px);
+          }
+
+          .mood-emoji {
+            font-size: 32px;
+            flex-shrink: 0;
+          }
+
+          .mood-info {
+            flex-shrink: 0;
+            min-width: 120px;
+
+            .mood-name {
+              font-weight: 600;
+              color: var(--color-text);
+              margin-bottom: 2px;
+            }
+
+            .mood-count {
+              font-size: var(--font-size-sm);
+              color: var(--color-text-secondary);
+            }
+          }
+
+          .mood-bar {
+            flex: 1;
+            height: 8px;
+            background: var(--color-border);
+            border-radius: 4px;
+            overflow: hidden;
+
+            .mood-bar-fill {
+              height: 100%;
+              background: var(--gradient-primary);
+              border-radius: 4px;
+              transition: width var(--transition-smooth);
+            }
+          }
+        }
+      }
+    }
+
+    .diary-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
+
+      .diary-item {
+        padding: var(--spacing-lg);
+        background: var(--color-secondary-bg);
+        border-radius: var(--border-radius-md);
+        border-left: 3px solid var(--color-primary);
+        transition: all var(--transition-fast);
+
+        &:hover {
+          background: var(--color-hover);
+          transform: translateX(4px);
+        }
+
+        .diary-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: var(--spacing-sm);
+          flex-wrap: wrap;
+          gap: var(--spacing-sm);
+
+          .diary-date {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            font-weight: 500;
+          }
+
+          .diary-track {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: var(--font-size-sm);
+            color: var(--color-primary);
+            font-weight: 500;
+
+            .diary-track-icon {
+              width: 16px;
+              height: 16px;
+            }
+          }
+        }
+
+        .diary-content {
+          color: var(--color-text);
+          line-height: 1.6;
+          font-size: var(--font-size-base);
+        }
+      }
+    }
   }
 }
 
