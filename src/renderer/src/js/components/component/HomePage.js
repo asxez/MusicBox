@@ -2,12 +2,12 @@
  * 首页组件
  */
 
-import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
 import {fileAPI} from "@api/FileAPI";
 import {libraryAPI} from "@api/LibraryAPI";
+import {userDataAPI} from "@api/UserDataAPI";
 
 class HomePage extends Component {
     constructor(container) {
@@ -402,37 +402,29 @@ class HomePage extends Component {
         }
     }
 
-    recordMood(mood) {
+    async recordMood(mood) {
         const moodData = {
             mood: mood,
-            currentTrack: api.currentTrack?.title || null
+            currentTrack: api.currentTrack?.title || null,
+            artist: api.currentTrack?.artist || null,
+            album: api.currentTrack?.album || null
         };
 
-        // 保存到本地存储
-        const moodHistory = cacheManager.getLocalCache('musicbox-mood-history') || [];
-        moodHistory.push(moodData);
-
-        // 只保留最近100条记录
-        if (moodHistory.length > 100) {
-            moodHistory.splice(0, moodHistory.length - 100);
-        }
-
-        cacheManager.setLocalCache('musicbox-mood-history', moodHistory);
+        await userDataAPI.saveMood(moodData);
     }
 
-    saveMusicDiary() {
+    async saveMusicDiary() {
         const diaryInput = this.container.querySelector('.diary-input');
         if (!diaryInput || !diaryInput.value.trim()) return;
 
         const diaryEntry = {
             content: diaryInput.value.trim(),
-            currentTrack: api.currentTrack?.title || null
+            currentTrack: api.currentTrack?.title || null,
+            artist: api.currentTrack?.artist || null,
+            album: api.currentTrack?.album || null
         };
 
-        // 保存到本地存储
-        const diaryHistory = cacheManager.getLocalCache('musicbox-diary-history') || [];
-        diaryHistory.push(diaryEntry);
-        cacheManager.setLocalCache('musicbox-diary-history', diaryHistory);
+        await userDataAPI.saveDiary(diaryEntry);
 
         // 清空输入框并显示保存成功提示
         diaryInput.value = '';
@@ -444,7 +436,7 @@ class HomePage extends Component {
         setTimeout(() => {
             saveBtn.textContent = originalText;
             saveBtn.disabled = false;
-        }, 2000);
+        }, 1500);
     }
 
     render() {
@@ -651,4 +643,4 @@ class HomePage extends Component {
     }
 }
 
-export { HomePage };
+export {HomePage};
