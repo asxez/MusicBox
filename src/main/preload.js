@@ -364,13 +364,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
         updateLyrics: (lyricsData) => ipcRenderer.invoke('desktopLyrics:updateLyrics', lyricsData),
         updatePosition: (position) => ipcRenderer.invoke('desktopLyrics:updatePosition', position),
         updateTrack: (trackInfo) => ipcRenderer.invoke('desktopLyrics:updateTrack', trackInfo),
+        updateSettings: (settings) => ipcRenderer.invoke('desktopLyrics:updateSettings', settings),
 
         // 窗口控制
         setPosition: (x, y) => ipcRenderer.invoke('desktopLyrics:setPosition', x, y),
         setSize: (width, height) => ipcRenderer.invoke('desktopLyrics:setSize', width, height),
         setOpacity: (opacity) => ipcRenderer.invoke('desktopLyrics:setOpacity', opacity),
+        setAlwaysOnTop: (flag) => ipcRenderer.invoke('desktopLyrics:setAlwaysOnTop', flag),
+        setIgnoreMouseEvents: (ignore, options) => ipcRenderer.invoke('desktopLyrics:setIgnoreMouseEvents', ignore, options),
         getPosition: () => ipcRenderer.invoke('desktopLyrics:getPosition'),
         getSize: () => ipcRenderer.invoke('desktopLyrics:getSize'),
+        centerOnScreen: () => ipcRenderer.invoke('desktopLyrics:centerOnScreen'),
 
         // 事件监听（用于桌面歌词窗口）
         onPlaybackStateChanged: (callback) => {
@@ -388,6 +392,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
         onTrackChanged: (callback) => {
             ipcRenderer.on('track:changed', (event, trackInfo) => callback(trackInfo));
             return () => ipcRenderer.removeListener('track:changed', callback);
+        },
+        onSettingsChanged: (callback) => {
+            ipcRenderer.on('settings:changed', (event, settings) => callback(settings));
+            return () => ipcRenderer.removeListener('settings:changed', callback);
         }
     },
 

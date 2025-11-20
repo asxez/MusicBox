@@ -56,9 +56,17 @@ export default defineConfig({
           if (id.includes('node_modules')) {
             return 'vendor';
           }
+
+          // 共享工具类
+          if (id.includes('services/CacheManager') || id.includes('utils/md5')) {
+            return 'shared-utils';
+          }
+
+          // 插件系统
           if (id.includes('extensions/core') || id.includes('extensions/api')) {
             return 'extensions';
           }
+
           // 组件
           if (id.includes('components/') || id.includes('WasapiEngine')) {
             return 'components';

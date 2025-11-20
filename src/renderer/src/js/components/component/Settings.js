@@ -145,9 +145,19 @@ class Settings extends Component {
         // 开发者工具按钮
         this.developerToolsBtn = this.element.querySelector('#developer-tools');
 
-        // 歌词高亮透明度控制元素
+        // 歌词高亮透明度设置
         this.lyricsHighlightOpacitySlider = this.element.querySelector('#lyrics-highlight-opacity-slider');
         this.lyricsHighlightOpacityValue = this.element.querySelector('#lyrics-highlight-opacity-value');
+
+        // 桌面歌词设置元素
+        this.dlDisplayModeSelect = this.element.querySelector('#dl-display-mode-select');
+        this.dlLayoutModeSelect = this.element.querySelector('#dl-layout-mode-select');
+        this.dlThemeColor = this.element.querySelector('#dl-theme-color');
+        this.dlThemeColorValue = this.element.querySelector('#dl-theme-color-value');
+        this.dlOpacitySlider = this.element.querySelector('#dl-opacity-slider');
+        this.dlOpacityValue = this.element.querySelector('#dl-opacity-value');
+        this.dlFontSizeSlider = this.element.querySelector('#dl-font-size-slider');
+        this.dlFontSizeValue = this.element.querySelector('#dl-font-size-value');
 
         // 插件管理元素
         this.openPluginManagerBtn = this.element.querySelector('#open-plugin-manager-btn');
@@ -421,6 +431,43 @@ class Settings extends Component {
             });
         }
 
+        // 桌面歌词设置事件监听器
+        if (this.dlDisplayModeSelect) {
+            this.dlDisplayModeSelect.addEventListener('change', (e) => {
+                this.updateDesktopLyricsSetting('displayMode', e.target.value);
+            });
+        }
+
+        if (this.dlLayoutModeSelect) {
+            this.dlLayoutModeSelect.addEventListener('change', (e) => {
+                this.updateDesktopLyricsSetting('layoutMode', e.target.value);
+            });
+        }
+
+        if (this.dlThemeColor) {
+            this.dlThemeColor.addEventListener('input', (e) => {
+                const color = e.target.value;
+                this.dlThemeColorValue.textContent = color;
+                this.updateDesktopLyricsSetting('themeColor', color);
+            });
+        }
+
+        if (this.dlOpacitySlider) {
+            this.dlOpacitySlider.addEventListener('input', (e) => {
+                const opacity = parseFloat(e.target.value);
+                this.dlOpacityValue.textContent = Math.round(opacity * 100) + '%';
+                this.updateDesktopLyricsSetting('opacity', opacity);
+            });
+        }
+
+        if (this.dlFontSizeSlider) {
+            this.dlFontSizeSlider.addEventListener('input', (e) => {
+                const fontSize = parseInt(e.target.value);
+                this.dlFontSizeValue.textContent = fontSize + 'px';
+                this.updateDesktopLyricsSetting('fontSize', fontSize);
+            });
+        }
+
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.isVisible) {
                 this.hide();
@@ -489,6 +536,9 @@ class Settings extends Component {
         this.lyricsHighlightOpacitySlider.value = lyricsOpacity;
         this.lyricsHighlightOpacityValue.textContent = lyricsOpacity.toFixed(1);
         this.updateLyricsHighlightOpacity(lyricsOpacity);
+
+        // 初始化桌面歌词设置
+        this.initializeDesktopLyricsSettings();
 
         console.log('🎵 Settings: 设置值初始化完成', this.settings);
 
@@ -1358,7 +1408,7 @@ class Settings extends Component {
     async handleClearIgnoreList() {
         const confirmed = await app.confirm({
             title: '清空忽略列表',
-            message: '确定要清空忽略列表吗？\n\n清空后，之前手动删除的歌曲在下次自动扫描时会被重新添加到音乐库。',
+            message: '确定要清空忽略列表吗？\n\n清空后,之前手动删除的歌曲在下次自动扫描时会被重新添加到音乐库。',
             confirmText: '清空',
             type: 'warning'
         });
@@ -1377,6 +1427,64 @@ class Settings extends Component {
         } catch (error) {
             console.error('❌ Settings: 清空忽略列表失败:', error);
             showToast('清空忽略列表失败', 'error');
+        }
+    }
+
+    // 桌面歌词设置相关方法
+    async updateDesktopLyricsSetting(key, value) {
+        // 更新本地设置缓存
+        const desktopLyricsSettings = this.settings.desktopLyricsSettings || {};
+        desktopLyricsSettings[key] = value;
+        this.updateSetting('desktopLyricsSettings', desktopLyricsSettings);
+
+        // 发送设置到桌面歌词窗口
+        try {
+            const settingsToSend = {};
+            settingsToSend[key] = value;
+            await api.updateDesktopLyricsSettings(settingsToSend);
+        } catch (error) {
+            console.error('❌ Settings: 更新桌面歌词设置失败:', error);
+        }
+    }
+
+    initializeDesktopLyricsSettings() {
+        const dlSettings = this.settings.desktopLyricsSettings || {};
+
+        // 初始化显示模式
+        if (this.dlDisplayModeSelect) {
+            this.dlDisplayModeSelect.value = dlSettings.displayMode || 'default';
+        }
+
+        // 初始化布局模式
+        if (this.dlLayoutModeSelect) {
+            this.dlLayoutModeSelect.value = dlSettings.layoutMode || 'default';
+        }
+
+        // 初始化主题颜色
+        if (this.dlThemeColor) {
+            const color = dlSettings.themeColor || '#64b5f6';
+            this.dlThemeColor.value = color;
+            if (this.dlThemeColorValue) {
+                this.dlThemeColorValue.textContent = color;
+            }
+        }
+
+        // 初始化透明度
+        if (this.dlOpacitySlider) {
+            const opacity = dlSettings.opacity !== undefined ? dlSettings.opacity : 0.9;
+            this.dlOpacitySlider.value = opacity;
+            if (this.dlOpacityValue) {
+                this.dlOpacityValue.textContent = Math.round(opacity * 100) + '%';
+            }
+        }
+
+        // 初始化字体大小
+        if (this.dlFontSizeSlider) {
+            const fontSize = dlSettings.fontSize || 56;
+            this.dlFontSizeSlider.value = fontSize;
+            if (this.dlFontSizeValue) {
+                this.dlFontSizeValue.textContent = fontSize + 'px';
+            }
         }
     }
 }
