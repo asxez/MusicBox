@@ -1,0 +1,295 @@
+/**
+ * 桌面歌词
+ * 简约优雅，流畅动画
+ */
+
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-app-region: drag;
+  cursor: move;
+
+  &.locked {
+    -webkit-app-region: no-drag;
+    cursor: default;
+  }
+}
+
+// ==================== 主容器 ====================
+.desktop-lyrics {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+
+  // 居中模式 - 固定在屏幕中央，宽度更大以显示完整歌词
+  &.mode-center {
+    .lyrics-wrapper {
+      max-width: 100%;
+      min-width: 800px;
+    }
+
+    .lyric-line {
+      white-space: nowrap;
+      word-break: normal;
+
+      &.current {
+        font-size: 48px;
+      }
+
+      &.prev,
+      &.next {
+        font-size: 28px;
+      }
+    }
+  }
+}
+
+// ==================== 歌词容器 ====================
+.lyrics-wrapper {
+  width: 100%;
+  max-width: 900px;
+  position: relative;
+  text-align: center;
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+// ==================== 歌词行 ====================
+.lyric-line {
+  font-size: 48px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  margin: 8px 0;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  word-break: break-word;
+  white-space: normal;
+
+  // 前一句歌词
+  &.prev {
+    opacity: 0.4;
+    font-size: 32px;
+    color: rgba(255, 255, 255, 0.6);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transform: scale(0.95) translateY(-8px);
+  }
+
+  // 当前歌词 - 使用逐字高亮
+  &.current {
+    opacity: 1;
+    font-size: 56px;
+    color: #ffffff;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5),
+    0 4px 24px rgba(0, 0, 0, 0.3);
+    transform: scale(1);
+    position: relative;
+    display: inline-block;
+
+    // 歌词文字容器
+    .lyric-text {
+      position: relative;
+      display: inline-block;
+      white-space: pre-wrap;
+    }
+
+    // 单个字符
+    .lyric-char {
+      display: inline-block;
+      position: relative;
+      color: rgba(255, 255, 255, 0.7);
+      transition: color 0.3s ease;
+      filter: drop-shadow(0 2px 12px rgba(0, 0, 0, 0.5));
+
+      &.highlight {
+        color: var(--theme-color, #64b5f6);
+        text-shadow: 0 0 20px var(--theme-color-glow, rgba(100, 181, 246, 0.5)),
+        0 2px 12px rgba(0, 0, 0, 0.5);
+      }
+    }
+  }
+
+  // 下一句歌词
+  &.next {
+    opacity: 0.35;
+    font-size: 32px;
+    color: rgba(255, 255, 255, 0.5);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transform: scale(0.95) translateY(8px);
+  }
+}
+
+// ==================== 无歌词状态 ====================
+.no-lyrics {
+  font-size: 32px;
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+// ==================== 控制栏 ====================
+.controls-bar {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  -webkit-app-region: no-drag;
+
+  .desktop-lyrics:hover & {
+    opacity: 1;
+  }
+}
+
+.control-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+  color: #fff;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.7);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: scale(1.15);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  &.active {
+    background: rgba(100, 181, 246, 0.35);
+    border-color: rgba(100, 181, 246, 0.6);
+    box-shadow: 0 0 15px rgba(100, 181, 246, 0.4);
+  }
+}
+
+// ==================== 主题色变量（默认蓝色）====================
+.desktop-lyrics {
+  --theme-color: #64b5f6;
+  --theme-color-glow: rgba(100, 181, 246, 0.5);
+}
+
+// ==================== 显示模式 ====================
+// 极简模式
+.mode-minimal {
+  .lyric-line.prev,
+  .lyric-line.next {
+    display: none;
+  }
+}
+
+// 单行模式
+.mode-single {
+  .lyric-line.prev {
+    display: none;
+  }
+}
+
+// ==================== 动画效果 ====================
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.lyric-enter {
+  animation: fadeInUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.lyric-exit {
+  animation: fadeOut 0.4s ease;
+}
+
+// ==================== 通知提示 ====================
+.toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 12px 24px;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(15px);
+  border-radius: 24px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 9999;
+
+  &.show {
+    opacity: 1;
+  }
+}
+
+// ==================== 响应式 ====================
+@media (max-width: 768px) {
+  .lyric-line {
+    &.prev {
+      font-size: 24px;
+    }
+
+    &.current {
+      font-size: 40px;
+    }
+
+    &.next {
+      font-size: 24px;
+    }
+  }
+}
+
+@media (max-height: 400px) {
+  .lyric-line {
+    margin: 4px 0;
+
+    &.prev,
+    &.next {
+      font-size: 20px;
+    }
+
+    &.current {
+      font-size: 32px;
+    }
+  }
+}

@@ -520,6 +520,11 @@
                                 </button>
                             </li>
                             <li class="settings-nav-item">
+                                <button class="settings-nav-btn" data-section="desktop-lyrics">
+                                    <span class="nav-text">桌面歌词</span>
+                                </button>
+                            </li>
+                            <li class="settings-nav-item">
                                 <button class="settings-nav-btn" data-section="advanced">
                                     <span class="nav-text">高级</span>
                                 </button>
@@ -699,11 +704,9 @@
                                 <p class="item-description">调节当前播放歌词行的高亮背景透明度，数值越小背景越透明</p>
                             </div>
                             <div class="item-control">
-                                <div class="slider-container">
-                                    <input type="range" id="lyrics-highlight-opacity-slider" class="setting-slider"
-                                           min="0" max="1" step="0.1" value="1">
-                                    <span class="slider-value" id="lyrics-highlight-opacity-value">1.0</span>
-                                </div>
+                                <input type="range" id="lyrics-highlight-opacity-slider" class="settings-slider"
+                                       min="0" max="1" step="0.1" value="1">
+                                <span class="slider-value" id="lyrics-highlight-opacity-value">1.0</span>
                             </div>
                         </div>
                     </div>
@@ -919,6 +922,73 @@
                             </div>
                             <div class="item-control">
                                 <button class="settings-button" id="test-embedded-lyrics-btn">测试内嵌歌词</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 桌面歌词设置 -->
+                    <div class="settings-section" data-section="desktop-lyrics">
+                        <h2 class="section-title">桌面歌词设置</h2>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">显示模式</label>
+                                <p class="item-description">控制歌词行数显示</p>
+                            </div>
+                            <div class="item-control">
+                                <select class="settings-select" id="dl-display-mode-select">
+                                    <option value="default">三行显示</option>
+                                    <option value="single">双行显示</option>
+                                    <option value="minimal">单行显示</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">布局模式</label>
+                                <p class="item-description">选择桌面歌词的显示样式</p>
+                            </div>
+                            <div class="item-control">
+                                <select class="settings-select" id="dl-layout-mode-select">
+                                    <option value="default">默认（自由拖拽）</option>
+                                    <option value="center">居中模式（固定屏幕中央）</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">主题颜色</label>
+                                <p class="item-description">逐字高亮的颜色</p>
+                            </div>
+                            <div class="item-control">
+                                <input type="color" class="color-picker" id="dl-theme-color" value="#64b5f6">
+                                <span class="color-value" id="dl-theme-color-value">#64b5f6</span>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">窗口透明度</label>
+                                <p class="item-description">调节桌面歌词窗口的透明度</p>
+                            </div>
+                            <div class="item-control">
+                                <input type="range" class="settings-slider" id="dl-opacity-slider"
+                                       min="0.3" max="1" step="0.05" value="0.9">
+                                <span class="slider-value" id="dl-opacity-value">90%</span>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">字体大小</label>
+                                <p class="item-description">调节当前歌词的字体大小</p>
+                            </div>
+                            <div class="item-control">
+                                <input type="range" class="settings-slider" id="dl-font-size-slider"
+                                       min="30" max="80" step="4" value="30">
+                                <span class="slider-value" id="dl-font-size-value">30px</span>
                             </div>
                         </div>
                     </div>

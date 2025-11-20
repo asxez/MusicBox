@@ -307,7 +307,7 @@ async function createDesktopLyricsWindow() {
         transparent: true,
         alwaysOnTop: true,
         skipTaskbar: true,
-        resizable: true,
+        resizable: false,
         movable: true,
         focusable: false, // 防止抢夺焦点
         show: false,
@@ -322,7 +322,7 @@ async function createDesktopLyricsWindow() {
     // 加载桌面歌词页面
     const lyricsHtmlPath = path.join(__dirname, '../../renderer/public/DesktopLyrics.html');
     await desktopLyricsWindow.loadFile(lyricsHtmlPath);
-    // desktopLyricsWindow.webContents.openDevTools({mode: 'detach'});
+    desktopLyricsWindow.webContents.openDevTools({mode: 'detach'});
 
     // 窗口事件处理
     desktopLyricsWindow.once('ready-to-show', () => {

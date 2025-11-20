@@ -132,6 +132,49 @@ function registerDesktopLyricsIpcHandlers({ipcMain}) {
         return {success: false};
     });
 
+    // 设置窗口是否置顶
+    ipcMain.handle('desktopLyrics:setAlwaysOnTop', (event, flag) => {
+        const win = getDesktopLyricsWindow();
+        if (win && !win.isDestroyed()) {
+            try {
+                win.setAlwaysOnTop(flag);
+                console.log(`✅ 桌面歌词窗口置顶状态已设置: ${flag}`);
+                return {success: true};
+            } catch (error) {
+                console.error('❌ 设置桌面歌词窗口置顶状态失败:', error);
+                return {success: false, error: error.message};
+            }
+        }
+        return {success: false, error: '桌面歌词窗口不存在'};
+    });
+
+    // 设置窗口是否可点击穿透
+    ipcMain.handle('desktopLyrics:setIgnoreMouseEvents', (event, ignore, options) => {
+        const win = getDesktopLyricsWindow();
+        if (win && !win.isDestroyed()) {
+            try {
+                win.setIgnoreMouseEvents(ignore, options || {});
+                console.log(`✅ 桌面歌词窗口鼠标穿透状态已设置: ${ignore}`);
+                return {success: true};
+            } catch (error) {
+                console.error('❌ 设置桌面歌词窗口鼠标穿透状态失败:', error);
+                return {success: false, error: error.message};
+            }
+        }
+        return {success: false, error: '桌面歌词窗口不存在'};
+    });
+
+    // 更新桌面歌词设置
+    ipcMain.handle('desktopLyrics:updateSettings', (event, settings) => {
+        try {
+            const success = sendToDesktopLyrics('settings:changed', settings);
+            return {success};
+        } catch (error) {
+            console.error('❌ 更新桌面歌词设置失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
     // 查询窗口位置/大小
     ipcMain.handle('desktopLyrics:getPosition', () => {
         const win = getDesktopLyricsWindow();
@@ -147,6 +190,31 @@ function registerDesktopLyricsIpcHandlers({ipcMain}) {
             return {success: true, size: win.getSize()};
         }
         return {success: false};
+    });
+
+    // 将窗口居中到屏幕中央
+    ipcMain.handle('desktopLyrics:centerOnScreen', () => {
+        const win = getDesktopLyricsWindow();
+        if (win && !win.isDestroyed()) {
+            try {
+                const {screen} = require('electron');
+                const primaryDisplay = screen.getPrimaryDisplay();
+                const {width: screenWidth, height: screenHeight} = primaryDisplay.workAreaSize;
+                const [winWidth, winHeight] = win.getSize();
+
+                // 计算居中位置
+                const x = Math.round((screenWidth - winWidth) / 2);
+                const y = Math.round((screenHeight - winHeight) / 2);
+
+                win.setPosition(x, y);
+                console.log(`✅ 桌面歌词窗口已居中: 屏幕(${screenWidth}x${screenHeight}), 窗口(${winWidth}x${winHeight}), 位置(${x}, ${y})`);
+                return {success: true, position: [x, y]};
+            } catch (error) {
+                console.error('❌ 居中桌面歌词窗口失败:', error);
+                return {success: false, error: error.message};
+            }
+        }
+        return {success: false, error: '桌面歌词窗口不存在'};
     });
 }
 
