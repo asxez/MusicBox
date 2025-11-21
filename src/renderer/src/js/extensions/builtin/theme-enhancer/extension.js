@@ -302,27 +302,6 @@ function registerSettingsPage(context, api) {
  * 注册命令
  */
 function registerCommands(context, api) {
-    // 切换主题
-    const setThemeCmd = api.commands.registerCommand('themeEnhancer.setTheme', async () => {
-        const themes = Object.keys(PRESET_THEMES);
-        const themeLabels = themes.map(t => {
-            const theme = PRESET_THEMES[t];
-            const indicator = currentTheme === t ? '● ' : '○ ';
-            return `${indicator}${theme.name}`;
-        });
-
-        const selected = await api.ui.showQuickPick(themeLabels, {
-            placeholder: `选择主题 (当前: ${PRESET_THEMES[currentTheme]?.name || currentTheme})`
-        });
-
-        if (selected) {
-            const index = themeLabels.indexOf(selected);
-            const themeName = themes[index];
-            await applyTheme(themeName, api);
-        }
-    });
-    context.subscriptions.add(setThemeCmd);
-
     // 自定义主题
     const customizeCmd = api.commands.registerCommand('themeEnhancer.customizeTheme', async () => {
         api.ui.showNotification('自定义主题功能开发中...', 'info');
