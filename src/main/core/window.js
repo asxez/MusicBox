@@ -149,7 +149,7 @@ async function createWindow() {
         frame: false,
         show: false,
         webPreferences: {
-            nodeIntegration: true,
+            nodeIntegration: false,
             contextIsolation: true,
             enableRemoteModule: false,
             webSecurity: true,
