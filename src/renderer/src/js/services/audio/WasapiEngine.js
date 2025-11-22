@@ -240,9 +240,9 @@ class WasapiEngine {
     async getPosition() {
         try {
             const result = await this.nativeEngine.getPosition();
-            return result.position || 0;
+            return result.position || 0.0;
         } catch (error) {
-            return 0;
+            return 0.0;
         }
     }
 
@@ -365,8 +365,7 @@ class WasapiEngine {
         this.stopProgressTimer();
         this.progressTimer = setInterval(async () => {
             if (this.isPlaying && this.onPositionChanged) {
-                const position = await this.getPosition();
-                this.onPositionChanged(position);
+                this.onPositionChanged(await this.getPosition());
             }
         }, 50);
     }

@@ -342,6 +342,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         getSize: () => ipcRenderer.invoke('window:getSize'),
         setSize: (width, height) => ipcRenderer.invoke('window:setSize', width, height),
         sendPosition: (data) => ipcRenderer.send('custom-adsorption', data),
+        setBackgroundThrottling: (allowed) => ipcRenderer.invoke('window:setBackgroundThrottling', allowed),
         // 主动尺寸保护机制 - 清理缓存的尺寸信息
         clearSizeCache: () => ipcRenderer.send('clear-size-cache'),
         // 监听窗口状态变化

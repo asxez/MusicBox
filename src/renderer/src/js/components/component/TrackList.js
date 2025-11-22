@@ -24,20 +24,20 @@ class TrackList extends Component {
     }
 
     setupIntersectionObserver() {
-        this.coverObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
+        this.coverObserver = new IntersectionObserver(async (entries) => {
+            for (const entry of entries) {
                 if (entry.isIntersecting) {
                     const img = entry.target;
                     const filePath = img.dataset.filePath;
                     if (filePath && !this.loadingCovers.has(filePath)) {
                         const track = this.tracks.find(t => t.filePath === filePath);
                         if (track && !track.cover) {
-                            this.loadTrackCoverAsync(track);
+                            await this.loadTrackCoverAsync(track);
                         }
                     }
                     this.coverObserver.unobserve(img);
                 }
-            });
+            }
         }, {
             root: null,
             rootMargin: '200px',

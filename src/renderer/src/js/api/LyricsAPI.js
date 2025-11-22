@@ -40,8 +40,8 @@ class LyricsAPI {
                 }
             }
 
-            // 优先级2: 检查本地TTML歌词文件
-            const localTTMLLyrics = await this.getLocalLyrics(title, artist, album, 'ttml');
+            // 优先级2: 检查本地歌词文件
+            const localTTMLLyrics = await this.getLocalLyrics(title, artist, album);
             if (localTTMLLyrics.success) {
                 this._lyricsRequestLock.delete(lyricsKey);
                 return localTTMLLyrics;
@@ -55,14 +55,7 @@ class LyricsAPI {
                 return ttmlLyrics;
             }
 
-            // 优先级4: 检查本地LRC歌词文件
-            const localLyrics = await this.getLocalLyrics(title, artist, album, 'lrc');
-            if (localLyrics.success) {
-                this._lyricsRequestLock.delete(lyricsKey);
-                return localLyrics;
-            }
-
-            // 优先级5: 通过网络获取LRC格式歌词
+            // 优先级4: 通过网络获取LRC格式歌词
             const lrcLyrics = await this.getNetworkLRCLyrics(title, artist, album);
             if (lrcLyrics.success) {
                 await this.saveLyricsToLocal(title, artist, album, lrcLyrics.content, 'lrc');
@@ -128,14 +121,13 @@ class LyricsAPI {
      * @param {string} title - 歌曲标题
      * @param {string} artist - 艺术家
      * @param {string} album - 专辑
-     * @param {string} extension - 格式
      * @returns {Promise<Object>} - 歌词信息
      */
-    async getLocalLyrics(title, artist, album, extension) {
+    async getLocalLyrics(title, artist, album) {
         try {
             const localResult = await localLyricsManager.getLyrics(title, artist, album);
             if (localResult.success) {
-                if (localResult.format === extension && localResult.format === 'ttml') {
+                if (localResult.format === 'ttml') {
                     return {
                         success: true,
                         content: localResult.content,
@@ -144,7 +136,7 @@ class LyricsAPI {
                         filePath: localResult.filePath,
                         fileName: localResult.fileName
                     };
-                } else if (localResult.format === extension && localResult.format === 'lrc') {
+                } else {
                     return {
                         success: true,
                         lrc: localResult.content,
@@ -153,7 +145,7 @@ class LyricsAPI {
                         filePath: localResult.filePath,
                         fileName: localResult.fileName
                     };
-                } else return {success: false};
+                }
             }
             return {success: false};
         } catch (error) {

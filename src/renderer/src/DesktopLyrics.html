@@ -7,25 +7,38 @@
     <link rel="stylesheet" href="styles/DesktopLyrics.scss">
 </head>
 <body>
-    <div class="desktop-lyrics" id="desktopLyrics">
-        <!-- 歌词容器 -->
-        <div class="lyrics-wrapper" id="lyricsWrapper">
-            <!-- 前一句歌词 -->
-            <div class="lyric-line prev" id="prevLyric"></div>
-
-            <!-- 当前歌词 -->
-            <div class="lyric-line current" id="currentLyric">
-                <span class="lyric-text">等待播放...</span>
+    <div id="desktop-lyrics" class="desktop-lyrics-container">
+        <!-- 歌词显示区域 -->
+        <div class="lyrics-content">
+            <!-- 当前歌词行 -->
+            <div class="current-lyric">
+                <span class="lyric-text" data-line="current"></span>
             </div>
-
-            <!-- 下一句歌词 -->
-            <div class="lyric-line next" id="nextLyric"></div>
+            <!-- 下一句歌词行 -->
+            <div class="next-lyric">
+                <span class="lyric-text" data-line="next"></span>
+            </div>
         </div>
 
-        <!-- 控制栏 -->
-        <div class="controls-bar" id="controlsBar">
-            <div class="control-icon" id="lockBtn" title="锁定位置">🔒</div>
-            <div class="control-icon" id="closeBtn" title="关闭">✕</div>
+        <!-- 控制栏(鼠标悬停时显示) -->
+        <div class="controls-bar">
+            <div class="control-button" id="lock-btn" title="锁定">
+                <svg class="icon lock-icon" viewBox="0 0 24 24">
+                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM9 8V6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9z"/>
+                </svg>
+            </div>
+            <div class="control-button" id="close-btn" title="关闭">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- 解锁按钮(锁定时显示在左下角) -->
+        <div class="unlock-button" id="unlock-btn" title="解锁">
+            <svg class="icon" viewBox="0 0 24 24">
+                <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h2c0-1.66 1.34-3 3-3s3 1.34 3 3v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+            </svg>
         </div>
     </div>
 

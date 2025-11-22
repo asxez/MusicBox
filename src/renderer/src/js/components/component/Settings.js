@@ -149,11 +149,17 @@ class Settings extends Component {
         this.lyricsHighlightOpacitySlider = this.element.querySelector('#lyrics-highlight-opacity-slider');
         this.lyricsHighlightOpacityValue = this.element.querySelector('#lyrics-highlight-opacity-value');
 
+        // 歌词高亮颜色设置
+        this.lyricsHighlightColor = this.element.querySelector('#lyrics-highlight-color');
+        this.lyricsHighlightColorValue = this.element.querySelector('#lyrics-highlight-color-value');
+
         // 桌面歌词设置元素
         this.dlDisplayModeSelect = this.element.querySelector('#dl-display-mode-select');
         this.dlLayoutModeSelect = this.element.querySelector('#dl-layout-mode-select');
         this.dlThemeColor = this.element.querySelector('#dl-theme-color');
         this.dlThemeColorValue = this.element.querySelector('#dl-theme-color-value');
+        this.dlFontColor = this.element.querySelector('#dl-font-color');
+        this.dlFontColorValue = this.element.querySelector('#dl-font-color-value');
         this.dlOpacitySlider = this.element.querySelector('#dl-opacity-slider');
         this.dlOpacityValue = this.element.querySelector('#dl-opacity-value');
         this.dlFontSizeSlider = this.element.querySelector('#dl-font-size-slider');
@@ -417,6 +423,14 @@ class Settings extends Component {
             this.updateLyricsHighlightOpacity(value);
         });
 
+        // 歌词高亮颜色设置
+        this.lyricsHighlightColor.addEventListener('input', (e) => {
+            const color = e.target.value;
+            this.lyricsHighlightColorValue.textContent = color;
+            this.updateSetting('lyricsHighlightColor', color);
+            this.updateLyricsHighlightColor(color);
+        });
+
         // 添加网络磁盘按钮
         if (this.addNetworkDriveBtn) {
             this.addNetworkDriveBtn.addEventListener('click', () => {
@@ -449,6 +463,14 @@ class Settings extends Component {
                 const color = e.target.value;
                 this.dlThemeColorValue.textContent = color;
                 this.updateDesktopLyricsSetting('themeColor', color);
+            });
+        }
+
+        if (this.dlFontColor) {
+            this.dlFontColor.addEventListener('input', (e) => {
+                const color = e.target.value;
+                this.dlFontColorValue.textContent = color;
+                this.updateDesktopLyricsSetting('fontColor', color);
             });
         }
 
@@ -536,6 +558,12 @@ class Settings extends Component {
         this.lyricsHighlightOpacitySlider.value = lyricsOpacity;
         this.lyricsHighlightOpacityValue.textContent = lyricsOpacity.toFixed(1);
         this.updateLyricsHighlightOpacity(lyricsOpacity);
+
+        // 初始化歌词高亮颜色设置
+        const lyricsColor = this.settings.hasOwnProperty('lyricsHighlightColor') ? this.settings.lyricsHighlightColor : '#335eea';
+        this.lyricsHighlightColor.value = lyricsColor;
+        this.lyricsHighlightColorValue.textContent = lyricsColor;
+        this.updateLyricsHighlightColor(lyricsColor);
 
         // 初始化桌面歌词设置
         this.initializeDesktopLyricsSettings();
@@ -752,6 +780,26 @@ class Settings extends Component {
     updateLyricsHighlightOpacity(opacity) {
         document.documentElement.style.setProperty('--lyrics-highlight-opacity', opacity);
         this.emit('lyricsHighlightOpacityChanged', opacity);
+    }
+
+    // 更新歌词高亮颜色
+    updateLyricsHighlightColor(color) {
+        // 将hex颜色转换为RGB（用于text-shadow）
+        const rgb = this.hexToRgb(color);
+        if (rgb) {
+            document.documentElement.style.setProperty('--lyrics-highlight-color', color);
+            document.documentElement.style.setProperty('--lyrics-highlight-color-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+        }
+    }
+
+    // 将hex颜色转换为RGB
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
     }
 
     // 缓存管理方法
@@ -1480,12 +1528,36 @@ class Settings extends Component {
 
         // 初始化字体大小
         if (this.dlFontSizeSlider) {
-            const fontSize = dlSettings.fontSize || 56;
+            const fontSize = dlSettings.fontSize || 48;
             this.dlFontSizeSlider.value = fontSize;
             if (this.dlFontSizeValue) {
                 this.dlFontSizeValue.textContent = fontSize + 'px';
             }
         }
+
+        // 初始化字体颜色
+        if (this.dlFontColor) {
+            const fontColor = dlSettings.fontColor || '#000';
+            this.dlFontColor.value = fontColor;
+            if (this.dlFontColorValue) {
+                this.dlFontColorValue.textContent = fontColor;
+            }
+        }
+
+        // 初始化完成后同步设置到桌面歌词窗口
+        setTimeout(async () => {
+            try {
+                await api.updateDesktopLyricsSettings({
+                    layoutMode: dlSettings.layoutMode || 'default',
+                    themeColor: dlSettings.themeColor || '#64b5f6',
+                    fontColor: dlSettings.fontColor || '#000',
+                    opacity: dlSettings.opacity !== undefined ? dlSettings.opacity : 0.9,
+                    fontSize: dlSettings.fontSize || 48
+                });
+            } catch (error) {
+                console.error('❌ Settings: 初始化桌面歌词设置同步失败:', error);
+            }
+        }, 100);
     }
 }
 

@@ -140,15 +140,26 @@ function registerWindowIpcHandlers({ipcMain}) {
                 const validHeight = Math.max(minHeight, Math.min(maxHeight, Math.round(height)));
 
                 win.setSize(validWidth, validHeight);
-                return { success: true, width: validWidth, height: validHeight };
+                return {success: true, width: validWidth, height: validHeight};
             } catch (error) {
                 console.error('❌ 设置窗口尺寸失败:', error);
-                return { success: false, error: error.message };
+                return {success: false, error: error.message};
             }
         } else if (win && win.isMaximized()) {
-            return { success: false, error: '窗口已最大化' };
+            return {success: false, error: '窗口已最大化'};
         }
-        return { success: false, error: '窗口不存在' };
+        return {success: false, error: '窗口不存在'};
+    });
+
+    ipcMain.handle('window:setBackgroundThrottling', (event, flag) => {
+        const win = getMainWindow();
+        if (win) {
+            try {
+                win.setBackgroundThrottling(flag);
+            } catch (error) {
+                console.error('❌ 设置窗口节流失败:', error);
+            }
+        }
     });
 }
 
