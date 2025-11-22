@@ -7181,24 +7181,24 @@ a {
             position: absolute;
             left: 0;
             top: 0;
-            color: var(--color-primary);
+            color: var(--lyrics-highlight-color, var(--color-primary));
             font-weight: 600;
             overflow: hidden;
             width: calc(var(--word-progress) * 100%);
             transition: width linear;
-            text-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.35);
+            text-shadow: 0 0 8px rgba(var(--lyrics-highlight-color-rgb, var(--color-primary-rgb)), 0.35);
           }
 
           // 正在播放的字
           &.highlight::after {
-            filter: drop-shadow(0 0 10px rgba(var(--color-primary-rgb), 0.4));
+            filter: drop-shadow(0 0 10px rgba(var(--lyrics-highlight-color-rgb, var(--color-primary-rgb)), 0.4));
           }
 
           // 已播放的字
           &.played {
-            color: var(--color-primary);
+            color: var(--lyrics-highlight-color, var(--color-primary));
             font-weight: 600;
-            text-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.35);
+            text-shadow: 0 0 8px rgba(var(--lyrics-highlight-color-rgb, var(--color-primary-rgb)), 0.35);
 
             &::after {
               display: none;

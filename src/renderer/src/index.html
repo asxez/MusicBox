@@ -709,6 +709,17 @@
                                 <span class="slider-value" id="lyrics-highlight-opacity-value">1.0</span>
                             </div>
                         </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">高亮颜色</label>
+                                <p class="item-description">调节高亮扫过后歌词的颜色</p>
+                            </div>
+                            <div class="item-control">
+                                <input type="color" class="color-picker" id="lyrics-highlight-color" value="#335eea">
+                                <span class="color-value" id="lyrics-highlight-color-value">#335eea</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 音频设置 -->
@@ -932,20 +943,6 @@
 
                         <div class="settings-item">
                             <div class="item-info">
-                                <label class="item-label">显示模式</label>
-                                <p class="item-description">控制歌词行数显示</p>
-                            </div>
-                            <div class="item-control">
-                                <select class="settings-select" id="dl-display-mode-select">
-                                    <option value="default">三行显示</option>
-                                    <option value="single">双行显示</option>
-                                    <option value="minimal">单行显示</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="settings-item">
-                            <div class="item-info">
                                 <label class="item-label">布局模式</label>
                                 <p class="item-description">选择桌面歌词的显示样式</p>
                             </div>
@@ -959,12 +956,23 @@
 
                         <div class="settings-item">
                             <div class="item-info">
-                                <label class="item-label">主题颜色</label>
-                                <p class="item-description">逐字高亮的颜色</p>
+                                <label class="item-label">高亮颜色</label>
+                                <p class="item-description">调节高亮扫过后歌词的颜色</p>
                             </div>
                             <div class="item-control">
                                 <input type="color" class="color-picker" id="dl-theme-color" value="#64b5f6">
                                 <span class="color-value" id="dl-theme-color-value">#64b5f6</span>
+                            </div>
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <label class="item-label">字体颜色</label>
+                                <p class="item-description">调节未高亮的字体颜色</p>
+                            </div>
+                            <div class="item-control">
+                                <input type="color" class="color-picker" id="dl-font-color" value="#000">
+                                <span class="color-value" id="dl-font-color-value">#000</span>
                             </div>
                         </div>
 

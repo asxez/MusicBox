@@ -1,6 +1,6 @@
 {
   "name": "musicbox",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "A visually stunning, plugin-based local music player.",
   "main": "src/main/main.js",
   "author": {
@@ -28,7 +28,6 @@
     "clean": "rimraf dist && cd src/renderer && npm run clean"
   },
   "devDependencies": {
-    "concurrently": "^7.6.0",
     "cross-env": "^10.0.0",
     "electron": "37.3.1",
     "electron-builder": "^24.0.0",

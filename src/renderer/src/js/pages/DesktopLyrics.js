@@ -1,405 +1,437 @@
 /**
- * 桌面歌词管理器
+ * 桌面歌词页面
  */
 
-import {cacheManager} from "@services/CacheManager";
-
-class DesktopLyricsManager {
+class DesktopLyrics {
     constructor() {
-        this.currentLyrics = [];
-        this.currentIndex = -1;
-        this.currentPosition = 0;
+        this.container = document.getElementById('desktop-lyrics');
+        this.currentLyricEl = document.querySelector('.current-lyric .lyric-text');
+        this.nextLyricEl = document.querySelector('.next-lyric .lyric-text');
+        this.lockBtn = document.getElementById('lock-btn');
+        this.unlockBtn = document.getElementById('unlock-btn');
+        this.closeBtn = document.getElementById('close-btn');
+
+        // 歌词数据
+        this.lyrics = [];
+        this.currentLyricIndex = -1;
+
+        // 播放状态
         this.isPlaying = false;
-        this.currentTrack = null;
+        this.currentPosition = 0;
 
+        // 窗口状态
         this.isLocked = false;
-        this.displayMode = 'default';
-        this.layoutMode = 'default';
-        this.theme = 'blue';
 
-        this.progressInterval = null;
-
-        this.initElements();
-        this.initEventListeners();
-        this.setupElectronAPI();
-        this.loadSettings();
-    }
-
-    initElements() {
-        this.elements = {
-            body: document.body,
-            container: document.getElementById('desktopLyrics'),
-            lyricsWrapper: document.getElementById('lyricsWrapper'),
-            prevLyric: document.getElementById('prevLyric'),
-            currentLyric: document.getElementById('currentLyric'),
-            nextLyric: document.getElementById('nextLyric'),
-            lockBtn: document.getElementById('lockBtn'),
-            closeBtn: document.getElementById('closeBtn')
+        // 设置
+        this.settings = {
+            layoutMode: 'default',
+            themeColor: '#64b5f6',
+            fontColor: '#000',
+            opacity: 0.9,
+            fontSize: 48
         };
+
+        // 逐字高亮相关
+        this._currentPlaybackPosition = 0;
+        this._lastMonotonicPosition = 0;
+        this._rafId = null;
+        this._lastWordUpdateTime = 0;
+        this._wordUpdateInterval = 16;
+
+        this.init();
     }
 
-    initEventListeners() {
-        this.elements.closeBtn.addEventListener('click', async () => {
-            await window.electronAPI?.desktopLyrics?.hide();
-        });
-
-        this.elements.lockBtn.addEventListener('click', () => this.toggleLock());
+    init() {
+        this.setupEventListeners();
+        this.setupIPCListeners();
+        this.loadSettings();
+        this.applySettings();
+        this.showDefaultLyrics();
     }
 
-    setupElectronAPI() {
-        window.electronAPI.desktopLyrics.onPlaybackStateChanged((state) => {
-            this.isPlaying = state.isPlaying;
-            if (!this.isPlaying) {
-                this.stopProgressUpdate();
-            }
+    setupEventListeners() {
+        // 锁定按钮
+        this.lockBtn.addEventListener('click', () => {
+            this.toggleLock();
         });
 
+        // 解锁按钮
+        this.unlockBtn.addEventListener('click', () => {
+            this.toggleLock();
+        });
+
+        // 关闭按钮
+        this.closeBtn.addEventListener('click', async () => {
+            await this.close();
+        });
+    }
+
+    setupIPCListeners() {
+        // 监听歌词更新
         window.electronAPI.desktopLyrics.onLyricsUpdated((lyricsData) => {
-            this.currentLyrics = lyricsData || [];
-            this.currentIndex = -1;
-            this.updateLyrics();
+            this.updateLyrics(lyricsData);
         });
 
+        // 监听播放进度变化
         window.electronAPI.desktopLyrics.onPositionChanged((position) => {
-            this.currentPosition = position;
-            this.updateLyrics();
+            this.updatePosition(position);
         });
 
-        window.electronAPI.desktopLyrics.onSettingsChanged(async (settings) => {
-            await this.applySettings(settings);
+        // 监听播放状态变化
+        window.electronAPI.desktopLyrics.onPlaybackStateChanged((state) => {
+            this.isPlaying = state?.isPlaying || false;
+        });
+
+        // 监听歌曲变化
+        window.electronAPI.desktopLyrics.onTrackChanged((_track) => {
+            this.resetLyrics();
+        });
+
+        // 监听设置变化
+        window.electronAPI.desktopLyrics.onSettingsChanged((settings) => {
+            this.updateSettings(settings);
         });
     }
 
-    updateLyrics() {
-        if (!this.currentLyrics || this.currentLyrics.length === 0) {
-            this.showNoLyrics();
+    showDefaultLyrics() {
+        this.currentLyricEl.textContent = '暂无歌词';
+        this.nextLyricEl.textContent = '';
+    }
+
+    // 更新歌词数据
+    updateLyrics(lyricsData) {
+        if (!lyricsData || !Array.isArray(lyricsData)) {
+            this.lyrics = [];
+            this.showDefaultLyrics();
             return;
         }
 
+        this.lyrics = lyricsData;
+        this.currentLyricIndex = -1;
+        this.renderCurrentLyric();
+    }
+
+    // 更新播放进度
+    updatePosition(position) {
+        if (typeof position !== 'number' || isNaN(position)) {
+            return;
+        }
+
+        // 单调时间处理（防止时间回跳导致歌词闪烁）
+        const timeDiff = position - this._lastMonotonicPosition;
+
+        if (timeDiff < -0.5) {
+            // 大幅回退，重置状态
+            this._lastMonotonicPosition = position;
+            this._currentPlaybackPosition = position;
+            this.resetWordHighlightStates(position);
+        } else if (timeDiff >= -0.05) {
+            // 正常前进或微小回退
+            const monotonicTime = Math.max(position, this._lastMonotonicPosition);
+            this._lastMonotonicPosition = monotonicTime;
+            this._currentPlaybackPosition = monotonicTime;
+            position = monotonicTime;
+        } else {
+            // 中等回退，也当作seek处理
+            this._lastMonotonicPosition = position;
+            this._currentPlaybackPosition = position;
+            this.resetWordHighlightStates(position);
+        }
+
+        this.currentPosition = position;
+        this.updateLyricHighlight(position);
+    }
+
+    // 更新歌词高亮
+    updateLyricHighlight(currentTime) {
+        if (!this.lyrics || this.lyrics.length === 0) {
+            return;
+        }
+
+        // 找到当前时间对应的歌词索引
         let newIndex = -1;
-        for (let i = 0; i < this.currentLyrics.length; i++) {
-            if (this.currentPosition >= this.currentLyrics[i].time) {
+        for (let i = 0; i < this.lyrics.length; i++) {
+            if (currentTime >= this.lyrics[i].time) {
                 newIndex = i;
             } else {
                 break;
             }
         }
 
-        if (newIndex !== this.currentIndex) {
-            this.currentIndex = newIndex;
-            this.renderLyrics();
-            this.startProgressUpdate();
+        // 如果索引变化，更新显示
+        if (newIndex !== this.currentLyricIndex) {
+            this.currentLyricIndex = newIndex;
+            this.renderCurrentLyric();
+        }
+
+        // 处理逐字高亮
+        if (newIndex >= 0 && this.lyrics[newIndex].type === 'word-by-word') {
+            this.updateWordHighlight(newIndex, currentTime);
         }
     }
 
-    renderLyrics() {
-        const prev = this.currentIndex > 0 ? this.currentLyrics[this.currentIndex - 1] : null;
-        const current = this.currentIndex >= 0 ? this.currentLyrics[this.currentIndex] : null;
-        const next = this.currentIndex + 1 < this.currentLyrics.length ?
-            this.currentLyrics[this.currentIndex + 1] : null;
-
-        if (prev) {
-            this.elements.prevLyric.textContent = prev.content;
-            this.elements.prevLyric.classList.add('lyric-enter');
-        } else {
-            this.elements.prevLyric.textContent = '';
-        }
-
-        if (current) {
-            this.renderCurrentLyric(current.content);
-            this.elements.currentLyric.classList.add('lyric-enter');
-            setTimeout(() => {
-                this.elements.currentLyric.classList.remove('lyric-enter');
-            }, 600);
-        } else {
-            this.elements.currentLyric.innerHTML = '<span class="lyric-text">♪</span>';
-        }
-
-        if (next) {
-            this.elements.nextLyric.textContent = next.content;
-            this.elements.nextLyric.classList.add('lyric-enter');
-        } else {
-            this.elements.nextLyric.textContent = '';
-        }
-    }
-
-    renderCurrentLyric(text) {
-        const chars = text.split('');
-        const charElements = chars.map(char => {
-            if (char === ' ') {
-                return '<span class="lyric-char"> </span>';
-            }
-            return `<span class="lyric-char">${char}</span>`;
-        }).join('');
-
-        this.elements.currentLyric.innerHTML = `<span class="lyric-text">${charElements}</span>`;
-    }
-
-    startProgressUpdate() {
-        this.stopProgressUpdate();
-
-        if (!this.isPlaying) return;
-
-        const current = this.currentLyrics[this.currentIndex];
-        const next = this.currentLyrics[this.currentIndex + 1];
-
-        if (!current || !next) return;
-
-        const duration = (next.time - current.time) * 1000;
-        const charElements = this.elements.currentLyric.querySelectorAll('.lyric-char');
-        const totalChars = charElements.length;
-
-        if (totalChars === 0) return;
-
-        const timePerChar = duration / totalChars;
-
-        let currentChar = 0;
-        const highlightNextChar = () => {
-            if (currentChar < totalChars) {
-                charElements[currentChar].classList.add('highlight');
-                currentChar++;
-            }
-        };
-
-        highlightNextChar();
-
-        this.progressInterval = setInterval(() => {
-            if (currentChar >= totalChars || this.currentIndex !== this.currentLyrics.findIndex(l => l === current)) {
-                this.stopProgressUpdate();
-                return;
-            }
-            highlightNextChar();
-        }, timePerChar - 100);
-    }
-
-    stopProgressUpdate() {
-        if (this.progressInterval) {
-            clearInterval(this.progressInterval);
-            this.progressInterval = null;
-        }
-    }
-
-    showNoLyrics() {
-        this.elements.prevLyric.textContent = '';
-        this.elements.currentLyric.innerHTML = '<span class="lyric-text">暂无歌词</span>';
-        this.elements.nextLyric.textContent = '';
-        this.stopProgressUpdate();
-    }
-
-    toggleLock() {
-        this.isLocked = !this.isLocked;
-        this.elements.lockBtn.textContent = this.isLocked ? '🔓' : '🔒';
-        this.elements.lockBtn.title = this.isLocked ? '解锁位置' : '锁定位置';
-
-        if (this.isLocked) {
-            this.elements.body.classList.add('locked');
-            this.elements.lockBtn.classList.add('active');
-        } else {
-            this.elements.body.classList.remove('locked');
-            this.elements.lockBtn.classList.remove('active');
-        }
-
-        cacheManager.setLocalCache('desktopLyrics-locked', this.isLocked);
-    }
-
-    async applySettings(settings) {
-        if (settings.themeColor) {
-            this.setThemeColor(settings.themeColor);
-        }
-
-        if (settings.displayMode) {
-            this.setDisplayMode(settings.displayMode);
-        }
-
-        if (settings.layoutMode) {
-            this.setLayoutMode(settings.layoutMode);
-        }
-
-        if (settings.opacity !== undefined) {
-            await this.setOpacity(settings.opacity);
-        }
-
-        if (settings.fontSize) {
-            this.setFontSize(settings.fontSize);
-        }
-    }
-
-    setThemeColor(color) {
-        this.themeColor = color;
-
-        // 直接设置CSS变量为自定义颜色
-        this.elements.container.style.setProperty('--theme-color', color);
-
-        // 计算发光效果的颜色 (使用rgba格式，添加0.5透明度)
-        const rgb = this.hexToRgb(color);
-        if (rgb) {
-            const glowColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`;
-            this.elements.container.style.setProperty('--theme-color-glow', glowColor);
-        }
-
-        cacheManager.setLocalCache('desktopLyrics-themeColor', color);
-    }
-
-    // 辅助方法：将十六进制颜色转换为RGB
-    hexToRgb(hex) {
-        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        return result ? {
-            r: parseInt(result[1], 16),
-            g: parseInt(result[2], 16),
-            b: parseInt(result[3], 16)
-        } : null;
-    }
-
-    setTheme(theme) {
-        const themes = ['blue', 'purple', 'green', 'orange', 'pink'];
-        themes.forEach(t => this.elements.container.classList.remove(`theme-${t}`));
-
-        this.theme = theme;
-        this.elements.container.classList.add(`theme-${theme}`);
-        cacheManager.setLocalCache('desktopLyrics-theme', theme);
-    }
-
-    setDisplayMode(mode) {
-        this.displayMode = mode;
-        this.elements.container.classList.remove('mode-minimal', 'mode-single');
-
-        if (mode !== 'default') {
-            this.elements.container.classList.add(`mode-${mode}`);
-        }
-
-        cacheManager.setLocalCache('desktopLyrics-displayMode', mode);
-    }
-
-    setLayoutMode(mode) {
-        this.layoutMode = mode;
-        this.elements.container.classList.remove('mode-center');
-
-        if (mode !== 'default') {
-            this.elements.container.classList.add(`mode-${mode}`);
-        }
-
-        // 根据布局模式调整窗口尺寸
-        this.adjustWindowSizeForMode(mode);
-        cacheManager.setLocalCache('desktopLyrics-layoutMode', mode);
-    }
-
-    // 根据布局模式调整窗口尺寸
-    async adjustWindowSizeForMode(mode) {
-        try {
-            let width, height;
-            switch (mode) {
-                case 'center':
-                    // 居中模式使用更宽的尺寸,确保歌词能完整显示不换行
-                    width = 900;
-                    height = 200;
-                    break;
-                default:
-                    // 默认模式使用标准尺寸
-                    width = 500;
-                    height = 120;
-                    break;
-            }
-
-            await window.electronAPI.desktopLyrics.setSize(width, height);
-            console.log(`✅ 桌面歌词窗口尺寸已调整为 ${mode} 模式: ${width}x${height}`);
-
-            // 如果是居中模式，将窗口移动到屏幕中央
-            if (mode === 'center') {
-                await window.electronAPI.desktopLyrics.centerOnScreen();
-                console.log('✅ 桌面歌词窗口已居中到屏幕');
-            }
-
-            // 根据模式设置窗口层级和鼠标事件
-            await this.adjustWindowBehaviorForMode(mode);
-        } catch (error) {
-            console.error('❌ 调整桌面歌词窗口尺寸失败:', error);
-        }
-    }
-
-    // 根据布局模式调整窗口行为（置顶、鼠标穿透等）
-    async adjustWindowBehaviorForMode(mode) {
-        if (!window.electronAPI?.desktopLyrics) {
+    // 渲染当前歌词
+    renderCurrentLyric() {
+        if (this.currentLyricIndex < 0 || this.currentLyricIndex >= this.lyrics.length) {
+            this.currentLyricEl.textContent = '暂无歌词';
+            this.nextLyricEl.textContent = '';
             return;
         }
 
-        try {
-            if (mode === 'center') {
-                // 居中模式：取消置顶，窗口位于桌面图标下方
-                // 设置鼠标事件穿透，使窗口完全不响应鼠标
-                await window.electronAPI.desktopLyrics.setAlwaysOnTop(false);
-                await window.electronAPI.desktopLyrics.setIgnoreMouseEvents(true);
-                console.log('✅ 居中模式：已取消置顶并设置鼠标穿透');
+        const currentLyric = this.lyrics[this.currentLyricIndex];
+        const nextLyric = this.lyrics[this.currentLyricIndex + 1];
+
+        // 渲染当前歌词
+        if (currentLyric.type === 'word-by-word' && currentLyric.words) {
+            const wordsHTML = currentLyric.words.map((word, index) => {
+                return `<span class="lyric-word" data-word-index="${index}" data-word-time="${word.time}" data-word-text="${word.text}">${word.text}</span>`;
+            }).join('');
+            this.currentLyricEl.innerHTML = wordsHTML;
+        } else {
+            this.currentLyricEl.textContent = currentLyric.content || '';
+        }
+
+        // 渲染下一句歌词
+        if (nextLyric) {
+            if (nextLyric.type === 'word-by-word' && nextLyric.words) {
+                this.nextLyricEl.textContent = nextLyric.words.map(w => w.text).join('');
             } else {
-                // 其他模式：恢复置顶，取消鼠标穿透
-                await window.electronAPI.desktopLyrics.setAlwaysOnTop(true);
-                await window.electronAPI.desktopLyrics.setIgnoreMouseEvents(false);
-                console.log('✅ 普通模式：已恢复置顶并取消鼠标穿透');
+                this.nextLyricEl.textContent = nextLyric.content || '';
+            }
+        } else {
+            this.nextLyricEl.textContent = '';
+        }
+    }
+
+    // 更新逐字高亮
+    updateWordHighlight(lineIndex, currentTime) {
+        const lyric = this.lyrics[lineIndex];
+        if (!lyric || !lyric.words || lyric.words.length === 0) {
+            return;
+        }
+
+        // 节流控制
+        const now = performance.now();
+        const timeSinceLastUpdate = now - this._lastWordUpdateTime;
+
+        if (timeSinceLastUpdate < this._wordUpdateInterval) {
+            return;
+        }
+
+        this._lastWordUpdateTime = now;
+
+        // 取消之前的RAF
+        if (this._rafId) {
+            cancelAnimationFrame(this._rafId);
+        }
+
+        // 使用RAF优化DOM操作
+        this._rafId = requestAnimationFrame(() => {
+            this._rafId = null;
+
+            const latestTime = this._currentPlaybackPosition !== undefined ? this._currentPlaybackPosition : currentTime;
+            const words = this.currentLyricEl.querySelectorAll('.lyric-word');
+
+            for (let i = 0; i < lyric.words.length; i++) {
+                const word = lyric.words[i];
+                const wordElement = words[i];
+
+                if (!wordElement) continue;
+
+                // 已经播放完的字跳过
+                if (wordElement.classList.contains('played')) {
+                    continue;
+                }
+
+                const wordStartTime = word.time;
+                const wordEndTime = word.endTime || (lyric.words[i + 1] ? lyric.words[i + 1].time : lyric.endTime || wordStartTime + 0.5);
+
+                if (latestTime < wordStartTime) {
+                    // 未播放
+                    if (wordElement.classList.contains('highlight')) {
+                        wordElement.classList.remove('highlight');
+                        wordElement.style.setProperty('--word-progress', '0');
+                    }
+                } else if (latestTime >= wordEndTime) {
+                    // 已播放
+                    wordElement.classList.remove('highlight');
+                    wordElement.classList.add('played');
+                    wordElement.style.setProperty('--word-progress', '1');
+                } else {
+                    // 正在播放 - 计算进度并应用渐进填充效果
+                    const duration = wordEndTime - wordStartTime;
+                    const progress = duration > 0 ? (latestTime - wordStartTime) / duration : 1;
+                    const clampedProgress = Math.max(0, Math.min(1, progress));
+
+                    if (!wordElement.classList.contains('highlight')) {
+                        wordElement.classList.add('highlight');
+                    }
+
+                    // 更新进度（实现填充扫过效果）
+                    const currentProgress = parseFloat(wordElement.style.getPropertyValue('--word-progress')) || 0;
+                    const newProgress = parseFloat(clampedProgress.toFixed(2));
+
+                    // 确保进度只能前进，不能后退
+                    if (newProgress > currentProgress) {
+                        wordElement.style.setProperty('--word-progress', newProgress.toString());
+                    }
+                }
+            }
+        });
+    }
+
+    // 重置逐字高亮状态
+    resetWordHighlightStates(seekPosition) {
+        const words = this.currentLyricEl.querySelectorAll('.lyric-word');
+        words.forEach(wordElement => {
+            const wordTime = parseFloat(wordElement.dataset.wordTime);
+            if (wordTime > seekPosition) {
+                wordElement.classList.remove('highlight', 'played');
+                wordElement.style.setProperty('--word-progress', '0');
+            }
+        });
+    }
+
+    // 重置歌词
+    resetLyrics() {
+        this.lyrics = [];
+        this.currentLyricIndex = -1;
+        this._lastMonotonicPosition = 0;
+        this._currentPlaybackPosition = 0;
+        this.showDefaultLyrics();
+    }
+
+    // 切换锁定状态
+    toggleLock() {
+        this.isLocked = !this.isLocked;
+        this.applyLockState();
+    }
+
+    // 应用锁定状态
+    async applyLockState() {
+        if (this.isLocked) {
+            this.container.classList.add('locked');
+            this.lockBtn.classList.add('locked');
+        } else {
+            this.container.classList.remove('locked');
+            this.lockBtn.classList.remove('locked');
+            // 解锁按钮通过CSS控制隐藏
+        }
+    }
+
+    // 关闭窗口
+    async close() {
+        await window.electronAPI.desktopLyrics.close();
+    }
+
+    // 加载设置
+    loadSettings() {
+        try {
+            const savedSettings = localStorage.getItem('desktop-lyrics-settings');
+            if (savedSettings) {
+                this.settings = {...this.settings, ...JSON.parse(savedSettings)};
             }
         } catch (error) {
-            console.error('❌ 调整桌面歌词窗口行为失败:', error);
+            console.error('❌ 桌面歌词: 加载设置失败', error);
         }
     }
 
-    async setOpacity(opacity) {
-        cacheManager.setLocalCache('desktopLyrics-opacity', opacity);
+    // 保存设置
+    saveSettings() {
+        try {
+            localStorage.setItem('desktop-lyrics-settings', JSON.stringify(this.settings));
+        } catch (error) {
+            console.error('❌ 桌面歌词: 保存设置失败', error);
+        }
+    }
 
-        if (window.electronAPI?.desktopLyrics) {
+    // 更新设置
+    updateSettings(newSettings) {
+        if (!newSettings) return;
+
+        this.settings = {...this.settings, ...newSettings};
+        this.saveSettings();
+        this.applySettings();
+    }
+
+    // 应用设置
+    async applySettings() {
+        const {layoutMode, themeColor, fontColor, opacity, fontSize} = this.settings;
+
+        // 应用主题颜色
+        document.documentElement.style.setProperty('--theme-color', themeColor);
+
+        // 应用字体颜色
+        if (fontColor) {
+            document.documentElement.style.setProperty('--dl-font-color', fontColor);
+        }
+
+        // 应用字体大小
+        document.documentElement.style.setProperty('--lyric-font-size', `${fontSize}px`);
+
+        // 应用透明度
+        try {
+            await window.electronAPI.desktopLyrics.setOpacity(opacity);
+        } catch (error) {
+            console.error('❌ 桌面歌词: 设置透明度失败', error);
+        }
+
+        // 应用布局模式
+        if (layoutMode === 'center') {
+            // 居中模式
+            this.container.classList.add('center-mode');
+
+            // 设置为不置顶（置于最下层）
             try {
-                await window.electronAPI.desktopLyrics.setOpacity(opacity);
+                await window.electronAPI.desktopLyrics.setAlwaysOnTop(false);
             } catch (error) {
-                console.error('设置透明度失败:', error);
+                console.error('❌ 桌面歌词: 设置置顶状态失败', error);
             }
-        }
-    }
 
-    setFontSize(fontSize) {
-        this.elements.currentLyric.style.fontSize = fontSize + 'px';
-        const smallSize = Math.round(fontSize * 0.57);
-        this.elements.prevLyric.style.fontSize = smallSize + 'px';
-        this.elements.nextLyric.style.fontSize = smallSize + 'px';
+            // 居中模式下启用真正的鼠标穿透
+            try {
+                await window.electronAPI.desktopLyrics.setIgnoreMouseEvents(true, {forward: true});
+            } catch (error) {
+                console.error('❌ 桌面歌词: 设置鼠标穿透失败', error);
+            }
 
-        cacheManager.setLocalCache('desktopLyrics-fontSize', fontSize);
-    }
+            // 居中窗口到屏幕底部
+            try {
+                await window.electronAPI.desktopLyrics.centerOnScreen();
+            } catch (error) {
+                console.error('❌ 桌面歌词: 居中窗口失败', error);
+            }
 
-    async loadSettings() {
-        const savedLocked = cacheManager.getLocalCache('desktopLyrics-locked');
-        if (savedLocked && !this.isLocked) {
-            this.toggleLock();
-        }
-
-        // 优先加载自定义颜色，如果没有则使用预设主题
-        const savedThemeColor = cacheManager.getLocalCache('desktopLyrics-themeColor');
-        if (savedThemeColor) {
-            this.setThemeColor(savedThemeColor);
+            // 居中模式下自动解锁（因为无法交互）
+            if (this.isLocked) {
+                this.isLocked = false;
+                this.container.classList.remove('locked');
+                this.lockBtn.classList.remove('locked');
+            }
         } else {
-            const savedTheme = cacheManager.getLocalCache('desktopLyrics-theme');
-            if (savedTheme) {
-                this.setTheme(savedTheme);
+            // 默认模式
+            this.container.classList.remove('center-mode');
+
+            // 设置为置顶
+            try {
+                await window.electronAPI.desktopLyrics.setAlwaysOnTop(true);
+            } catch (error) {
+                console.error('❌ 桌面歌词: 设置置顶状态失败', error);
+            }
+
+            // 默认模式下禁用Electron的鼠标穿透
+            // 使用CSS的pointer-events来控制交互
+            try {
+                await window.electronAPI.desktopLyrics.setIgnoreMouseEvents(false);
+            } catch (error) {
+                console.error('❌ 桌面歌词: 禁用鼠标穿透失败', error);
             }
         }
 
-        const savedDisplayMode = cacheManager.getLocalCache('desktopLyrics-displayMode');
-        if (savedDisplayMode) {
-            this.setDisplayMode(savedDisplayMode);
-        }
-
-        const savedLayoutMode = cacheManager.getLocalCache('desktopLyrics-layoutMode');
-        if (savedLayoutMode) {
-            this.setLayoutMode(savedLayoutMode);
-        }
-
-        const savedOpacity = cacheManager.getLocalCache('desktopLyrics-opacity');
-        if (savedOpacity) {
-            await this.setOpacity(parseFloat(savedOpacity));
-        }
-
-        const savedFontSize = cacheManager.getLocalCache('desktopLyrics-fontSize');
-        if (savedFontSize) {
-            this.setFontSize(parseInt(savedFontSize));
-        }
+        console.log('🎵 桌面歌词: 设置已应用', this.settings);
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    window.desktopLyricsManager = new DesktopLyricsManager();
+    window.desktopLyrics = new DesktopLyrics();
 });

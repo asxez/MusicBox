@@ -939,7 +939,9 @@ class MusicBoxAPI extends EventEmitter {
             if (result.success && result.visible) {
                 // 如果显示了桌面歌词，同步当前状态
                 await this.syncCurrentStateToDesktopLyrics();
+                await window.electronAPI.window.setBackgroundThrottling(true);
             }
+            await window.electronAPI.window.setBackgroundThrottling(false);
             return result;
         } catch (error) {
             console.error('❌ 切换桌面歌词失败:', error);
@@ -1064,6 +1066,15 @@ class MusicBoxAPI extends EventEmitter {
         } catch (error) {
             console.error('❌ 检查桌面歌词状态失败:', error);
             return false;
+        }
+    }
+
+    async updateDesktopLyricsSettings(settings) {
+        try {
+            return await window.electronAPI.desktopLyrics.updateSettings(settings);
+        } catch (error) {
+            console.error('❌ 更新桌面歌词设置失败:', error);
+            return {success: false, error: error.message};
         }
     }
 

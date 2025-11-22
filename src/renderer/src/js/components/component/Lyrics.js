@@ -51,20 +51,11 @@ class Lyrics extends Component {
             this.listenersSetup = true;
         }
 
-        // 检查是否需要更新歌曲信息
-        const trackPath = track ? (track.filePath || track.path || `${track.title}_${track.artist}`) : null;
-        const needsUpdate = !this.currentTrack ||
-            (this.currentTrack.filePath || this.currentTrack.path || `${this.currentTrack.title}_${this.currentTrack.artist}`) !== trackPath;
-
-        if (needsUpdate && track) {
-            await this.updateTrackInfo(track);
-        }
-
         this.currentTrack = track;
         this.isVisible = true;
         this.isPlaying = api.isPlaying;
 
-        // 动画显示
+        // 立即显示页面，不等待歌词加载
         this.page.style.display = 'block';
         setTimeout(() => {
             this.page.classList.add('show');
@@ -72,6 +63,11 @@ class Lyrics extends Component {
 
         this.updateFullscreenState();
         await this.initializeControls();
+
+        // 异步加载歌曲信息和歌词，不阻塞页面显示
+        if (track) {
+            await this.updateTrackInfo(track);
+        }
 
         // 确保歌词显示区域滚动到顶部
         setTimeout(() => {
@@ -203,8 +199,8 @@ class Lyrics extends Component {
         });
 
         // 封面双击切换布局事件
-        this.addEventListenerManaged(this.trackCover, 'click', (e) => {
-            this.handleCoverClick(e);
+        this.addEventListenerManaged(this.trackCover, 'click', async (e) => {
+            await this.handleCoverClick(e);
         });
 
         // 窗口大小变化监听器
@@ -749,7 +745,6 @@ class Lyrics extends Component {
                 <div class="lyrics-line-spacer"></div>
             </div>
         `;
-        if (!this.isCenterMode) this.toggleLayoutMode();
     }
 
     renderLyrics() {
@@ -1134,7 +1129,7 @@ class Lyrics extends Component {
     }
 
     // 封面点击处理方法
-    handleCoverClick(e) {
+    async handleCoverClick(e) {
         e.preventDefault();
         e.stopPropagation();
 
@@ -1143,7 +1138,7 @@ class Lyrics extends Component {
 
         if (timeDiff < this.doubleClickDelay) {
             // 双击检测成功
-            this.handleCoverDoubleClick();
+            await this.handleCoverDoubleClick();
         }
 
         this.lastClickTime = currentTime;
