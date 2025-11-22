@@ -368,7 +368,7 @@ class WasapiEngine {
                 const position = await this.getPosition();
                 this.onPositionChanged(position);
             }
-        }, 1000);
+        }, 50);
     }
 
     stopProgressTimer() {

@@ -7165,6 +7165,56 @@ a {
       &:active {
         transform: scale(0.92);
       }
+
+      // 逐字歌词行
+      &.lyrics-word-by-word {
+        .lyric-word {
+          display: inline-block;
+          position: relative;
+          color: inherit;
+          transition: color ease;
+          --word-progress: 0;
+
+          // 使用伪元素实现渐进式填充效果
+          &::after {
+            content: attr(data-word-text);
+            position: absolute;
+            left: 0;
+            top: 0;
+            color: var(--color-primary);
+            font-weight: 600;
+            overflow: hidden;
+            width: calc(var(--word-progress) * 100%);
+            transition: width linear;
+            text-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.35);
+          }
+
+          // 正在播放的字
+          &.highlight::after {
+            filter: drop-shadow(0 0 10px rgba(var(--color-primary-rgb), 0.4));
+          }
+
+          // 已播放的字
+          &.played {
+            color: var(--color-primary);
+            font-weight: 600;
+            text-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.35);
+
+            &::after {
+              display: none;
+            }
+          }
+        }
+
+        &.highlight {
+          .lyric-word {
+            // 未播放的字使用当前行颜色
+            &:not(.highlight):not(.played) {
+              color: var(--color-text);
+            }
+          }
+        }
+      }
     }
   }
 }

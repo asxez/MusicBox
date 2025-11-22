@@ -813,7 +813,7 @@ class WebAudioEngine {
             if (this.isPlaying && this.onPositionChanged) {
                 this.onPositionChanged(await this.getPosition());
             }
-        }, 1000);
+        }, 50);
     }
 
     // 停止进度更新定时器

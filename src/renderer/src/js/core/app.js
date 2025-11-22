@@ -269,8 +269,8 @@ class MusicBoxApp extends EventEmitter {
             this.components.playlist.toggle();
         });
 
-        this.components.player.on('toggleLyrics', () => {
-            this.components.lyrics.toggle(api.currentTrack);
+        this.components.player.on('toggleLyrics', async () => {
+            await this.components.lyrics.toggle(api.currentTrack);
         });
 
         this.components.player.on('trackIndexChanged', (index) => {

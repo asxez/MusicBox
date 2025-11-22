@@ -27,6 +27,13 @@ class Lyrics extends Component {
         this._updateTrackInfoInProgress = false; // 是否正在更新歌曲信息
         this._pendingUpdatePromise = null; // 当前正在执行的更新Promise
 
+        // 逐字高亮相关状态
+        this._currentPlaybackPosition = 0; // 当前播放位置
+        this._lastMonotonicPosition = 0; // 上次的单调递增位置（用于防止时间回跳）
+        this._rafId = null; // requestAnimationFrame ID
+        this._lastWordUpdateTime = 0; // 上次逐字更新的时间戳
+        this._wordUpdateInterval = 16; // 逐字更新间隔（毫秒），约60fps
+
         // 封面双击切换功能状态
         this.isCenterMode = false; // 是否处于居中模式
         this.isTransitioning = false; // 是否正在进行布局切换动画
@@ -84,6 +91,11 @@ class Lyrics extends Component {
         this._isLoadingLyrics = false;
         this._updateTrackInfoInProgress = false;
         this._pendingUpdatePromise = null;
+
+        // 重置单调时间状态
+        this._lastMonotonicPosition = 0;
+        this._currentPlaybackPosition = 0;
+
         setTimeout(() => {
             if (!this.isVisible) {
                 this.page.style.display = 'none';
@@ -283,6 +295,30 @@ class Lyrics extends Component {
     setupAPIListeners() {
         // 监听播放进度变化，用于歌词同步和进度条更新
         this.addAPIEventListenerManaged('positionChanged', (position) => {
+            // 单调时间
+            // 允许小幅回跳（可能是seek操作），但对于微小回跳则忽略
+            const timeDiff = position - this._lastMonotonicPosition;
+
+            // 如果时间大幅回退（超过0.5秒），说明是用户seek操作，允许并重置字状态
+            if (timeDiff < -0.5) {
+                this._lastMonotonicPosition = position;
+                this._currentPlaybackPosition = position;
+                this.resetWordHighlightStates(position);
+            }
+            // 如果时间前进或者微小回退（小于0.05秒），使用单调递增的时间
+            else if (timeDiff >= -0.05) {
+                // 确保时间只增不减（忽略微小回跳）
+                const monotonicTime = Math.max(position, this._lastMonotonicPosition);
+                this._lastMonotonicPosition = monotonicTime;
+                this._currentPlaybackPosition = monotonicTime;
+                position = monotonicTime;
+            }
+            // 如果是0.05-0.5秒的回退，也当作seek处理
+            else {
+                this._lastMonotonicPosition = position;
+                this._currentPlaybackPosition = position;
+                this.resetWordHighlightStates(position);
+            }
             this.updateLyricHighlight(position);
         });
 
@@ -469,6 +505,7 @@ class Lyrics extends Component {
 
             // 同步歌词到桌面歌词窗口
             await api.syncToDesktopLyrics('lyrics', this.lyrics);
+            this._isLoadingLyrics = false;
             return;
         }
 
@@ -477,11 +514,26 @@ class Lyrics extends Component {
         try {
             const lyricsResult = await lyricsAPI.getLyrics(track.title, track.artist, track.album, track.filePath);
             if (lyricsResult.success) {
-                this.lyrics = lyricsAPI.parseLRC(lyricsResult.lrc);
-                if (this.lyrics.length > 0) {
+                let parsedLyrics;
+
+                if (lyricsResult.format === 'ttml' && lyricsResult.content) {
+                    parsedLyrics = lyricsAPI.parseTTML(lyricsResult.content);
+                } else if (lyricsResult.lrc) {
+                    parsedLyrics = lyricsAPI.parseLRC(lyricsResult.lrc);
+                } else if (lyricsResult.content) {
+                    parsedLyrics = lyricsAPI.parse(lyricsResult.content, lyricsResult.format);
+                }
+
+                if (parsedLyrics && parsedLyrics.length > 0) {
+                    this.lyrics = parsedLyrics;
                     // 缓存歌词到track对象
                     track.lyrics = this.lyrics;
-                    track.lrcText = lyricsResult.lrc;
+                    if (lyricsResult.lrc) {
+                        track.lrcText = lyricsResult.lrc;
+                    } else if (lyricsResult.content) {
+                        track.lyricsContent = lyricsResult.content;
+                        track.lyricsFormat = lyricsResult.format;
+                    }
                     this.renderLyrics();
 
                     // 同步歌词到桌面歌词窗口
@@ -707,7 +759,14 @@ class Lyrics extends Component {
         }
 
         const lyricsHTML = this.lyrics.map((lyric, index) => {
-            return `<p class="lyrics-line" data-time="${lyric.time}" data-index="${index}">${lyric.content}</p>`;
+            if (lyric.type === 'word-by-word' && lyric.words && lyric.words.length > 0) {
+                const wordsHTML = lyric.words.map((word, wordIndex) => {
+                    return `<span class="lyric-word" data-word-index="${wordIndex}" data-word-time="${word.time}" data-word-text="${word.text}">${word.text}</span>`;
+                }).join('');
+                return `<p class="lyrics-line lyrics-word-by-word" data-time="${lyric.time}" data-index="${index}">${wordsHTML}</p>`;
+            } else {
+                return `<p class="lyrics-line" data-time="${lyric.time}" data-index="${index}">${lyric.content}</p>`;
+            }
         }).join('');
 
         this.lyricsDisplay.innerHTML = `
@@ -730,8 +789,9 @@ class Lyrics extends Component {
             });
         });
 
-        // 重置当前歌词索引
+        // 重置当前歌词索引和单调时间
         this.currentLyricIndex = -1;
+        this._lastMonotonicPosition = 0;
     }
 
     updateLyricHighlight(currentTime) {
@@ -756,6 +816,12 @@ class Lyrics extends Component {
                 const prevLine = this.lyricsDisplay.querySelector(`[data-index="${this.currentLyricIndex}"]`);
                 if (prevLine) {
                     prevLine.classList.remove('highlight');
+                    // 清除逐字高亮（但保留played状态）
+                    const words = prevLine.querySelectorAll('.lyric-word');
+                    words.forEach(word => {
+                        // 只移除highlight，不移除played
+                        word.classList.remove('highlight');
+                    });
                 }
             }
 
@@ -776,6 +842,117 @@ class Lyrics extends Component {
                 }
             }
             this.currentLyricIndex = newIndex;
+        }
+
+        // 处理逐字高亮
+        if (newIndex >= 0 && this.lyrics[newIndex].type === 'word-by-word') {
+            this.updateWordHighlight(newIndex, currentTime);
+        }
+    }
+
+    updateWordHighlight(lineIndex, currentTime) {
+        const lyric = this.lyrics[lineIndex];
+        if (!lyric || !lyric.words || lyric.words.length === 0) {
+            return;
+        }
+
+        const currentLine = this.lyricsDisplay.querySelector(`[data-index="${lineIndex}"]`);
+        if (!currentLine) {
+            return;
+        }
+
+        // 节流控制：限制更新频率
+        const now = performance.now();
+        const timeSinceLastUpdate = now - this._lastWordUpdateTime;
+
+        // 如果距离上次更新时间太短，跳过本次更新
+        if (timeSinceLastUpdate < this._wordUpdateInterval) {
+            return;
+        }
+
+        this._lastWordUpdateTime = now;
+        const words = currentLine.querySelectorAll('.lyric-word');
+
+        // 取消之前的RAF请求，防止重复调用
+        if (this._rafId) {
+            cancelAnimationFrame(this._rafId);
+        }
+
+        // 使用requestAnimationFrame优化DOM操作
+        this._rafId = requestAnimationFrame(() => {
+            this._rafId = null;
+
+            // 使用最新的播放位置，而不是闭包捕获的旧值
+            const latestTime = this._currentPlaybackPosition !== undefined ? this._currentPlaybackPosition : currentTime;
+
+            // 遍历所有字，更新状态
+            for (let i = 0; i < lyric.words.length; i++) {
+                const word = lyric.words[i];
+                const wordElement = words[i];
+
+                if (!wordElement) continue;
+                if (wordElement.classList.contains('played')) {
+                    continue;
+                }
+
+                const wordStartTime = word.time;
+                const wordEndTime = word.endTime || (lyric.words[i + 1] ? lyric.words[i + 1].time : lyric.endTime || wordStartTime + 0.5);
+                if (latestTime < wordStartTime) {
+                    // 未播放的字：保持默认状态（只移除highlight，不影响played）
+                    if (wordElement.classList.contains('highlight')) {
+                        wordElement.classList.remove('highlight');
+                        wordElement.style.setProperty('--word-progress', '0');
+                    }
+                } else if (latestTime >= wordEndTime) {
+                    // 已播放的字：标记为已播放
+                    wordElement.classList.remove('highlight');
+                    wordElement.classList.add('played');
+                    wordElement.style.setProperty('--word-progress', '1');
+                } else {
+                    // 正在播放的字：计算进度并应用渐进高亮
+                    const duration = wordEndTime - wordStartTime;
+                    const progress = duration > 0 ? (latestTime - wordStartTime) / duration : 1;
+                    const clampedProgress = Math.max(0, Math.min(1, progress));
+
+                    if (!wordElement.classList.contains('highlight')) {
+                        wordElement.classList.add('highlight');
+                    }
+
+                    // 只有当进度确实发生变化时才更新CSS变量
+                    const currentProgress = parseFloat(wordElement.style.getPropertyValue('--word-progress')) || 0;
+                    const newProgress = parseFloat(clampedProgress.toFixed(2));
+
+                    // 确保进度只能前进，不能后退
+                    if (newProgress > currentProgress) {
+                        wordElement.style.setProperty('--word-progress', newProgress.toString());
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * 重置逐字高亮状态（用于seek操作时回退到更早位置）
+     * @param {number} seekPosition - seek到的时间位置
+     */
+    resetWordHighlightStates(seekPosition) {
+        if (!this.lyricsDisplay) return;
+
+        // 获取所有歌词行
+        const allLines = this.lyricsDisplay.querySelectorAll('.lyrics-line.lyrics-word-by-word');
+
+        for (const line of allLines) {
+            const words = line.querySelectorAll('.lyric-word');
+
+            for (const wordElement of words) {
+                const wordTime = parseFloat(wordElement.dataset.wordTime);
+
+                // 如果字的开始时间在seek位置之后，需要重置状态
+                if (wordTime > seekPosition) {
+                    wordElement.classList.remove('highlight', 'played');
+                    wordElement.style.setProperty('--word-progress', '0');
+                }
+            }
         }
     }
 

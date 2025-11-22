@@ -19,9 +19,10 @@ const {
  * @param {string} title - 歌曲标题
  * @param {string} artist - 艺术家
  * @param {string} album - 专辑名
+ * @param {string} extension 格式
  * @returns {string[]} 搜索模式数组
  */
-function generateLyricsSearchPatterns(title, artist, album) {
+function generateLyricsSearchPatterns(title, artist, album, extension='.frc') {
     const patterns = [];
 
     // 清理文件名中的特殊字符
@@ -38,12 +39,12 @@ function generateLyricsSearchPatterns(title, artist, album) {
         // 标准格式
         for (const titleVar of titleVariants) {
             for (const artistVar of artistVariants) {
-                patterns.push(`${artistVar} - ${titleVar}.lrc`);
-                patterns.push(`${titleVar} - ${artistVar}.lrc`);
-                patterns.push(`${artistVar}-${titleVar}.lrc`);
-                patterns.push(`${titleVar}-${artistVar}.lrc`);
-                patterns.push(`${artistVar}_${titleVar}.lrc`);
-                patterns.push(`${titleVar}_${artistVar}.lrc`);
+                patterns.push(`${artistVar} - ${titleVar}${extension}`);
+                patterns.push(`${titleVar} - ${artistVar}${extension}`);
+                patterns.push(`${artistVar}-${titleVar}${extension}`);
+                patterns.push(`${titleVar}-${artistVar}${extension}`);
+                patterns.push(`${artistVar}_${titleVar}${extension}`);
+                patterns.push(`${titleVar}_${artistVar}${extension}`);
             }
         }
     }
@@ -51,15 +52,19 @@ function generateLyricsSearchPatterns(title, artist, album) {
     // 仅标题格式
     if (cleanTitle) {
         for (const titleVar of titleVariants) {
-            patterns.push(`${titleVar}.lrc`);
+            patterns.push(`${titleVar}${extension}`);
         }
     }
 
     // 包含专辑信息的格式
     if (cleanTitle && cleanArtist && cleanAlbum) {
         const cleanAlbumVar = cleanFileName(cleanAlbum);
-        patterns.push(`${cleanArtist} - ${cleanAlbumVar} - ${cleanTitle}.lrc`);
-        patterns.push(`${cleanAlbumVar} - ${cleanArtist} - ${cleanTitle}.lrc`);
+        patterns.push(`${cleanArtist} - ${cleanAlbumVar} - ${cleanTitle}${extension}`);
+        patterns.push(`${cleanArtist} - ${cleanTitle} - ${cleanAlbumVar}${extension}`);
+        patterns.push(`${cleanAlbumVar} - ${cleanArtist} - ${cleanTitle}${extension}`);
+        patterns.push(`${cleanAlbumVar} - ${cleanTitle} - ${cleanArtist}${extension}`);
+        patterns.push(`${cleanTitle} - ${cleanAlbumVar} - ${cleanArtist}${extension}`);
+        patterns.push(`${cleanTitle} - ${cleanArtist} - ${cleanAlbumVar}${extension}`);
     }
 
     return patterns;

@@ -32,6 +32,10 @@ features:
   - icon: 🎶
     title: WASAPI 音频独占模式
     details: 支持音频独占，享受至高音乐效果
+    
+  - icon: 📄
+    title: 逐字歌词
+    details: 支持 TTML 格式歌词，欣赏歌词被逐一填充的乐趣
 
   - icon: 📔
     title: 在线获取歌词封面
