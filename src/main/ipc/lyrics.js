@@ -106,23 +106,23 @@ function registerLyricsIpcHandlers({ipcMain, networkFileAdapter}) {
     });
 
     // 搜索本地歌词文件
-    ipcMain.handle('lyrics:searchLocalFiles', async (event, lyricsDir, title, artist, album) => {
+    ipcMain.handle('lyrics:searchLocalFiles', async (event, lyricsDir, title, artist, album, extension = '.lrc') => {
         const {generateLyricsSearchPatterns, findBestLyricsMatch} = require('../utils/FileSearch');
         try {
-            console.log(`🔍 搜索本地歌词文件: ${title} - ${artist} 在目录 ${lyricsDir}`);
+            console.log(`🔍 搜索本地歌词文件: ${title} - ${artist} 在目录 ${lyricsDir} (格式: ${extension})`);
 
             if (!fs.existsSync(lyricsDir)) {
                 return {success: false, error: '歌词目录不存在'};
             }
 
             const files = fs.readdirSync(lyricsDir);
-            const lrcFiles = files.filter(file => path.extname(file).toLowerCase() === '.lrc');
-            console.log(`📁 找到 ${lrcFiles.length} 个歌词文件`);
+            const lyricsFiles = files.filter(file => path.extname(file).toLowerCase() === extension.toLowerCase());
+            console.log(`📁 找到 ${lyricsFiles.length} 个${extension}歌词文件`);
 
-            const searchPatterns = generateLyricsSearchPatterns(title, artist, album);
+            const searchPatterns = generateLyricsSearchPatterns(title, artist, album, extension);
             console.log(`🔍 生成 ${searchPatterns.length} 个搜索模式:`, searchPatterns);
 
-            const matchedFile = findBestLyricsMatch(lrcFiles, searchPatterns);
+            const matchedFile = findBestLyricsMatch(lyricsFiles, searchPatterns);
             if (matchedFile) {
                 const fullPath = path.join(lyricsDir, matchedFile);
                 console.log(`✅ 找到匹配的歌词文件: ${matchedFile}`);
@@ -133,6 +133,46 @@ function registerLyricsIpcHandlers({ipcMain, networkFileAdapter}) {
             }
         } catch (error) {
             console.error('❌ 搜索本地歌词文件失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // 保存歌词到本地文件
+    ipcMain.handle('lyrics:saveToLocal', async (event, lyricsDir, title, artist, album, content, format = 'lrc') => {
+        try {
+            console.log(`💾 保存歌词到本地: ${title} - ${artist} (格式: ${format})`);
+
+            if (!lyricsDir) {
+                return {success: false, error: '歌词目录未设置'};
+            }
+
+            // 确保歌词目录存在
+            if (!fs.existsSync(lyricsDir)) {
+                fs.mkdirSync(lyricsDir, {recursive: true});
+                console.log(`📁 创建歌词目录: ${lyricsDir}`);
+            }
+
+            // 生成文件名：优先使用 "艺术家 - 歌曲名" 格式
+            let fileName;
+            if (artist && artist.trim()) {
+                fileName = `${artist.trim()} - ${title.trim()}.${format}`;
+            } else {
+                fileName = `${title.trim()}.${format}`;
+            }
+
+            // 清理文件名中的非法字符
+            fileName = fileName.replace(/[<>:"/\\|?*]/g, '_');
+            const filePath = path.join(lyricsDir, fileName);
+
+            // 写入文件
+            fs.writeFileSync(filePath, content, 'utf-8');
+            return {
+                success: true,
+                filePath: filePath,
+                fileName: fileName
+            };
+        } catch (error) {
+            console.error('❌ 保存歌词文件失败:', error);
             return {success: false, error: error.message};
         }
     });

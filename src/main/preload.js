@@ -301,11 +301,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     lyrics: {
         // 本地歌词文件
         readLocalFile: (filePath) => ipcRenderer.invoke('lyrics:readLocalFile', filePath),
-        searchLocalFiles: (lyricsDir, title, artist, album) =>
-            ipcRenderer.invoke('lyrics:searchLocalFiles', lyricsDir, title, artist, album),
+        searchLocalFiles: (lyricsDir, title, artist, album, extension) =>
+            ipcRenderer.invoke('lyrics:searchLocalFiles', lyricsDir, title, artist, album, extension),
+        saveToLocal: (lyricsDir, title, artist, album, content, format) =>
+            ipcRenderer.invoke('lyrics:saveToLocal', lyricsDir, title, artist, album, content, format),
 
         // 内嵌歌词
-        getEmbedded: (filePath) => ipcRenderer.invoke('lyrics:getEmbedded', filePath)
+        getEmbedded: (filePath) => ipcRenderer.invoke('lyrics:getEmbedded', filePath),
     },
 
     // 本地封面缓存

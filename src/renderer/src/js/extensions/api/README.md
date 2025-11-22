@@ -8,25 +8,24 @@ API 系统采用模块化设计，每个功能域都有独立的模块：
 
 ```
 api/
-├── index.js              # API 入口
-├── player.js             # 播放器 API
-├── library.js            # 音乐库 API
-├── ui.js                 # UI API
-├── storage.js            # 存储 API
-├── settings.js           # 设置 API
-├── navigation.js         # 导航 API
-├── network.js            # 网络 API
-├── system.js             # 系统 API
-├── events.js             # 事件 API
-├── commands.js           # 命令 API
-├── views.js              # 视图 API
-├── diagnostics.js        # 诊断 API
-├── tasks.js              # 任务 API
-├── window.js             # 窗口 API
-├── keybindings.js        # 快捷键 API
+├── index.ts              # API 入口
+├── player.ts             # 播放器 API
+├── library.ts            # 音乐库 API
+├── ui.ts                 # UI API
+├── storage.ts            # 存储 API
+├── settings.ts           # 设置 API
+├── navigation.ts         # 导航 API
+├── network.ts            # 网络 API
+├── system.ts             # 系统 API
+├── events.ts             # 事件 API
+├── commands.ts           # 命令 API
+├── diagnostics.ts        # 诊断 API
+├── tasks.ts              # 任务 API
+├── window.ts             # 窗口 API
+├── keybindings.ts        # 快捷键 API
 └── common/
-    ├── errors.js         # 错误定义
-    └── validation.js     # 参数验证
+    ├── errors.ts         # 错误定义
+    └── validation.ts     # 参数验证
 ```
 
 ## 🚀 快速开始
@@ -154,33 +153,15 @@ const input = await api.ui.showInputBox({
     placeholder: '播放列表名称'
 });
 
-// 快速选择
-const selected = await api.ui.showQuickPick(['选项1', '选项2', '选项3'], {
-    placeholder: '请选择'
+const theme = api.ui.getCurrentTheme();
+api.ui.setTheme('dark');
+api.ui.toggleTheme();
+
+const e = api.ui.onThemeChanged((themeName) => {
+    console.log(themeName);
 });
 
-// 状态栏
-const statusBarItem = api.ui.createStatusBarItem('my-status', {
-    text: '$(music) 播放中',
-    alignment: 'left'
-});
-statusBarItem.show();
 
-// 进度提示
-await api.ui.withProgress({
-    title: '处理中...',
-    cancellable: true
-}, async (progress) => {
-    progress.report({ message: '步骤 1' });
-    await doStep1();
-    progress.report({ message: '步骤 2' });
-    await doStep2();
-});
-
-// Webview 面板
-const panel = api.ui.createWebviewPanel('my-view', '我的视图', {
-    enableScripts: true
-});
 ```
 
 ### Storage API

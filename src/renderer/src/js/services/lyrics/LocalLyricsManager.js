@@ -47,19 +47,42 @@ class LocalLyricsManager {
             }
             console.log(`🔍 LocalLyricsManager: 搜索本地歌词 - ${title} by ${artist}`);
 
-            // 搜索匹配的歌词文件
-            const searchResult = await window.electronAPI.lyrics.searchLocalFiles(
-                this.lyricsDirectory, title, artist, album
+            // 优先搜索TTML格式歌词
+            const ttmlResult = await window.electronAPI.lyrics.searchLocalFiles(
+                this.lyricsDirectory, title, artist, album, '.ttml'
             );
 
-            if (!searchResult.success) {
-                const result = {success: false, error: searchResult.error};
+            if (ttmlResult.success) {
+                const readResult = await window.electronAPI.lyrics.readLocalFile(ttmlResult.filePath);
+                if (readResult.success) {
+                    const ttmlContent = this.validateAndCleanLyrics(readResult.content);
+                    const result = {
+                        success: true,
+                        content: ttmlContent,
+                        format: 'ttml',
+                        source: 'local',
+                        filePath: ttmlResult.filePath,
+                        fileName: ttmlResult.fileName
+                    };
+                    this.setCache(cacheKey, result);
+                    console.log(`✅ LocalLyricsManager: 成功获取本地TTML歌词 - ${ttmlResult.fileName}`);
+                    return result;
+                }
+            }
+
+            // 回退到LRC格式
+            const lrcResult = await window.electronAPI.lyrics.searchLocalFiles(
+                this.lyricsDirectory, title, artist, album, '.lrc'
+            );
+
+            if (!lrcResult.success) {
+                const result = {success: false, error: lrcResult.error};
                 this.setCache(cacheKey, result);
                 return result;
             }
 
             // 读取歌词文件内容
-            const readResult = await window.electronAPI.lyrics.readLocalFile(searchResult.filePath);
+            const readResult = await window.electronAPI.lyrics.readLocalFile(lrcResult.filePath);
             if (!readResult.success) {
                 const result = {success: false, error: readResult.error};
                 this.setCache(cacheKey, result);
@@ -70,15 +93,16 @@ class LocalLyricsManager {
             const lrcContent = this.validateAndCleanLyrics(readResult.content);
             const result = {
                 success: true,
-                lrc: lrcContent,
+                content: lrcContent,
+                format: 'lrc',
                 source: 'local',
-                filePath: searchResult.filePath,
-                fileName: searchResult.fileName
+                filePath: lrcResult.filePath,
+                fileName: lrcResult.fileName
             };
 
             // 缓存结果
             this.setCache(cacheKey, result);
-            console.log(`✅ LocalLyricsManager: 成功获取本地歌词 - ${searchResult.fileName}`);
+            console.log(`✅ LocalLyricsManager: 成功获取本地LRC歌词 - ${lrcResult.fileName}`);
             return result;
         } catch (error) {
             console.error('❌ LocalLyricsManager: 获取本地歌词失败:', error);
@@ -134,6 +158,47 @@ class LocalLyricsManager {
         this.cache.set(key, {
             ...data,
         });
+    }
+
+    /**
+     * 保存歌词到本地
+     * @param {string} title - 歌曲标题
+     * @param {string} artist - 艺术家
+     * @param {string} album - 专辑名称
+     * @param {string} content - 歌词内容
+     * @param {string} format - 歌词格式 (lrc/ttml)
+     * @returns {Promise<Object>} 保存结果
+     */
+    async saveLyrics(title, artist, album = '', content, format = 'lrc') {
+        try {
+            if (!this.lyricsDirectory) {
+                return {success: false, error: '未设置本地歌词目录'};
+            }
+
+            console.log(`💾 LocalLyricsManager: 保存歌词到本地 - ${title} by ${artist} (格式: ${format})`);
+
+            const result = await window.electronAPI.lyrics.saveToLocal(
+                this.lyricsDirectory,
+                title,
+                artist,
+                album,
+                content,
+                format
+            );
+
+            if (result.success) {
+                console.log(`✅ LocalLyricsManager: 歌词已保存 - ${result.fileName}`);
+
+                // 清除缓存，确保下次获取时读取新保存的文件
+                const cacheKey = this.generateCacheKey(title, artist, album);
+                this.cache.delete(cacheKey);
+            }
+
+            return result;
+        } catch (error) {
+            console.error('❌ LocalLyricsManager: 保存歌词失败:', error);
+            return {success: false, error: error.message};
+        }
     }
 
     /**
