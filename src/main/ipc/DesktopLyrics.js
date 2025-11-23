@@ -60,17 +60,19 @@ function registerDesktopLyricsIpcHandlers({ipcMain}) {
         success: sendToDesktopLyrics('playback:stateChanged', state),
     }));
 
-    ipcMain.handle('desktopLyrics:updateLyrics', (event, lyricsData) => ({
-        success: sendToDesktopLyrics('lyrics:updated', lyricsData),
-    }));
+    ipcMain.handle('desktopLyrics:updateLyrics', (event, lyricsData) => {
+        const success = sendToDesktopLyrics('lyrics:updated', lyricsData);
+        return {success};
+    });
 
     ipcMain.handle('desktopLyrics:updatePosition', (event, position) => ({
         success: sendToDesktopLyrics('playback:positionChanged', position),
     }));
 
-    ipcMain.handle('desktopLyrics:updateTrack', (event, trackInfo) => ({
-        success: sendToDesktopLyrics('track:changed', trackInfo),
-    }));
+    ipcMain.handle('desktopLyrics:updateTrack', (event, trackInfo) => {
+        const success = sendToDesktopLyrics('track:changed', trackInfo);
+        return {success};
+    });
 
     // 位置和大小控制
     ipcMain.handle('desktopLyrics:setPosition', (event, x, y) => {

@@ -211,6 +211,9 @@ class MusicBoxAPI extends EventEmitter {
                     this.emit('positionChanged', 0);
                     this.emit('trackIndexChanged', this.currentIndex);
 
+                    // 同步到桌面歌词
+                    await this.syncToDesktopLyrics('track', this.currentTrack);
+
                     // 更新播放列表中的时长信息
                     this.updateTrackDuration(filePath, this.duration);
                     await window.electronAPI.audio.loadTrack(filePath);
@@ -227,6 +230,9 @@ class MusicBoxAPI extends EventEmitter {
                 this.emit('trackChanged', this.currentTrack);
                 this.emit('durationChanged', this.duration);
                 this.emit('positionChanged', 0);
+
+                // 同步到桌面歌词
+                await this.syncToDesktopLyrics('track', this.currentTrack);
             }
 
             return result;
@@ -924,8 +930,33 @@ class MusicBoxAPI extends EventEmitter {
         try {
             const lyricsResult = await lyricsAPI.getLyrics(track.title, track.artist, track.album, track.filePath);
             if (lyricsResult.success) {
-                const parsedLyrics = lyricsAPI.parseLRC(lyricsResult.lrc);
-                await this.syncToDesktopLyrics('lyrics', parsedLyrics);
+                let parsedLyrics;
+
+                // 支持所有歌词格式（与主窗口歌词页保持一致）
+                if (lyricsResult.format === 'ttml' && lyricsResult.content) {
+                    parsedLyrics = lyricsAPI.parseTTML(lyricsResult.content);
+                    console.log('🎵 loadLyricsForDesktop: 解析 TTML 格式');
+                } else if (lyricsResult.lrc) {
+                    parsedLyrics = lyricsAPI.parseLRC(lyricsResult.lrc);
+                    console.log('🎵 loadLyricsForDesktop: 解析 LRC 格式');
+                } else if (lyricsResult.content) {
+                    parsedLyrics = lyricsAPI.parse(lyricsResult.content, lyricsResult.format);
+                    console.log('🎵 loadLyricsForDesktop: 解析其他格式:', lyricsResult.format);
+                }
+
+                if (parsedLyrics && parsedLyrics.length > 0) {
+                    const updateResult = await this.syncToDesktopLyrics('lyrics', parsedLyrics);
+                    console.log('🎵 loadLyricsForDesktop: syncToDesktopLyrics 结果', updateResult);
+
+                    // 缓存歌词到track对象，避免重复加载
+                    track.lyrics = parsedLyrics;
+                    if (lyricsResult.lrc) {
+                        track.lrcText = lyricsResult.lrc;
+                    } else if (lyricsResult.content) {
+                        track.lyricsContent = lyricsResult.content;
+                        track.lyricsFormat = lyricsResult.format;
+                    }
+                }
             }
         } catch (error) {
             console.error('❌ 为桌面歌词加载歌词失败:', error);
@@ -1022,7 +1053,20 @@ class MusicBoxAPI extends EventEmitter {
         try {
             // 同步当前歌曲信息
             if (this.currentTrack) {
-                await this.syncToDesktopLyrics('track', this.currentTrack);
+                const _updateTrackResult = await window.electronAPI.desktopLyrics.updateTrack(this.currentTrack);
+
+                // 确保歌词被加载并发送到桌面歌词窗口
+                // 无论 track.lyrics 是否存在，都重新加载以确保桌面歌词窗口收到数据
+                if (this.currentTrack.lyrics && this.currentTrack.lyrics.length > 0) {
+                    // 如果歌词已缓存，直接发送
+                    const updateLyricsResult = await window.electronAPI.desktopLyrics.updateLyrics(this.currentTrack.lyrics);
+                    console.log('🔄 syncCurrentStateToDesktopLyrics: updateLyrics 结果', updateLyricsResult);
+                } else if (this.currentTrack.title && this.currentTrack.artist) {
+                    // 否则重新加载歌词
+                    await this.loadLyricsForDesktop(this.currentTrack);
+                } else {
+                    console.log('🔄 syncCurrentStateToDesktopLyrics: 无法加载歌词，缺少 title 或 artist');
+                }
             }
 
             // 同步播放状态
@@ -1035,19 +1079,6 @@ class MusicBoxAPI extends EventEmitter {
             await this.syncToDesktopLyrics('position', this.position);
         } catch (error) {
             console.error('❌ 同步当前状态到桌面歌词失败:', error);
-        }
-    }
-
-    async showDesktopLyrics() {
-        try {
-            const result = await window.electronAPI.desktopLyrics.show();
-            if (result.success) {
-                await this.syncCurrentStateToDesktopLyrics();
-            }
-            return result;
-        } catch (error) {
-            console.error('❌ 显示桌面歌词失败:', error);
-            return {success: false, error: error.message};
         }
     }
 
