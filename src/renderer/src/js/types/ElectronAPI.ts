@@ -13,12 +13,15 @@ declare global {
         electronAPI: {
             dialog: {
                 showOpenDialog(options: object): Promise<IPCResult>;
+                saveFile(options: object): Promise<IPCResult>;
+                openFile(options: object): Promise<IPCResult>;
             };
 
             fs: {
                 fs: any;
                 stat(filePath: string): Promise<IPCResult>;
                 readFile(filePath: string, encoding: string): Promise<IPCResult>;
+                writeFile(filePath: string, data: string, encoding: string): Promise<boolean>;
             };
 
             os: any;
@@ -88,7 +91,7 @@ declare global {
             readAudioFile(filePath: string): Promise<IPCResult>;
 
             // Native音频引擎事件监听
-            onNativeAudioEvent(eventName: string, callback: () => {}): Promise<IPCResult>;
+            onNativeAudioEvent(eventName: string, callback: () => {}): void;
         };
         createExtensionAPI?: (extensionId: string, context: any) => any;
     }

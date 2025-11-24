@@ -1,6 +1,14 @@
 import {showToast} from "@utils";
 
 class CheckUpdate {
+    constructor() {
+        this.init();
+    }
+
+    async init() {
+        const versionEle = document.querySelector('#app-version-info');
+        versionEle.textContent = 'MusicBox v' + await this.getCurrentVersion();
+    }
 
     // 自动检查更新
     async autoCheckForUpdates() {

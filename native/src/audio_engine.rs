@@ -1,13 +1,15 @@
 //! WASAPI音频引擎核心实现
 
 use crate::audio_config::AudioConfig;
+use crate::graphic_equalizer::AudioEqualizer;
+use crate::parametric_equalizer::ParametricEqualizer;
 use parking_lot::Mutex;
 use rodio::{Decoder, Source};
 use std::fs::File;
 use std::io::{Cursor, Read, Seek};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::Duration as StdDuration;
 use wasapi::*;
 
@@ -30,6 +32,15 @@ impl<T: Read + Seek + Send + Sync> ReadSeek for T {}
 const S_FALSE: i32 = 1;
 const RPC_E_CHANGED_MODE: i32 = 0x80010106u32 as i32;
 
+/// 均衡器模式
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EqualizerMode {
+    /// 图形均衡器（10段固定频率）
+    Graphic,
+    /// 参量均衡器（可自定义频段）
+    Parametric,
+}
+
 /// 音频引擎状态
 pub struct AudioEngine {
     renderer: WasapiRenderer,
@@ -50,6 +61,10 @@ pub struct AudioEngine {
     seek_sender: Option<Sender<f64>>,
     initialized: bool,
     config: AudioConfig,
+    // 均衡器
+    equalizer: Arc<Mutex<Option<AudioEqualizer>>>,
+    parametric_equalizer: Arc<Mutex<Option<ParametricEqualizer>>>,
+    equalizer_mode: Arc<Mutex<EqualizerMode>>,
 }
 
 impl AudioEngine {
@@ -81,6 +96,9 @@ impl AudioEngine {
             seek_sender: None,
             initialized: false,
             config,
+            equalizer: Arc::new(Mutex::new(None)),
+            parametric_equalizer: Arc::new(Mutex::new(None)),
+            equalizer_mode: Arc::new(Mutex::new(EqualizerMode::Graphic)),
         })
     }
 
@@ -132,6 +150,17 @@ impl AudioEngine {
         self.device_channels = supported_format.channels;
         self.device_format = Some(supported_format);
         self.initialized = true;
+
+        // 创建图形均衡器实例
+        let equalizer = AudioEqualizer::new(self.device_sample_rate, self.device_channels);
+        *self.equalizer.lock() = Some(equalizer);
+        println!("🎛️ AudioEngine: 图形均衡器已初始化");
+
+        // 创建参量均衡器实例
+        let parametric_equalizer =
+            ParametricEqualizer::new(self.device_sample_rate, self.device_channels);
+        *self.parametric_equalizer.lock() = Some(parametric_equalizer);
+        println!("🎚️ AudioEngine: 参量均衡器已初始化");
 
         println!(
             "✅ AudioEngine: WASAPI独占模式初始化成功，耗时: {:?}",
@@ -340,6 +369,9 @@ impl AudioEngine {
             render_msg_receiver,
             self.config.dither_type,
             &self.config,
+            self.equalizer.clone(),
+            self.parametric_equalizer.clone(),
+            self.equalizer_mode.clone(),
         )?;
 
         self.tracker.lock().start();
@@ -492,5 +524,284 @@ impl AudioEngine {
 
         self.decoder_thread = Some(decoder_thread);
         Ok(())
+    }
+
+    // ==================== 均衡器方法 ====================
+
+    /// 获取均衡器的克隆引用
+    pub fn get_equalizer(&self) -> Arc<Mutex<Option<AudioEqualizer>>> {
+        self.equalizer.clone()
+    }
+
+    /// 启用/禁用均衡器
+    pub fn set_equalizer_enabled(&self, enabled: bool) {
+        if let Some(ref mut eq) = *self.equalizer.lock() {
+            eq.set_enabled(enabled);
+        }
+    }
+
+    /// 获取均衡器启用状态
+    pub fn is_equalizer_enabled(&self) -> bool {
+        if let Some(ref eq) = *self.equalizer.lock() {
+            eq.is_enabled()
+        } else {
+            false
+        }
+    }
+
+    /// 设置前置增益
+    pub fn set_equalizer_preamp(&self, gain: f32) {
+        if let Some(ref eq) = *self.equalizer.lock() {
+            eq.set_preamp(gain);
+        }
+    }
+
+    /// 获取前置增益
+    pub fn get_equalizer_preamp(&self) -> f32 {
+        if let Some(ref eq) = *self.equalizer.lock() {
+            eq.get_preamp()
+        } else {
+            0.0
+        }
+    }
+
+    /// 设置单个频段增益
+    pub fn set_equalizer_band_gain(&mut self, band: usize, gain: f32) {
+        if let Some(ref mut eq) = *self.equalizer.lock() {
+            eq.set_band_gain(band, gain);
+        }
+    }
+
+    /// 获取单个频段增益
+    pub fn get_equalizer_band_gain(&self, band: usize) -> f32 {
+        if let Some(ref eq) = *self.equalizer.lock() {
+            eq.get_band_gain(band)
+        } else {
+            0.0
+        }
+    }
+
+    /// 设置所有频段增益
+    pub fn set_equalizer_all_gains(&mut self, gains: &[f32; 10]) {
+        if let Some(ref mut eq) = *self.equalizer.lock() {
+            eq.set_all_gains(gains);
+        }
+    }
+
+    /// 获取所有频段增益
+    pub fn get_equalizer_all_gains(&self) -> [f32; 10] {
+        if let Some(ref eq) = *self.equalizer.lock() {
+            eq.get_all_gains()
+        } else {
+            [0.0; 10]
+        }
+    }
+
+    /// 设置单个频段Q值
+    pub fn set_equalizer_band_q(&mut self, band: usize, q: f32) {
+        if let Some(ref mut eq) = *self.equalizer.lock() {
+            eq.set_band_q(band, q);
+        }
+    }
+
+    /// 获取单个频段Q值
+    pub fn get_equalizer_band_q(&self, band: usize) -> f32 {
+        if let Some(ref eq) = *self.equalizer.lock() {
+            eq.get_band_q(band)
+        } else {
+            1.0
+        }
+    }
+
+    /// 应用预设
+    pub fn apply_equalizer_preset(&mut self, name: &str) -> bool {
+        if let Some(ref mut eq) = *self.equalizer.lock() {
+            eq.apply_preset(name)
+        } else {
+            false
+        }
+    }
+
+    /// 重置均衡器
+    pub fn reset_equalizer(&mut self) {
+        if let Some(ref mut eq) = *self.equalizer.lock() {
+            eq.reset();
+        }
+    }
+
+    /// 获取频率响应曲线数据
+    pub fn get_equalizer_frequency_response(&self) -> Vec<(f32, f32)> {
+        if let Some(ref eq) = *self.equalizer.lock() {
+            eq.get_frequency_response()
+        } else {
+            Vec::new()
+        }
+    }
+
+    // ==================== 均衡器模式切换 ====================
+
+    /// 设置均衡器模式（图形/参量）
+    pub fn set_equalizer_mode(&self, mode: EqualizerMode) {
+        *self.equalizer_mode.lock() = mode;
+        println!("🎛️ AudioEngine: 均衡器模式切换为 {:?}", mode);
+    }
+
+    /// 获取当前均衡器模式
+    pub fn get_equalizer_mode(&self) -> EqualizerMode {
+        *self.equalizer_mode.lock()
+    }
+
+    /// 获取均衡器模式的克隆（用于renderer）
+    pub fn get_equalizer_mode_arc(&self) -> Arc<Mutex<EqualizerMode>> {
+        self.equalizer_mode.clone()
+    }
+
+    /// 获取参量均衡器的克隆（用于renderer）
+    pub fn get_parametric_equalizer(&self) -> Arc<Mutex<Option<ParametricEqualizer>>> {
+        self.parametric_equalizer.clone()
+    }
+
+    // ==================== 参量均衡器接口 ====================
+
+    /// 添加参量频段
+    pub fn parametric_add_band(
+        &mut self,
+        frequency: f64,
+        gain: f64,
+        q: f64,
+        filter_type: &str,
+    ) -> Option<usize> {
+        use crate::parametric_equalizer::ParamFilterType;
+
+        let filter_type = ParamFilterType::from_str(filter_type)?;
+
+        if let Some(ref mut peq) = *self.parametric_equalizer.lock() {
+            let id = peq.add_band(frequency, gain, q, filter_type);
+            if id != usize::MAX { Some(id) } else { None }
+        } else {
+            None
+        }
+    }
+
+    /// 移除参量频段
+    pub fn parametric_remove_band(&mut self, band_id: usize) -> bool {
+        if let Some(ref mut peq) = *self.parametric_equalizer.lock() {
+            peq.remove_band(band_id)
+        } else {
+            false
+        }
+    }
+
+    /// 更新参量频段
+    pub fn parametric_update_band(
+        &mut self,
+        band_id: usize,
+        frequency: Option<f64>,
+        gain: Option<f64>,
+        q: Option<f64>,
+        filter_type: Option<&str>,
+        enabled: Option<bool>,
+    ) -> bool {
+        use crate::parametric_equalizer::ParamFilterType;
+
+        let filter_type_enum = if let Some(ft) = filter_type {
+            ParamFilterType::from_str(ft)
+        } else {
+            None
+        };
+
+        if let Some(ref mut peq) = *self.parametric_equalizer.lock() {
+            peq.update_band(band_id, frequency, gain, q, filter_type_enum, enabled)
+        } else {
+            false
+        }
+    }
+
+    /// 获取所有参量频段配置
+    pub fn parametric_get_bands(&self) -> Vec<(usize, f64, f64, f64, String, bool)> {
+        if let Some(ref peq) = *self.parametric_equalizer.lock() {
+            peq.get_bands()
+                .iter()
+                .map(|band| {
+                    (
+                        band.id,
+                        band.frequency,
+                        band.gain,
+                        band.q,
+                        band.filter_type.as_str().to_string(),
+                        band.enabled,
+                    )
+                })
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// 获取单个参量频段配置
+    pub fn parametric_get_band(
+        &self,
+        band_id: usize,
+    ) -> Option<(usize, f64, f64, f64, String, bool)> {
+        if let Some(ref peq) = *self.parametric_equalizer.lock() {
+            peq.get_band(band_id).map(|band| {
+                (
+                    band.id,
+                    band.frequency,
+                    band.gain,
+                    band.q,
+                    band.filter_type.as_str().to_string(),
+                    band.enabled,
+                )
+            })
+        } else {
+            None
+        }
+    }
+
+    /// 设置参量均衡器前置增益
+    pub fn parametric_set_preamp(&self, gain: f32) {
+        if let Some(ref peq) = *self.parametric_equalizer.lock() {
+            peq.set_preamp(gain);
+        }
+    }
+
+    /// 获取参量均衡器前置增益
+    pub fn parametric_get_preamp(&self) -> f32 {
+        if let Some(ref peq) = *self.parametric_equalizer.lock() {
+            peq.get_preamp()
+        } else {
+            0.0
+        }
+    }
+
+    /// 重置参量均衡器
+    pub fn parametric_reset(&mut self) {
+        if let Some(ref mut peq) = *self.parametric_equalizer.lock() {
+            peq.reset();
+        }
+    }
+
+    /// 清除所有参量频段
+    pub fn parametric_clear_bands(&mut self) {
+        if let Some(ref mut peq) = *self.parametric_equalizer.lock() {
+            peq.clear_bands();
+        }
+    }
+
+    /// 启用/禁用参量均衡器
+    pub fn parametric_set_enabled(&self, enabled: bool) {
+        if let Some(ref peq) = *self.parametric_equalizer.lock() {
+            peq.set_enabled(enabled);
+        }
+    }
+
+    /// 检查参量均衡器是否启用
+    pub fn parametric_is_enabled(&self) -> bool {
+        if let Some(ref peq) = *self.parametric_equalizer.lock() {
+            peq.is_enabled()
+        } else {
+            false
+        }
     }
 }

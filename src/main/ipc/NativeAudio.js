@@ -195,6 +195,353 @@ function registerNativeAudioIpcHandlers({ipcMain, nativeAudioModule, getMainWind
         }
     });
 
+    // 均衡器控制
+    ipcMain.handle('native-audio:set-equalizer-enabled', async (event, enabled) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            nativeAudioEngine.setEqualizerEnabled(enabled);
+            return {success: true};
+        } catch (error) {
+            console.error('❌ 设置均衡器启用状态失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    ipcMain.handle('native-audio:is-equalizer-enabled', async () => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const enabled = nativeAudioEngine.isEqualizerEnabled();
+            return {success: true, enabled};
+        } catch (error) {
+            console.error('❌ 获取均衡器启用状态失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    ipcMain.handle('native-audio:set-equalizer-preamp', async (event, gain) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            await nativeAudioEngine.setEqualizerPreamp(gain);
+            return {success: true};
+        } catch (error) {
+            console.error('❌ 设置均衡器前置增益失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    ipcMain.handle('native-audio:get-equalizer-preamp', async () => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const preamp = nativeAudioEngine.getEqualizerPreamp();
+            return {success: true, preamp};
+        } catch (error) {
+            console.error('❌ 获取均衡器前置增益失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    ipcMain.handle('native-audio:set-equalizer-band-gain', async (event, band, gain) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            await nativeAudioEngine.setEqualizerBandGain(band, gain);
+            return {success: true};
+        } catch (error) {
+            console.error(`❌ 设置均衡器频段${band}增益失败:`, error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    ipcMain.handle('native-audio:get-equalizer-band-gain', async (event, band) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const gain = nativeAudioEngine.getEqualizerBandGain(band);
+            return {success: true, gain};
+        } catch (error) {
+            console.error(`❌ 获取均衡器频段${band}增益失败:`, error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    ipcMain.handle('native-audio:set-equalizer-band-q', async (event, band, q) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            await nativeAudioEngine.setEqualizerBandQ(band, q);
+            return {success: true};
+        } catch (error) {
+            console.error(`❌ 设置均衡器频段${band} Q值失败:`, error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    ipcMain.handle('native-audio:get-equalizer-band-q', async (event, band) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const q = nativeAudioEngine.getEqualizerBandQ(band);
+            return {success: true, q};
+        } catch (error) {
+            console.error(`❌ 获取均衡器频段${band} Q值失败:`, error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    ipcMain.handle('native-audio:reset-equalizer', async () => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            await nativeAudioEngine.resetEqualizer();
+            return {success: true};
+        } catch (error) {
+            console.error('❌ 重置均衡器失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    ipcMain.handle('native-audio:apply-equalizer-preset', async (event, preset) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            await nativeAudioEngine.applyEqualizerPreset(preset);
+            return {success: true};
+        } catch (error) {
+            console.error('❌ 应用均衡器预设失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    ipcMain.handle('native-audio:get-equalizer-frequency-response', async () => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const response = nativeAudioEngine.getEqualizerFrequencyResponse();
+            return {success: true, response};
+        } catch (error) {
+            console.error('❌ 获取均衡器频率响应失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // ==================== 均衡器模式切换 ====================
+
+    // 设置均衡器模式
+    ipcMain.handle('native-audio:set-equalizer-mode', async (event, mode) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const result = nativeAudioEngine.setEqualizerMode(mode);
+            return {success: result};
+        } catch (error) {
+            console.error('❌ 设置均衡器模式失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // 获取均衡器模式
+    ipcMain.handle('native-audio:get-equalizer-mode', async () => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const mode = nativeAudioEngine.getEqualizerMode();
+            return {success: true, mode};
+        } catch (error) {
+            console.error('❌ 获取均衡器模式失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // ==================== 参量均衡器 ====================
+
+    // 启用/禁用参量均衡器
+    ipcMain.handle('native-audio:parametric-set-enabled', async (event, enabled) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            nativeAudioEngine.parametricSetEnabled(enabled);
+            return {success: true};
+        } catch (error) {
+            console.error('❌ 设置参量均衡器启用状态失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // 获取参量均衡器启用状态
+    ipcMain.handle('native-audio:parametric-is-enabled', async () => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const enabled = nativeAudioEngine.parametricIsEnabled();
+            return {success: true, enabled};
+        } catch (error) {
+            console.error('❌ 获取参量均衡器启用状态失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // 设置参量均衡器前置增益
+    ipcMain.handle('native-audio:parametric-set-preamp', async (event, gain) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            nativeAudioEngine.parametricSetPreamp(gain);
+            return {success: true};
+        } catch (error) {
+            console.error('❌ 设置参量均衡器前置增益失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // 获取参量均衡器前置增益
+    ipcMain.handle('native-audio:parametric-get-preamp', async () => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const preamp = nativeAudioEngine.parametricGetPreamp();
+            return {success: true, preamp};
+        } catch (error) {
+            console.error('❌ 获取参量均衡器前置增益失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // 添加参量频段
+    ipcMain.handle('native-audio:parametric-add-band', async (event, {frequency, gain, q, filterType}) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const bandId = nativeAudioEngine.parametricAddBand(frequency, gain, q, filterType);
+            if (bandId === -1) {
+                return {success: false, error: '添加频段失败'};
+            }
+            return {success: true, bandId};
+        } catch (error) {
+            console.error('❌ 添加参量频段失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // 移除参量频段
+    ipcMain.handle('native-audio:parametric-remove-band', async (event, bandId) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const result = nativeAudioEngine.parametricRemoveBand(bandId);
+            return {success: result};
+        } catch (error) {
+            console.error('❌ 移除参量频段失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // 更新参量频段
+    ipcMain.handle('native-audio:parametric-update-band', async (event, {
+        bandId,
+        frequency,
+        gain,
+        q,
+        filterType,
+        enabled
+    }) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const result = nativeAudioEngine.parametricUpdateBand(
+                bandId,
+                frequency !== undefined ? frequency : null,
+                gain !== undefined ? gain : null,
+                q !== undefined ? q : null,
+                filterType !== undefined ? filterType : null,
+                enabled !== undefined ? enabled : null
+            );
+            return {success: result};
+        } catch (error) {
+            console.error('❌ 更新参量频段失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // 获取所有参量频段
+    ipcMain.handle('native-audio:parametric-get-bands', async () => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const bands = nativeAudioEngine.parametricGetBands();
+            return {success: true, bands};
+        } catch (error) {
+            console.error('❌ 获取参量频段失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // 获取单个参量频段
+    ipcMain.handle('native-audio:parametric-get-band', async (event, bandId) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const band = nativeAudioEngine.parametricGetBand(bandId);
+            return {success: true, band};
+        } catch (error) {
+            console.error('❌ 获取参量频段失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // 重置参量均衡器
+    ipcMain.handle('native-audio:parametric-reset', async () => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            nativeAudioEngine.parametricReset();
+            return {success: true};
+        } catch (error) {
+            console.error('❌ 重置参量均衡器失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // 清除所有参量频段
+    ipcMain.handle('native-audio:parametric-clear-bands', async () => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            nativeAudioEngine.parametricClearBands();
+            return {success: true};
+        } catch (error) {
+            console.error('❌ 清除参量频段失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
     // 销毁引擎
     ipcMain.handle('native-audio:destroy', async () => {
         try {

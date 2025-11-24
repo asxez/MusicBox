@@ -2,6 +2,8 @@
  * WASAPI独占模式音频引擎（Rust实现的JS包装器）
  */
 
+import ParametricEqualizer from "@services/audio/ParametricEqualizer";
+
 class WasapiEngine {
     constructor() {
         this.nativeEngine = null;
@@ -13,6 +15,9 @@ class WasapiEngine {
         this.playlist = [];
         this.currentIndex = -1;
         this.gaplessPlaybackEnabled = true;
+
+        // 参量均衡器
+        this.parametricEqualizer = null;
 
         // 待应用的播放位置（用于loadTrack后play前的seek）
         this.pendingSeekPosition = null;
@@ -42,6 +47,10 @@ class WasapiEngine {
             }
 
             this.nativeEngine = window.electronAPI.nativeAudio;
+
+            // 初始化参量均衡器（传入this以便切换均衡器模式）
+            this.parametricEqualizer = new ParametricEqualizer(this.nativeEngine, this);
+            await this.parametricEqualizer.init();
 
             // 设置事件监听
             this.setupEventListeners();
@@ -389,6 +398,238 @@ class WasapiEngine {
             this.nativeEngine.destroy?.();
             this.nativeEngine = null;
         }
+    }
+
+    // ==================== 均衡器接口 ====================
+
+    // 获取图形均衡器代理对象
+    getEqualizer() {
+        if (!this.nativeEngine) {
+            return null;
+        }
+
+        // 创建一个均衡器代理对象，将调用转发到Rust引擎
+        return new WasapiEqualizer(this.nativeEngine);
+    }
+
+    // 获取参量均衡器实例
+    getParametricEqualizer() {
+        return this.parametricEqualizer;
+    }
+
+    // 设置均衡器启用状态
+    setEqualizerEnabled(enabled) {
+        if (this.nativeEngine) {
+            this.nativeEngine.setEqualizerEnabled(enabled);
+        }
+    }
+
+    // 设置均衡器模式 ('graphic' 或 'parametric')
+    async setEqualizerMode(mode) {
+        if (!this.nativeEngine?.setEqualizerMode) {
+            console.warn('⚠️ 均衡器模式切换不支持');
+            return false;
+        }
+
+        try {
+            const result = await this.nativeEngine.setEqualizerMode(mode);
+            if (result.success) {
+                console.log(`🎛️ 切换到${mode === 'graphic' ? '图形' : '参量'}均衡器模式`);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('❌ 切换均衡器模式失败:', error);
+            return false;
+        }
+    }
+
+    // 获取当前均衡器模式
+    async getEqualizerMode() {
+        if (!this.nativeEngine?.getEqualizerMode) {
+            return 'graphic'; // 默认返回图形模式
+        }
+
+        try {
+            const result = await this.nativeEngine.getEqualizerMode();
+            if (result.success) {
+                return result.mode;
+            }
+            return 'graphic';
+        } catch (error) {
+            console.error('❌ 获取均衡器模式失败:', error);
+            return 'graphic';
+        }
+    }
+}
+
+/**
+ * WASAPI均衡器代理类
+ * 将均衡器调用转发到Rust原生引擎
+ */
+
+class WasapiEqualizer {
+    constructor(nativeEngine) {
+        this.nativeEngine = nativeEngine;
+        this.presets = {
+            'flat': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            'pop': [1, 2, 3, 1, -1, -1, 1, 2, 3, 2],
+            'rock': [3, 2, 1, 0, -1, 0, 1, 2, 3, 3],
+            'classical': [2, 1, 0, 0, 0, 0, -1, -1, 0, 1],
+            'jazz': [2, 1, 0, 1, 2, 1, 0, 1, 2, 2],
+            'vocal': [0, -1, -2, -1, 1, 3, 3, 2, 1, 0],
+            'bass': [4, 3, 2, 1, 0, -1, -2, -2, -1, 0],
+            'treble': [0, -1, -2, -1, 0, 1, 2, 3, 4, 4],
+            'electronic': [2, 3, 1, 0, -1, 1, 0, 1, 2, 3],
+            'hifi': [1, 0.5, 0, -0.5, 0, 0.5, 1, 1.5, 2, 1.5],
+            'studio': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            'live': [2, 1, 0, -1, -1, 0, 1, 2, 3, 2],
+            'loudness': [4, 2, 0, -1, -2, -2, -1, 0, 2, 4],
+            'cinema': [3, 2, 1, 1, 0, -1, -1, 0, 1, 2],
+            'warm': [2, 1.5, 1, 0.5, 0, -0.5, -1, -1.5, -1, 0],
+            'bright': [-1, -0.5, 0, 0.5, 1, 1.5, 2, 2.5, 3, 3]
+        };
+
+        // 本地缓存增益值和Q值
+        this.gains = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        this.qValues = [0.707, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.707];
+        this.preampGain = 0;
+    }
+
+    // 设置频段增益
+    setBandGain(bandIndex, gain) {
+        if (bandIndex < 0 || bandIndex >= 10) {
+            return;
+        }
+
+        gain = Math.max(-12, Math.min(12, gain));
+        this.gains[bandIndex] = gain;
+
+        if (this.nativeEngine?.setEqualizerBandGain) {
+            this.nativeEngine.setEqualizerBandGain(bandIndex, gain);
+        }
+    }
+
+    // 获取频段增益
+    getBandGain(bandIndex) {
+        if (bandIndex < 0 || bandIndex >= 10) {
+            return 0;
+        }
+
+        // 从本地缓存返回（已在setBandGain中同步）
+        return this.gains[bandIndex];
+    }
+
+    // 设置所有频段增益
+    setAllGains(gains) {
+        if (!Array.isArray(gains) || gains.length !== 10) {
+            return;
+        }
+
+        this.gains = gains.map(g => Math.max(-12, Math.min(12, g)));
+
+        // 逐个设置到Rust引擎
+        for (let i = 0; i < 10; i++) {
+            if (this.nativeEngine?.setEqualizerBandGain) {
+                this.nativeEngine.setEqualizerBandGain(i, this.gains[i]);
+            }
+        }
+    }
+
+    // 获取所有频段增益
+    getAllGains() {
+        // 从本地缓存返回
+        return [...this.gains];
+    }
+
+    // 设置前置增益
+    setPreamp(gainDb) {
+        this.preampGain = Math.max(-12, Math.min(12, gainDb));
+
+        if (this.nativeEngine?.setEqualizerPreamp) {
+            this.nativeEngine.setEqualizerPreamp(this.preampGain);
+        }
+    }
+
+    // 获取前置增益
+    getPreamp() {
+        // 从本地缓存返回
+        return this.preampGain;
+    }
+
+    // 设置单个频段Q值
+    setBandQ(bandIndex, q) {
+        if (bandIndex < 0 || bandIndex >= 10) {
+            return;
+        }
+
+        q = Math.max(0.1, Math.min(10, q));
+        this.qValues[bandIndex] = q;
+
+        if (this.nativeEngine?.setEqualizerBandQ) {
+            this.nativeEngine.setEqualizerBandQ(bandIndex, q);
+        }
+    }
+
+    // 获取单个频段Q值
+    getBandQ(bandIndex) {
+        if (bandIndex < 0 || bandIndex >= 10) {
+            return 1.0;
+        }
+
+        // 从本地缓存返回
+        return this.qValues[bandIndex];
+    }
+
+    // 获取所有Q值
+    getAllQValues() {
+        return [...this.qValues];
+    }
+
+    // 应用预设
+    applyPreset(presetName) {
+        if (this.presets[presetName]) {
+            this.setAllGains(this.presets[presetName]);
+            return true;
+        }
+
+        // 使用Rust端的预设
+        if (this.nativeEngine?.applyEqualizerPreset) {
+            return this.nativeEngine.applyEqualizerPreset(presetName);
+        }
+
+        return false;
+    }
+
+    // 获取预设名称列表
+    getPresetNames() {
+        return Object.keys(this.presets);
+    }
+
+    // 重置均衡器
+    reset() {
+        this.gains = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        this.qValues = [0.707, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.707];
+        this.preampGain = 0;
+
+        if (this.nativeEngine?.resetEqualizer) {
+            this.nativeEngine.resetEqualizer();
+        }
+    }
+
+    // 获取频率响应曲线
+    async getFrequencyResponse() {
+        if (this.nativeEngine?.getEqualizerFrequencyResponse) {
+            try {
+                const result = await this.nativeEngine.getEqualizerFrequencyResponse();
+                if (result.success && result.response) {
+                    return result.response;
+                }
+            } catch (error) {
+                console.error('❌ 获取频率响应失败:', error);
+            }
+        }
+        return [];
     }
 }
 

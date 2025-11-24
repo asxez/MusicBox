@@ -757,7 +757,7 @@
                         <!-- 均衡器设置 -->
                         <div class="settings-item">
                             <div class="item-info">
-                                <label class="item-label">均衡器</label>
+                                <label class="item-label">图形均衡器</label>
                                 <p class="item-description">启用音频均衡器以调节音频频率响应</p>
                             </div>
                             <div class="item-control">
@@ -770,11 +770,21 @@
 
                         <div class="settings-item equalizer-settings" id="equalizer-settings">
                             <div class="item-info">
-                                <label class="item-label">均衡器设置</label>
+                                <label class="item-label">十段图形均衡器设置</label>
                                 <p class="item-description">调节各频段的音频增益</p>
                             </div>
                             <div class="item-control">
                                 <button class="settings-button" id="open-equalizer-btn">打开均衡器</button>
+                            </div>
+                        </div>
+
+                        <div class="settings-item equalizer-settings" id="parametric-equalizer-settings">
+                            <div class="item-info">
+                                <label class="item-label">参量均衡器设置</label>
+                                <p class="item-description">专业级参量均衡器，支持自定义频率、Q值和多种滤波器类型（仅WASAPI模式可用）</p>
+                            </div>
+                            <div class="item-control">
+                                <button class="settings-button" id="open-parametric-equalizer-btn">打开均衡器</button>
                             </div>
                         </div>
                     </div>
@@ -1166,7 +1176,7 @@
                         <div class="settings-item">
                             <div class="item-info">
                                 <label class="item-label">版本信息</label>
-                                <p class="item-description" id="app-version-info">MusicBox v0.2.3</p>
+                                <p class="item-description" id="app-version-info">MusicBox v占位</p>
                             </div>
                             <div class="item-control">
                                 <button class="settings-button secondary" id="check-updates-btn">检查更新</button>
@@ -1460,26 +1470,60 @@
     <div id="equalizer-modal" class="equalizer-modal" style="display: none;">
         <div class="equalizer-modal-content">
             <div class="equalizer-header">
-                <h2 class="equalizer-title">音频均衡器</h2>
+                <h2 class="equalizer-title">十段图形均衡器</h2>
                 <button class="equalizer-close" id="equalizer-close">
                     <img class="icon" src="assets/icons/x.svg" alt="关闭">
                 </button>
             </div>
 
             <div class="equalizer-body">
+                <!-- EQ曲线可视化 -->
+                <div class="equalizer-curve-container">
+                    <canvas id="equalizer-curve-canvas" class="equalizer-curve-canvas"></canvas>
+                    <div class="curve-scale">
+                        <span class="scale-label">+12dB</span>
+                        <span class="scale-label">0dB</span>
+                        <span class="scale-label">-12dB</span>
+                    </div>
+                    <div class="curve-freq-labels">
+                        <span>20</span><span>50</span><span>100</span><span>200</span><span>500</span>
+                        <span>1k</span><span>2k</span><span>5k</span><span>10k</span><span>20k</span>
+                    </div>
+                </div>
+
+                <!-- 前置增益控制 -->
+                <div class="equalizer-preamp">
+                    <label class="preamp-label">前置增益</label>
+                    <div class="preamp-control">
+                        <input type="range" class="preamp-slider" id="preamp-slider" min="-12" max="12" value="0" step="0.5">
+                        <span class="preamp-value" id="preamp-value">0dB</span>
+                    </div>
+                </div>
+
                 <!-- 预设选择 -->
                 <div class="equalizer-presets">
                     <label class="preset-label">预设模式：</label>
                     <select class="preset-select" id="equalizer-preset-select">
-                        <option value="flat">平坦</option>
-                        <option value="pop">流行</option>
-                        <option value="rock">摇滚</option>
-                        <option value="classical">古典</option>
-                        <option value="jazz">爵士</option>
-                        <option value="vocal">人声增强</option>
-                        <option value="bass">低音增强</option>
-                        <option value="treble">高音增强</option>
-                        <option value="electronic">电子音乐</option>
+                        <optgroup label="基础预设">
+                            <option value="flat">平坦</option>
+                            <option value="pop">流行</option>
+                            <option value="rock">摇滚</option>
+                            <option value="classical">古典</option>
+                            <option value="jazz">爵士</option>
+                            <option value="vocal">人声增强</option>
+                            <option value="bass">低音增强</option>
+                            <option value="treble">高音增强</option>
+                            <option value="electronic">电子音乐</option>
+                        </optgroup>
+                        <optgroup label="高级预设">
+                            <option value="hifi">HiFi</option>
+                            <option value="studio">录音室</option>
+                            <option value="live">现场</option>
+                            <option value="loudness">响度</option>
+                            <option value="cinema">影院</option>
+                            <option value="warm">温暖</option>
+                            <option value="bright">明亮</option>
+                        </optgroup>
                         <option value="custom">自定义</option>
                     </select>
                     <button class="preset-manage-btn" id="manage-presets-btn">
@@ -1620,6 +1664,115 @@
                         <p class="empty-description">点击上方"从文件安装"按钮安装插件</p>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 参量均衡器弹窗 -->
+    <div id="parametric-equalizer-modal" class="parametric-equalizer-modal">
+        <div class="parametric-equalizer-modal-content">
+            <div class="parametric-equalizer-header">
+                <div class="header-left">
+                    <h2>参量均衡器</h2>
+                    <span class="header-subtitle">专业级音频调节</span>
+                </div>
+                <div class="header-controls">
+                    <select id="peq-preset-selector" class="peq-preset-selector" title="选择预设">
+                        <option value="">选择预设...</option>
+                    </select>
+                    <button class="peq-btn peq-btn-icon" id="peq-save-preset" title="保存当前设置为预设">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 1H3C2.46957 1 1.96086 1.21071 1.58579 1.58579C1.21071 1.96086 1 2.46957 1 3V13C1 13.5304 1.21071 14.0391 1.58579 14.4142C1.96086 14.7893 2.46957 15 3 15H13C13.5304 15 14.0391 14.7893 14.4142 14.4142C14.7893 14.0391 15 13.5304 15 13V4L12 1Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M11 15V9H5V15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M5 1V5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <button class="peq-btn peq-btn-icon" id="peq-import" title="从文件导入设置">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14 10V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M4.66663 6.66667L7.99996 10L11.3333 6.66667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M8 10V2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <button class="peq-btn peq-btn-icon" id="peq-export" title="导出当前设置到文件">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14 10V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M11.3333 5.33333L7.99996 2L4.66663 5.33333" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M8 2V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <div class="peq-btn-divider"></div>
+                    <button class="peq-btn peq-btn-add" id="peq-add-band" title="添加频段">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span>添加频段</span>
+                    </button>
+                    <button class="peq-btn peq-btn-reset" id="peq-reset" title="重置所有参数">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M13 3L3 13M3 3L13 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span>重置</span>
+                    </button>
+                    <button class="peq-btn-close" id="peq-close" title="关闭">×</button>
+                </div>
+            </div>
+
+            <div class="parametric-equalizer-body">
+                <!-- 全局控制 -->
+                <div class="peq-global-controls">
+                    <div class="peq-control-item peq-control-toggle">
+                        <label class="control-label">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            启用均衡器
+                        </label>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="peq-enabled" class="toggle-input">
+                            <label for="peq-enabled" class="toggle-label"></label>
+                        </div>
+                    </div>
+                    <div class="peq-control-item peq-control-slider">
+                        <label class="control-label">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 3V21M8 7V17M16 7V17M4 11V13M20 11V13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            前置增益
+                        </label>
+                        <div class="slider-container">
+                            <input type="range" id="peq-preamp" min="-12" max="12" step="0.1" value="0">
+                            <span id="peq-preamp-value" class="slider-value">0.0 dB</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 频段列表 -->
+                <div class="peq-bands-container" id="peq-bands-container">
+                    <!-- 频段将动态添加到这里 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 输入对话框 -->
+    <div id="input-dialog-modal" class="input-dialog-modal" style="display: none;">
+        <div class="input-dialog-content">
+            <div class="input-dialog-header">
+                <h3 id="input-dialog-title" class="input-dialog-title">输入</h3>
+                <button class="input-dialog-close" id="input-dialog-close">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="input-dialog-body">
+                <p id="input-dialog-message" class="input-dialog-message"></p>
+                <input type="text" id="input-dialog-input" class="input-dialog-input" />
+            </div>
+            <div class="input-dialog-footer">
+                <button class="input-dialog-btn input-dialog-btn-cancel" id="input-dialog-cancel">取消</button>
+                <button class="input-dialog-btn input-dialog-btn-confirm" id="input-dialog-confirm">确定</button>
             </div>
         </div>
     </div>

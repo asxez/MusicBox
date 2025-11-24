@@ -84,6 +84,28 @@ function registerDialogIpcHandlers({ipcMain}) {
         }
         return null;
     });
+
+    // 通用文件打开对话框（用于导入文件）
+    ipcMain.handle('dialog:openFile', async (event, options) => {
+        const win = getMainWindow();
+        const result = await dialog.showOpenDialog(win, options);
+        return {
+            success: !result.canceled,
+            filePaths: result.filePaths || [],
+            canceled: result.canceled
+        };
+    });
+
+    // 通用文件保存对话框（用于导出文件）
+    ipcMain.handle('dialog:saveFile', async (event, options) => {
+        const win = getMainWindow();
+        const result = await dialog.showSaveDialog(win, options);
+        return {
+            success: !result.canceled,
+            filePath: result.filePath || null,
+            canceled: result.canceled
+        };
+    });
 }
 
 module.exports = {

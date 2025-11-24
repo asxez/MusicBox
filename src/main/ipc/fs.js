@@ -84,6 +84,18 @@ function registerFsIpcHandlers({ipcMain}) {
             throw new Error(`读取文件失败: ${error.message}`);
         }
     });
+
+    // 写入文件内容
+    ipcMain.handle('fs:writeFile', async (event, filePath, data, encoding = 'utf8') => {
+        try {
+            fs.writeFileSync(filePath, data, encoding);
+            console.log(`💾 写入文件成功: ${filePath}`);
+            return true;
+        } catch (error) {
+            console.error(`❌ 写入文件失败: ${filePath}`, error);
+            return false;
+        }
+    });
 }
 
 module.exports = {

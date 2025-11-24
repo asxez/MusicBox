@@ -4,6 +4,7 @@ import {AlbumsPage} from "@components/component/AlbumsPage";
 import {ArtistsPage} from "@components/component/ArtistsPage";
 import {ContextMenu} from "@components/component/ContextMenu";
 import {EqualizerComponent} from "@components/component/EqualizerComponent";
+import ParametricEqualizerComponent from "@components/component/ParametricEqualizerComponent";
 import {HomePage} from "@components/component/HomePage";
 import {Lyrics} from "@components/component/Lyrics";
 import {Navigation} from "@components/component/Navigation";
@@ -187,6 +188,7 @@ class MusicBoxApp extends EventEmitter {
         this.components.settings = new Settings(document.getElementById('settings-page'));
         this.components.lyrics = new Lyrics(document.getElementById('lyrics-page'));
         this.components.equalizer = new EqualizerComponent();
+        this.components.parametricEqualizer = new ParametricEqualizerComponent();
 
         // 初始化对话框组件
         this.components.confirmDialog = new ConfirmDialog();
