@@ -291,24 +291,6 @@ class Player extends Component {
         this.trackCover.classList.add('loading');
 
         try {
-            // 检查是否已有本地封面
-            if (track.cover) {
-                if (typeof track.cover !== 'string') {
-                    console.error('❌ Player: track.cover不是字符串，无法设置为src', {
-                        type: typeof track.cover,
-                        value: track.cover
-                    });
-                    this.trackCover.src = 'assets/images/default-cover.svg';
-                    this.trackCover.classList.remove('loading');
-                    return;
-                }
-
-                console.log('🔄 Player: 即将设置trackCover.src =', track.cover.substring(0, 100) + '...');
-                this.trackCover.src = track.cover;
-                this.trackCover.classList.remove('loading');
-                return;
-            }
-
             // 获取封面
             if (track.title && track.artist) {
                 const coverResult = await coverAPI.getCover(track.title, track.artist, track.album, track.filePath, true);

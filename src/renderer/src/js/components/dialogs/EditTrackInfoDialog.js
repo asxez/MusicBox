@@ -415,6 +415,19 @@ class EditTrackInfoDialog extends Component {
         return false;
     }
 
+    // 检查API可用性
+    checkAPIAvailability() {
+        const status = {
+            electronAPI: !!window.electronAPI,
+            showOpenDialog: !!(window.electronAPI?.dialog?.showOpenDialog),
+            stat: !!(window.electronAPI?.fs?.stat),
+            readFile: !!(window.electronAPI?.fs?.readFile)
+        };
+
+        console.log('🔍 EditTrackInfoDialog: API可用性检查', status);
+        return status;
+    }
+
     // 将封面对象转换为可用的URL
     convertCoverObjectToUrl(coverObject) {
         try {

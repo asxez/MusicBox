@@ -558,23 +558,7 @@ class Lyrics extends Component {
 
         try {
             let finalImageUrl = null;
-
-            // 检查是否已有本地封面
-            if (track.cover) {
-                if (typeof track.cover !== 'string') {
-                    console.error('❌ Lyrics: track.cover不是字符串，无法设置为src', {
-                        type: typeof track.cover,
-                        value: track.cover
-                    });
-                    this.trackCover.src = 'assets/images/default-cover.svg';
-                    this.trackCover.classList.remove('loading');
-                    return;
-                }
-                finalImageUrl = track.cover;
-            }
-
-            // 如果没有本地封面，尝试从API获取
-            if (!finalImageUrl && track.title && track.artist) {
+            if (track.title && track.artist) {
                 // 添加forceRefresh参数以确保首次播放时能正确获取封面，特别是网络磁盘文件
                 const coverResult = await coverAPI.getCover(track.title, track.artist, track.album, track.filePath, true);
                 if (coverResult.success && coverResult.imageUrl) {
