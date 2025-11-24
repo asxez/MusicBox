@@ -47,14 +47,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // 对话框API
     dialog: {
-        showOpenDialog: (options) => ipcRenderer.invoke('dialog:showOpenDialog', options)
+        showOpenDialog: (options) => ipcRenderer.invoke('dialog:showOpenDialog', options),
+        openFile: (options) => ipcRenderer.invoke('dialog:openFile', options),
+        saveFile: (options) => ipcRenderer.invoke('dialog:saveFile', options),
     },
 
     // 文件系统API
     fs: {
         fs: fsApi,
         stat: (filePath) => ipcRenderer.invoke('fs:stat', filePath),
-        readFile: (filePath, encoding) => ipcRenderer.invoke('fs:readFile', filePath, encoding)
+        readFile: (filePath, encoding) => ipcRenderer.invoke('fs:readFile', filePath, encoding),
+        writeFile: (filePath, data, encoding) => ipcRenderer.invoke('fs:writeFile', filePath, data, encoding)
     },
 
     // 系统API
@@ -160,6 +163,36 @@ contextBridge.exposeInMainWorld('electronAPI', {
         getPosition: () => ipcRenderer.invoke('native-audio:get-position'),
         getDuration: () => ipcRenderer.invoke('native-audio:get-duration'),
         isPlaying: () => ipcRenderer.invoke('native-audio:is-playing'),
+
+        // 均衡器控制
+        setEqualizerEnabled: (enabled) => ipcRenderer.invoke('native-audio:set-equalizer-enabled', enabled),
+        isEqualizerEnabled: () => ipcRenderer.invoke('native-audio:is-equalizer-enabled'),
+        setEqualizerPreamp: (gain) => ipcRenderer.invoke('native-audio:set-equalizer-preamp', gain),
+        getEqualizerPreamp: () => ipcRenderer.invoke('native-audio:get-equalizer-preamp'),
+        setEqualizerBandGain: (band, gain) => ipcRenderer.invoke('native-audio:set-equalizer-band-gain', band, gain),
+        getEqualizerBandGain: (band) => ipcRenderer.invoke('native-audio:get-equalizer-band-gain', band),
+        setEqualizerBandQ: (band, q) => ipcRenderer.invoke('native-audio:set-equalizer-band-q', band, q),
+        getEqualizerBandQ: (band) => ipcRenderer.invoke('native-audio:get-equalizer-band-q', band),
+        resetEqualizer: () => ipcRenderer.invoke('native-audio:reset-equalizer'),
+        applyEqualizerPreset: (preset) => ipcRenderer.invoke('native-audio:apply-equalizer-preset', preset),
+        getEqualizerFrequencyResponse: () => ipcRenderer.invoke('native-audio:get-equalizer-frequency-response'),
+
+        // 均衡器模式切换
+        setEqualizerMode: (mode) => ipcRenderer.invoke('native-audio:set-equalizer-mode', mode),
+        getEqualizerMode: () => ipcRenderer.invoke('native-audio:get-equalizer-mode'),
+
+        // 参量均衡器控制
+        parametricSetEnabled: (enabled) => ipcRenderer.invoke('native-audio:parametric-set-enabled', enabled),
+        parametricIsEnabled: () => ipcRenderer.invoke('native-audio:parametric-is-enabled'),
+        parametricSetPreamp: (gain) => ipcRenderer.invoke('native-audio:parametric-set-preamp', gain),
+        parametricGetPreamp: () => ipcRenderer.invoke('native-audio:parametric-get-preamp'),
+        parametricAddBand: (config) => ipcRenderer.invoke('native-audio:parametric-add-band', config),
+        parametricRemoveBand: (bandId) => ipcRenderer.invoke('native-audio:parametric-remove-band', bandId),
+        parametricUpdateBand: (config) => ipcRenderer.invoke('native-audio:parametric-update-band', config),
+        parametricGetBands: () => ipcRenderer.invoke('native-audio:parametric-get-bands'),
+        parametricGetBand: (bandId) => ipcRenderer.invoke('native-audio:parametric-get-band', bandId),
+        parametricReset: () => ipcRenderer.invoke('native-audio:parametric-reset'),
+        parametricClearBands: () => ipcRenderer.invoke('native-audio:parametric-clear-bands'),
 
         // 销毁引擎
         destroy: () => ipcRenderer.invoke('native-audio:destroy'),

@@ -842,7 +842,6 @@ class WebAudioEngine {
     setEqualizerEnabled(enabled) {
         // 如果状态没有变化，直接返回
         if (this.equalizerEnabled === enabled) {
-            // console.log(`ℹ️ 均衡器状态已经是 ${enabled}，无需更改`);
             return;
         }
 
@@ -1115,6 +1114,7 @@ class AudioEqualizer {
         this.filters = [];
         this.input = null;
         this.output = null;
+        this.preampNode = null;
 
         this.frequencies = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
         this.presets = {
@@ -1126,11 +1126,23 @@ class AudioEqualizer {
             'vocal': [0, -1, -2, -1, 1, 3, 3, 2, 1, 0],
             'bass': [4, 3, 2, 1, 0, -1, -2, -2, -1, 0],
             'treble': [0, -1, -2, -1, 0, 1, 2, 3, 4, 4],
-            'electronic': [2, 3, 1, 0, -1, 1, 0, 1, 2, 3]
+            'electronic': [2, 3, 1, 0, -1, 1, 0, 1, 2, 3],
+            // 高级预设
+            'hifi': [1, 0.5, 0, -0.5, 0, 0.5, 1, 1.5, 2, 1.5],
+            'studio': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            'live': [2, 1, 0, -1, -1, 0, 1, 2, 3, 2],
+            'loudness': [4, 2, 0, -1, -2, -2, -1, 0, 2, 4],
+            'cinema': [3, 2, 1, 1, 0, -1, -1, 0, 1, 2],
+            'warm': [2, 1.5, 1, 0.5, 0, -0.5, -1, -1.5, -1, 0],
+            'bright': [-1, -0.5, 0, 0.5, 1, 1.5, 2, 2.5, 3, 3]
         };
 
         // 当前增益值 (dB)
         this.gains = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        // Q值（带宽控制）
+        this.qValues = [0.707, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.707];
+        // 前置增益 (dB)
+        this.preampGain = 0;
         this.initialize();
     }
 
@@ -1140,6 +1152,13 @@ class AudioEqualizer {
             // 创建输入和输出节点
             this.input = this.audioContext.createGain();
             this.output = this.audioContext.createGain();
+
+            // 创建前置增益节点
+            this.preampNode = this.audioContext.createGain();
+            this.preampNode.gain.value = 1.0;
+
+            // 连接前置增益到输入
+            this.input.connect(this.preampNode);
 
             // 创建滤波器链
             this.createFilterChain();
@@ -1153,12 +1172,10 @@ class AudioEqualizer {
     createFilterChain() {
         console.log(`🔗 频段数量: ${this.frequencies.length}`);
 
-        let previousNode = this.input;
-        console.log(`🔗 起始节点: input (${!!this.input})`);
+        let previousNode = this.preampNode;
+        console.log(`🔗 起始节点: preampNode (${!!this.preampNode})`);
 
         for (let i = 0; i < this.frequencies.length; i++) {
-            // console.log(`🔗 创建第 ${i + 1} 个滤波器 (${this.frequencies[i]}Hz)...`);
-
             const filter = this.audioContext.createBiquadFilter();
             // 设置滤波器类型
             if (i === 0) {
@@ -1176,20 +1193,14 @@ class AudioEqualizer {
             filter.frequency.value = this.frequencies[i];
 
             // 设置Q值
-            if (filter.type === 'peaking') {
-                filter.Q.value = 1.0; // 峰值滤波器的Q值
-            } else {
-                filter.Q.value = 0.7; // 搁架滤波器的Q值
-            }
+            filter.Q.value = this.qValues[i];
 
             // 初始增益为0
             filter.gain.value = 0;
-            // console.log(`🔗 滤波器 ${i} 初始增益: 0dB`);
-
             try {
                 // 连接到链中
                 previousNode.connect(filter);
-                // console.log(`✅ 滤波器 ${i} 连接成功: ${previousNode === this.input ? 'input' : 'filter' + (i - 1)} -> filter${i}`);
+                // console.log(`✅ 滤波器 ${i} 连接成功: ${previousNode === this.preampNode ? 'preampNode' : 'filter' + (i - 1)} -> filter${i}`);
                 previousNode = filter;
             } catch (error) {
                 console.error(`❌ 滤波器 ${i} 连接失败:`, error);
@@ -1253,6 +1264,101 @@ class AudioEqualizer {
         return [...this.gains];
     }
 
+    // 设置前置增益 (dB)
+    setPreamp(gainDb) {
+        this.preampGain = Math.max(-12, Math.min(12, gainDb));
+        if (this.preampNode) {
+            const linearGain = Math.pow(10, this.preampGain / 20);
+            this.preampNode.gain.setValueAtTime(linearGain, this.audioContext.currentTime);
+        }
+    }
+
+    // 获取前置增益 (dB)
+    getPreamp() {
+        return this.preampGain;
+    }
+
+    // 设置单个频段Q值
+    setBandQ(bandIndex, q) {
+        if (bandIndex < 0 || bandIndex >= this.frequencies.length) {
+            return;
+        }
+
+        q = Math.max(0.1, Math.min(10, q));
+        this.qValues[bandIndex] = q;
+
+        if (this.filters[bandIndex]) {
+            this.filters[bandIndex].Q.setValueAtTime(q, this.audioContext.currentTime);
+        }
+    }
+
+    // 获取单个频段Q值
+    getBandQ(bandIndex) {
+        if (bandIndex < 0 || bandIndex >= this.qValues.length) {
+            return 1.0;
+        }
+        return this.qValues[bandIndex];
+    }
+
+    // 获取所有Q值
+    getAllQValues() {
+        return [...this.qValues];
+    }
+
+    // 设置所有Q值
+    setAllQValues(qValues) {
+        if (!Array.isArray(qValues) || qValues.length !== this.frequencies.length) {
+            return;
+        }
+
+        for (let i = 0; i < qValues.length; i++) {
+            this.setBandQ(i, qValues[i]);
+        }
+    }
+
+    // 获取频率响应曲线数据
+    // 可视化
+    getFrequencyResponse() {
+        const numPoints = 128;
+        const response = [];
+        const minFreq = 20;
+        const maxFreq = 20000;
+        const sampleRate = this.audioContext.sampleRate;
+
+        // 为每个滤波器获取频率响应
+        const frequencies = new Float32Array(numPoints);
+        for (let i = 0; i < numPoints; i++) {
+            const t = i / (numPoints - 1);
+            frequencies[i] = minFreq * Math.pow(maxFreq / minFreq, t);
+        }
+
+        // 计算合并响应
+        const totalMag = new Float32Array(numPoints).fill(1);
+        const magResponse = new Float32Array(numPoints);
+        const phaseResponse = new Float32Array(numPoints);
+
+        // 前置增益贡献
+        const preampLinear = Math.pow(10, this.preampGain / 20);
+
+        for (const filter of this.filters) {
+            filter.getFrequencyResponse(frequencies, magResponse, phaseResponse);
+            for (let i = 0; i < numPoints; i++) {
+                totalMag[i] *= magResponse[i];
+            }
+        }
+
+        // 转换为dB并添加前置增益
+        for (let i = 0; i < numPoints; i++) {
+            const gainDb = 20 * Math.log10(totalMag[i] * preampLinear);
+            response.push({
+                frequency: frequencies[i],
+                gain: isFinite(gainDb) ? gainDb : 0
+            });
+        }
+
+        return response;
+    }
+
     // 应用预设
     applyPreset(presetName) {
         if (!this.presets[presetName]) {
@@ -1271,6 +1377,8 @@ class AudioEqualizer {
     // 重置所有频段为平坦响应
     reset() {
         this.setAllGains([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        this.setPreamp(0);
+        this.setAllQValues([0.707, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.707]);
     }
 
     // 断开所有连接

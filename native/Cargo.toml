@@ -36,6 +36,9 @@ ringbuf = "0.4"
 # Rubato - 高质量重采样
 rubato = "0.15"
 
+# Biquad - 专业音频滤波器库（用于参量均衡器）
+biquad = "0.5.0"
+
 [build-dependencies]
 napi-build = "2"
 

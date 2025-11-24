@@ -1,7 +1,10 @@
 //! WASAPI音频渲染器
 
 use crate::audio_config::AudioConfig;
+use crate::audio_engine::EqualizerMode;
 use crate::dither::{DitherType, Ditherer};
+use crate::graphic_equalizer::AudioEqualizer;
+use crate::parametric_equalizer::ParametricEqualizer;
 use parking_lot::Mutex;
 use ringbuf::HeapCons;
 use ringbuf::consumer::Consumer;
@@ -42,6 +45,9 @@ impl WasapiRenderer {
         message_receiver: Receiver<ThreadMessage>,
         dither_type: DitherType,
         config: &AudioConfig,
+        equalizer: Arc<Mutex<Option<AudioEqualizer>>>,
+        parametric_equalizer: Arc<Mutex<Option<ParametricEqualizer>>>,
+        equalizer_mode: Arc<Mutex<EqualizerMode>>,
     ) -> Result<(), String> {
         let channels = device_format.channels as usize;
         let sample_rate = device_format.sample_rate;
@@ -59,6 +65,9 @@ impl WasapiRenderer {
                 message_receiver,
                 dither_type,
                 buffer_durations,
+                equalizer,
+                parametric_equalizer,
+                equalizer_mode,
             ) {
                 eprintln!("❌ 渲染线程错误: {}", e);
                 let _ = error_sender.send(ThreadMessage::Error(e));
@@ -87,6 +96,9 @@ fn run_render_loop(
     message_receiver: Receiver<ThreadMessage>,
     dither_type: DitherType,
     buffer_durations: Vec<i64>,
+    equalizer: Arc<Mutex<Option<AudioEqualizer>>>,
+    parametric_equalizer: Arc<Mutex<Option<ParametricEqualizer>>>,
+    equalizer_mode: Arc<Mutex<EqualizerMode>>,
 ) -> Result<(), String> {
     // 初始化COM
     let hr = initialize_mta();
@@ -289,7 +301,7 @@ fn run_render_loop(
 
             for _ in 0..samples_needed {
                 if let Some(sample) = consumer_guard.try_pop() {
-                    audio_data.push(sample * vol);
+                    audio_data.push(sample);
                 } else {
                     audio_data.push(0.0);
                     underrun = true;
@@ -297,6 +309,28 @@ fn run_render_loop(
             }
 
             drop(consumer_guard);
+
+            // 应用均衡器处理（根据模式选择）
+            let mode = *equalizer_mode.lock();
+            match mode {
+                EqualizerMode::Graphic => {
+                    // 图形均衡器
+                    if let Some(ref mut eq) = *equalizer.lock() {
+                        eq.process_interleaved(&mut audio_data);
+                    }
+                }
+                EqualizerMode::Parametric => {
+                    // 参量均衡器
+                    if let Some(ref mut peq) = *parametric_equalizer.lock() {
+                        peq.process_interleaved(&mut audio_data);
+                    }
+                }
+            }
+
+            // 应用音量
+            for sample in &mut audio_data {
+                *sample *= vol;
+            }
 
             // 根据设备格式转换数据
             let byte_data: Vec<u8> = if is_float {

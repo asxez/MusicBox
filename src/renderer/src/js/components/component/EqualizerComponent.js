@@ -52,6 +52,14 @@ class EqualizerComponent extends Component {
         this.equalizerToggle = document.querySelector('#equalizer-toggle');
         this.equalizerSettings = document.querySelector('#equalizer-settings');
 
+        // EQ曲线画布
+        this.curveCanvas = this.element.querySelector('#equalizer-curve-canvas');
+        this.curveCtx = this.curveCanvas ? this.curveCanvas.getContext('2d') : null;
+
+        // 前置增益控制
+        this.preampSlider = this.element.querySelector('#preamp-slider');
+        this.preampValue = this.element.querySelector('#preamp-value');
+
         // 预设选择器
         this.presetSelect = this.element.querySelector('#equalizer-preset-select');
         this.managePresetsBtn = this.element.querySelector('#manage-presets-btn');
@@ -75,6 +83,9 @@ class EqualizerComponent extends Component {
         // 控制按钮
         this.resetBtn = this.element.querySelector('#equalizer-reset');
         this.applyBtn = this.element.querySelector('#equalizer-apply');
+
+        // 曲线绘制动画帧ID
+        this.curveAnimationFrame = null;
     }
 
     setupEventListeners() {
@@ -90,9 +101,16 @@ class EqualizerComponent extends Component {
             this.setEnabled(e.target.checked);
         });
 
+        // 前置增益控制
+        if (this.preampSlider) {
+            this.addEventListenerManaged(this.preampSlider, 'input', (e) => {
+                this.updatePreamp(parseFloat(e.target.value));
+            });
+        }
+
         // 预设选择
-        this.addEventListenerManaged(this.presetSelect, 'change', (e) => {
-            this.applyPreset(e.target.value);
+        this.addEventListenerManaged(this.presetSelect, 'change', async (e) => {
+            await this.applyPreset(e.target.value);
         });
 
         // 自定义预设管理
@@ -194,24 +212,20 @@ class EqualizerComponent extends Component {
             this.equalizerToggle.onchange = null;
             this.equalizerToggle.checked = enabled;
             this.equalizerToggle.onchange = oldHandler;
-            // console.log(`🎛️ UI开关状态已更新: ${enabled}`);
         }
 
         if (this.equalizerSettings) {
             this.equalizerSettings.classList.toggle('disabled', !enabled);
-            // console.log(`🎛️ 设置面板状态已更新: ${enabled ? '启用' : '禁用'}`);
         }
     }
 
-    applyPreset(presetName) {
+    // 应用预设
+    async applyPreset(presetName) {
         if (!this.equalizer) return;
-
-        // console.log(`🎵 开始应用预设: ${presetName}`);
 
         // 检查是否是自定义预设
         if (presetName.startsWith('custom:')) {
             const customPresetName = presetName.substring(7); // 移除 'custom:' 前缀
-            // console.log(`🎵 应用自定义预设: ${customPresetName}`);
             this.loadCustomPreset(customPresetName);
             return;
         }
@@ -220,8 +234,8 @@ class EqualizerComponent extends Component {
         if (this.equalizer.applyPreset(presetName)) {
             this.currentPreset = presetName;
             this.updateUI();
+            await this.drawEQCurve();
             this.saveSettingsImmediate(); // 保存设置
-            // console.log(`🎵 已应用内置预设: ${presetName}`);
         } else {
             console.error(`❌ 应用预设失败: ${presetName}`);
         }
@@ -238,6 +252,9 @@ class EqualizerComponent extends Component {
         this.equalizer.setBandGain(bandIndex, gain);
         this.updateBandValueDisplay(bandIndex, gain);
 
+        // 更新曲线
+        this.drawEQCurve();
+
         // 如果手动调节，切换到自定义模式
         this.currentPreset = 'custom';
         if (this.presetSelect) {
@@ -252,11 +269,38 @@ class EqualizerComponent extends Component {
         }, 500);
     }
 
+    updatePreamp(gain) {
+        if (!this.equalizer) {
+            console.error('❌ 均衡器实例不存在');
+            return;
+        }
+
+        if (this.equalizer.setPreamp) {
+            this.equalizer.setPreamp(gain);
+        }
+
+        // 更新显示值
+        if (this.preampValue) {
+            const displayValue = gain >= 0 ? `+${gain.toFixed(1)}dB` : `${gain.toFixed(1)}dB`;
+            this.preampValue.textContent = displayValue;
+        }
+
+        // 更新曲线
+        this.drawEQCurve();
+
+        // 保存设置
+        if (this.saveTimeout) {
+            clearTimeout(this.saveTimeout);
+        }
+        this.saveTimeout = setTimeout(() => {
+            this.saveSettingsImmediate();
+        }, 500);
+    }
+
     updateBandValueDisplay(bandIndex, gain) {
         if (this.bandValues[bandIndex]) {
             const displayValue = gain >= 0 ? `+${gain.toFixed(1)}dB` : `${gain.toFixed(1)}dB`;
             this.bandValues[bandIndex].textContent = displayValue;
-            // console.log(`✅ 频段 ${bandIndex} 显示值已更新为: ${displayValue}`);
         } else {
             console.error(`❌ 频段 ${bandIndex} 的数值元素不存在`);
         }
@@ -264,6 +308,16 @@ class EqualizerComponent extends Component {
 
     updateUI() {
         if (!this.equalizer) return;
+
+        // 更新前置增益
+        if (this.equalizer.getPreamp && this.preampSlider) {
+            const preamp = this.equalizer.getPreamp();
+            this.preampSlider.value = preamp;
+            if (this.preampValue) {
+                const displayValue = preamp >= 0 ? `+${preamp.toFixed(1)}dB` : `${preamp.toFixed(1)}dB`;
+                this.preampValue.textContent = displayValue;
+            }
+        }
 
         // 更新滑块值
         const gains = this.equalizer.getAllGains();
@@ -289,6 +343,9 @@ class EqualizerComponent extends Component {
                 }
             }
         }
+
+        // 绘制EQ曲线
+        this.drawEQCurve();
     }
 
     reset() {
@@ -296,6 +353,7 @@ class EqualizerComponent extends Component {
         this.equalizer.reset();
         this.currentPreset = 'flat';
         this.updateUI();
+        this.drawEQCurve();
     }
 
     loadSettings() {
@@ -655,6 +713,112 @@ class EqualizerComponent extends Component {
     // 立即保存设置
     saveSettingsImmediate() {
         this.saveSettings();
+    }
+
+    // 绘制EQ曲线
+    async drawEQCurve() {
+        if (!this.curveCanvas || !this.curveCtx || !this.equalizer) {
+            return;
+        }
+
+        // 获取频率响应数据
+        let response = [];
+        if (this.equalizer.getFrequencyResponse) {
+            response = await this.equalizer.getFrequencyResponse();
+        }
+
+        if (!response || response.length === 0) {
+            return;
+        }
+
+        // 设置canvas尺寸（使用CSS尺寸）
+        const rect = this.curveCanvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        this.curveCanvas.width = rect.width * dpr;
+        this.curveCanvas.height = rect.height * dpr;
+        this.curveCtx.scale(dpr, dpr);
+
+        const width = rect.width;
+        const height = rect.height;
+
+        // 清空画布
+        this.curveCtx.clearRect(0, 0, width, height);
+
+        // 计算样式变量
+        const style = getComputedStyle(this.curveCanvas);
+        const primaryColor = style.getPropertyValue('--color-primary') || '#335eea';
+        const borderColor = style.getPropertyValue('--color-border') || '#e5e5e7';
+        const textColor = style.getPropertyValue('--color-text-secondary') || '#666';
+
+        // 绘制网格线
+        this.curveCtx.strokeStyle = borderColor;
+        this.curveCtx.lineWidth = 1;
+        this.curveCtx.setLineDash([2, 2]);
+
+        // 水平网格线 (0dB, ±6dB, ±12dB)
+        const dbLevels = [-12, -6, 0, 6, 12];
+        dbLevels.forEach(db => {
+            const y = height / 2 - (db / 12) * (height / 2);
+            this.curveCtx.beginPath();
+            this.curveCtx.moveTo(0, y);
+            this.curveCtx.lineTo(width, y);
+            this.curveCtx.stroke();
+        });
+
+        // 垂直网格线（对数频率刻度）
+        const freqLines = [50, 100, 200, 500, 1000, 2000, 5000, 10000];
+        freqLines.forEach(freq => {
+            const minFreq = 20;
+            const maxFreq = 20000;
+            const logPos = (Math.log10(freq) - Math.log10(minFreq)) /
+                          (Math.log10(maxFreq) - Math.log10(minFreq));
+            const x = logPos * width;
+
+            this.curveCtx.beginPath();
+            this.curveCtx.moveTo(x, 0);
+            this.curveCtx.lineTo(x, height);
+            this.curveCtx.stroke();
+        });
+
+        // 绘制EQ曲线
+        this.curveCtx.setLineDash([]);
+        this.curveCtx.strokeStyle = primaryColor;
+        this.curveCtx.lineWidth = 2;
+        this.curveCtx.beginPath();
+
+        response.forEach((point, index) => {
+            const {frequency, gain} = point;
+
+            // 对数频率映射到x坐标
+            const minFreq = 20;
+            const maxFreq = 20000;
+            const logPos = (Math.log10(frequency) - Math.log10(minFreq)) /
+                          (Math.log10(maxFreq) - Math.log10(minFreq));
+            const x = logPos * width;
+
+            // 增益映射到y坐标（±12dB范围）
+            const clampedGain = Math.max(-12, Math.min(12, gain));
+            const y = height / 2 - (clampedGain / 12) * (height / 2);
+
+            if (index === 0) {
+                this.curveCtx.moveTo(x, y);
+            } else {
+                this.curveCtx.lineTo(x, y);
+            }
+        });
+
+        this.curveCtx.stroke();
+
+        // 添加填充渐变
+        this.curveCtx.lineTo(width, height);
+        this.curveCtx.lineTo(0, height);
+        this.curveCtx.closePath();
+
+        const gradient = this.curveCtx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, primaryColor + '40');
+        gradient.addColorStop(1, primaryColor + '08');
+        this.curveCtx.fillStyle = gradient;
+        this.curveCtx.fill();
     }
 }
 

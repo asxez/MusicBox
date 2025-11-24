@@ -14,6 +14,8 @@ mod audio_engine;
 mod audio_format;
 mod decoder;
 mod dither;
+mod graphic_equalizer;
+mod parametric_equalizer;
 mod playback_tracker;
 mod renderer;
 mod resampler;
@@ -168,6 +170,292 @@ impl NativeAudioEngine {
             Ok(_) => create_success_response(&mut env),
             Err(e) => create_error_response(&mut env, &e),
         }
+    }
+
+    // ==================== 均衡器接口 ====================
+
+    /// 启用/禁用均衡器
+    #[napi]
+    pub fn set_equalizer_enabled(&self, enabled: bool) {
+        let engine = self.engine.lock();
+        engine.set_equalizer_enabled(enabled);
+    }
+
+    /// 获取均衡器启用状态
+    #[napi]
+    pub fn is_equalizer_enabled(&self) -> bool {
+        let engine = self.engine.lock();
+        engine.is_equalizer_enabled()
+    }
+
+    /// 设置前置增益
+    #[napi]
+    pub fn set_equalizer_preamp(&self, gain: f64) {
+        let engine = self.engine.lock();
+        engine.set_equalizer_preamp(gain as f32);
+    }
+
+    /// 获取前置增益
+    #[napi]
+    pub fn get_equalizer_preamp(&self) -> f64 {
+        let engine = self.engine.lock();
+        engine.get_equalizer_preamp() as f64
+    }
+
+    /// 设置单个频段增益
+    #[napi]
+    pub fn set_equalizer_band_gain(&self, band: u32, gain: f64) {
+        let mut engine = self.engine.lock();
+        engine.set_equalizer_band_gain(band as usize, gain as f32);
+    }
+
+    /// 获取单个频段增益
+    #[napi]
+    pub fn get_equalizer_band_gain(&self, band: u32) -> f64 {
+        let engine = self.engine.lock();
+        engine.get_equalizer_band_gain(band as usize) as f64
+    }
+
+    /// 设置所有频段增益
+    #[napi]
+    pub fn set_equalizer_all_gains(&self, gains: Vec<f64>) -> bool {
+        if gains.len() != 10 {
+            return false;
+        }
+
+        let mut engine = self.engine.lock();
+        let gains_f32: [f32; 10] = [
+            gains[0] as f32,
+            gains[1] as f32,
+            gains[2] as f32,
+            gains[3] as f32,
+            gains[4] as f32,
+            gains[5] as f32,
+            gains[6] as f32,
+            gains[7] as f32,
+            gains[8] as f32,
+            gains[9] as f32,
+        ];
+        engine.set_equalizer_all_gains(&gains_f32);
+        true
+    }
+
+    /// 获取所有频段增益
+    #[napi]
+    pub fn get_equalizer_all_gains(&self, env: Env) -> Result<JsObject> {
+        let engine = self.engine.lock();
+        let gains = engine.get_equalizer_all_gains();
+
+        let mut arr = env.create_array_with_length(10)?;
+        for (i, &gain) in gains.iter().enumerate() {
+            arr.set_element(i as u32, env.create_double(gain as f64)?)?;
+        }
+        Ok(arr)
+    }
+
+    /// 设置单个频段Q值
+    #[napi]
+    pub fn set_equalizer_band_q(&self, band: u32, q: f64) {
+        let mut engine = self.engine.lock();
+        engine.set_equalizer_band_q(band as usize, q as f32);
+    }
+
+    /// 获取单个频段Q值
+    #[napi]
+    pub fn get_equalizer_band_q(&self, band: u32) -> f64 {
+        let engine = self.engine.lock();
+        engine.get_equalizer_band_q(band as usize) as f64
+    }
+
+    /// 应用预设
+    #[napi]
+    pub fn apply_equalizer_preset(&self, preset_name: String) -> bool {
+        let mut engine = self.engine.lock();
+        engine.apply_equalizer_preset(&preset_name)
+    }
+
+    /// 重置均衡器
+    #[napi]
+    pub fn reset_equalizer(&self) {
+        let mut engine = self.engine.lock();
+        engine.reset_equalizer();
+    }
+
+    /// 获取频率响应曲线数据
+    #[napi]
+    pub fn get_equalizer_frequency_response(&self, env: Env) -> Result<JsObject> {
+        let engine = self.engine.lock();
+        let response = engine.get_equalizer_frequency_response();
+
+        let mut arr = env.create_array_with_length(response.len())?;
+        for (i, (freq, gain)) in response.iter().enumerate() {
+            let mut point = env.create_object()?;
+            point.set_named_property("frequency", env.create_double(*freq as f64)?)?;
+            point.set_named_property("gain", env.create_double(*gain as f64)?)?;
+            arr.set_element(i as u32, point)?;
+        }
+        Ok(arr)
+    }
+
+    // ==================== 均衡器模式切换 ====================
+
+    /// 设置均衡器模式（"graphic" 或 "parametric"）
+    #[napi]
+    pub fn set_equalizer_mode(&self, mode: String) -> bool {
+        let engine = self.engine.lock();
+        use crate::audio_engine::EqualizerMode;
+
+        let eq_mode = match mode.to_lowercase().as_str() {
+            "graphic" => EqualizerMode::Graphic,
+            "parametric" => EqualizerMode::Parametric,
+            _ => return false,
+        };
+
+        engine.set_equalizer_mode(eq_mode);
+        true
+    }
+
+    /// 获取当前均衡器模式
+    #[napi]
+    pub fn get_equalizer_mode(&self) -> String {
+        let engine = self.engine.lock();
+        use crate::audio_engine::EqualizerMode;
+
+        match engine.get_equalizer_mode() {
+            EqualizerMode::Graphic => "graphic".to_string(),
+            EqualizerMode::Parametric => "parametric".to_string(),
+        }
+    }
+
+    // ==================== 参量均衡器接口 ====================
+
+    /// 添加参量频段
+    #[napi]
+    pub fn parametric_add_band(
+        &self,
+        frequency: f64,
+        gain: f64,
+        q: f64,
+        filter_type: String,
+    ) -> i32 {
+        let mut engine = self.engine.lock();
+        if let Some(id) = engine.parametric_add_band(frequency, gain, q, &filter_type) {
+            id as i32
+        } else {
+            -1
+        }
+    }
+
+    /// 移除参量频段
+    #[napi]
+    pub fn parametric_remove_band(&self, band_id: u32) -> bool {
+        let mut engine = self.engine.lock();
+        engine.parametric_remove_band(band_id as usize)
+    }
+
+    /// 更新参量频段
+    #[napi]
+    pub fn parametric_update_band(
+        &self,
+        band_id: u32,
+        frequency: Option<f64>,
+        gain: Option<f64>,
+        q: Option<f64>,
+        filter_type: Option<String>,
+        enabled: Option<bool>,
+    ) -> bool {
+        let mut engine = self.engine.lock();
+        let filter_type_ref = filter_type.as_deref();
+        engine.parametric_update_band(
+            band_id as usize,
+            frequency,
+            gain,
+            q,
+            filter_type_ref,
+            enabled,
+        )
+    }
+
+    /// 获取所有参量频段配置
+    #[napi]
+    pub fn parametric_get_bands(&self, env: Env) -> Result<JsObject> {
+        let engine = self.engine.lock();
+        let bands = engine.parametric_get_bands();
+
+        let mut arr = env.create_array_with_length(bands.len())?;
+        for (i, (id, frequency, gain, q, filter_type, enabled)) in bands.iter().enumerate() {
+            let mut band = env.create_object()?;
+            band.set_named_property("id", env.create_int64(*id as i64)?)?;
+            band.set_named_property("frequency", env.create_double(*frequency)?)?;
+            band.set_named_property("gain", env.create_double(*gain)?)?;
+            band.set_named_property("q", env.create_double(*q)?)?;
+            band.set_named_property("filterType", env.create_string(filter_type)?)?;
+            band.set_named_property("enabled", env.get_boolean(*enabled)?)?;
+            arr.set_element(i as u32, band)?;
+        }
+        Ok(arr)
+    }
+
+    /// 获取单个参量频段配置
+    #[napi]
+    pub fn parametric_get_band(&self, band_id: u32, env: Env) -> Result<JsObject> {
+        let engine = self.engine.lock();
+        if let Some((id, frequency, gain, q, filter_type, enabled)) =
+            engine.parametric_get_band(band_id as usize)
+        {
+            let mut band = env.create_object()?;
+            band.set_named_property("id", env.create_int64(id as i64)?)?;
+            band.set_named_property("frequency", env.create_double(frequency)?)?;
+            band.set_named_property("gain", env.create_double(gain)?)?;
+            band.set_named_property("q", env.create_double(q)?)?;
+            band.set_named_property("filterType", env.create_string(&filter_type)?)?;
+            band.set_named_property("enabled", env.get_boolean(enabled)?)?;
+            Ok(band)
+        } else {
+            env.create_object()
+        }
+    }
+
+    /// 设置参量均衡器前置增益
+    #[napi]
+    pub fn parametric_set_preamp(&self, gain: f64) {
+        let engine = self.engine.lock();
+        engine.parametric_set_preamp(gain as f32);
+    }
+
+    /// 获取参量均衡器前置增益
+    #[napi]
+    pub fn parametric_get_preamp(&self) -> f64 {
+        let engine = self.engine.lock();
+        engine.parametric_get_preamp() as f64
+    }
+
+    /// 重置参量均衡器
+    #[napi]
+    pub fn parametric_reset(&self) {
+        let mut engine = self.engine.lock();
+        engine.parametric_reset();
+    }
+
+    /// 清除所有参量频段
+    #[napi]
+    pub fn parametric_clear_bands(&self) {
+        let mut engine = self.engine.lock();
+        engine.parametric_clear_bands();
+    }
+
+    /// 启用/禁用参量均衡器
+    #[napi]
+    pub fn parametric_set_enabled(&self, enabled: bool) {
+        let engine = self.engine.lock();
+        engine.parametric_set_enabled(enabled);
+    }
+
+    /// 检查参量均衡器是否启用
+    #[napi]
+    pub fn parametric_is_enabled(&self) -> bool {
+        let engine = self.engine.lock();
+        engine.parametric_is_enabled()
     }
 }
 
