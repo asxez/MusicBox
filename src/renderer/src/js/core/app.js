@@ -37,11 +37,7 @@ import {InstantiationService, ServiceCollection} from "@extensions/core/Instanti
 import {ActivationEvents} from "@extensions/core/ExtensionsRegistry";
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
-import {checkUpdate} from "@api/CheckUpdate";
-import {tray} from "@api/tray";
-import {windowAPI} from "@api/window";
-import {fileAPI} from "@api/FileAPI";
-import {libraryAPI} from "@api/LibraryAPI";
+import {updateAPI, fileAPI, libraryAPI, trayAPI, windowAPI} from "@js/api";
 
 class MusicBoxApp extends EventEmitter {
     constructor() {
@@ -96,7 +92,7 @@ class MusicBoxApp extends EventEmitter {
 
             // 自动检查更新
             setTimeout(() => {
-                checkUpdate.autoCheckForUpdates();
+                updateAPI.autoCheckForUpdates();
             }, 2000);
             return {
                 status: true
@@ -600,7 +596,7 @@ class MusicBoxApp extends EventEmitter {
         windowAPI.initWindowStateManagement();
 
         // 初始化系统托盘
-        await tray.initSystemTray();
+        await trayAPI.initSystemTray();
 
         // 初始化统一的快捷键管理器
         this.initKeyboardShortcuts();

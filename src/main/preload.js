@@ -157,12 +157,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
         // 音量控制
         setVolume: (volume) => ipcRenderer.invoke('native-audio:set-volume', volume),
-        getVolume: () => ipcRenderer.invoke('native-audio:get-volume'),
 
         // 播放状态查询
         getPosition: () => ipcRenderer.invoke('native-audio:get-position'),
-        getDuration: () => ipcRenderer.invoke('native-audio:get-duration'),
-        isPlaying: () => ipcRenderer.invoke('native-audio:is-playing'),
 
         // 均衡器控制
         setEqualizerEnabled: (enabled) => ipcRenderer.invoke('native-audio:set-equalizer-enabled', enabled),
@@ -217,8 +214,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
         // Get library data
         getTracks: (options) => ipcRenderer.invoke('library:getTracks', options),
-        getAlbums: () => ipcRenderer.invoke('library:getAlbums'),
-        getArtists: () => ipcRenderer.invoke('library:getArtists'),
         getPlaylists: () => ipcRenderer.invoke('library:getPlaylists'),
 
         // Search

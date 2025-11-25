@@ -6,8 +6,7 @@
 import {formatTime} from "@utils";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
-import {coverAPI} from "@api/CoverAPI";
-import {libraryAPI} from "@api/LibraryAPI";
+import {coverAPI, libraryAPI} from "@js/api";
 
 class AlbumsPage extends Component {
     constructor(container) {

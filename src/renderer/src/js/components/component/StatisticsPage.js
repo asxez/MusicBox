@@ -4,8 +4,7 @@
 
 import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
-import {libraryAPI} from "@api/LibraryAPI";
-import {userDataAPI} from "@api/UserDataAPI";
+import {libraryAPI, userDataAPI} from "@js/api";
 
 class StatisticsPage extends Component {
     constructor(container) {

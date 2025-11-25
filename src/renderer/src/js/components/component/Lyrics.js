@@ -5,8 +5,7 @@
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
-import {coverAPI} from "@api/CoverAPI";
-import {lyricsAPI} from "@api/LyricsAPI";
+import {coverAPI, lyricsAPI} from "@js/api";
 
 class Lyrics extends Component {
     constructor(element) {

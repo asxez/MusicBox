@@ -1,8 +1,7 @@
 import {EventEmitter} from '@utils';
 import {cacheManager} from "@services/CacheManager";
 import AudioEngineManager from "@services/audio/AudioEngineManager";
-import {lyricsAPI} from "@api/LyricsAPI";
-import {libraryAPI} from "@api/LibraryAPI";
+import {libraryAPI, lyricsAPI} from "@api/modules";
 
 class MusicBoxAPI extends EventEmitter {
     constructor() {
@@ -23,10 +22,8 @@ class MusicBoxAPI extends EventEmitter {
         // 播放位置保存节流
         this.savePositionTimeout = null;
 
-        // 音频引擎（使用AudioEngineManager统一管理）
+        // 音频引擎
         this.audioEngine = null;
-        // 保留webAudioEngine引用以支持向后兼容（指向audioEngine）
-        this.webAudioEngine = null;
 
         // 音频切换锁，防止快速切换时的竞态条件
         this._trackSwitchLock = false;
@@ -64,10 +61,6 @@ class MusicBoxAPI extends EventEmitter {
                 // 设置播放模式回调函数，让引擎能够根据播放模式计算下一首/上一首
                 this.audioEngine.getNextTrackIndex = () => this.getNextTrackIndex();
                 this.audioEngine.getPreviousTrackIndex = () => this.getPreviousTrackIndex();
-
-                // 保持向后兼容：webAudioEngine指向audioEngine
-                this.webAudioEngine = this.audioEngine;
-
                 console.log(`✅ API: 音频引擎初始化成功 (${this.audioEngine.getEngineType()})`);
             } else {
                 console.error('❌ API: 音频引擎初始化失败');
@@ -79,7 +72,6 @@ class MusicBoxAPI extends EventEmitter {
                 console.log('🔄 API: 尝试回退到WebAudioEngine...');
                 this.audioEngine = new AudioEngineManager();
                 await this.audioEngine.initialize('webaudio');
-                this.webAudioEngine = this.audioEngine;
                 console.log('✅ API: 已回退到WebAudioEngine');
             } catch (fallbackError) {
                 console.error('❌ API: 回退到WebAudioEngine也失败:', fallbackError);

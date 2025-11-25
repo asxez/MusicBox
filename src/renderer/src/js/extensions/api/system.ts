@@ -67,16 +67,6 @@ export function createSystemAPI(_context: ExtensionContext): SystemAPI {
             }, 'system.getEnv');
         },
 
-        async openExternal(url: string): Promise<void> {
-            return ErrorUtils.wrapAsync(async () => {
-                if (window.electronAPI.openExternal) {
-                    await window.electronAPI.openExternal(url);
-                } else {
-                    window.open(url, '_blank');
-                }
-            }, 'system.openExternal');
-        },
-
         async showItemInFolder(filePath: string): Promise<void> {
             return ErrorUtils.wrapAsync(async () => {
                 await window.electronAPI.openPath(filePath);

@@ -40,11 +40,6 @@ export interface SystemAPI {
     getEnv(key: string): string | undefined;
 
     /**
-     * 打开外部链接
-     */
-    openExternal(url: string): Promise<void>;
-
-    /**
      * 显示文件在文件管理器中
      */
     showItemInFolder(filePath: string): Promise<void>;
