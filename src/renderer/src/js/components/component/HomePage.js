@@ -5,9 +5,8 @@
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
-import {fileAPI} from "@api/FileAPI";
-import {libraryAPI} from "@api/LibraryAPI";
-import {userDataAPI} from "@api/UserDataAPI";
+import {fileAPI, libraryAPI, userDataAPI} from "@js/api";
+
 
 class HomePage extends Component {
     constructor(container) {

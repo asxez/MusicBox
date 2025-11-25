@@ -12,7 +12,7 @@ import {api} from "@api/api";
 import {app} from "@core/app";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
-import {libraryAPI} from "@api/LibraryAPI";
+import {libraryAPI} from "@js/api";
 
 class Settings extends Component {
     constructor(element) {

@@ -5,7 +5,7 @@ import {cacheManager} from "@services/CacheManager";
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
-import {coverAPI} from "@api/CoverAPI";
+import {coverAPI} from "@js/api";
 
 class Player extends Component {
     constructor() {

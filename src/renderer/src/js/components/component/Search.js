@@ -4,8 +4,7 @@
 
 import {debounce, showToast} from "@utils";
 import {Component} from "@components/base/Component";
-import {api} from "@api/api";
-import {libraryAPI} from "@api/LibraryAPI";
+import {libraryAPI} from "@js/api";
 
 class Search extends Component {
     constructor() {

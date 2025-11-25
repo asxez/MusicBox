@@ -6,8 +6,8 @@ import {cacheManager} from "@services/CacheManager";
 import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {formatTime} from "@utils";
 import {Component} from "@components/base/Component";
-import {coverAPI} from "@api/CoverAPI";
 import {app} from "@core/app";
+import {coverAPI} from "@js/api";
 
 class RecentPage extends Component {
     constructor(container) {

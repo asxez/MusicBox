@@ -4,8 +4,7 @@
 
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@components/base/Component";
-import {coverAPI} from "@api/CoverAPI";
-import {libraryAPI} from "@api/LibraryAPI";
+import {coverAPI, libraryAPI} from "@js/api";
 
 class ArtistsPage extends Component {
     constructor(container) {

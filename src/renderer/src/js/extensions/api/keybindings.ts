@@ -128,7 +128,7 @@ export function createKeybindingsAPI(context: ExtensionContext): KeybindingsAPI 
 
                     // 如果是全局快捷键，通知主进程注销
                     if (scope === KeybindingScope.GLOBAL) {
-                        await window.electronAPI.globalShortcuts.unregister(normalizedKey);
+                        await window.electronAPI.globalShortcuts.unregister();
                     }
                 }
             }, 'keybindings.unregisterKeybinding');

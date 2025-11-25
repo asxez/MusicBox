@@ -5,7 +5,7 @@
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
-import {coverAPI} from "@api/CoverAPI";
+import {coverAPI} from "@js/api";
 
 class EditTrackInfoDialog extends Component {
     constructor() {

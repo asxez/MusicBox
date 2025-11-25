@@ -7,11 +7,11 @@ import {Validator} from '@extensions/api/common/validation';
 import {ErrorUtils, NotAvailableError} from '@extensions/api/common/errors';
 import {cacheManager} from '@services/CacheManager';
 import {app} from '@core/app';
-import {libraryAPI} from "@api/LibraryAPI";
+import {libraryAPI} from "@js/api";
 import {api} from "@api/api";
 import {ExtensionContext} from "@extensions/core";
 import {Album, Artist, LibraryAPI, Playlist} from "@extensions/api/types/library";
-import {Track} from "@extensions/api/player";
+import {Track} from "@extensions/api/types/player";
 
 /**
  * 创建音乐库 API

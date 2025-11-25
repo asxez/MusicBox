@@ -7,7 +7,7 @@ import {cacheManager} from "@services/CacheManager";
 import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
-import {coverAPI} from "@api/CoverAPI";
+import {coverAPI} from "@js/api";
 
 class TrackList extends Component {
     constructor(container) {
