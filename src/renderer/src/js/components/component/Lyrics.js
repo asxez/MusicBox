@@ -134,7 +134,7 @@ class Lyrics extends Component {
         // 布局切换相关元素
         this.lyricsMain = this.element.querySelector('.lyrics-main');
         this.leftSide = this.element.querySelector('.lyrics-left-side');
-        this.rightSide = this.element.querySelector('.lyrics-right-side');
+        // this.rightSide = this.element.querySelector('.lyrics-right-side');
 
         // 播放控制
         this.playBtn = this.element.querySelector('#lyrics-play-btn');

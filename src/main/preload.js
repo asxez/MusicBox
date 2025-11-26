@@ -377,7 +377,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
         onMaximizedChanged: (callback) => {
             ipcRenderer.on('window:maximized', (event, isMaximized) => callback(isMaximized));
             return () => ipcRenderer.removeListener('window:maximized', callback);
-        }
+        },
+        // 迷你模式控制
+        setAlwaysOnTop: (flag) => ipcRenderer.invoke('window:setAlwaysOnTop', flag),
+        isAlwaysOnTop: () => ipcRenderer.invoke('window:isAlwaysOnTop'),
+        setBounds: (bounds) => ipcRenderer.invoke('window:setBounds', bounds),
+        getBounds: () => ipcRenderer.invoke('window:getBounds'),
+        setResizable: (resizable) => ipcRenderer.invoke('window:setResizable', resizable),
+        setPosition: (x, y) => ipcRenderer.invoke('window:setPosition', x, y),
+        setSkipTaskbar: (skip) => ipcRenderer.invoke('window:setSkipTaskbar', skip),
+        setMinimumSize: (width, height) => ipcRenderer.invoke('window:setMinimumSize', width, height),
     },
 
     // 桌面歌词

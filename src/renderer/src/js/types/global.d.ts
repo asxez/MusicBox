@@ -23,19 +23,19 @@ interface ElectronAPI {
     getTempPath: () => Promise<string>;
 
     // 打开应用数据目录
-    openUserDataFolder: () => Promise<{success: boolean, error?: string}>;
+    openUserDataFolder: () => Promise<{ success: boolean, error?: string }>;
 
     // 获取默认封面缓存路径
-    getDefaultCoverCachePath: () => Promise<{success: boolean, path?: string, error?: string }>;
+    getDefaultCoverCachePath: () => Promise<{ success: boolean, path?: string, error?: string }>;
 
     // 创建目录（确认目录存在，不存在则创建）
-    ensureDirectoryExists: (dirPath: string) => Promise<{success: boolean, path?: string, error?: string}>;
+    ensureDirectoryExists: (dirPath: string) => Promise<{ success: boolean, path?: string, error?: string }>;
 
     // 打开开发工具
-    openDevTools: () => Promise<{success: boolean, error?: string}>;
+    openDevTools: () => Promise<{ success: boolean, error?: string }>;
 
     // 打开指定目录
-    openPath: (path: string) => Promise<{success: boolean, error?: string}>;
+    openPath: (path: string) => Promise<{ success: boolean, error?: string }>;
 
     // 文件对话框
     // 通用目录选择对话框（返回字符串路径，用于音乐目录扫描等）
@@ -180,7 +180,14 @@ interface ElectronAPI {
             files: object[],
             error?: string
         }>;
-        addTrackToLibrary: (audioFile: object) => Promise<object>;
+        addTrackToLibrary: (audioFile: object) => Promise<{
+            success: boolean,
+            track?: {
+                fileId: string,
+            },
+            error?: string
+            isNew?: boolean
+        }>;
 
         getTracks: (options?: any) => Promise<any[]>;
         getPlaylists: () => Promise<any[]>;
@@ -189,6 +196,41 @@ interface ElectronAPI {
         getTrackMetadata: (filePath: string) => Promise<any>;
         getCacheStatistics: () => Promise<any>;
         clearCache: () => Promise<void>;
+
+        //
+        getPlaylistDetail: (playlistId: string) => Promise<{
+            success: boolean,
+            playlist?: {
+                tracks: object,
+                trackIds: string[],
+                id: string,
+                name: string,
+                description: string,
+                createdAt: number,
+                updatedAt: number,
+                coverImage: any | null
+            },
+            error?: string
+        }>;
+
+        // 添加歌曲到歌单
+        addToPlaylist: (playlistId: string, trackIds: string[]) => Promise<{
+            success: boolean,
+            error?: string
+        }>;
+
+        // 从歌单移除歌曲
+        removeFromPlaylist: (playlistId: string, trackIds: string[]) => Promise<{
+            success: boolean,
+            error?: string
+        }>;
+
+        // 清空忽略列表
+        clearIgnoreList: () => Promise<{
+            success: boolean,
+            error?: string
+        }>;
+
         onLibraryUpdated: (callback: (event: any, data: any) => void) => void;
         onScanProgress: (callback: (event: any, progress: any) => void) => void;
 
@@ -205,8 +247,27 @@ interface ElectronAPI {
         getSize: () => Promise<[number, number]>;
         setSize: (width: number, height: number) => Promise<{ success: boolean }>;
         getPosition: () => Promise<[number, number]>;
-        getBounds: () => Promise<any>;
-        setBounds: (bounds: any) => Promise<void>;
+        getBounds: () => Promise<{
+            height: number;
+            width: number;
+            x: number;
+            y: number;
+        }>;
+        setBounds: (bounds: {
+            height: number;
+            width: number;
+            x: number;
+            y: number;
+        }) => Promise<{
+            success: boolean,
+            bounds?: {
+                height: number;
+                width: number;
+                x: number;
+                y: number;
+            }
+            error?: string
+        }>;
         isMaximized: () => Promise<boolean>;
         maximize: () => Promise<void>;
         unmaximize: () => Promise<void>;
@@ -217,9 +278,19 @@ interface ElectronAPI {
         focus: () => Promise<void>;
         setFullScreen: (flag: boolean) => Promise<void>;
         isFullScreen: () => Promise<boolean>;
-        setAlwaysOnTop: (flag: boolean) => Promise<void>;
+        setAlwaysOnTop: (flag: boolean) => Promise<boolean>;
         onMaximizedChanged: (callback: (isMaximized: boolean) => void) => void;
         setBackgroundThrottling: (allowed: boolean) => Promise<void>;
+        setPosition: (x: number, y: number) => Promise<{
+            success: boolean,
+            error?: string
+        }>;
+        // 设置是否可拖动窗口大小
+        setResizable: (resizable: boolean) => Promise<boolean>;
+        // 设置是否显示在任务栏
+        setSkipTaskbar: (skip: boolean) => Promise<boolean>;
+        // 设置窗口最小尺寸
+        setMinimumSize: (width: number, height) => Promise<boolean>;
     };
 
     extensions: {
@@ -279,7 +350,13 @@ interface ElectronAPI {
     // 桌面歌词
     desktopLyrics: {};
     networkDrive: {};
+
+    // 设置相关
+    settings: {};
     hardwareAcceleration: {};
+
+    // 应用控制
+    app: {};
 }
 
 declare global {

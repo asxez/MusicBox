@@ -19,8 +19,8 @@ interface WindowSizeData extends WindowSize {
  */
 export class WindowAPI extends BaseAPI {
     private resizeTimeout: NodeJS.Timeout | null = null;
-    private readonly MIN_WIDTH = 1080;
-    private readonly MIN_HEIGHT = 720;
+    private readonly MIN_WIDTH = 440;
+    private readonly MIN_HEIGHT = 120;
     private readonly MAX_WIDTH = 3840;
     private readonly MAX_HEIGHT = 2160;
 
@@ -164,7 +164,7 @@ export class WindowAPI extends BaseAPI {
      * 获取窗口边界
      * @returns 窗口边界
      */
-    async getBounds(): Promise<WindowBounds | null> {
+    async getBounds(): Promise<{ height: number, width: number, x: number, y: number } | null> {
         return this.wrapIPC(
             () => window.electronAPI.window.getBounds(),
             'window.getBounds',
@@ -176,7 +176,16 @@ export class WindowAPI extends BaseAPI {
      * 设置窗口边界
      * @param bounds - 窗口边界
      */
-    async setBounds(bounds: Partial<WindowBounds>): Promise<void> {
+    async setBounds(bounds: WindowBounds): Promise<{
+        success: boolean,
+        bounds?: {
+            height: number;
+            width: number;
+            x: number;
+            y: number;
+        }
+        error?: string
+    }> {
         Validator.assertObject(bounds, 'bounds');
 
         return this.wrapIPC(
@@ -241,7 +250,7 @@ export class WindowAPI extends BaseAPI {
      * 设置窗口置顶
      * @param flag - 是否置顶
      */
-    async setAlwaysOnTop(flag: boolean): Promise<void> {
+    async setAlwaysOnTop(flag: boolean): Promise<boolean> {
         Validator.assertBoolean(flag, 'flag');
 
         return this.wrapIPC(
@@ -260,6 +269,34 @@ export class WindowAPI extends BaseAPI {
         return this.wrapIPC(
             () => window.electronAPI.window.setBackgroundThrottling(allowed),
             'window.setBackgroundThrottling'
+        );
+    }
+
+    async setResizable(resizable: boolean): Promise<boolean> {
+        Validator.assertBoolean(resizable, 'resizable');
+
+        return this.wrapIPC(
+            () => window.electronAPI.window.setResizable(resizable),
+            'window.setResizable'
+        );
+    }
+
+    async setSkipTaskbar(skip: boolean): Promise<boolean> {
+        Validator.assertBoolean(skip, 'skip');
+
+        return this.wrapIPC(
+            () => window.electronAPI.window.setSkipTaskbar(skip),
+            'window.setSkipTaskbar'
+        );
+    }
+
+    async setMinimumSize(width: number, height: number): Promise<boolean> {
+        Validator.assertNumber(width, 'width');
+        Validator.assertNumber(height, 'height');
+
+        return this.wrapIPC(
+            () => window.electronAPI.window.setMinimumSize(width, height),
+            'window.setMinimumSize'
         );
     }
 }

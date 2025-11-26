@@ -1,0 +1,7 @@
+<svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <path fill="currentColor" d="M464 96H48C21.5 96 0 117.5 0 144v224c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48V144c0-26.5-21.5-48-48-48zm0 272H48V144h416v224z"/>
+    <circle cx="120" cy="256" r="48" fill="currentColor"/>
+    <path fill="currentColor" d="M240 200l104 56-104 56z"/>
+    <circle cx="380" cy="256" r="28" fill="currentColor"/>
+    <circle cx="433" cy="256" r="28" fill="currentColor"/>
+</svg>

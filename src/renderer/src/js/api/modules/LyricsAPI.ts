@@ -62,7 +62,7 @@ export class LyricsAPI extends BaseAPI {
             }
 
             // 优先级2: 检查本地歌词文件
-            const localLyrics: any = await this.getLocalLyrics(title, artist, album);
+            const localLyrics: LyricsResult = await this.getLocalLyrics(title, artist, album);
             if (localLyrics.success) {
                 this.lyricsRequestLock.delete(lyricsKey);
                 return localLyrics;
@@ -156,9 +156,9 @@ export class LyricsAPI extends BaseAPI {
      * @param album - 专辑
      * @returns 歌词信息
      */
-    async getLocalLyrics(title: string, artist: string, album: string = ''): Promise<object> {
+    async getLocalLyrics(title: string, artist: string, album: string = ''): Promise<LyricsResult> {
         try {
-            const localResult: any = await localLyricsManager.getLyrics(title, artist, album);
+            const localResult: LyricsResult = await localLyricsManager.getLyrics(title, artist, album);
             if (localResult.success) {
                 if (localResult.format === 'ttml') {
                     return {
