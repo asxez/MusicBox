@@ -151,7 +151,6 @@ async function createWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            enableRemoteModule: false,
             webSecurity: true,
             preload: path.join(__dirname, '../preload.js'),
         },
@@ -269,8 +268,9 @@ async function createWindow() {
     // 拦截开发者工具快捷键
     mainWindow.webContents.on('before-input-event', (event, input) => {
         // 拦截 Ctrl+Shift+I 和 F12
-        if ((input.control && input.shift && input.key.toLowerCase() === 'i') ||
-            (input.key === 'F12')) {
+        if (input.control && input.shift && input.key.toLowerCase() === 'i') {
+            event.preventDefault();
+        } else if (input.key === 'F12') {
             event.preventDefault();
             if (!mainWindow.webContents.isDevToolsOpened()) {
                 mainWindow.webContents.openDevTools({mode: 'detach'});

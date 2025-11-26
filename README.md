@@ -3,7 +3,7 @@
   <img src="docs/images/logo.svg" alt="MusicBox Logo" width="156" height="156">
   <h1 align="center" style="font-weight: 600">🎵 MusicBox</h1>
   <p align="center">
-    高颜值的本地音乐播放器
+    高颜值、插件化、可深度定制的本地音乐播放器
     <br />
     <br />
     <a href="https://asxez.github.io/MusicBox/"><strong>🌐 官方网站</strong></a>&nbsp;&nbsp;|&nbsp;&nbsp;
@@ -35,6 +35,7 @@
 - 🔧 强大的插件系统
 - 🎶 支持 WASAPI 音频独占模式
 - 📄 支持逐字歌词（使用 TTML 格式歌词）
+- 🤏 支持迷你播放器
 - 📔 支持在线获取歌曲封面和歌词
 - ⌨️ 支持自定义局内/全局快捷键
 - 🎈 浅色/深色主题切换
@@ -58,7 +59,7 @@
 - ❌ Last.fm scrobbler
 - 🔄 完善插件系统（插件市场，更多内置插件）
 - ✅ 必要的 TypeScript 迁移
-- ❌ 迷你播放器（直接支持或者内置插件）
+- ✅ 迷你播放器
 - ❌ 首页频谱
 - 🔄 更多优质内置插件
 

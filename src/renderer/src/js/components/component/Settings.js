@@ -165,6 +165,14 @@ class Settings extends Component {
         this.dlFontSizeSlider = this.element.querySelector('#dl-font-size-slider');
         this.dlFontSizeValue = this.element.querySelector('#dl-font-size-value');
 
+        // 迷你模式设置元素
+        this.miniModeFontColor = this.element.querySelector('#mini-mode-font-color');
+        this.miniModeFontColorValue = this.element.querySelector('#mini-mode-font-color-value');
+        this.miniModeHighlightColor = this.element.querySelector('#mini-mode-highlight-color');
+        this.miniModeHighlightColorValue = this.element.querySelector('#mini-mode-highlight-color-value');
+        this.miniModeFontSizeSlider = this.element.querySelector('#mini-mode-font-size-slider');
+        this.miniModeFontSizeValue = this.element.querySelector('#mini-mode-font-size-value');
+
         // 插件管理元素
         this.openPluginManagerBtn = this.element.querySelector('#open-plugin-manager-btn');
     }
@@ -490,6 +498,31 @@ class Settings extends Component {
             });
         }
 
+        // 迷你模式设置事件监听器
+        if (this.miniModeFontColor) {
+            this.miniModeFontColor.addEventListener('input', (e) => {
+                const color = e.target.value;
+                this.miniModeFontColorValue.textContent = color;
+                this.updateMiniModeSetting('fontColor', color);
+            });
+        }
+
+        if (this.miniModeHighlightColor) {
+            this.miniModeHighlightColor.addEventListener('input', (e) => {
+                const color = e.target.value;
+                this.miniModeHighlightColorValue.textContent = color;
+                this.updateMiniModeSetting('highlightColor', color);
+            });
+        }
+
+        if (this.miniModeFontSizeSlider) {
+            this.miniModeFontSizeSlider.addEventListener('input', (e) => {
+                const fontSize = parseInt(e.target.value);
+                this.miniModeFontSizeValue.textContent = fontSize + 'px';
+                this.updateMiniModeSetting('fontSize', fontSize);
+            });
+        }
+
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.isVisible) {
                 this.hide();
@@ -567,6 +600,9 @@ class Settings extends Component {
 
         // 初始化桌面歌词设置
         this.initializeDesktopLyricsSettings();
+
+        // 初始化迷你模式设置
+        this.initializeMiniModeSettings();
 
         console.log('🎵 Settings: 设置值初始化完成', this.settings);
 
@@ -1558,6 +1594,69 @@ class Settings extends Component {
                 console.error('❌ Settings: 初始化桌面歌词设置同步失败:', error);
             }
         }, 100);
+    }
+
+    // 迷你模式设置相关方法
+    async updateMiniModeSetting(key, value) {
+        // 更新本地设置缓存
+        const miniModeSettings = this.settings.miniModeSettings || {};
+        miniModeSettings[key] = value;
+        this.updateSetting('miniModeSettings', miniModeSettings);
+
+        // 实时应用到迷你模式
+        this.applyMiniModeSetting(key, value);
+    }
+
+    applyMiniModeSetting(key, value) {
+        // 应用CSS变量
+        switch (key) {
+            case 'fontColor':
+                document.documentElement.style.setProperty('--mini-mode-font-color', value);
+                break;
+            case 'highlightColor':
+                document.documentElement.style.setProperty('--mini-mode-highlight-color', value);
+                break;
+            case 'fontSize':
+                document.documentElement.style.setProperty('--mini-mode-font-size', `${value}px`);
+                break;
+        }
+
+        // 通知Player组件设置已更新
+        this.emit('miniModeSettingsChanged', {key, value});
+    }
+
+    initializeMiniModeSettings() {
+        const mmSettings = this.settings.miniModeSettings || {};
+
+        // 初始化字体颜色
+        if (this.miniModeFontColor) {
+            const fontColor = mmSettings.fontColor || '#ffffff';
+            this.miniModeFontColor.value = fontColor;
+            if (this.miniModeFontColorValue) {
+                this.miniModeFontColorValue.textContent = fontColor;
+            }
+            this.applyMiniModeSetting('fontColor', fontColor);
+        }
+
+        // 初始化高亮颜色
+        if (this.miniModeHighlightColor) {
+            const highlightColor = mmSettings.highlightColor || '#335eea';
+            this.miniModeHighlightColor.value = highlightColor;
+            if (this.miniModeHighlightColorValue) {
+                this.miniModeHighlightColorValue.textContent = highlightColor;
+            }
+            this.applyMiniModeSetting('highlightColor', highlightColor);
+        }
+
+        // 初始化字体大小
+        if (this.miniModeFontSizeSlider) {
+            const fontSize = mmSettings.fontSize || 14;
+            this.miniModeFontSizeSlider.value = fontSize;
+            if (this.miniModeFontSizeValue) {
+                this.miniModeFontSizeValue.textContent = fontSize + 'px';
+            }
+            this.applyMiniModeSetting('fontSize', fontSize);
+        }
     }
 }
 

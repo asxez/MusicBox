@@ -24,7 +24,7 @@ export class CoverAPI extends BaseAPI {
      * @param title - 歌曲标题
      * @param artist - 艺术家
      * @param album - 专辑
-     * @param filePath - 文件路径
+     * @param filePath - 音频文件路径
      * @param forceRefresh - 是否强制刷新
      * @returns 封面信息
      */
@@ -81,7 +81,7 @@ export class CoverAPI extends BaseAPI {
 
     /**
      * 获取内嵌封面
-     * @param filePath - 文件路径
+     * @param filePath - 音频文件路径
      * @returns 封面信息
      */
     async getEmbeddedCoverAPI(filePath: string): Promise<CoverResult> {

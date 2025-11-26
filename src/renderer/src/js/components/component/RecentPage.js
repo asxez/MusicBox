@@ -287,27 +287,25 @@ class RecentPage extends Component {
             // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
             const loadCover = async () => {
                 const coverResult = await coverAPI.getCover(
-                    track.title, track.artist, track.album
+                    track.title, track.artist, track.album, track.filePath
                 );
 
-                if (coverResult.success && coverResult.filePath) {
+                if (coverResult.success && coverResult.imageUrl && typeof coverResult.imageUrl === 'string') {
                     // 确保路径格式正确，处理路径
-                    let coverPath = coverResult.filePath;
+                    let coverUrl = coverResult.imageUrl;
 
-                    // 如果路径不是以file://开头，添加协议前缀
-                    if (!coverPath.startsWith('file://')) {
-                        // 处理路径中的反斜杠
-                        coverPath = coverPath.replace(/\\/g, '/');
-                        // 确保路径以/开头（对于绝对路径）
-                        if (!coverPath.startsWith('/')) {
-                            coverPath = '/' + coverPath;
+                    // 处理本地文件路径格式
+                    if (coverResult.type === 'local-file' && coverResult.filePath) {
+                        if (!coverUrl.startsWith('file://')) {
+                            coverUrl = coverResult.filePath.replace(/\\/g, '/');
+                            if (!coverUrl.startsWith('/')) {
+                                coverUrl = '/' + coverUrl;
+                            }
+                            coverUrl = `file://${coverUrl}`;
                         }
-                        coverPath = `file://${coverPath}`;
                     }
 
-                    // 更新track对象的封面信息
-                    track.cover = coverPath;
-                    console.log(`✅ RecentPage: 封面加载成功 - ${track.title}, 路径: ${track.cover}`);
+                    track.cover = coverUrl;
 
                     // 使用requestAnimationFrame确保DOM更新在下一帧进行
                     requestAnimationFrame(() => {
@@ -318,7 +316,6 @@ class RecentPage extends Component {
                                 const coverImg = item.querySelector('.track-cover img');
                                 if (coverImg) {
                                     coverImg.src = track.cover;
-                                    console.log(`🖼️ RecentPage: 更新封面图片 - ${track.title}`);
                                 }
                             }
                         });

@@ -131,8 +131,8 @@ function registerWindowIpcHandlers({ipcMain}) {
         const win = getMainWindow();
         if (win && !win.isMaximized()) {
             try {
-                const minWidth = 1080;
-                const minHeight = 720;
+                const minWidth = 400;
+                const minHeight = 120;
                 const maxWidth = 3840;
                 const maxHeight = 2160;
 
@@ -158,6 +158,90 @@ function registerWindowIpcHandlers({ipcMain}) {
                 win.setBackgroundThrottling(flag);
             } catch (error) {
                 console.error('❌ 设置窗口节流失败:', error);
+            }
+        }
+    });
+
+    // 迷你模式窗口控制
+    ipcMain.handle('window:setAlwaysOnTop', (event, flag) => {
+        const win = getMainWindow();
+        if (win) {
+            win.setAlwaysOnTop(flag);
+            return true;
+        }
+        return false;
+    });
+
+    ipcMain.handle('window:isAlwaysOnTop', () => {
+        const win = getMainWindow();
+        return win ? win.isAlwaysOnTop() : false;
+    });
+
+    ipcMain.handle('window:setBounds', (event, bounds) => {
+        const win = getMainWindow();
+        if (win && !win.isMaximized()) {
+            try {
+                win.setBounds(bounds);
+                return { success: true, bounds: win.getBounds() };
+            } catch (error) {
+                console.error('❌ 设置窗口边界失败:', error);
+                return { success: false, error: error.message };
+            }
+        }
+        return { success: false, error: '窗口不可用' };
+    });
+
+    ipcMain.handle('window:getBounds', () => {
+        const win = getMainWindow();
+        return win ? win.getBounds() : null;
+    });
+
+    ipcMain.handle('window:setResizable', (event, resizable) => {
+        const win = getMainWindow();
+        if (win) {
+            win.setResizable(resizable);
+            return true;
+        }
+        return false;
+    });
+
+    // 设置窗口位置（用于手动拖动）
+    ipcMain.handle('window:setPosition', (event, x, y) => {
+        const win = getMainWindow();
+        if (win && !win.isMaximized()) {
+            try {
+                win.setPosition(Math.round(x), Math.round(y));
+                return { success: true };
+            } catch (error) {
+                console.error('❌ 设置窗口位置失败:', error);
+                return { success: false, error: error.message };
+            }
+        }
+        return { success: false, error: '窗口不可用' };
+    });
+
+    // 设置是否显示在任务栏
+    ipcMain.handle('window:setSkipTaskbar', (event, skip) => {
+        const win = getMainWindow();
+        if (win) {
+            try {
+                win.setSkipTaskbar(skip);
+                return true;
+            } catch (error) {
+                return false;
+            }
+        }
+    });
+
+    // 设置窗口最小尺寸
+    ipcMain.handle('window:setMinimumSize', (event, width, height) => {
+        const win = getMainWindow();
+        if (win) {
+            try {
+                win.setMinimumSize(width, height);
+                return true;
+            } catch (error) {
+                return false;
             }
         }
     });

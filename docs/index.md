@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: "MusicBox"
-  text: "高颜值本地音乐播放器"
-  tagline: "A visually stunning, plugin-based local music player."
+  text: "高颜值、插件化、可深度定制的本地音乐播放器"
+  tagline: "A visually stunning, plugin-based, and highly customizable local music player."
   image:
     src: /images/logo.svg
     alt: MusicBox
@@ -36,6 +36,10 @@ features:
   - icon: 📄
     title: 逐字歌词
     details: 支持 TTML 格式歌词，欣赏歌词被逐一填充的乐趣
+    
+  - icon: 🤏 
+    title: 迷你播放器
+    details: 一键切换迷你模式，小小的也很可爱
 
   - icon: 📔
     title: 在线获取歌词封面

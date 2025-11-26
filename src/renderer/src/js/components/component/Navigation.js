@@ -6,6 +6,7 @@ import {theme} from "@js/utils";
 import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
+import {windowAPI} from "@js/api";
 
 class Navigation extends Component {
     constructor() {
@@ -111,7 +112,8 @@ class Navigation extends Component {
         });
 
         // 窗口拖拽事件监听器
-        this.setupWindowDrag();
+        // 0.2.5版本 移除自定义拖拽，暂时保留相关方法
+        // this.setupWindowDrag();
 
         // 侧边栏切换按钮
         this.addEventListenerManaged(this.sidebarToggleBtn, 'click', () => {

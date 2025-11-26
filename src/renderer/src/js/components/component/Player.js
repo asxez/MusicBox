@@ -5,7 +5,7 @@ import {cacheManager} from "@services/CacheManager";
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
-import {coverAPI} from "@js/api";
+import {coverAPI, windowAPI, lyricsAPI} from "@js/api";
 
 class Player extends Component {
     constructor() {
@@ -17,6 +17,16 @@ class Player extends Component {
         this.previousVolume = 0.7;
         this.isDraggingProgress = false;
         this.isDraggingVolume = false;
+        this.isMiniMode = false;
+        this.miniModeButton = null;
+
+        // 迷你模式歌词相关
+        this._miniModeLyricsRafId = null;
+        this._miniModeLyricsLastUpdateTime = 0;
+        this._miniModeLyricsUpdateInterval = 16;
+        this.miniModePositionChangeHandler = null;
+        this._miniModeCurrentLyricIndex = -1;
+        this._miniModeLyrics = []; // 迷你模式的独立歌词数据
 
         this.setupElements();
         this.setupEventListeners();
@@ -35,6 +45,7 @@ class Player extends Component {
         this.playlistBtn = this.element.querySelector('#playlist-btn');
         this.likeBtn = this.element.querySelector('#like-btn');
         this.desktopLyricsBtn = this.element.querySelector('#desktop-lyrics-btn');
+        this.miniModeButton = this.element.querySelector('#mini-mode-btn');
 
         this.trackCover = this.element.querySelector('#track-cover');
         this.trackCoverContainer = this.element.querySelector('.track-cover-container');
@@ -175,23 +186,41 @@ class Player extends Component {
         });
 
         // 点击封面也打开歌词页
-        this.trackCoverContainer.addEventListener('click', () => {
+        this.coverClickHandler = () => {
             this.emit('toggleLyrics');
-        });
+        };
+        this.trackCoverContainer.addEventListener('click', this.coverClickHandler);
+
+        // 双击封面切换迷你模式
+        this.coverDblClickHandler = async () => {
+            if (this.isMiniMode) {
+                await this.toggleMiniMode();
+            }
+        };
+        this.trackCoverContainer.addEventListener('dblclick', this.coverDblClickHandler);
 
         // 封面悬浮效果
-        this.trackCoverContainer.addEventListener('mouseenter', () => {
+        this.coverMouseEnterHandler = () => {
             this.trackCoverContainer.classList.add('hover');
-        });
+        };
+        this.trackCoverContainer.addEventListener('mouseenter', this.coverMouseEnterHandler);
 
-        this.trackCoverContainer.addEventListener('mouseleave', () => {
+        this.coverMouseLeaveHandler = () => {
             this.trackCoverContainer.classList.remove('hover');
-        });
+        };
+        this.trackCoverContainer.addEventListener('mouseleave', this.coverMouseLeaveHandler);
 
         // 桌面歌词按钮事件
         if (this.desktopLyricsBtn) {
             this.desktopLyricsBtn.addEventListener('click', async () => {
                 await this.toggleDesktopLyrics();
+            });
+        }
+
+        // 迷你模式按钮
+        if (this.miniModeButton) {
+            this.miniModeButton.addEventListener('click', async () => {
+                await this.toggleMiniMode();
             });
         }
 
@@ -204,8 +233,10 @@ class Player extends Component {
     }
 
     setupAPIListeners() {
-        // 添加更新锁，防止快速切换时UI更新冲突
+        // 0.2.5版本 改进更新机制
+        // 记录待更新的track，避免丢失更新
         this._updateLock = false;
+        this._pendingTrack = null;
 
         api.on('durationChanged', (duration) => {
             this.duration = duration;
@@ -230,13 +261,24 @@ class Player extends Component {
         });
 
         api.on('trackChanged', async (track) => {
-            if (!this._updateLock) {
-                this._updateLock = true;
-                try {
-                    await this.updateTrackInfo(track);
-                } finally {
-                    this._updateLock = false;
+            // 如果正在更新，记录新的track待后续处理
+            if (this._updateLock) {
+                this._pendingTrack = track;
+                return;
+            }
+
+            this._updateLock = true;
+            try {
+                await this.updateTrackInfo(track);
+
+                // 检查是否有待处理的track
+                while (this._pendingTrack) {
+                    const nextTrack = this._pendingTrack;
+                    this._pendingTrack = null;
+                    await this.updateTrackInfo(nextTrack);
                 }
+            } finally {
+                this._updateLock = false;
             }
         });
 
@@ -280,8 +322,23 @@ class Player extends Component {
             this.trackTitle.textContent = track.title || '未知歌曲';
             this.trackArtist.textContent = track.artist || '未知艺术家';
             this.duration = track.duration || 0;
-            // 更新封面图片
-            await this.updateCoverArt(track);
+
+            // 在迷你模式下，立即清理旧状态
+            if (this.isMiniMode) {
+                this._miniModeLyrics = [];
+                this._miniModeCurrentLyricIndex = -1;
+                this.showNoMiniModeLyrics();
+            }
+
+            // 并行加载封面和歌词
+            if (this.isMiniMode) {
+                await Promise.all([
+                    this.updateCoverArt(track),
+                    this.loadMiniModeLyrics(track)
+                ]);
+            } else {
+                await this.updateCoverArt(track);
+            }
         }
     }
 
@@ -321,6 +378,11 @@ class Player extends Component {
             console.error('❌ Player: 封面更新失败:', error);
         } finally {
             this.trackCover.classList.remove('loading');
+
+            // 迷你模式下，更新背景
+            if (this.isMiniMode) {
+                await this.updateMiniModeBackground();
+            }
         }
     }
 
@@ -428,6 +490,7 @@ class Player extends Component {
             this.updateVolumeDisplay();
             this.updatePlayModeDisplay(api.getPlayMode());
             await this.initDesktopLyricsButton();
+            await this.restoreMiniModeState();
             return {
                 status: true
             }
@@ -438,6 +501,172 @@ class Player extends Component {
             }
         }
 
+    }
+
+    async toggleMiniMode() {
+        try {
+            this.isMiniMode = !this.isMiniMode;
+            if (this.isMiniMode) {
+                await this.enterMiniMode();
+            } else {
+                await this.exitMiniMode();
+            }
+
+            cacheManager.setLocalCache('miniModeEnabled', this.isMiniMode);
+        } catch (error) {
+            console.error('❌ Player: 切换迷你模式失败:', error);
+            showToast('迷你模式切换失败', 'error');
+        }
+    }
+
+    async enterMiniMode() {
+        await windowAPI.setSkipTaskbar(true);
+        await windowAPI.setMinimumSize(400, 145);
+
+        // 添加迷你模式类
+        document.body.classList.add('mini-mode');
+
+        // 设置始终置顶
+        await windowAPI.setAlwaysOnTop(true);
+
+        // 禁止窗口缩放
+        await windowAPI.setResizable(false);
+
+        // 调整窗口大小
+        const miniWidth = 400;
+        const miniHeight = 145;
+        const currentBounds = await windowAPI.getBounds();
+
+        await windowAPI.setBounds({
+            x: currentBounds.x,
+            y: currentBounds.y,
+            width: miniWidth,
+            height: miniHeight
+        });
+
+        // 更新按钮状态
+        if (this.miniModeButton) {
+            this.miniModeButton.classList.add('active');
+            this.miniModeButton.title = '退出迷你模式';
+        }
+
+        // 移除封面的普通事件（保留双击事件用于退出迷你模式）
+        this.trackCoverContainer.removeEventListener('click', this.coverClickHandler);
+        this.trackCoverContainer.removeEventListener('mouseenter', this.coverMouseEnterHandler);
+        this.trackCoverContainer.removeEventListener('mouseleave', this.coverMouseLeaveHandler);
+
+        // 添加鼠标进入/离开窗口的监听（悬浮展开/收起）
+        this.miniModeMouseEnterHandler = () => {
+            document.body.classList.remove('mini-mode-collapsed');
+        };
+        this.miniModeMouseLeaveHandler = () => {
+            document.body.classList.add('mini-mode-collapsed');
+        };
+
+        // 监听app容器
+        const appContainer = document.querySelector('.app');
+        if (appContainer) {
+            appContainer.addEventListener('mouseenter', this.miniModeMouseEnterHandler);
+            appContainer.addEventListener('mouseleave', this.miniModeMouseLeaveHandler);
+            this.miniModeAppContainer = appContainer;
+        }
+
+        // 初始状态：收起
+        document.body.classList.add('mini-mode-collapsed');
+
+        // 更新迷你模式背景
+        await this.updateMiniModeBackground();
+
+        // 加载当前歌曲的歌词
+        const currentTrack = api.getCurrentTrack();
+        if (currentTrack) {
+            await this.loadMiniModeLyrics(currentTrack);
+        }
+
+        // 添加播放进度监听，用于更新歌词逐字高亮
+        this.miniModePositionChangeHandler = (position) => {
+            // 计算当前歌词索引
+            this.updateMiniModeLyricIndex(position);
+            // 更新逐字高亮
+            this.updateMiniModeLyricsWordHighlight(position);
+        };
+        api.on('positionChanged', this.miniModePositionChangeHandler);
+
+        // 初始更新歌词显示
+        this.updateMiniModeLyrics();
+    }
+
+    async exitMiniMode() {
+        await windowAPI.setSkipTaskbar(false);
+        await windowAPI.setMinimumSize(1080, 720);
+        // 移除迷你模式类
+        document.body.classList.remove('mini-mode');
+
+        // 取消始终置顶
+        await windowAPI.setAlwaysOnTop(false);
+
+        // 恢复窗口缩放
+        await windowAPI.setResizable(true);
+
+        // 恢复窗口
+        const {width, height} = cacheManager.getLocalCache('mainWindow-size') || [1440, 900];
+        await windowAPI.setSize(width, height);
+
+        // 更新按钮状态
+        if (this.miniModeButton) {
+            this.miniModeButton.classList.remove('active');
+            this.miniModeButton.title = '迷你模式';
+        }
+
+        // 恢复封面事件
+        this.trackCoverContainer.addEventListener('click', this.coverClickHandler);
+        this.trackCoverContainer.addEventListener('mouseenter', this.coverMouseEnterHandler);
+        this.trackCoverContainer.addEventListener('mouseleave', this.coverMouseLeaveHandler);
+
+        // 移除迷你模式悬浮事件
+        if (this.miniModeMouseEnterHandler && this.miniModeMouseLeaveHandler && this.miniModeAppContainer) {
+            this.miniModeAppContainer.removeEventListener('mouseenter', this.miniModeMouseEnterHandler);
+            this.miniModeAppContainer.removeEventListener('mouseleave', this.miniModeMouseLeaveHandler);
+            this.miniModeMouseEnterHandler = null;
+            this.miniModeMouseLeaveHandler = null;
+            this.miniModeAppContainer = null;
+        }
+
+        // 移除播放进度监听
+        if (this.miniModePositionChangeHandler) {
+            api.off('positionChanged', this.miniModePositionChangeHandler);
+            this.miniModePositionChangeHandler = null;
+        }
+
+        // 取消RAF请求
+        if (this._miniModeLyricsRafId) {
+            cancelAnimationFrame(this._miniModeLyricsRafId);
+            this._miniModeLyricsRafId = null;
+        }
+
+        // 重置状态
+        this._miniModeCurrentLyricIndex = -1;
+        this._miniModeLyrics = []; // 清空歌词数据
+
+        // 移除迷你模式歌词元素
+        const miniLyricsElement = document.querySelector('.mini-mode-lyrics');
+        if (miniLyricsElement) {
+            miniLyricsElement.remove();
+        }
+
+        // 移除collapsed类
+        document.body.classList.remove('mini-mode-collapsed');
+
+        // 清除迷你模式背景
+        this.clearMiniModeBackground();
+    }
+
+    async restoreMiniModeState() {
+        const savedState = cacheManager.getLocalCache('miniModeEnabled');
+        if (savedState === true) {
+            this.isMiniMode = false;
+            await this.toggleMiniMode();
+        }
     }
 
     async togglePlayPause() {
@@ -566,6 +795,313 @@ class Player extends Component {
         } catch (error) {
             console.error('❌ Player: 初始化桌面歌词按钮状态失败:', error);
         }
+    }
+
+    // 迷你模式：提取封面主色
+    async extractDominantColor(imgElement) {
+        return new Promise((resolve) => {
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                canvas.width = imgElement.naturalWidth || imgElement.width;
+                canvas.height = imgElement.naturalHeight || imgElement.height;
+
+                ctx.drawImage(imgElement, 0, 0, canvas.width, canvas.height);
+
+                // 获取图像数据
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                // 简单的颜色统计算法：取平均色
+                let r = 0, g = 0, b = 0, count = 0;
+
+                // 采样：每隔10个像素采样一次以提高性能
+                for (let i = 0; i < data.length; i += 40) {
+                    r += data[i];
+                    g += data[i + 1];
+                    b += data[i + 2];
+                    count++;
+                }
+
+                r = Math.round(r / count);
+                g = Math.round(g / count);
+                b = Math.round(b / count);
+
+                // 调整亮度，使背景更柔和
+                const brightness = (r + g + b) / 3;
+                if (brightness > 200) {
+                    // 如果太亮，降低亮度
+                    r = Math.round(r * 0.6);
+                    g = Math.round(g * 0.6);
+                    b = Math.round(b * 0.6);
+                } else if (brightness < 50) {
+                    // 如果太暗，提高亮度
+                    r = Math.min(255, Math.round(r * 1.5));
+                    g = Math.min(255, Math.round(g * 1.5));
+                    b = Math.min(255, Math.round(b * 1.5));
+                }
+
+                resolve(`${r}, ${g}, ${b}`);
+            } catch (error) {
+                console.error('❌ Player: 提取封面主色失败:', error);
+                resolve('60, 80, 120'); // 默认蓝色调
+            }
+        });
+    }
+
+    // 迷你模式：更新背景
+    async updateMiniModeBackground() {
+        if (!this.isMiniMode) return;
+
+        const coverImg = this.trackCover;
+        // 检查封面是否成功加载
+        if (coverImg && coverImg.complete && coverImg.naturalWidth > 0 &&
+            coverImg.src && !coverImg.src.includes('default-cover.svg')) {
+            try {
+                const dominantColor = await this.extractDominantColor(coverImg);
+                document.documentElement.style.setProperty('--mini-mode-bg-color', dominantColor);
+            } catch (error) {
+                this.setDefaultMiniModeBackground();
+            }
+        } else {
+            // 封面未加载或加载失败，使用默认背景色
+            this.setDefaultMiniModeBackground();
+        }
+    }
+
+    // 迷你模式：设置默认背景色
+    setDefaultMiniModeBackground() {
+        const defaultColor = '60, 80, 120'; // 默认蓝色调
+        document.documentElement.style.setProperty('--mini-mode-bg-color', defaultColor);
+    }
+
+    // 迷你模式：清除背景
+    clearMiniModeBackground() {
+        document.documentElement.style.removeProperty('--mini-mode-bg-color');
+    }
+
+    // 迷你模式：更新歌词显示
+    updateMiniModeLyrics() {
+        if (!this.isMiniMode) return;
+
+        // 使用迷你模式自己的歌词数据
+        if (!this._miniModeLyrics || this._miniModeLyrics.length === 0) {
+            this.showNoMiniModeLyrics();
+            return;
+        }
+
+        const currentIndex = this._miniModeCurrentLyricIndex;
+        if (currentIndex < 0 || currentIndex >= this._miniModeLyrics.length) {
+            this.showNoMiniModeLyrics();
+            return;
+        }
+
+        const currentLyric = this._miniModeLyrics[currentIndex];
+
+        let miniLyricsElement = document.querySelector('.mini-mode-lyrics');
+        if (!miniLyricsElement) {
+            miniLyricsElement = document.createElement('div');
+            miniLyricsElement.className = 'mini-mode-lyrics';
+            const playerControls = this.element.querySelector('.controls');
+            if (playerControls) {
+                playerControls.appendChild(miniLyricsElement);
+            }
+        }
+
+        // 检查是否为逐字歌词
+        const isWordByWord = currentLyric.type === 'word-by-word' && currentLyric.words && currentLyric.words.length > 0;
+
+        if (isWordByWord) {
+            miniLyricsElement.classList.add('lyrics-word-by-word');
+            miniLyricsElement.innerHTML = '';
+
+            // 根据歌词数据创建逐字元素
+            currentLyric.words.forEach((word, index) => {
+                const wordSpan = document.createElement('span');
+                wordSpan.className = 'lyric-word';
+                wordSpan.setAttribute('data-word-index', index);
+                wordSpan.setAttribute('data-word-time', word.time);
+                wordSpan.setAttribute('data-word-text', word.text);
+                wordSpan.textContent = word.text;
+                wordSpan.style.setProperty('--word-progress', '0');
+                miniLyricsElement.appendChild(wordSpan);
+            });
+        } else {
+            // 普通歌词
+            miniLyricsElement.classList.remove('lyrics-word-by-word');
+            miniLyricsElement.textContent = currentLyric.content || '暂无歌词';
+        }
+    }
+
+    // 迷你模式：显示无歌词状态
+    showNoMiniModeLyrics() {
+        let miniLyricsElement = document.querySelector('.mini-mode-lyrics');
+        if (!miniLyricsElement) {
+            miniLyricsElement = document.createElement('div');
+            miniLyricsElement.className = 'mini-mode-lyrics';
+            const playerControls = this.element.querySelector('.controls');
+            if (playerControls) {
+                playerControls.appendChild(miniLyricsElement);
+            }
+        }
+        miniLyricsElement.classList.remove('lyrics-word-by-word');
+        miniLyricsElement.textContent = '暂无歌词';
+    }
+
+    // 迷你模式：加载歌词数据
+    async loadMiniModeLyrics(track) {
+        if (!track || !track.title || !track.artist) {
+            this._miniModeLyrics = [];
+            this._miniModeCurrentLyricIndex = -1;
+            this.showNoMiniModeLyrics();
+            return;
+        }
+
+        try {
+            let parsedLyrics = null;
+
+            // 检查是否已有内嵌的歌词
+            if (track.lyrics) {
+                parsedLyrics = track.lyrics;
+            } else {
+                // 从API获取歌词
+                const lyricsResult = await lyricsAPI.getLyrics(track.title, track.artist, track.album, track.filePath);
+                if (lyricsResult.success) {
+                    if (lyricsResult.format === 'ttml' && lyricsResult.content) {
+                        parsedLyrics = lyricsAPI.parseTTML(lyricsResult.content);
+                    } else if (lyricsResult.lrc) {
+                        parsedLyrics = lyricsAPI.parseLRC(lyricsResult.lrc);
+                    } else if (lyricsResult.content) {
+                        parsedLyrics = lyricsAPI.parse(lyricsResult.content, lyricsResult.format);
+                    }
+                }
+            }
+
+            if (parsedLyrics && parsedLyrics.length > 0) {
+                this._miniModeLyrics = parsedLyrics;
+
+                // 根据当前播放位置初始化歌词索引（修复关键）
+                const currentTime = this.currentTime || 0;
+                let initialIndex = 0;
+
+                // 找到当前时间对应的歌词索引
+                for (let i = 0; i < parsedLyrics.length; i++) {
+                    if (currentTime >= parsedLyrics[i].time) {
+                        initialIndex = i;
+                    } else {
+                        break;
+                    }
+                }
+
+                this._miniModeCurrentLyricIndex = initialIndex;
+                console.log(`✅ Player: 迷你模式歌词加载成功，共${parsedLyrics.length}行，当前索引:${initialIndex}，播放位置:${currentTime.toFixed(2)}s`);
+
+                // 立即更新显示
+                this.updateMiniModeLyrics();
+            } else {
+                this._miniModeLyrics = [];
+                this._miniModeCurrentLyricIndex = -1;
+                this.showNoMiniModeLyrics();
+            }
+        } catch (error) {
+            console.error('❌ Player: 迷你模式歌词加载失败:', error);
+            this._miniModeLyrics = [];
+            this._miniModeCurrentLyricIndex = -1;
+            this.showNoMiniModeLyrics();
+        }
+    }
+
+    // 迷你模式：更新歌词索引
+    updateMiniModeLyricIndex(currentTime) {
+        if (!this._miniModeLyrics || this._miniModeLyrics.length === 0) {
+            return;
+        }
+
+        // 找到当前时间对应的歌词索引
+        let newIndex = -1;
+        for (let i = 0; i < this._miniModeLyrics.length; i++) {
+            if (currentTime >= this._miniModeLyrics[i].time) {
+                newIndex = i;
+            } else {
+                break;
+            }
+        }
+
+        // 如果没有找到匹配的歌词行（当前时间早于第一句歌词），显示第一句
+        if (newIndex === -1 && this._miniModeLyrics.length > 0) {
+            newIndex = 0;
+        }
+
+        // 如果索引变化，更新显示
+        if (newIndex !== this._miniModeCurrentLyricIndex) {
+            this._miniModeCurrentLyricIndex = newIndex;
+            this.updateMiniModeLyrics();
+        }
+    }
+
+    // 迷你模式：更新逐字歌词高亮
+    updateMiniModeLyricsWordHighlight(currentTime) {
+        if (!this.isMiniMode) return;
+
+        const miniLyricsElement = document.querySelector('.mini-mode-lyrics');
+        if (!miniLyricsElement || !miniLyricsElement.classList.contains('lyrics-word-by-word')) {
+            return;
+        }
+
+        // 节流控制
+        const now = performance.now();
+        if (now - this._miniModeLyricsLastUpdateTime < this._miniModeLyricsUpdateInterval) {
+            return;
+        }
+        this._miniModeLyricsLastUpdateTime = now;
+
+        const words = miniLyricsElement.querySelectorAll('.lyric-word');
+        if (words.length === 0) return;
+
+        // 取消之前的RAF请求
+        if (this._miniModeLyricsRafId) {
+            cancelAnimationFrame(this._miniModeLyricsRafId);
+        }
+
+        // 使用requestAnimationFrame优化DOM操作
+        this._miniModeLyricsRafId = requestAnimationFrame(() => {
+            this._miniModeLyricsRafId = null;
+
+            for (let i = 0; i < words.length; i++) {
+                const wordElement = words[i];
+                const wordStartTime = parseFloat(wordElement.getAttribute('data-word-time'));
+
+                // 计算词的结束时间
+                let wordEndTime;
+                if (i < words.length - 1) {
+                    wordEndTime = parseFloat(words[i + 1].getAttribute('data-word-time'));
+                } else {
+                    // 最后一个词，假设持续0.5秒
+                    wordEndTime = wordStartTime + 0.5;
+                }
+
+                if (currentTime < wordStartTime) {
+                    // 未播放的字
+                    wordElement.classList.remove('highlight', 'played');
+                    wordElement.style.setProperty('--word-progress', '0');
+                } else if (currentTime >= wordEndTime) {
+                    // 已播放的字
+                    wordElement.classList.remove('highlight');
+                    wordElement.classList.add('played');
+                    wordElement.style.setProperty('--word-progress', '1');
+                } else {
+                    // 正在播放的字
+                    const duration = wordEndTime - wordStartTime;
+                    const progress = duration > 0 ? (currentTime - wordStartTime) / duration : 1;
+                    const clampedProgress = Math.max(0, Math.min(1, progress));
+
+                    wordElement.classList.add('highlight');
+                    wordElement.classList.remove('played');
+                    wordElement.style.setProperty('--word-progress', clampedProgress.toFixed(2));
+                }
+            }
+        });
     }
 
     destroy() {
