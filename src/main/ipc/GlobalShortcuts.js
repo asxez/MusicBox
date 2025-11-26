@@ -1,7 +1,6 @@
 // 全局快捷键相关 IPC
 
-const {app, globalShortcut} = require('electron');
-const {getMainWindow} = require('../core/window');
+const {app} = require('electron');
 
 // 模块内状态
 let globalShortcutsEnabled = false;
@@ -34,6 +33,8 @@ function convertToElectronShortcut(shortcutKey) {
  * @param {{quiet?: boolean}} [opts]
  */
 function unregisterAllGlobalShortcuts(opts = {}) {
+    const {globalShortcut} = require('electron');
+
     const {quiet = false} = opts;
     if (!quiet) {
         console.log('🎹 取消注册所有全局快捷键');
@@ -47,6 +48,9 @@ function unregisterAllGlobalShortcuts(opts = {}) {
  * @param {Record<string, {name: string, key: string, enabled: boolean}>} shortcuts
  */
 function registerGlobalShortcuts(shortcuts) {
+    const {globalShortcut} = require('electron');
+    const {getMainWindow} = require('../core/window');
+
     console.log('🎹 注册全局快捷键');
 
     // 先清除所有已注册的快捷键

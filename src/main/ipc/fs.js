@@ -1,8 +1,6 @@
 // 文件系统相关 IPC
 
 const fs = require('fs');
-const fsPromises = require('fs').promises;
-const {FS_ALLOWED} = require('../utils/AllowedFunc');
 
 /**
  * 注册文件系统相关的 IPC
@@ -13,6 +11,9 @@ function registerFsIpcHandlers({ipcMain}) {
     if (!ipcMain) throw new Error('registerFsIpcHandlers: 缺少 ipcMain');
 
     ipcMain.handle('fs:call', async (event, {prop, args}) => {
+        const fsPromises = require('fs').promises;
+        const {FS_ALLOWED} = require('../utils/AllowedFunc');
+
         if (FS_ALLOWED.indexOf(prop) === -1) {
             throw new Error('not allowed');
         }

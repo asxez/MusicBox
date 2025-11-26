@@ -1,10 +1,6 @@
 // 网络磁盘管理器
 
-const SMB2 = require('node-smb2');
-const path = require('path');
-const fs = require('fs');
 const EventEmitter = require('events');
-const {getGlobalDriveRegistry} = require('./DriveRegistry');
 
 // WebDAV模块需要动态导入
 let webdavModule = null;
@@ -27,8 +23,10 @@ class NetworkDriveManager extends EventEmitter {
     }
 
     initializeStateFile() {
+        const {app} = require('electron');
+        const path = require('path');
+
         try {
-            const {app} = require('electron');
             const userDataPath = app.getPath('userData');
             this.stateFilePath = path.join(userDataPath, 'network-drives-state.json');
         } catch (error) {
@@ -86,8 +84,8 @@ class NetworkDriveManager extends EventEmitter {
      * @returns {Promise<boolean>} 挂载是否成功
      */
     async mountSMB(config) {
+        const SMB2 = require('node-smb2');
         try {
-
             const smbConfig = {
                 share: `\\\\${config.host}\\${config.share}`,
                 domain: config.domain || 'WORKGROUP',
@@ -161,6 +159,7 @@ class NetworkDriveManager extends EventEmitter {
      * @returns {Promise<boolean>} 挂载是否成功
      */
     async mountWebDAVDirect(config) {
+        const {getGlobalDriveRegistry} = require('./DriveRegistry');
         try {
 
             // 检查WebDAV模块是否已加载
@@ -224,6 +223,7 @@ class NetworkDriveManager extends EventEmitter {
      * @returns {boolean} 卸载是否成功
      */
     async unmountDrive(driveId) {
+        const {getGlobalDriveRegistry} = require('./DriveRegistry');
         try {
             const driveInfo = this.mountedDrives.get(driveId);
             if (!driveInfo) {
@@ -441,6 +441,8 @@ class NetworkDriveManager extends EventEmitter {
 
     // 尝试重新连接
     async attemptReconnect(driveId) {
+        const SMB2 = require('node-smb2');
+
         const driveInfo = this.mountedDrives.get(driveId);
         if (!driveInfo) {
             return;
@@ -501,6 +503,8 @@ class NetworkDriveManager extends EventEmitter {
 
     // 保存驱动器状态到文件
     async saveDriveState() {
+        const fs = require('fs');
+
         try {
             // 详细显示要保存的配置
             for (const [id, config] of this.driveConfigs.entries()) {
@@ -526,6 +530,8 @@ class NetworkDriveManager extends EventEmitter {
 
     // 从文件加载驱动器状态
     async loadDriveState() {
+        const fs = require('fs');
+
         if (this.isLoadingState) {
             return;
         }
@@ -623,6 +629,7 @@ class NetworkDriveManager extends EventEmitter {
 
     // 按需挂载驱动器（如果不存在则尝试从配置重新挂载）
     async ensureDriveMounted(driveId) {
+        const {getGlobalDriveRegistry} = require('./DriveRegistry');
         // 检查驱动器是否已挂载
         if (this.mountedDrives.has(driveId)) {
             return true;

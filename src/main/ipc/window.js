@@ -205,7 +205,7 @@ function registerWindowIpcHandlers({ipcMain}) {
         return false;
     });
 
-    // 设置窗口位置（用于手动拖动）
+    // 设置窗口位置
     ipcMain.handle('window:setPosition', (event, x, y) => {
         const win = getMainWindow();
         if (win && !win.isMaximized()) {

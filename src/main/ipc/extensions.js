@@ -2,15 +2,13 @@
  * 扩展管理相关 IPC 处理器
  */
 
-const {dialog} = require('electron');
-const ExtensionInstaller = require('../services/extensions/ExtensionInstaller');
-
 let extensionInstaller = null;
 
 /**
  * 获取扩展安装器实例
  */
 function getExtensionInstaller() {
+    const ExtensionInstaller = require('../services/extensions/ExtensionInstaller');
     if (!extensionInstaller) {
         extensionInstaller = new ExtensionInstaller();
     }
@@ -30,6 +28,7 @@ function registerExtensionsIpcHandlers({ipcMain, mainWindow}) {
      * 选择扩展包文件
      */
     ipcMain.handle('extensions:selectPackage', async () => {
+        const {dialog} = require('electron');
         try {
             const result = await dialog.showOpenDialog(mainWindow, {
                 title: '选择扩展包',

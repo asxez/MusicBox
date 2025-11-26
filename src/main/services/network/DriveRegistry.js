@@ -1,8 +1,5 @@
 // 全局驱动器注册表
 
-const fs = require('fs');
-const path = require('path');
-
 class DriveRegistry {
     constructor() {
         this.registryFilePath = null;
@@ -11,6 +8,7 @@ class DriveRegistry {
     }
 
     initializeRegistryFile() {
+        const path = require('path');
         try {
             const {app} = require('electron');
             const userDataPath = app.getPath('userData');
@@ -54,6 +52,7 @@ class DriveRegistry {
     }
 
     async saveRegistry() {
+        const fs = require('fs');
         try {
             const registryData = {
                 version: '1.0',
@@ -72,6 +71,7 @@ class DriveRegistry {
     }
 
     async loadRegistry() {
+        const fs = require('fs');
         try {
             if (!fs.existsSync(this.registryFilePath)) {
                 return;
@@ -117,6 +117,7 @@ class DriveRegistry {
     }
 
     getStats() {
+        const fs = require('fs');
         return {
             totalDrives: this.driveConfigs.size,
             registryFilePath: this.registryFilePath,

@@ -4,8 +4,6 @@
  */
 
 const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
 
 class LibraryCacheManager {
     constructor(networkFileAdapter = null) {
@@ -31,8 +29,9 @@ class LibraryCacheManager {
     }
 
     initializeCacheFile() {
+        const {app} = require('electron');
+        const path = require('path');
         try {
-            const {app} = require('electron');
             const userDataPath = app.getPath('userData');
             this.cacheFilePath = path.join(userDataPath, this.cacheFileName);
         } catch (error) {
@@ -41,6 +40,7 @@ class LibraryCacheManager {
     }
 
     generateFileId(filePath, stats) {
+        const crypto = require('crypto');
         let timestamp = stats.mtime.getTime();
         if (this.isNetworkPath(filePath)) {
             timestamp = Math.floor(timestamp / 1000) * 1000;
@@ -267,6 +267,8 @@ class LibraryCacheManager {
 
     // 添加音乐文件到缓存
     addTrack(trackData, filePath, stats) {
+        const path = require('path');
+
         // 检查文件是否在忽略列表中
         if (this.isFileIgnored(filePath)) {
             return null;

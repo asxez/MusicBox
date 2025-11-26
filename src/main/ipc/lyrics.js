@@ -1,8 +1,6 @@
 // 歌词相关 IPC
 
 const fs = require('fs');
-const path = require('path');
-
 const {getMimeTypeFromExtension, extractEmbeddedLyrics} = require('../utils/metadata');
 
 /**
@@ -108,6 +106,7 @@ function registerLyricsIpcHandlers({ipcMain, networkFileAdapter}) {
     // 搜索本地歌词文件
     ipcMain.handle('lyrics:searchLocalFiles', async (event, lyricsDir, title, artist, album, extension = '.lrc') => {
         const {generateLyricsSearchPatterns, findBestLyricsMatch} = require('../utils/FileSearch');
+        const path = require('path');
         try {
             console.log(`🔍 搜索本地歌词文件: ${title} - ${artist} 在目录 ${lyricsDir} (格式: ${extension})`);
 
@@ -139,6 +138,7 @@ function registerLyricsIpcHandlers({ipcMain, networkFileAdapter}) {
 
     // 保存歌词到本地文件
     ipcMain.handle('lyrics:saveToLocal', async (event, lyricsDir, title, artist, album, content, format = 'lrc') => {
+        const path = require('path');
         try {
             console.log(`💾 保存歌词到本地: ${title} - ${artist} (格式: ${format})`);
 
