@@ -3,7 +3,7 @@
  * 提供主窗口和桌面歌词窗口的创建、管理功能
  */
 
-const {BrowserWindow, app} = require('electron');
+const {BrowserWindow} = require('electron');
 const path = require('path');
 const fs = require('fs');
 

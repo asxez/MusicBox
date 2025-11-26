@@ -3,7 +3,7 @@ process.argv.push('--expose-gc');
 
 const path = require('path');
 const fs = require('fs');
-const {app, BrowserWindow, ipcMain} = require('electron');
+const {app, BrowserWindow, ipcMain, Menu} = require('electron');
 
 // 加载硬件加速设置
 function loadHardwareAccelerationSettings() {
@@ -293,6 +293,7 @@ async function createWindow() {
 
 // app事件处理程序
 app.whenReady().then(async () => {
+    Menu.setApplicationMenu(null);
     if (typeof global.gc === 'function') {
         console.log('✅ 主进程: 垃圾回收功能在 app.ready 后可用');
     } else {

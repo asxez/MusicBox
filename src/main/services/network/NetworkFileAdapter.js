@@ -1,7 +1,5 @@
 // 网络文件系统适配器
 
-const path = require('path');
-
 class NetworkFileAdapter {
     constructor(networkDriveManager) {
         this.networkDriveManager = networkDriveManager;
@@ -123,6 +121,7 @@ class NetworkFileAdapter {
 
     // 获取文件的实际WebDAV路径
     getActualWebDAVPath(filePath) {
+        const path = require('path');
         const fileName = path.basename(filePath);
         const mapping = this.filePathMappings.get(fileName);
         if (mapping) {

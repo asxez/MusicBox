@@ -2,10 +2,6 @@
 
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
-const crypto = require('crypto');
-const {spawn} = require('child_process');
-const {app} = require('electron');
 
 const METADATA_HANDLERS = {
     '.mp3': 'nodeid3',
@@ -31,10 +27,13 @@ class MetadataHandler {
 
     // 获取可执行文件路径 - 适配开发和生产环境
     getExecutablePath() {
+        const os = require('os');
+        const {app} = require('electron');
+
         const executableName = os.platform() === 'win32' ? 'metadata_editor.exe' : 'metadata_editor';
 
         // 检查是否在打包环境中
-        if (app && app.isPackaged) {
+        if (app.isPackaged) {
             // 生产环境：尝试多个可能的路径
             const possiblePaths = [
                 // extraResources目录（推荐）
@@ -66,12 +65,14 @@ class MetadataHandler {
 
 
     async initialize() {
+        const {app} = require('electron');
+
         if (this.initialized) {
             return true;
         }
 
         console.log('🔧 初始化元数据处理器...');
-        console.log(`🔧 运行环境: ${app && app.isPackaged ? '生产环境' : '开发环境'}`);
+        console.log(`🔧 运行环境: ${app.isPackaged ? '生产环境' : '开发环境'}`);
         console.log(`🔧 可执行文件路径: ${this.executablePath}`);
 
         try {
@@ -86,7 +87,7 @@ class MetadataHandler {
                 console.log(`❌ 可执行文件不存在: ${this.executablePath}`);
 
                 // 在生产环境中，如果可执行文件不存在，这是一个严重问题
-                if (app && app.isPackaged) {
+                if (app.isPackaged) {
                     console.error('❌ 生产环境中缺少可执行文件，这可能导致功能不可用');
                     // 列出资源目录内容以便调试
                     try {
@@ -348,6 +349,9 @@ class MetadataHandler {
 
     // 创建临时封面文件
     async createTemporaryCoverFile(coverBuffer) {
+        const os = require('os');
+        const crypto = require('crypto');
+
         try {
             const tempDir = os.tmpdir();
             const fileName = `musicbox_cover_${crypto.randomBytes(8).toString('hex')}.jpg`;
@@ -362,6 +366,9 @@ class MetadataHandler {
 
     // 创建临时元数据文件
     async createTemporaryMetadataFile(metadataJson) {
+        const os = require('os');
+        const crypto = require('crypto');
+
         try {
             const tempDir = os.tmpdir();
             const fileName = `musicbox_metadata_${crypto.randomBytes(8).toString('hex')}.json`;
@@ -391,6 +398,7 @@ class MetadataHandler {
 
     // 执行命令行程序
     runCommand(command, args, options = {}) {
+        const {spawn} = require('child_process');
         return new Promise((resolve) => {
             const child = spawn(command, args, {
                 stdio: ['pipe', 'pipe', 'pipe'],

@@ -1,9 +1,6 @@
 // App 基础信息 IPC
 
-const {app, shell} = require('electron');
-const path = require('path');
-const fs = require('fs');
-const {getMainWindow} = require('../core/window');
+const {app} = require('electron');
 
 /**
  * 注册 App 相关的 IPC
@@ -40,6 +37,7 @@ function registerAppIpcHandlers({ipcMain}) {
     });
 
     ipcMain.handle('app:openUserDataFolder', async () => {
+        const {shell} = require('electron');
         try {
             const userDataPath = app.getPath('userData');
             await shell.openPath(userDataPath);
@@ -51,6 +49,7 @@ function registerAppIpcHandlers({ipcMain}) {
     });
 
     ipcMain.handle('app:openPath', async (event, path) => {
+        const {shell} = require('electron');
         try {
             await shell.openPath(path);
             return {success: true};
@@ -61,6 +60,7 @@ function registerAppIpcHandlers({ipcMain}) {
     });
 
     ipcMain.handle('app:getDefaultCoverCachePath', () => {
+        const path = require('path');
         try {
             const userDataPath = app.getPath('userData');
             const coverCachePath = path.join(userDataPath, 'CoverCache');
@@ -72,6 +72,7 @@ function registerAppIpcHandlers({ipcMain}) {
     });
 
     ipcMain.handle('app:ensureDirectoryExists', async (event, dirPath) => {
+        const fs = require('fs');
         try {
             if (!fs.existsSync(dirPath)) {
                 fs.mkdirSync(dirPath, {recursive: true});
@@ -85,6 +86,7 @@ function registerAppIpcHandlers({ipcMain}) {
     });
 
     ipcMain.handle('app:openDevTools', async () => {
+        const {getMainWindow} = require('../core/window');
         try {
             const win = getMainWindow();
             if (win && !win.isDestroyed()) {

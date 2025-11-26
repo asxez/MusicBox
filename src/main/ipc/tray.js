@@ -1,10 +1,5 @@
 // 系统托盘相关 IPC
 
-const {Tray, Menu, nativeImage, app} = require('electron');
-const path = require('path');
-const fs = require('fs');
-const {getMainWindow} = require('../core/window');
-
 let tray = null;
 let traySettings = {
     enabled: true,
@@ -69,6 +64,8 @@ function registerTrayIpcHandlers({ipcMain}) {
 
 // 创建系统托盘
 function createTray() {
+    const {Tray} = require('electron');
+
     if (tray) return;
 
     try {
@@ -103,6 +100,8 @@ function destroyTray() {
 
 // 更新托盘菜单
 function updateTrayMenu() {
+    const {Menu, app} = require('electron');
+
     if (!tray) return;
     const contextMenu = Menu.buildFromTemplate([
         {type: 'separator'},
@@ -125,6 +124,7 @@ function updateTrayMenu() {
 
 // 切换主窗口显示/隐藏
 function toggleMainWindow() {
+    const {getMainWindow} = require('../core/window');
     const win = getMainWindow();
     if (!win) return;
 
@@ -142,6 +142,7 @@ function toggleMainWindow() {
 
 // 显示主窗口
 function showMainWindow() {
+    const {getMainWindow} = require('../core/window');
     const win = getMainWindow();
     if (!win) return;
 
@@ -154,6 +155,7 @@ function showMainWindow() {
 
 // 隐藏主窗口到托盘
 function hideMainWindow() {
+    const {getMainWindow} = require('../core/window');
     const win = getMainWindow();
     if (win) {
         win.hide();
@@ -177,6 +179,7 @@ function setTraySettings(settings) {
 
 // 初始化设置文件路径
 function initSettingsPath() {
+    const path = require('path');
     if (!settingsFilePath) {
         try {
             const {app} = require('electron');
@@ -190,6 +193,7 @@ function initSettingsPath() {
 
 // 保存托盘设置到文件
 async function saveTraySettings() {
+    const fs = require('fs');
     try {
         initSettingsPath();
         await fs.promises.writeFile(settingsFilePath, JSON.stringify(traySettings, null, 2), 'utf8');
@@ -200,6 +204,7 @@ async function saveTraySettings() {
 
 // 从文件加载托盘设置
 async function loadTraySettings() {
+    const fs = require('fs');
     try {
         initSettingsPath();
         if (fs.existsSync(settingsFilePath)) {
@@ -214,6 +219,10 @@ async function loadTraySettings() {
 
 // 创建托盘图标
 function createTrayIcon() {
+    const {nativeImage} = require('electron');
+    const path = require('path');
+    const fs = require('fs');
+
     try {
         const {app} = require('electron');
         const appPath = app.getAppPath();

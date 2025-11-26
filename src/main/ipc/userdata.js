@@ -1,8 +1,5 @@
 // 用户数据相关 IPC
 
-const fs = require('fs');
-const path = require('path');
-
 /**
  * 注册用户数据 IPC
  * @param {object} deps
@@ -13,12 +10,15 @@ function registerUserDataIpcHandlers({ipcMain, app}) {
     if (!ipcMain) throw new Error('registerUserDataIpcHandlers: 缺少 ipcMain');
     if (!app) throw new Error('registerUserDataIpcHandlers: 缺少 app');
 
+    const path = require('path');
+
     const userDataPath = app.getPath('userData');
     const moodFilePath = path.join(userDataPath, 'mood-history.json');
     const diaryFilePath = path.join(userDataPath, 'diary-history.json');
 
     // 读取心情历史
     ipcMain.handle('userdata:getMoodHistory', async () => {
+        const fs = require('fs');
         try {
             if (fs.existsSync(moodFilePath)) {
                 const data = fs.readFileSync(moodFilePath, 'utf8');
@@ -33,6 +33,7 @@ function registerUserDataIpcHandlers({ipcMain, app}) {
 
     // 保存心情记录
     ipcMain.handle('userdata:saveMood', async (event, moodData) => {
+        const fs = require('fs');
         try {
             let history = [];
             if (fs.existsSync(moodFilePath)) {
@@ -60,6 +61,7 @@ function registerUserDataIpcHandlers({ipcMain, app}) {
 
     // 读取日记历史
     ipcMain.handle('userdata:getDiaryHistory', async () => {
+        const fs = require('fs');
         try {
             if (fs.existsSync(diaryFilePath)) {
                 const data = fs.readFileSync(diaryFilePath, 'utf8');
@@ -74,6 +76,7 @@ function registerUserDataIpcHandlers({ipcMain, app}) {
 
     // 保存日记记录
     ipcMain.handle('userdata:saveDiary', async (event, diaryData) => {
+        const fs = require('fs');
         try {
             let history = [];
             if (fs.existsSync(diaryFilePath)) {
@@ -96,6 +99,7 @@ function registerUserDataIpcHandlers({ipcMain, app}) {
 
     // 删除心情记录
     ipcMain.handle('userdata:deleteMood', async (event, timestamp) => {
+        const fs = require('fs');
         try {
             if (!fs.existsSync(moodFilePath)) {
                 return {success: false, error: '文件不存在'};
@@ -115,6 +119,7 @@ function registerUserDataIpcHandlers({ipcMain, app}) {
 
     // 删除日记记录
     ipcMain.handle('userdata:deleteDiary', async (event, timestamp) => {
+        const fs = require('fs');
         try {
             if (!fs.existsSync(diaryFilePath)) {
                 return {success: false, error: '文件不存在'};

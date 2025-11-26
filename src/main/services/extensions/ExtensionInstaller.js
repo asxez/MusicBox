@@ -4,7 +4,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const AdmZip = require('adm-zip');
 const {app} = require('electron');
 
 /**
@@ -48,6 +47,7 @@ class ExtensionInstaller {
      * @returns {Promise<Object>} 安装的扩展信息
      */
     async installFromZip(zipFilePath) {
+        const AdmZip = require('adm-zip');
         console.log('📦 ExtensionInstaller: 开始安装扩展', zipFilePath);
 
         try {

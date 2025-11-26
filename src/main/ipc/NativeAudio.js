@@ -1,9 +1,5 @@
 // 原生音频引擎
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-
 let nativeAudioEngine = null;
 let eventPollInterval = null;
 let getMainWindowFn = null;
@@ -53,6 +49,10 @@ function registerNativeAudioIpcHandlers({ipcMain, nativeAudioModule, getMainWind
 
     // 加载音轨
     ipcMain.handle('native-audio:load-track', async (event, filePath) => {
+        const fs = require('fs');
+        const path = require('path');
+        const os = require('os');
+
         try {
             if (!nativeAudioEngine) {
                 return {success: false, error: '引擎未初始化'};
@@ -563,6 +563,8 @@ function registerNativeAudioIpcHandlers({ipcMain, nativeAudioModule, getMainWind
  * 清理临时文件
  */
 function cleanupTempFile() {
+    const fs = require('fs');
+
     if (currentTempFilePath) {
         try {
             if (fs.existsSync(currentTempFilePath)) {

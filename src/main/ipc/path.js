@@ -1,5 +1,3 @@
-const path = require('path');
-const {PATH_ALLOWED} = require('../utils/AllowedFunc');
 
 /**
  * 注册文件系统相关的 IPC
@@ -8,6 +6,9 @@ const {PATH_ALLOWED} = require('../utils/AllowedFunc');
  */
 function registerPathIpcHandlers({ipcMain}) {
     ipcMain.handle('path:call', (event, {prop, args}) => {
+        const path = require('path');
+        const {PATH_ALLOWED} = require('../utils/AllowedFunc');
+
         if (PATH_ALLOWED.indexOf(prop) === -1) {
             throw new Error('not allowed');
         }

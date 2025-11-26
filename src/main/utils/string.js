@@ -3,15 +3,15 @@
  * 提供字符串编码修复、相似度计算、文本处理等功能
  */
 
-const iconv = require('iconv-lite');
-const chardet = require('chardet');
-
 /**
  * 修复字符串编码问题
  * @param {string} str - 需要修复的字符串
  * @returns {string} 修复后的字符串
  */
 function fixStringEncoding(str) {
+    const iconv = require('iconv-lite');
+    const chardet = require('chardet');
+
     if (!str || typeof str !== 'string') {
         return str;
     }
@@ -25,8 +25,7 @@ function fixStringEncoding(str) {
             const detectedEncoding = chardet.detect(buffer) || 'utf8';
 
             if (detectedEncoding.toLowerCase() !== 'utf8' && detectedEncoding.toLowerCase() !== 'utf-8') {
-                const fixedStr = iconv.decode(buffer, detectedEncoding);
-                return fixedStr;
+                return iconv.decode(buffer, detectedEncoding);
             }
         }
         return str;

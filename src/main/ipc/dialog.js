@@ -1,7 +1,6 @@
 // 对话框相关 IPC
 
 const {dialog} = require('electron');
-const {getMainWindow} = require('../core/window');
 
 /**
  * 注册对话框相关的 IPC
@@ -13,6 +12,7 @@ function registerDialogIpcHandlers({ipcMain}) {
 
     // 通用目录选择对话框（返回字符串路径，用于音乐目录扫描等）
     ipcMain.handle('dialog:openDirectory', async () => {
+        const {getMainWindow} = require('../core/window');
         const win = getMainWindow();
         const result = await dialog.showOpenDialog(win, {
             properties: ['openDirectory'],
@@ -26,6 +26,7 @@ function registerDialogIpcHandlers({ipcMain}) {
 
     // 设置页面专用的目录选择对话框（返回完整对象格式）
     ipcMain.handle('dialog:selectFolder', async () => {
+        const {getMainWindow} = require('../core/window');
         const win = getMainWindow();
         const result = await dialog.showOpenDialog(win, {
             properties: ['openDirectory'],
@@ -40,6 +41,7 @@ function registerDialogIpcHandlers({ipcMain}) {
 
     // 选择多个音乐文件
     ipcMain.handle('dialog:openFiles', async () => {
+        const {getMainWindow} = require('../core/window');
         const win = getMainWindow();
         const result = await dialog.showOpenDialog(win, {
             properties: ['openFile', 'multiSelections'],
@@ -60,12 +62,14 @@ function registerDialogIpcHandlers({ipcMain}) {
 
     // 通用文件选择对话框
     ipcMain.handle('dialog:showOpenDialog', async (event, options) => {
+        const {getMainWindow} = require('../core/window');
         const win = getMainWindow();
         return await dialog.showOpenDialog(win, options);
     });
 
     // 图片文件选择对话框（用于歌单封面）
     ipcMain.handle('dialog:openImageFile', async () => {
+        const {getMainWindow} = require('../core/window');
         const win = getMainWindow();
         const result = await dialog.showOpenDialog(win, {
             properties: ['openFile'],
@@ -87,6 +91,7 @@ function registerDialogIpcHandlers({ipcMain}) {
 
     // 通用文件打开对话框（用于导入文件）
     ipcMain.handle('dialog:openFile', async (event, options) => {
+        const {getMainWindow} = require('../core/window');
         const win = getMainWindow();
         const result = await dialog.showOpenDialog(win, options);
         return {
@@ -98,6 +103,7 @@ function registerDialogIpcHandlers({ipcMain}) {
 
     // 通用文件保存对话框（用于导出文件）
     ipcMain.handle('dialog:saveFile', async (event, options) => {
+        const {getMainWindow} = require('../core/window');
         const win = getMainWindow();
         const result = await dialog.showSaveDialog(win, options);
         return {

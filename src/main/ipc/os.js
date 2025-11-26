@@ -1,6 +1,3 @@
-const os = require('os');
-const {OS_ALLOWED} = require('../utils/AllowedFunc');
-
 
 /**
  * 注册操作系统相关的 IPC
@@ -9,6 +6,9 @@ const {OS_ALLOWED} = require('../utils/AllowedFunc');
  */
 function registerOsIpcHandlers({ipcMain}) {
     ipcMain.handle('os:call', (event, {prop, args}) => {
+        const os = require('os');
+        const {OS_ALLOWED} = require('../utils/AllowedFunc');
+
         if (OS_ALLOWED.indexOf(prop) === -1) {
             throw new Error('not allowed');
         }

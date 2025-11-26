@@ -4,7 +4,6 @@
  */
 
 const path = require('path');
-const mm = require('music-metadata');
 
 /**
  * 判断是否为歌词标签
@@ -295,6 +294,8 @@ function getMimeTypeFromExtension(filePath) {
  */
 async function parseMetadata(filePath, networkFileAdapter = null, options = {}) {
     const {fixStringEncoding} = require('./string');
+    const mm = require('music-metadata');
+
     const {skipCover = false, skipLyrics = false} = options;
     try {
         let metadata;

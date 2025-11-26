@@ -4,15 +4,6 @@
  */
 
 const path = require('path');
-const {
-    cleanFileName,
-    cleanCoverFileName,
-    generateTextVariants,
-    generateCoverTextVariants,
-    calculateStringSimilarity,
-    calculateWordMatch,
-    parseFileNamePattern
-} = require('./string');
 
 /**
  * 生成歌词文件搜索模式
@@ -22,7 +13,8 @@ const {
  * @param {string} extension 格式
  * @returns {string[]} 搜索模式数组
  */
-function generateLyricsSearchPatterns(title, artist, album, extension='.frc') {
+function generateLyricsSearchPatterns(title, artist, album, extension = '.frc') {
+    const {cleanFileName, generateTextVariants} = require('./string');
     const patterns = [];
 
     // 清理文件名中的特殊字符
@@ -77,6 +69,8 @@ function generateLyricsSearchPatterns(title, artist, album, extension='.frc') {
  * @returns {string|null} 最佳匹配的文件名，如果没有找到则返回null
  */
 function findBestLyricsMatch(files, patterns) {
+    const {calculateStringSimilarity, calculateWordMatch, parseFileNamePattern} = require('./string');
+
     const matches = [];
     console.log(`🔍 开始匹配 ${files.length} 个文件与 ${patterns.length} 个模式`);
 
@@ -176,6 +170,7 @@ function findBestLyricsMatch(files, patterns) {
  * @returns {string[]} 搜索模式数组
  */
 function generateCoverSearchPatterns(title, artist, album) {
+    const {cleanCoverFileName, generateCoverTextVariants} = require('./string');
     const patterns = [];
 
     // 使用与渲染器进程一致的封面文件名清理逻辑
@@ -251,6 +246,8 @@ function findBestCoverMatch(imageFiles, searchPatterns) {
  * @returns {number} 匹配分数
  */
 function calculateCoverMatchScore(fileName, pattern, patternIndex) {
+    const {calculateStringSimilarity} = require('./string');
+
     if (!fileName || !pattern) return 0;
 
     if (fileName === pattern) {

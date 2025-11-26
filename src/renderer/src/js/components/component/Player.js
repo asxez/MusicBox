@@ -500,7 +500,6 @@ class Player extends Component {
                 error: error
             }
         }
-
     }
 
     async toggleMiniMode() {
