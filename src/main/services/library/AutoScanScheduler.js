@@ -20,7 +20,6 @@ class AutoScanScheduler {
     initialize(scanHandler, settingsLoader) {
         this.scanHandler = scanHandler;
         this.settingsLoader = settingsLoader;
-        console.log('✅ AutoScanScheduler: 调度器已初始化');
     }
 
     /**

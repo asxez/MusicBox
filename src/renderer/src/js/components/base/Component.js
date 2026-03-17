@@ -16,6 +16,9 @@ class Component extends EventEmitter {
         }
     }
 
+    show() {}
+    hide() {}
+
     // 添加事件监听器
     addEventListenerManaged(element, event, handler, options) {
         element.addEventListener(event, handler, options);
