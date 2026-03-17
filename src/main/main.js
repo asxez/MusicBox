@@ -276,7 +276,6 @@ async function initializeAutoScanScheduler() {
         };
 
         autoScanScheduler.initialize(scanHandler, settingsLoader);
-        console.log('✅ AutoScanScheduler: 初始化成功');
         return true;
     } catch (error) {
         console.error('❌ 自动扫描调度器初始化失败:', error);
@@ -371,7 +370,7 @@ registerAudioIpcHandlers({
 const {registerNativeAudioIpcHandlers} = require('./ipc/NativeAudio');
 const nativeModulePath = path.join(__dirname, 'NativeAudio.node');
 if (fs.existsSync(nativeModulePath)) {
-    nativeAudioModule = require(nativeModulePath);
+    const nativeAudioModule = require(nativeModulePath);
     registerNativeAudioIpcHandlers({
         ipcMain,
         nativeAudioModule,
