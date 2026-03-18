@@ -11,10 +11,11 @@ class ContextMenu extends Component {
         this.isVisible = false;
         this.currentTrack = null;
         this.currentIndex = -1;
-        this.listenersSetup = false; // 事件监听器是否已设置
+        this.selectedTracks = null;
+        this.listenersSetup = false;
     }
 
-    show(x, y, track, index) {
+    show(x, y, track, index, selectedTracks = null) {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupEventListeners();
@@ -23,7 +24,20 @@ class ContextMenu extends Component {
 
         this.currentTrack = track;
         this.currentIndex = index;
+        this.selectedTracks = selectedTracks;
         this.isVisible = true;
+
+        // 多选模式：隐藏单曲操作，显示批量删除
+        const isMulti = selectedTracks && selectedTracks.size > 1;
+        this.playItem.style.display = isMulti ? 'none' : '';
+        this.addToPlaylistItem.style.display = isMulti ? 'none' : '';
+        this.addToCustomPlaylistItem.style.display = isMulti ? 'none' : '';
+        this.editInfoItem.style.display = isMulti ? 'none' : '';
+        this.deleteItem.style.display = isMulti ? 'none' : '';
+        this.batchDeleteItem.style.display = isMulti ? '' : 'none';
+        if (isMulti) {
+            this.batchDeleteLabel.textContent = `批量删除 (${selectedTracks.size} 首)`;
+        }
 
         // 菜单位置
         this.menu.style.left = `${x}px`;
@@ -48,6 +62,7 @@ class ContextMenu extends Component {
         this.menu.style.display = 'none';
         this.currentTrack = null;
         this.currentIndex = -1;
+        this.selectedTracks = null;
     }
 
     destroy() {
@@ -62,6 +77,8 @@ class ContextMenu extends Component {
         this.addToCustomPlaylistItem = this.element.querySelector('#context-add-to-custom-playlist');
         this.editInfoItem = this.element.querySelector('#context-edit-info');
         this.deleteItem = this.element.querySelector('#context-delete');
+        this.batchDeleteItem = this.element.querySelector('#context-batch-delete');
+        this.batchDeleteLabel = this.element.querySelector('#context-batch-delete-label');
     }
 
     setupEventListeners() {
@@ -87,6 +104,11 @@ class ContextMenu extends Component {
 
         this.addEventListenerManaged(this.deleteItem, 'click', () => {
             this.emit('delete', {track: this.currentTrack, index: this.currentIndex});
+            this.hide();
+        });
+
+        this.addEventListenerManaged(this.batchDeleteItem, 'click', () => {
+            this.emit('batchDelete', {selectedTracks: this.selectedTracks, track: this.currentTrack, index: this.currentIndex});
             this.hide();
         });
 

@@ -258,8 +258,8 @@ class MusicBoxApp extends EventEmitter {
             await this.handleTrackPlayed(track, index);
         });
 
-        this.components.trackList.on('trackRightClick', (track, index, x, y) => {
-            this.components.contextMenu.show(x, y, track, index);
+        this.components.trackList.on('trackRightClick', (track, index, x, y, selectedTracks) => {
+            this.components.contextMenu.show(x, y, track, index, selectedTracks);
         });
 
         // Player events
@@ -307,6 +307,10 @@ class MusicBoxApp extends EventEmitter {
 
         this.components.contextMenu.on('delete', async ({track, index}) => {
             await this.handleDeleteTrack(track, index);
+        });
+
+        this.components.contextMenu.on('batchDelete', async ({selectedTracks, track, index}) => {
+            await this.handleBatchDelete(selectedTracks, track, index);
         });
 
         this.components.contextMenu.on('editInfo', async ({track, index}) => {
@@ -1911,6 +1915,58 @@ class MusicBoxApp extends EventEmitter {
             this.components.playlist.addTrack(track);
             this.showInfo(`已添加 "${track.title}" 到播放列表`);
         }
+    }
+
+    async handleBatchDelete(selectedTracks, track, index) {
+        if (!selectedTracks || selectedTracks.size === 0) {
+            await this.handleDeleteTrack(track, index);
+            return;
+        }
+
+        // 歌单页：委托给 PlaylistDetailPage 处理
+        if (this.currentView === 'playlist-detail' && this.components.playlistDetailPage) {
+            await this.components.playlistDetailPage.removeSelectedTracks();
+            return;
+        }
+
+        // 我的音乐页：从音乐库批量删除
+        const count = selectedTracks.size;
+        const confirmed = await this.confirm({
+            title: '批量删除',
+            message: `确定要从音乐库中删除选中的 ${count} 首歌曲吗？\n\n此操作不会删除本地文件。`,
+            type: 'danger',
+            confirmText: '删除'
+        });
+
+        if (!confirmed) return;
+
+        const indices = Array.from(selectedTracks).sort((a, b) => b - a);
+        let successCount = 0;
+
+        for (const i of indices) {
+            const t = this.filteredLibrary[i];
+            if (!t) continue;
+            try {
+                const result = await window.electronAPI.library.removeTrack(t.fileId);
+                if (result.success) {
+                    successCount++;
+                    const libIdx = this.library.findIndex(x => x.fileId === t.fileId);
+                    if (libIdx !== -1) this.library.splice(libIdx, 1);
+                    const filtIdx = this.filteredLibrary.findIndex(x => x.fileId === t.fileId);
+                    if (filtIdx !== -1) this.filteredLibrary.splice(filtIdx, 1);
+                }
+            } catch (e) {
+                console.error('❌ 批量删除失败:', t.title, e);
+            }
+        }
+
+        // 清除选中状态
+        this.components.trackList.selectedTracks.clear();
+        this.components.trackList.lastSelectedIndex = -1;
+
+        this.updateTrackList('track-deleted');
+        api.emit('libraryUpdated');
+        this.showInfo(`已从音乐库删除 ${successCount} 首歌曲`);
     }
 
     // 处理编辑歌曲信息
