@@ -16,6 +16,7 @@ class PlaylistDetailPage extends Component {
         this.tracks = [];
         this.selectedTracks = new Set();
         this.isMultiSelectMode = false;
+        this.lastSelectedIndex = -1;
 
         // 获取封面显示设置
         this.showCovers = this.getShowCoversSettings();
@@ -499,6 +500,14 @@ class PlaylistDetailPage extends Component {
             // 右键菜单
             item.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
+                // 右键点击的条目若不在选中集合中，则先选中它
+                if (!this.selectedTracks.has(index)) {
+                    this.selectedTracks.clear();
+                    this.selectedTracks.add(index);
+                    this.lastSelectedIndex = index;
+                    this.updateMultiSelectMode();
+                    this.updateTrackSelectionUI();
+                }
                 this.showTrackContextMenu(e.clientX, e.clientY, track, index);
             });
 
@@ -655,23 +664,17 @@ class PlaylistDetailPage extends Component {
         } else {
             this.selectedTracks.add(index);
         }
-
+        this.lastSelectedIndex = index;
         this.updateMultiSelectMode();
         this.updateTrackSelectionUI();
     }
 
     selectTrackRange(endIndex) {
-        const selectedIndices = Array.from(this.selectedTracks);
-        if (selectedIndices.length === 0) {
-            this.selectedTracks.add(endIndex);
-        } else {
-            const startIndex = Math.max(...selectedIndices);
-            const minIndex = Math.min(startIndex, endIndex);
-            const maxIndex = Math.max(startIndex, endIndex);
-
-            for (let i = minIndex; i <= maxIndex; i++) {
-                this.selectedTracks.add(i);
-            }
+        const startIndex = this.lastSelectedIndex >= 0 ? this.lastSelectedIndex : endIndex;
+        const min = Math.min(startIndex, endIndex);
+        const max = Math.max(startIndex, endIndex);
+        for (let i = min; i <= max; i++) {
+            this.selectedTracks.add(i);
         }
         this.updateMultiSelectMode();
         this.updateTrackSelectionUI();
@@ -688,6 +691,7 @@ class PlaylistDetailPage extends Component {
 
     clearSelection() {
         this.selectedTracks.clear();
+        this.lastSelectedIndex = -1;
         this.updateMultiSelectMode();
         this.updateTrackSelectionUI();
     }
@@ -715,8 +719,9 @@ class PlaylistDetailPage extends Component {
     }
 
     updateTrackSelectionUI() {
-        const trackItems = this.container.querySelectorAll('.playlist-track-item');
-        trackItems.forEach((item, index) => {
+        const trackItems = this.container.querySelectorAll('.track-row');
+        trackItems.forEach((item) => {
+            const index = parseInt(item.dataset.trackIndex);
             if (this.selectedTracks.has(index)) {
                 item.classList.add('selected');
             } else {
@@ -1121,7 +1126,7 @@ class PlaylistDetailPage extends Component {
 
     showTrackContextMenu(x, y, track, index) {
         const contextMenu = app.components.contextMenu;
-        contextMenu.show(x, y, track, index);
+        contextMenu.show(x, y, track, index, this.selectedTracks);
     }
 
     // 扫描文件夹中的音频文件

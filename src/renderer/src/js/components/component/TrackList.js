@@ -14,6 +14,7 @@ class TrackList extends Component {
         super(container);
         this.tracks = [];
         this.selectedTracks = new Set();
+        this.lastSelectedIndex = -1;
         this.showCovers = this.getShowCoversSettings();
         this.loadingCovers = new Set();
         this.lastTracksHash = null;
@@ -117,6 +118,8 @@ class TrackList extends Component {
         const newTracksHash = this.generateTracksHash(tracks);
         this.tracks = tracks;
         this.lastTracksHash = newTracksHash;
+        this.selectedTracks.clear();
+        this.lastSelectedIndex = -1;
         this.loadingCovers.clear();
         this.render();
     }
@@ -185,6 +188,8 @@ class TrackList extends Component {
         item.addEventListener('click', (e) => {
             if (e.ctrlKey || e.metaKey) {
                 this.toggleTrackSelection(index);
+            } else if (e.shiftKey && this.selectedTracks.size > 0) {
+                this.selectTrackRange(index);
             } else {
                 this.selectTrack(index);
             }
@@ -192,7 +197,11 @@ class TrackList extends Component {
 
         item.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-            this.emit('trackRightClick', track, index, e.clientX, e.clientY);
+            // 右键点击的条目若不在选中集合中，则先选中它
+            if (!this.selectedTracks.has(index)) {
+                this.selectTrack(index);
+            }
+            this.emit('trackRightClick', track, index, e.clientX, e.clientY, this.selectedTracks);
         });
 
         return item;
@@ -316,6 +325,7 @@ class TrackList extends Component {
     selectTrack(index) {
         this.selectedTracks.clear();
         this.selectedTracks.add(index);
+        this.lastSelectedIndex = index;
         this.updateSelection();
     }
 
@@ -324,6 +334,17 @@ class TrackList extends Component {
             this.selectedTracks.delete(index);
         } else {
             this.selectedTracks.add(index);
+        }
+        this.lastSelectedIndex = index;
+        this.updateSelection();
+    }
+
+    selectTrackRange(endIndex) {
+        const startIndex = this.lastSelectedIndex >= 0 ? this.lastSelectedIndex : endIndex;
+        const min = Math.min(startIndex, endIndex);
+        const max = Math.max(startIndex, endIndex);
+        for (let i = min; i <= max; i++) {
+            this.selectedTracks.add(i);
         }
         this.updateSelection();
     }

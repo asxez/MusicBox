@@ -3702,6 +3702,7 @@ a {
       cursor: pointer;
       transition: all var(--transition-fast);
       position: relative;
+      user-select: none;
 
       &:last-child {
         border-bottom: none;
@@ -3726,6 +3727,11 @@ a {
       &.selected {
         background: rgba(var(--color-primary-rgb), 0.1);
         border-color: var(--color-primary);
+        box-shadow: inset 3px 0 0 var(--color-primary);
+
+        .track-name, .album-name, .duration-text {
+          color: var(--color-primary);
+        }
       }
 
       &.playing {
@@ -5436,6 +5442,7 @@ a {
   transition: all var(--transition-fast);
   cursor: pointer;
   align-items: center;
+  user-select: none;
 
   // 带封面的布局
   &.with-cover {
@@ -5449,6 +5456,11 @@ a {
   &.selected {
     background: var(--color-primary-bg);
     color: var(--color-primary);
+    box-shadow: inset 3px 0 0 var(--color-primary);
+
+    .track-title, .track-artist, .track-album, .track-duration, .track-number {
+      color: var(--color-primary);
+    }
   }
 
   &.playing {
