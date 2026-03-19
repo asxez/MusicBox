@@ -66,11 +66,13 @@ function registerCoversIpcHandlers({ipcMain}) {
         try {
             // console.log(`🔍 检查本地封面缓存: ${title} - ${artist} 在目录 ${coverDir} (isAlbum=${!!isAlbum})`);
 
-            if (!fs.existsSync(coverDir)) {
+            try {
+                await fs.promises.access(coverDir);
+            } catch {
                 return {success: false, error: '封面缓存目录不存在'};
             }
 
-            const files = fs.readdirSync(coverDir);
+            const files = await fs.promises.readdir(coverDir);
             const imageFiles = files.filter(file => {
                 const ext = path.extname(file).toLowerCase();
                 return ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext);
@@ -134,17 +136,14 @@ function registerCoversIpcHandlers({ipcMain}) {
             console.log(`💾 保存封面文件: ${fileName} 到目录 ${coverDir} (数据类型: ${dataType})`);
 
             // 确保封面缓存目录存在
-            if (!fs.existsSync(coverDir)) {
-                fs.mkdirSync(coverDir, {recursive: true});
-                console.log(`📁 创建封面缓存目录: ${coverDir}`);
-            }
+            await fs.promises.mkdir(coverDir, {recursive: true});
 
             const fullPath = path.join(coverDir, fileName);
 
             // 根据数据类型处理图片数据
             if (dataType === 'arrayBuffer') {
                 const buffer = Buffer.from(imageData);
-                fs.writeFileSync(fullPath, buffer);
+                await fs.promises.writeFile(fullPath, buffer);
                 console.log(`✅ 封面文件保存成功 (arrayBuffer): ${fileName}`);
                 return {success: true, filePath: fullPath, fileName};
             } else if (dataType === 'string' || typeof imageData === 'string') {
@@ -158,12 +157,12 @@ function registerCoversIpcHandlers({ipcMain}) {
                     }
                 } else {
                     const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
-                    fs.writeFileSync(fullPath, base64Data, 'base64');
+                    await fs.promises.writeFile(fullPath, base64Data, 'base64');
                     console.log(`✅ 封面文件保存成功 (base64): ${fileName}`);
                     return {success: true, filePath: fullPath, fileName};
                 }
             } else if (imageData instanceof Buffer) {
-                fs.writeFileSync(fullPath, imageData);
+                await fs.promises.writeFile(fullPath, imageData);
                 console.log(`✅ 封面文件保存成功 (buffer): ${fileName}`);
                 return {success: true, filePath: fullPath, fileName};
             } else {

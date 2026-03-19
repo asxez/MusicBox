@@ -15,7 +15,7 @@
     "install:rs": "cd native && npm install",
     "build:rs": "cd native && npm run build",
     "dev": "npm run build:renderer && npm run build:rs && npm run dev:main",
-    "dev:main": "electron src/main/main.js --expose-gc",
+    "dev:main": "chcp 65001 && electron src/main/main.js --expose-gc",
     "dev:renderer": "cd src/renderer && npm run dev",
     "build": "npm run build:python && npm run build:renderer && npm run build:rs && npm run build:main",
     "build:main": "electron-builder",

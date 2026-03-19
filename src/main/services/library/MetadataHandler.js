@@ -77,12 +77,19 @@ class MetadataHandler {
 
         try {
             // 首先检查是否存在打包后的可执行文件
-            if (fs.existsSync(this.executablePath)) {
-                console.log(`✅ 找到打包后的可执行文件: ${this.executablePath}`);
+            let execStats;
+            try {
+                execStats = await fs.promises.stat(this.executablePath);
+            } catch {
+                execStats = null;
+            }
 
-                // 检查文件权限和大小
-                const stats = fs.statSync(this.executablePath);
-                console.log(`📊 可执行文件信息: 大小=${(stats.size / 1024 / 1024).toFixed(2)}MB`);
+            if (execStats) {
+                console.log(`✅ 找到打包后的可执行文件: ${this.executablePath}`);
+                console.log(`📊 可执行文件信息: 大小=${(execStats.size / 1024 / 1024).toFixed(2)}MB`);
+                this.useExecutable = true;
+                this.initialized = true;
+                return true;
             } else {
                 console.log(`❌ 可执行文件不存在: ${this.executablePath}`);
 
@@ -93,7 +100,7 @@ class MetadataHandler {
                     try {
                         const resourcesPath = process.resourcesPath;
                         console.log(`📁 资源目录: ${resourcesPath}`);
-                        const resourceFiles = fs.readdirSync(resourcesPath);
+                        const resourceFiles = await fs.promises.readdir(resourcesPath);
                         console.log(`📁 资源目录内容: ${resourceFiles.join(', ')}`);
                     } catch (error) {
                         console.error('❌ 无法读取资源目录:', error.message);
@@ -109,7 +116,9 @@ class MetadataHandler {
                 return false;
             }
 
-            if (!fs.existsSync(this.scriptPath)) {
+            try {
+                await fs.promises.access(this.scriptPath);
+            } catch {
                 console.error('❌ Python元数据编辑脚本不存在:', this.scriptPath);
                 this.initialized = true;
                 return false;
@@ -386,10 +395,9 @@ class MetadataHandler {
         for (const filePath of filePaths) {
             if (filePath && typeof filePath === 'string') {
                 try {
-                    if (fs.existsSync(filePath)) {
-                        await fs.promises.unlink(filePath);
-                    }
+                    await fs.promises.unlink(filePath);
                 } catch (error) {
+                    if (error.code === 'ENOENT') continue;
                     console.warn(`⚠️ 清理临时文件失败 ${filePath}: ${error.message}`);
                 }
             }
@@ -399,6 +407,7 @@ class MetadataHandler {
     // 执行命令行程序
     runCommand(command, args, options = {}) {
         const {spawn} = require('child_process');
+        const timeout = options.timeout || 30000;
         return new Promise((resolve) => {
             const child = spawn(command, args, {
                 stdio: ['pipe', 'pipe', 'pipe'],
@@ -407,6 +416,20 @@ class MetadataHandler {
 
             let stdout = '';
             let stderr = '';
+            let settled = false;
+
+            const timer = setTimeout(() => {
+                if (!settled) {
+                    settled = true;
+                    child.kill();
+                    resolve({
+                        success: false,
+                        error: `命令超时 (${timeout}ms)`,
+                        stdout: stdout.trim(),
+                        stderr: '进程超时被终止'
+                    });
+                }
+            }, timeout);
 
             child.stdout.on('data', (data) => {
                 stdout += data.toString();
@@ -417,21 +440,29 @@ class MetadataHandler {
             });
 
             child.on('close', (code) => {
-                resolve({
-                    success: code === 0,
-                    code,
-                    stdout: stdout.trim(),
-                    stderr: stderr.trim()
-                });
+                if (!settled) {
+                    settled = true;
+                    clearTimeout(timer);
+                    resolve({
+                        success: code === 0,
+                        code,
+                        stdout: stdout.trim(),
+                        stderr: stderr.trim()
+                    });
+                }
             });
 
             child.on('error', (error) => {
-                resolve({
-                    success: false,
-                    error: error.message,
-                    stdout: '',
-                    stderr: error.message
-                });
+                if (!settled) {
+                    settled = true;
+                    clearTimeout(timer);
+                    resolve({
+                        success: false,
+                        error: error.message,
+                        stdout: '',
+                        stderr: error.message
+                    });
+                }
             });
         });
     }

@@ -4,6 +4,8 @@
  */
 
 const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 
 class LibraryCacheManager {
     constructor(networkFileAdapter = null) {
@@ -30,7 +32,6 @@ class LibraryCacheManager {
 
     initializeCacheFile() {
         const {app} = require('electron');
-        const path = require('path');
         try {
             const userDataPath = app.getPath('userData');
             this.cacheFilePath = path.join(userDataPath, this.cacheFileName);
@@ -40,7 +41,6 @@ class LibraryCacheManager {
     }
 
     generateFileId(filePath, stats) {
-        const crypto = require('crypto');
         let timestamp = stats.mtime.getTime();
         if (this.isNetworkPath(filePath)) {
             timestamp = Math.floor(timestamp / 1000) * 1000;
@@ -58,11 +58,13 @@ class LibraryCacheManager {
     // 加载缓存数据
     async loadCache() {
         try {
-            if (!fs.existsSync(this.cacheFilePath)) {
+            try {
+                await fs.promises.access(this.cacheFilePath);
+            } catch {
                 return this.cache;
             }
 
-            const cacheData = fs.readFileSync(this.cacheFilePath, 'utf8');
+            const cacheData = await fs.promises.readFile(this.cacheFilePath, 'utf8');
             const parsedCache = JSON.parse(cacheData);
 
             // 验证和修复缓存数据结构
@@ -144,7 +146,7 @@ class LibraryCacheManager {
             this.cache.statistics.totalSize = this.cache.tracks.reduce((sum, track) => sum + (track.fileSize || 0), 0);
 
             const cacheData = JSON.stringify(this.cache, null, 2);
-            fs.writeFileSync(this.cacheFilePath, cacheData, 'utf8');
+            await fs.promises.writeFile(this.cacheFilePath, cacheData, 'utf8');
 
             return true;
         } catch (error) {
@@ -171,11 +173,16 @@ class LibraryCacheManager {
     // 验证本地文件
     async validateLocalTrack(track) {
         try {
-            if (!fs.existsSync(track.filePath)) {
-                return {valid: false, reason: 'file_not_found'};
+            let stats;
+            try {
+                stats = await fs.promises.stat(track.filePath);
+            } catch (e) {
+                if (e.code === 'ENOENT') {
+                    return {valid: false, reason: 'file_not_found'};
+                }
+                throw e;
             }
 
-            const stats = fs.statSync(track.filePath);
             const currentId = this.generateFileId(track.filePath, stats);
 
             if (currentId !== track.fileId) {
@@ -267,7 +274,6 @@ class LibraryCacheManager {
 
     // 添加音乐文件到缓存
     addTrack(trackData, filePath, stats) {
-        const path = require('path');
 
         // 检查文件是否在忽略列表中
         if (this.isFileIgnored(filePath)) {
@@ -586,7 +592,7 @@ class LibraryCacheManager {
     // 生成歌单唯一ID
     generatePlaylistId() {
         const timestamp = Date.now().toString(36);
-        const random = Math.random().toString(36).substr(2, 5);
+        const random = Math.random().toString(36).substring(2, 7);
         return `playlist_${timestamp}_${random}`;
     }
 
@@ -753,9 +759,10 @@ class LibraryCacheManager {
             playlist.trackIds = [];
         }
 
+        const trackMap = new Map(this.cache.tracks.map(t => [t.fileId, t]));
         const tracks = [];
         for (const trackId of playlist.trackIds) {
-            const track = this.cache.tracks.find(t => t.fileId === trackId);
+            const track = trackMap.get(trackId);
             if (track) {
                 tracks.push(track);
             } else {

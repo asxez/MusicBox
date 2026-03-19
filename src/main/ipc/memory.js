@@ -61,10 +61,11 @@ function registerMemoryIpcHandlers({ipcMain}) {
             const beforeStats = getMemoryStats();
             console.log('📊 主进程: 清理前内存状态:', beforeStats);
 
-            performGarbageCollection();
+            const result = performGarbageCollection();
 
             const afterStats = getMemoryStats();
             console.log('📊 主进程: 清理后内存状态:', afterStats);
+            return { ...result, before: beforeStats, after: afterStats };
         } catch (error) {
             console.error('❌ 主进程: 内存清理过程中发生错误:', error);
             return { success: false, error: error.message };

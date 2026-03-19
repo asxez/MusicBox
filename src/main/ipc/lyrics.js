@@ -18,7 +18,7 @@ function registerLyricsIpcHandlers({ipcMain, networkFileAdapter}) {
         const iconv = require('iconv-lite');
         try {
             console.log(`📖 读取本地歌词文件: ${filePath}`);
-            const buffer = fs.readFileSync(filePath);
+            const buffer = await fs.promises.readFile(filePath);
             const detectedEncoding = chardet.detect(buffer) || 'utf8';
             console.log(`🔍 检测到文件编码: ${detectedEncoding}`);
             const utf8Content = iconv.decode(buffer, detectedEncoding);
@@ -40,9 +40,13 @@ function registerLyricsIpcHandlers({ipcMain, networkFileAdapter}) {
             }
 
             // 检查文件是否存在（网络路径放行）
-            if ((!networkFileAdapter || !networkFileAdapter.isNetworkPath(filePath)) && !fs.existsSync(filePath)) {
-                console.error(`❌ 内嵌歌词获取失败: 文件不存在 - ${filePath}`);
-                return {success: false, error: '指定的音频文件不存在'};
+            if (!networkFileAdapter || !networkFileAdapter.isNetworkPath(filePath)) {
+                try {
+                    await fs.promises.access(filePath);
+                } catch {
+                    console.error(`❌ 内嵌歌词获取失败: 文件不存在 - ${filePath}`);
+                    return {success: false, error: '指定的音频文件不存在'};
+                }
             }
 
             console.log(`🎵 获取内嵌歌词: ${filePath}`);
@@ -110,11 +114,13 @@ function registerLyricsIpcHandlers({ipcMain, networkFileAdapter}) {
         try {
             console.log(`🔍 搜索本地歌词文件: ${title} - ${artist} 在目录 ${lyricsDir} (格式: ${extension})`);
 
-            if (!fs.existsSync(lyricsDir)) {
+            try {
+                await fs.promises.access(lyricsDir);
+            } catch {
                 return {success: false, error: '歌词目录不存在'};
             }
 
-            const files = fs.readdirSync(lyricsDir);
+            const files = await fs.promises.readdir(lyricsDir);
             const lyricsFiles = files.filter(file => path.extname(file).toLowerCase() === extension.toLowerCase());
             console.log(`📁 找到 ${lyricsFiles.length} 个${extension}歌词文件`);
 
@@ -147,10 +153,7 @@ function registerLyricsIpcHandlers({ipcMain, networkFileAdapter}) {
             }
 
             // 确保歌词目录存在
-            if (!fs.existsSync(lyricsDir)) {
-                fs.mkdirSync(lyricsDir, {recursive: true});
-                console.log(`📁 创建歌词目录: ${lyricsDir}`);
-            }
+            await fs.promises.mkdir(lyricsDir, {recursive: true});
 
             // 生成文件名：优先使用 "艺术家 - 歌曲名" 格式
             let fileName;
@@ -165,7 +168,7 @@ function registerLyricsIpcHandlers({ipcMain, networkFileAdapter}) {
             const filePath = path.join(lyricsDir, fileName);
 
             // 写入文件
-            fs.writeFileSync(filePath, content, 'utf-8');
+            await fs.promises.writeFile(filePath, content, 'utf-8');
             return {
                 success: true,
                 filePath: filePath,

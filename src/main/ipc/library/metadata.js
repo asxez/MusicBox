@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const {BrowserWindow} = require('electron');
 
 /**
  * 注册音乐库元数据相关的 IPC
@@ -58,8 +59,7 @@ function registerLibraryMetadataIpcHandlers(
 
     // 更新歌曲元数据
     ipcMain.handle('library:updateTrackMetadata', async (event, updatedData) => {
-        const {BrowserWindow} = require('electron');
-        const DEBUG_METADATA_UPDATE = true;
+        const DEBUG_METADATA_UPDATE = false;
         try {
             console.log(`📝 更新音频文件元数据: ${updatedData.filePath}`);
             if (DEBUG_METADATA_UPDATE) {
@@ -76,9 +76,13 @@ function registerLibraryMetadataIpcHandlers(
                 if (!networkFileExists) throw new Error('网络文件不存在');
                 console.log(`✅ 网络文件存在性验证通过: ${filePath}`);
             } else {
-                if (!fs.existsSync(filePath)) throw new Error('文件不存在');
                 try {
-                    fs.accessSync(filePath, fs.constants.W_OK);
+                    await fs.promises.access(filePath);
+                } catch {
+                    throw new Error('文件不存在');
+                }
+                try {
+                    await fs.promises.access(filePath, fs.constants.W_OK);
                     console.log(`✅ 文件写入权限验证通过: ${filePath}`);
                 } catch (permissionError) {
                     throw new Error(`文件没有写入权限: ${permissionError.message}`);
@@ -93,7 +97,7 @@ function registerLibraryMetadataIpcHandlers(
                 originalStats = await networkFileAdapter.stat(filePath);
                 console.log(`📊 网络文件修改时间: ${originalStats.mtime}`);
             } else {
-                originalStats = fs.statSync(filePath);
+                originalStats = await fs.promises.stat(filePath);
                 console.log(`📊 原始文件修改时间: ${originalStats.mtime}`);
             }
 
@@ -125,11 +129,6 @@ function registerLibraryMetadataIpcHandlers(
             }
 
             console.log(`✅ 元数据更新成功 (使用方法: ${result.method})`);
-
-            if (!isNetworkFile) {
-                await new Promise((resolve) => setTimeout(resolve, 100));
-            }
-
             console.log(`🔄 重新读取文件以验证元数据更新...`);
             const updatedMetadata = await parseMetadata(filePath);
 
@@ -174,7 +173,7 @@ function registerLibraryMetadataIpcHandlers(
                     updatedStats = {mtime: new Date(), size: originalStats.size};
                 }
             } else {
-                updatedStats = fs.statSync(filePath);
+                updatedStats = await fs.promises.stat(filePath);
                 console.log(`📊 更新后文件修改时间: ${updatedStats.mtime}`);
             }
 
@@ -275,7 +274,7 @@ async function updateNetworkFileMetadata(filePath, metadata, metadataHandler, ne
 
         console.log(`⬇️ 下载网络文件到临时位置...`);
         const networkBuffer = await networkFileAdapter.readFile(filePath);
-        fs.writeFileSync(tempFilePath, networkBuffer);
+        await fs.promises.writeFile(tempFilePath, networkBuffer);
         console.log(`✅ 文件下载完成，大小: ${networkBuffer.length} 字节`);
 
         console.log(`📝 在临时文件上更新元数据...`);
@@ -284,7 +283,7 @@ async function updateNetworkFileMetadata(filePath, metadata, metadataHandler, ne
         console.log(`✅ 临时文件元数据更新成功 (使用方法: ${result.method})`);
 
         console.log(`📖 读取修改后的临时文件...`);
-        const modifiedBuffer = fs.readFileSync(tempFilePath);
+        const modifiedBuffer = await fs.promises.readFile(tempFilePath);
         console.log(`✅ 修改后文件大小: ${modifiedBuffer.length} 字节`);
 
         console.log(`⬆️ 将修改后的文件写回网络位置...`);
@@ -297,12 +296,12 @@ async function updateNetworkFileMetadata(filePath, metadata, metadataHandler, ne
         throw error;
     } finally {
         try {
-            if (fs.existsSync(tempFilePath)) {
-                fs.unlinkSync(tempFilePath);
-                console.log(`🧹 临时文件已清理: ${tempFilePath}`);
-            }
+            await fs.promises.unlink(tempFilePath);
+            console.log(`🧹 临时文件已清理: ${tempFilePath}`);
         } catch (cleanupError) {
-            console.warn(`⚠️ 清理临时文件失败: ${cleanupError.message}`);
+            if (cleanupError.code !== 'ENOENT') {
+                console.warn(`⚠️ 清理临时文件失败: ${cleanupError.message}`);
+            }
         }
     }
 }

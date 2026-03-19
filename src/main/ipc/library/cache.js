@@ -23,30 +23,24 @@ function registerLibraryCacheIpcHandlers(
     if (!initializeCacheManager) throw new Error('registerLibraryCacheIpcHandlers: 缺少 initializeCacheManager');
     if (!audioEngineState) throw new Error('registerLibraryCacheIpcHandlers: 缺少 audioEngineState');
 
+    async function ensureCacheManager() {
+        if (!getLibraryCacheManager()) {
+            await initializeCacheManager();
+        }
+        return getLibraryCacheManager();
+    }
+
     // 加载缓存歌曲
     ipcMain.handle('library:loadCachedTracks', async () => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const cachedTracks = libraryCacheManager.getAllTracks();
 
             // 将缓存的音乐文件加载到内存状态
             audioEngineState.scannedTracks = cachedTracks;
 
-            // 清理返回给渲染进程的tracks中的cover对象
-            const cleanedTracks = cachedTracks.map(track => {
-                const cleanedTrack = {...track};
-                if (cleanedTrack.cover && typeof cleanedTrack.cover === 'object') {
-                    console.log(`🔍 清理缓存track.cover对象 - ${track.title}`);
-                    cleanedTrack.cover = null;
-                }
-                return cleanedTrack;
-            });
-
-            console.log(`✅ 从缓存加载 ${cleanedTracks.length} 个音乐文件，已清理cover对象`);
-            return cleanedTracks;
+            console.log(`✅ 从缓存加载 ${cachedTracks.length} 个音乐文件`);
+            return cachedTracks;
         } catch (error) {
             console.error('❌ 加载缓存音乐库失败:', error);
             return [];
@@ -64,21 +58,15 @@ function registerLibraryCacheIpcHandlers(
                 console.log(`⚠️ 缓存验证前，NetworkDriveManager未初始化`);
             }
 
-            if (!getLibraryCacheManager()) {
-                console.log('🔧 缓存管理器未初始化，开始初始化...');
-                await initializeCacheManager();
-                const networkDriveManagerAfter = getNetworkDriveManager ? getNetworkDriveManager() : null;
-                if (networkDriveManagerAfter) {
-                    const mountedDrives = Array.from(networkDriveManagerAfter.mountedDrives.keys());
-                    console.log(`🔍 缓存管理器初始化后，已挂载的驱动器: [${mountedDrives.join(', ')}]`);
-                }
+            const libraryCacheManager = await ensureCacheManager();
+            if (networkDriveManager) {
+                const mountedDrives = Array.from(networkDriveManager.mountedDrives.keys());
+                console.log(`🔍 缓存管理器初始化后，已挂载的驱动器: [${mountedDrives.join(', ')}]`);
             }
 
-            const libraryCacheManager = getLibraryCacheManager();
             console.log('🔍 开始验证音乐库缓存...');
 
             const validation = await libraryCacheManager.validateCachedTracks((progress) => {
-                // 发送验证进度到渲染进程
                 event.sender.send('library:cacheValidationProgress', progress);
             });
 
@@ -110,10 +98,7 @@ function registerLibraryCacheIpcHandlers(
     // 获取缓存统计
     ipcMain.handle('library:getCacheStatistics', async () => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             return libraryCacheManager.getCacheStatistics();
         } catch (error) {
             console.error('❌ 获取缓存统计失败:', error);
@@ -124,13 +109,9 @@ function registerLibraryCacheIpcHandlers(
     // 清空缓存
     ipcMain.handle('library:clearCache', async () => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const success = await libraryCacheManager.clearCache();
             if (success) {
-                // 清空内存中的音乐库
                 audioEngineState.scannedTracks = [];
                 console.log('✅ 音乐库缓存已清空');
             }
@@ -144,14 +125,10 @@ function registerLibraryCacheIpcHandlers(
     // 从音乐库删除歌曲
     ipcMain.handle('library:removeTrack', async (event, trackFileId) => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const track = libraryCacheManager.removeTrack(trackFileId);
             await libraryCacheManager.saveCache();
 
-            // 更新内存中的音乐库
             audioEngineState.scannedTracks = libraryCacheManager.getAllTracks();
 
             console.log(`🗑️ 从音乐库删除歌曲成功: ${track.title}`);
@@ -165,23 +142,10 @@ function registerLibraryCacheIpcHandlers(
     // 获取指定网络磁盘的歌曲
     ipcMain.handle('library:getTracksByDrive', async (event, driveId) => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const tracks = libraryCacheManager.getTracksByDrive(driveId);
-
-            // 清理返回的 tracks 中的 cover 对象
-            const cleanedTracks = tracks.map(track => {
-                const cleanedTrack = {...track};
-                if (cleanedTrack.cover && typeof cleanedTrack.cover === 'object') {
-                    cleanedTrack.cover = null;
-                }
-                return cleanedTrack;
-            });
-
-            console.log(`📀 获取网络磁盘 ${driveId} 的歌曲: ${cleanedTracks.length} 首`);
-            return cleanedTracks;
+            console.log(`📀 获取网络磁盘 ${driveId} 的歌曲: ${tracks.length} 首`);
+            return tracks;
         } catch (error) {
             console.error('❌ 获取网络磁盘歌曲失败:', error);
             return [];
@@ -191,14 +155,10 @@ function registerLibraryCacheIpcHandlers(
     // 移除指定网络磁盘的所有歌曲
     ipcMain.handle('library:removeTracksByDrive', async (event, driveId) => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const removedCount = libraryCacheManager.removeTracksByDrive(driveId);
             await libraryCacheManager.saveCache();
 
-            // 更新内存中的音乐库
             audioEngineState.scannedTracks = libraryCacheManager.getAllTracks();
 
             console.log(`🗑️ 从网络磁盘 ${driveId} 删除了 ${removedCount} 首歌曲`);
@@ -212,10 +172,7 @@ function registerLibraryCacheIpcHandlers(
     // 清空忽略列表
     ipcMain.handle('library:clearIgnoreList', async () => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             libraryCacheManager.clearIgnoreList();
             await libraryCacheManager.saveCache();
 

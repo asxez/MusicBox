@@ -74,10 +74,7 @@ function registerAppIpcHandlers({ipcMain}) {
     ipcMain.handle('app:ensureDirectoryExists', async (event, dirPath) => {
         const fs = require('fs');
         try {
-            if (!fs.existsSync(dirPath)) {
-                fs.mkdirSync(dirPath, {recursive: true});
-                console.log(`✅ 创建目录: ${dirPath}`);
-            }
+            await fs.promises.mkdir(dirPath, {recursive: true});
             return {success: true, path: dirPath};
         } catch (error) {
             console.error('❌ 创建目录失败:', error);

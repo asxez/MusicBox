@@ -40,10 +40,10 @@ function registerLibraryQueryIpcHandlers({ipcMain, audioEngineState}) {
 
             const searchTerm = query.trim().toLowerCase();
             const results = audioEngineState.scannedTracks.filter(track => {
-                return track.title.toLowerCase().includes(searchTerm) ||
-                    track.artist.toLowerCase().includes(searchTerm) ||
-                    track.album.toLowerCase().includes(searchTerm) ||
-                    track.fileName.toLowerCase().includes(searchTerm);
+                return (track.title || '').toLowerCase().includes(searchTerm) ||
+                    (track.artist || '').toLowerCase().includes(searchTerm) ||
+                    (track.album || '').toLowerCase().includes(searchTerm) ||
+                    (track.fileName || '').toLowerCase().includes(searchTerm);
             });
 
             console.log(`✅ 搜索完成，找到 ${results.length} 个结果`);

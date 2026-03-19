@@ -12,13 +12,17 @@ function registerLibraryPlaylistIpcHandlers({ipcMain, getLibraryCacheManager, in
     if (!getLibraryCacheManager) throw new Error('registerLibraryPlaylistIpcHandlers: 缺少 getLibraryCacheManager');
     if (!initializeCacheManager) throw new Error('registerLibraryPlaylistIpcHandlers: 缺少 initializeCacheManager');
 
+    async function ensureCacheManager() {
+        if (!getLibraryCacheManager()) {
+            await initializeCacheManager();
+        }
+        return getLibraryCacheManager();
+    }
+
     // 创建新歌单
     ipcMain.handle('library:createPlaylist', async (event, name, description = '') => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const playlist = libraryCacheManager.createPlaylist(name, description);
             await libraryCacheManager.saveCache();
             console.log(`✅ 创建歌单成功: ${playlist.name}`);
@@ -32,10 +36,7 @@ function registerLibraryPlaylistIpcHandlers({ipcMain, getLibraryCacheManager, in
     // 获取所有歌单
     ipcMain.handle('library:getPlaylists', async () => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const playlists = libraryCacheManager.getAllPlaylists();
             console.log(`📋 获取歌单列表: ${playlists.length} 个歌单`);
             return playlists;
@@ -48,10 +49,7 @@ function registerLibraryPlaylistIpcHandlers({ipcMain, getLibraryCacheManager, in
     // 获取歌单详情（包含歌曲）
     ipcMain.handle('library:getPlaylistDetail', async (event, playlistId) => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const playlist = libraryCacheManager.getPlaylistById(playlistId);
             if (!playlist) {
                 return {success: false, error: '歌单不存在'};
@@ -68,10 +66,7 @@ function registerLibraryPlaylistIpcHandlers({ipcMain, getLibraryCacheManager, in
     // 删除歌单
     ipcMain.handle('library:deletePlaylist', async (event, playlistId) => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const playlist = libraryCacheManager.getPlaylistById(playlistId);
             if (!playlist) {
                 return {success: false, error: '歌单不存在'};
@@ -90,10 +85,7 @@ function registerLibraryPlaylistIpcHandlers({ipcMain, getLibraryCacheManager, in
     // 重命名歌单
     ipcMain.handle('library:renamePlaylist', async (event, playlistId, newName) => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const playlist = libraryCacheManager.renamePlaylist(playlistId, newName);
             await libraryCacheManager.saveCache();
             console.log(`✏️ 重命名歌单成功: ${playlist.name}`);
@@ -107,10 +99,7 @@ function registerLibraryPlaylistIpcHandlers({ipcMain, getLibraryCacheManager, in
     // 添加歌曲到歌单
     ipcMain.handle('library:addToPlaylist', async (event, playlistId, trackFileIds) => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const trackIds = Array.isArray(trackFileIds) ? trackFileIds : [trackFileIds];
             const results = [];
             for (const trackId of trackIds) {
@@ -135,10 +124,7 @@ function registerLibraryPlaylistIpcHandlers({ipcMain, getLibraryCacheManager, in
     // 更新歌单封面
     ipcMain.handle('library:updatePlaylistCover', async (event, playlistId, imagePath) => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const success = libraryCacheManager.updatePlaylistCover(playlistId, imagePath);
             if (success) {
                 await libraryCacheManager.saveCache();
@@ -156,10 +142,7 @@ function registerLibraryPlaylistIpcHandlers({ipcMain, getLibraryCacheManager, in
     // 获取歌单封面
     ipcMain.handle('library:getPlaylistCover', async (event, playlistId) => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const coverPath = libraryCacheManager.getPlaylistCover(playlistId);
             return {success: true, coverPath};
         } catch (error) {
@@ -171,10 +154,7 @@ function registerLibraryPlaylistIpcHandlers({ipcMain, getLibraryCacheManager, in
     // 移除歌单封面
     ipcMain.handle('library:removePlaylistCover', async (event, playlistId) => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const success = libraryCacheManager.removePlaylistCover(playlistId);
             if (success) {
                 await libraryCacheManager.saveCache();
@@ -192,10 +172,7 @@ function registerLibraryPlaylistIpcHandlers({ipcMain, getLibraryCacheManager, in
     // 从歌单移除歌曲
     ipcMain.handle('library:removeFromPlaylist', async (event, playlistId, trackFileIds) => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const trackIds = Array.isArray(trackFileIds) ? trackFileIds : [trackFileIds];
             const results = [];
             for (const trackId of trackIds) {
@@ -220,10 +197,7 @@ function registerLibraryPlaylistIpcHandlers({ipcMain, getLibraryCacheManager, in
     // 清理歌单中的无效歌曲引用
     ipcMain.handle('library:cleanupPlaylists', async () => {
         try {
-            if (!getLibraryCacheManager()) {
-                await initializeCacheManager();
-            }
-            const libraryCacheManager = getLibraryCacheManager();
+            const libraryCacheManager = await ensureCacheManager();
             const cleanedCount = libraryCacheManager.cleanupPlaylistTracks();
             if (cleanedCount > 0) {
                 await libraryCacheManager.saveCache();
