@@ -262,7 +262,7 @@ async function initializeAutoScanScheduler() {
                 if (tracksToCache.length > 0) {
                     libraryCacheManager.addTracks(tracksToCache);
                     libraryCacheManager.addScannedDirectory(directoryPath);
-                    await libraryCacheManager.saveCache();
+                    libraryCacheManager.saveCacheThrottled();
                 }
 
                 // 更新audioEngineState并通知渲染进程
@@ -497,7 +497,7 @@ app.on('window-all-closed', () => {
     }
 });
 
-const {cleanupTempFile} = require('./ipc/NativeAudio');
+const {cleanupTempFile, stopEventPolling} = require('./ipc/NativeAudio');
 const {isDangerousPath} = require("./utils/pathSecurity");
 app.on('before-quit', () => {
     if (networkDriveManager) {
@@ -506,5 +506,6 @@ app.on('before-quit', () => {
     if (autoScanScheduler) {
         autoScanScheduler.stop();
     }
+    stopEventPolling();
     cleanupTempFile();
 });

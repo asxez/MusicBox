@@ -404,8 +404,7 @@ function registerLibraryScanIpcHandlers(
             libraryCacheManager.addTracks(tracksToCache);
             libraryCacheManager.addScannedDirectory(directoryPath);
             const scanDuration = Date.now() - scanStartTime;
-            libraryCacheManager.cache.statistics.lastScanTime = scanStartTime;
-            libraryCacheManager.cache.statistics.scanDuration = scanDuration;
+            libraryCacheManager.updateScanStatistics(scanStartTime, scanDuration);
             await libraryCacheManager.saveCache();
         }
 
@@ -516,8 +515,7 @@ function registerLibraryScanIpcHandlers(
             libraryCacheManager.addTracks(tracksToCache);
             libraryCacheManager.addScannedDirectory(networkPath);
             const scanDuration = Date.now() - scanStartTime;
-            libraryCacheManager.cache.statistics.lastScanTime = scanStartTime;
-            libraryCacheManager.cache.statistics.scanDuration = scanDuration;
+            libraryCacheManager.updateScanStatistics(scanStartTime, scanDuration);
             await libraryCacheManager.saveCache();
         }
 
