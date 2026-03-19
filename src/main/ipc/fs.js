@@ -1,6 +1,7 @@
 // 文件系统相关 IPC
 
 const fs = require('fs');
+const {isDangerousPath} = require('../utils/pathSecurity');
 
 /**
  * 注册文件系统相关的 IPC
@@ -16,6 +17,13 @@ function registerFsIpcHandlers({ipcMain}) {
 
         if (FS_ALLOWED.indexOf(prop) === -1) {
             throw new Error('not allowed');
+        }
+
+        // 路径安全检查（args[0] 通常是文件路径）
+        if (args && args[0] && typeof args[0] === 'string') {
+            if (isDangerousPath(args[0])) {
+                throw new Error(`🔒 拒绝访问危险路径: ${args[0]}`);
+            }
         }
 
         console.log('🔧 fs:call 调用:', prop, args);
@@ -67,6 +75,9 @@ function registerFsIpcHandlers({ipcMain}) {
 
     // 读取文件内容
     ipcMain.handle('fs:readFile', async (event, filePath, encoding = null) => {
+        if (isDangerousPath(filePath)) {
+            throw new Error(`🔒 拒绝访问危险路径: ${filePath}`);
+        }
         try {
             if (encoding) {
                 const content = await fs.promises.readFile(filePath, encoding);
@@ -85,6 +96,9 @@ function registerFsIpcHandlers({ipcMain}) {
 
     // 写入文件内容
     ipcMain.handle('fs:writeFile', async (event, filePath, data, encoding = 'utf8') => {
+        if (isDangerousPath(filePath)) {
+            throw new Error(`🔒 拒绝访问危险路径: ${filePath}`);
+        }
         try {
             await fs.promises.writeFile(filePath, data, encoding);
             console.log(`💾 写入文件成功: ${filePath}`);

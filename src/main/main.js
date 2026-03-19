@@ -293,6 +293,166 @@ async function createWindow() {
     return mainWindow;
 }
 
+// 注册所有 IPC 处理程序（必须在 app.whenReady 内、依赖初始化完成后调用）
+function registerAllIpcHandlers() {
+    // 注册音频IPC
+    registerAudioIpcHandlers({
+        ipcMain,
+        audioEngineState,
+        parseMetadata: (filePath) => parseMetadataWrapper(filePath)
+    });
+
+    // 注册原生音频引擎IPC
+    const {registerNativeAudioIpcHandlers} = require('./ipc/NativeAudio');
+    const nativeModulePath = path.join(__dirname, 'NativeAudio.node');
+    if (fs.existsSync(nativeModulePath)) {
+        const nativeAudioModule = require(nativeModulePath);
+        registerNativeAudioIpcHandlers({
+            ipcMain,
+            nativeAudioModule,
+            getMainWindow: () => mainWindow,
+            getNetworkFileAdapter: () => networkFileAdapter
+        });
+        console.log('✅ Native音频模块加载成功');
+    } else {
+        console.log('ℹ️ Native音频模块不存在，将使用WebAudio引擎');
+    }
+
+    // 注册对话框IPC
+    registerDialogIpcHandlers({ipcMain});
+
+    // 注册窗口控制IPC
+    registerWindowIpcHandlers({ipcMain});
+
+    // 注册系统IPC
+    registerFsIpcHandlers({ipcMain});
+    registerOsIpcHandlers({ipcMain});
+    registerPathIpcHandlers({ipcMain});
+
+    // 注册封面IPC
+    registerCoversIpcHandlers({ipcMain});
+
+    // 注册歌词IPC
+    registerLyricsIpcHandlers({ipcMain, networkFileAdapter});
+
+    // 注册网络磁盘IPC
+    registerNetworkDriveIpcHandlers({
+        ipcMain,
+        getNetworkDriveManager: () => networkDriveManager,
+        initializeNetworkDriveManager,
+        getNetworkFileAdapter: () => networkFileAdapter,
+    });
+
+    // 注册桌面歌词IPC
+    registerDesktopLyricsIpcHandlers({ipcMain});
+
+    // 注册App IPC
+    registerAppIpcHandlers({ipcMain});
+
+    // 注册全局快捷键IPC
+    registerGlobalShortcutsIpcHandlers({ipcMain});
+
+    // 注册音乐库歌单管理IPC
+    registerLibraryPlaylistIpcHandlers({
+        ipcMain,
+        getLibraryCacheManager: () => libraryCacheManager,
+        initializeCacheManager,
+    });
+
+    // 注册音乐库缓存管理IPC
+    registerLibraryCacheIpcHandlers({
+        ipcMain,
+        getLibraryCacheManager: () => libraryCacheManager,
+        initializeCacheManager,
+        audioEngineState,
+        getNetworkDriveManager: () => networkDriveManager,
+    });
+
+    // 注册音乐库查询IPC
+    registerLibraryQueryIpcHandlers({ipcMain, audioEngineState});
+
+    // 注册音乐库元数据IPC
+    registerLibraryMetadataIpcHandlers({
+        ipcMain,
+        parseMetadata: (filePath) => parseMetadataWrapper(filePath),
+        metadataHandler,
+        getNetworkFileAdapter: () => networkFileAdapter,
+        getLibraryCacheManager: () => libraryCacheManager,
+        audioEngineState,
+    });
+
+    // 注册音乐库扫描IPC
+    registerLibraryScanIpcHandlers({
+        ipcMain,
+        getMainWindow: () => mainWindow,
+        getLibraryCacheManager: () => libraryCacheManager,
+        initializeCacheManager,
+        getNetworkDriveManager: () => networkDriveManager,
+        getNetworkFileAdapter: () => networkFileAdapter,
+        parseMetadata: (filePath) => parseMetadataWrapper(filePath),
+        audioEngineState,
+    });
+
+    // 注册 Settings IPC
+    registerSettingsIpcHandlers({ipcMain, app});
+
+    // 注册用户数据IPC
+    registerUserDataIpcHandlers({ipcMain, app});
+
+    // 注册硬件加速IPC
+    registerHardwareAccelerationIpcHandlers({ipcMain});
+
+    // 注册系统托盘IPC
+    registerTrayIpcHandlers({ipcMain});
+
+    // 加载托盘设置
+    const {loadTraySettings} = require('./ipc/tray');
+    loadTraySettings();
+
+    // 注册内存管理IPC
+    const {registerMemoryIpcHandlers} = require('./ipc/memory');
+    registerMemoryIpcHandlers({ipcMain});
+
+    // 注册HTTP服务器IPC
+    registerHttpServerIpcHandlers({ipcMain});
+
+    // 注册扩展管理IPC
+    registerExtensionsIpcHandlers({ipcMain, getMainWindow: () => mainWindow});
+
+    // 注册安全/集成 IPC
+    registerSecurityIntegration({isDev});
+
+    // 文件读取IPC处理程序
+    ipcMain.handle('file:readAudio', async (event, filePath) => {
+        try {
+            console.log(`📖 读取音频文件: ${filePath}`);
+
+            // 检查是否为网络路径
+            if (networkFileAdapter && networkFileAdapter.isNetworkPath(filePath)) {
+                console.log(`🌐 读取网络音频文件: ${filePath}`);
+                const buffer = await networkFileAdapter.readFile(filePath);
+                return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+            } else {
+                // 路径安全检查
+                if (isDangerousPath(filePath)) {
+                    throw new Error(`🔒 拒绝访问危险路径: ${filePath}`);
+                }
+
+                // 本地文件读取
+                const buffer = await fs.promises.readFile(filePath);
+                return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+            }
+        } catch (error) {
+            console.error('❌ 读取音频文件失败:', error);
+            throw error;
+        }
+    });
+
+    ipcMain.handle('window-close', () => {
+        if (mainWindow) mainWindow.close();
+    });
+}
+
 // app事件处理程序
 app.whenReady().then(async () => {
     Menu.setApplicationMenu(null);
@@ -314,6 +474,9 @@ app.whenReady().then(async () => {
     await initializeNetworkDriveManager();
     await initializeCacheManager();
     await metadataHandler.initialize();
+
+    // 所有依赖初始化完成后再注册 IPC，确保 networkFileAdapter 等已就绪
+    registerAllIpcHandlers();
 
     await createWindow();
 
@@ -340,6 +503,7 @@ app.on('window-all-closed', () => {
 });
 
 const {cleanupTempFile} = require('./ipc/NativeAudio');
+const {isDangerousPath} = require("./utils/pathSecurity");
 app.on('before-quit', () => {
     if (networkDriveManager) {
         networkDriveManager.cleanup();
@@ -348,158 +512,4 @@ app.on('before-quit', () => {
         autoScanScheduler.stop();
     }
     cleanupTempFile();
-});
-
-// 注册音频IPC
-registerAudioIpcHandlers({
-    ipcMain,
-    audioEngineState,
-    parseMetadata: (filePath) => parseMetadataWrapper(filePath)
-});
-
-// 注册原生音频引擎IPC
-const {registerNativeAudioIpcHandlers} = require('./ipc/NativeAudio');
-const nativeModulePath = path.join(__dirname, 'NativeAudio.node');
-if (fs.existsSync(nativeModulePath)) {
-    const nativeAudioModule = require(nativeModulePath);
-    registerNativeAudioIpcHandlers({
-        ipcMain,
-        nativeAudioModule,
-        getMainWindow: () => mainWindow,
-        getNetworkFileAdapter: () => networkFileAdapter
-    });
-    console.log('✅ Native音频模块加载成功');
-} else {
-    console.log('ℹ️ Native音频模块不存在，将使用WebAudio引擎');
-}
-
-// 注册对话框IPC
-registerDialogIpcHandlers({ipcMain});
-
-// 注册窗口控制IPC
-registerWindowIpcHandlers({ipcMain});
-
-// 注册系统IPC
-registerFsIpcHandlers({ipcMain});
-registerOsIpcHandlers({ipcMain});
-registerPathIpcHandlers({ipcMain});
-
-// 注册封面IPC
-registerCoversIpcHandlers({ipcMain});
-
-// 注册歌词IPC
-registerLyricsIpcHandlers({ipcMain, networkFileAdapter});
-
-// 注册网络磁盘IPC
-registerNetworkDriveIpcHandlers({
-    ipcMain,
-    getNetworkDriveManager: () => networkDriveManager,
-    initializeNetworkDriveManager,
-    getNetworkFileAdapter: () => networkFileAdapter,
-});
-
-// 注册桌面歌词IPC
-registerDesktopLyricsIpcHandlers({ipcMain});
-
-// 注册App IPC
-registerAppIpcHandlers({ipcMain});
-
-// 注册全局快捷键IPC
-registerGlobalShortcutsIpcHandlers({ipcMain});
-
-// 注册音乐库歌单管理IPC
-registerLibraryPlaylistIpcHandlers({
-    ipcMain,
-    getLibraryCacheManager: () => libraryCacheManager,
-    initializeCacheManager,
-});
-
-// 注册音乐库缓存管理IPC
-registerLibraryCacheIpcHandlers({
-    ipcMain,
-    getLibraryCacheManager: () => libraryCacheManager,
-    initializeCacheManager,
-    audioEngineState,
-    getNetworkDriveManager: () => networkDriveManager,
-});
-
-// 注册音乐库查询IPC
-registerLibraryQueryIpcHandlers({ipcMain, audioEngineState});
-
-// 注册音乐库元数据IPC
-registerLibraryMetadataIpcHandlers(
-    {
-        ipcMain,
-        parseMetadata: (filePath) => parseMetadataWrapper(filePath),
-        metadataHandler,
-        getNetworkFileAdapter: () => networkFileAdapter,
-        getLibraryCacheManager: () => libraryCacheManager,
-        audioEngineState,
-    }
-)
-
-// 注册音乐库扫描IPC
-registerLibraryScanIpcHandlers({
-    ipcMain,
-    getMainWindow: () => mainWindow,
-    getLibraryCacheManager: () => libraryCacheManager,
-    initializeCacheManager,
-    getNetworkDriveManager: () => networkDriveManager,
-    getNetworkFileAdapter: () => networkFileAdapter,
-    parseMetadata: (filePath) => parseMetadataWrapper(filePath),
-    audioEngineState,
-});
-
-// 注册 Settings IPC
-registerSettingsIpcHandlers({ipcMain, app});
-
-// 注册用户数据IPC
-registerUserDataIpcHandlers({ipcMain, app});
-
-// 注册硬件加速IPC
-registerHardwareAccelerationIpcHandlers({ipcMain});
-
-// 注册系统托盘IPC
-registerTrayIpcHandlers({ipcMain});
-
-// 加载托盘设置
-const {loadTraySettings} = require('./ipc/tray');
-loadTraySettings();
-
-// 注册内存管理IPC
-const {registerMemoryIpcHandlers} = require('./ipc/memory');
-registerMemoryIpcHandlers({ipcMain});
-
-// 注册HTTP服务器IPC
-registerHttpServerIpcHandlers({ipcMain});
-
-// 注册扩展管理IPC
-registerExtensionsIpcHandlers({ipcMain, getMainWindow: () => mainWindow});
-
-// 注册安全/集成 IPC
-registerSecurityIntegration({isDev});
-
-// 文件读取IPC处理程序
-ipcMain.handle('file:readAudio', async (event, filePath) => {
-    try {
-        console.log(`📖 读取音频文件: ${filePath}`);
-
-        // 检查是否为网络路径
-        if (networkFileAdapter && networkFileAdapter.isNetworkPath(filePath)) {
-            console.log(`🌐 读取网络音频文件: ${filePath}`);
-            const buffer = await networkFileAdapter.readFile(filePath);
-            return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-        } else {
-            // 本地文件读取
-            const buffer = await fs.promises.readFile(filePath);
-            return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-        }
-    } catch (error) {
-        console.error('❌ 读取音频文件失败:', error);
-        throw error;
-    }
-});
-
-ipcMain.handle('window-close', () => {
-    if (mainWindow) mainWindow.close();
 });
