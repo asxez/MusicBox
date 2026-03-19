@@ -32,11 +32,13 @@ async function loadWindowConfig() {
             initWindowConfigPath();
         }
 
-        if (!fs.existsSync(windowConfigPath)) {
-            return getDefaultWindowConfig();
+        let configData;
+        try {
+            configData = await fs.promises.readFile(windowConfigPath, 'utf8');
+        } catch (e) {
+            if (e.code === 'ENOENT') return getDefaultWindowConfig();
+            throw e;
         }
-
-        const configData = await fs.promises.readFile(windowConfigPath, 'utf8');
         const config = JSON.parse(configData);
 
         if (isValidWindowConfig(config)) {
@@ -170,9 +172,10 @@ async function createWindow() {
         console.log(`📦 生产环境 - Loading HTML from: ${htmlPath}`);
     }
 
-    if (fs.existsSync(htmlPath)) {
+    try {
+        await fs.promises.access(htmlPath);
         await mainWindow.loadFile(htmlPath);
-    } else {
+    } catch {
         console.warn(`⚠️ ${htmlPath}不存在，尝试备用路径`);
         const fallbackPath = path.join(__dirname, '../../renderer/public/index.html');
         console.log(`🔄 尝试备用路径: ${fallbackPath}`);
@@ -192,10 +195,12 @@ async function createWindow() {
             const userDataPath = app.getPath('userData');
             const settingsPath = path.join(userDataPath, 'tray-settings.json');
 
-            if (fs.existsSync(settingsPath)) {
+            try {
                 const settingsData = await fs.promises.readFile(settingsPath, 'utf8');
                 const settings = JSON.parse(settingsData);
                 shouldStartMinimized = settings.enabled && settings.startMinimized;
+            } catch (e) {
+                if (e.code !== 'ENOENT') throw e;
             }
         } catch (error) {}
 
@@ -237,7 +242,9 @@ async function createWindow() {
                 event.preventDefault();
                 mainWindow.hide();
             }
-        } catch (error) {}
+        } catch (error) {
+            console.warn('⚠️ 读取托盘设置失败:', error.message);
+        }
     });
 
     mainWindow.on('closed', () => {

@@ -109,10 +109,7 @@ async function saveHardwareAccelerationSettings() {
 
         // 确保目录存在
         const settingsDir = path.dirname(settingsFilePath);
-        if (!fs.existsSync(settingsDir)) {
-            await fs.promises.mkdir(settingsDir, {recursive: true});
-            console.log('📁 创建硬件加速设置目录:', settingsDir);
-        }
+        await fs.promises.mkdir(settingsDir, {recursive: true});
 
         await fs.promises.writeFile(
             settingsFilePath,
@@ -130,18 +127,13 @@ async function saveHardwareAccelerationSettings() {
 async function loadHardwareAccelerationSettings() {
     try {
         initSettingsPath();
-        if (fs.existsSync(settingsFilePath)) {
+        try {
             const settingsData = await fs.promises.readFile(settingsFilePath, 'utf8');
             const settings = JSON.parse(settingsData);
-
-            // 合并默认设置和加载的设置
-            hardwareAccelerationSettings = {
-                ...defaultSettings,
-                ...settings
-            };
-
+            hardwareAccelerationSettings = {...defaultSettings, ...settings};
             console.log('📖 IPC: 硬件加速设置已加载:', hardwareAccelerationSettings);
-        } else {
+        } catch (readError) {
+            if (readError.code !== 'ENOENT') throw readError;
             hardwareAccelerationSettings = {...defaultSettings};
             await saveHardwareAccelerationSettings();
         }

@@ -73,11 +73,13 @@ class DriveRegistry {
     async loadRegistry() {
         const fs = require('fs');
         try {
-            if (!fs.existsSync(this.registryFilePath)) {
-                return;
+            let registryData;
+            try {
+                registryData = await fs.promises.readFile(this.registryFilePath, 'utf8');
+            } catch (e) {
+                if (e.code === 'ENOENT') return;
+                throw e;
             }
-
-            const registryData = await fs.promises.readFile(this.registryFilePath, 'utf8');
             const data = JSON.parse(registryData);
 
             if (data.driveConfigs) {
@@ -117,11 +119,9 @@ class DriveRegistry {
     }
 
     getStats() {
-        const fs = require('fs');
         return {
             totalDrives: this.driveConfigs.size,
             registryFilePath: this.registryFilePath,
-            fileExists: fs.existsSync(this.registryFilePath)
         };
     }
 }

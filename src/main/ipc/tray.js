@@ -17,9 +17,9 @@ function registerTrayIpcHandlers({ipcMain}) {
     if (!ipcMain) throw new Error('registerTrayIpcHandlers: 缺少 ipcMain');
 
     // 创建托盘
-    ipcMain.handle('tray:create', () => {
+    ipcMain.handle('tray:create', async () => {
         try {
-            createTray();
+            await createTray();
             return {success: true};
         } catch (error) {
             console.error('❌ 创建系统托盘失败:', error);
@@ -47,7 +47,7 @@ function registerTrayIpcHandlers({ipcMain}) {
             if (tray && settings.enabled === false) {
                 destroyTray();
             } else if (!tray && settings.enabled === true) {
-                createTray();
+                await createTray();
             }
             return {success: true};
         } catch (error) {
@@ -63,7 +63,7 @@ function registerTrayIpcHandlers({ipcMain}) {
 }
 
 // 创建系统托盘
-function createTray() {
+async function createTray() {
     const {Tray} = require('electron');
 
     if (tray) return;
@@ -72,7 +72,7 @@ function createTray() {
         // 使用应用图标作为托盘图标
         let trayIcon;
 
-        trayIcon = createTrayIcon();
+        trayIcon = await createTrayIcon();
 
         tray = new Tray(trayIcon);
         tray.setToolTip('MusicBox');
@@ -207,10 +207,14 @@ async function loadTraySettings() {
     const fs = require('fs');
     try {
         initSettingsPath();
-        if (fs.existsSync(settingsFilePath)) {
+        try {
             const settingsData = await fs.promises.readFile(settingsFilePath, 'utf8');
             const settings = JSON.parse(settingsData);
             traySettings = {...traySettings, ...settings};
+        } catch (readError) {
+            if (readError.code !== 'ENOENT') {
+                console.error('❌ 加载托盘设置失败:', readError);
+            }
         }
     } catch (error) {
         console.error('❌ 加载托盘设置失败:', error);
@@ -218,7 +222,7 @@ async function loadTraySettings() {
 }
 
 // 创建托盘图标
-function createTrayIcon() {
+async function createTrayIcon() {
     const {nativeImage} = require('electron');
     const path = require('path');
     const fs = require('fs');
@@ -236,11 +240,14 @@ function createTrayIcon() {
         ];
 
         for (const iconPath of iconPaths) {
-            if (fs.existsSync(iconPath)) {
+            try {
+                await fs.promises.access(iconPath);
                 const icon = nativeImage.createFromPath(iconPath);
                 if (!icon.isEmpty()) {
                     return icon.resize({width: 16, height: 16});
                 }
+            } catch {
+                // 文件不存在或不可访问，继续尝试下一个
             }
         }
     } catch (error) {

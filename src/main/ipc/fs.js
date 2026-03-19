@@ -53,7 +53,7 @@ function registerFsIpcHandlers({ipcMain}) {
     // 获取文件信息
     ipcMain.handle('fs:stat', async (event, filePath) => {
         try {
-            const stats = fs.statSync(filePath);
+            const stats = await fs.promises.stat(filePath);
             return {
                 size: stats.size,
                 mtime: stats.mtime,
@@ -69,14 +69,11 @@ function registerFsIpcHandlers({ipcMain}) {
     ipcMain.handle('fs:readFile', async (event, filePath, encoding = null) => {
         try {
             if (encoding) {
-                // 若指定了编码，返回文本内容
-                const content = fs.readFileSync(filePath, encoding);
+                const content = await fs.promises.readFile(filePath, encoding);
                 console.log(`📖 读取文本文件: ${filePath}, 编码: ${encoding}, 长度: ${content.length} 字符`);
                 return content;
             } else {
-                // 若没有指定编码，返回二进制数据数组
-                // 向后兼容
-                const buffer = fs.readFileSync(filePath);
+                const buffer = await fs.promises.readFile(filePath);
                 console.log(`📖 读取二进制文件: ${filePath}, 长度: ${buffer.length} 字节`);
                 return Array.from(buffer);
             }
@@ -89,7 +86,7 @@ function registerFsIpcHandlers({ipcMain}) {
     // 写入文件内容
     ipcMain.handle('fs:writeFile', async (event, filePath, data, encoding = 'utf8') => {
         try {
-            fs.writeFileSync(filePath, data, encoding);
+            await fs.promises.writeFile(filePath, data, encoding);
             console.log(`💾 写入文件成功: ${filePath}`);
             return true;
         } catch (error) {

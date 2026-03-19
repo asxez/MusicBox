@@ -3,6 +3,9 @@
  * 负责根据用户设置定期扫描音乐文件夹
  */
 
+const fs = require('fs');
+const path = require('path');
+
 class AutoScanScheduler {
     constructor() {
         this.timer = null;
@@ -10,6 +13,7 @@ class AutoScanScheduler {
         this.settings = null;
         this.scanHandler = null;
         this.settingsLoader = null;
+        this.settingsFilePath = null;
     }
 
     /**
@@ -20,6 +24,15 @@ class AutoScanScheduler {
     initialize(scanHandler, settingsLoader) {
         this.scanHandler = scanHandler;
         this.settingsLoader = settingsLoader;
+
+        // 初始化设置文件路径
+        try {
+            const {app} = require('electron');
+            const userDataPath = app.getPath('userData');
+            this.settingsFilePath = path.join(userDataPath, 'music-folders-settings.json');
+        } catch (error) {
+            this.settingsFilePath = path.join(process.cwd(), 'music-folders-settings.json');
+        }
     }
 
     /**
@@ -170,16 +183,27 @@ class AutoScanScheduler {
     }
 
     /**
-     * 更新上次扫描时间
-     * 这个方法需要调用主进程的IPC来更新设置
+     * 更新上次扫描时间并持久化到磁盘
      */
     async updateLastScanTime(timestamp) {
-        // 这里需要通过 IPC 调用来更新设置
-        // 由于我们在主进程中，可以直接调用 settings IPC handler
-        // 但为了解耦，我们让调用者提供这个功能
-        if (this.settingsLoader) {
-            await this.loadSettings();
+        if (this.settings) {
             this.settings.lastScanTime = timestamp;
+        }
+
+        if (!this.settingsFilePath) return;
+
+        try {
+            let existing = {};
+            try {
+                const data = await fs.promises.readFile(this.settingsFilePath, 'utf8');
+                existing = JSON.parse(data);
+            } catch {
+                // 文件不存在或解析失败，使用空对象
+            }
+            existing.lastScanTime = timestamp;
+            await fs.promises.writeFile(this.settingsFilePath, JSON.stringify(existing, null, 2), 'utf8');
+        } catch (error) {
+            console.error('❌ AutoScanScheduler: 保存上次扫描时间失败:', error.message);
         }
     }
 

@@ -7,7 +7,7 @@ const path = require('path');
  * 注册音乐库扫描相关的 IPC
  * @param {object} deps
  * @param {Electron.IpcMain} deps.ipcMain
- * @param {Electron.BrowserWindow} [deps.mainWindow] - 主窗口，用于发送 library:updated
+ * @param {() => Electron.BrowserWindow} deps.getMainWindow - 主窗口获取函数
  * @param {() => any} deps.getLibraryCacheManager
  * @param {() => Promise<boolean>} deps.initializeCacheManager
  * @param {() => any} deps.getNetworkDriveManager
@@ -18,7 +18,7 @@ const path = require('path');
 function registerLibraryScanIpcHandlers(
     {
         ipcMain,
-        mainWindow,
+        getMainWindow,
         getLibraryCacheManager,
         initializeCacheManager,
         getNetworkDriveManager,
@@ -71,7 +71,7 @@ function registerLibraryScanIpcHandlers(
             const libraryCacheManager = getLibraryCacheManager();
 
             // 检查文件是否已在缓存中
-            const existingTrack = libraryCacheManager.cache.tracks.find(
+            const existingTrack = libraryCacheManager.getAllTracks().find(
                 track => track.filePath === networkPath
             );
 
@@ -132,6 +132,7 @@ function registerLibraryScanIpcHandlers(
             console.log(`✅ 单个文件扫描完成: ${trackData.title} - ${trackData.artist}`);
 
             // 通知渲染进程更新
+            const mainWindow = getMainWindow();
             if (mainWindow) {
                 mainWindow.webContents.send('library:updated', [trackData]);
             }
@@ -177,7 +178,7 @@ function registerLibraryScanIpcHandlers(
     // 歌单添加功能
     ipcMain.handle('library:scanDirectoryForFiles', async (event, directoryPath) => {
         try {
-            const audioExtensions = ['.mp3', '.flac', '.wav', '.ogg', '.m4a', '.aac', '.wma'];
+            const audioExtensions = ['.mp3', '.flac', '.wav', '.ogg', '.m4a', '.aac', '.wma', '.ape'];
             const audioFiles = [];
             const fsPromises = fs.promises;
             const BATCH_SIZE = 20;
@@ -264,7 +265,7 @@ function registerLibraryScanIpcHandlers(
             const libraryCacheManager = getLibraryCacheManager();
 
             // 检查文件是否已存在
-            const existingTrack = libraryCacheManager.cache.tracks.find(
+            const existingTrack = libraryCacheManager.getAllTracks().find(
                 track => track.filePath === audioFile.filePath
             );
 
@@ -273,8 +274,7 @@ function registerLibraryScanIpcHandlers(
             }
 
             // 获取文件统计信息
-            const fs = require('fs');
-            const stats = fs.statSync(audioFile.filePath);
+            const stats = await fs.promises.stat(audioFile.filePath);
 
             // 添加到音乐库
             const trackData = {
@@ -295,12 +295,13 @@ function registerLibraryScanIpcHandlers(
             await libraryCacheManager.saveCache();
 
             // 更新音频引擎状态
-            const tracks = libraryCacheManager.cache.tracks;
-            audioEngineState.scannedTracks = tracks;
+            const allTracks = libraryCacheManager.getAllTracks();
+            audioEngineState.scannedTracks = allTracks;
 
             // 触发音乐库更新事件
+            const mainWindow = getMainWindow();
             if (mainWindow) {
-                mainWindow.webContents.send('library:updated', tracks);
+                mainWindow.webContents.send('library:updated', allTracks);
             }
             return {success: true, track: cacheTrack, isNew: true};
         } catch (error) {
@@ -311,7 +312,7 @@ function registerLibraryScanIpcHandlers(
 
     // 扫描本地目录
     async function scanLocalDirectory(directoryPath, scanStartTime) {
-        const audioExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac'];
+        const audioExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.ape'];
         const tracks = [];
         const tracksToCache = [];
         const fsPromises = fs.promises;
@@ -388,8 +389,9 @@ function registerLibraryScanIpcHandlers(
                 }
             }
 
-            if (mainWindow && tracks.length > 0) {
-                mainWindow.webContents.send('library:scan-progress', {
+            const win = getMainWindow();
+            if (win && tracks.length > 0) {
+                win.webContents.send('library:scan-progress', {
                     current: i + batch.length,
                     total: files.length,
                     tracks: tracks.length
@@ -407,16 +409,18 @@ function registerLibraryScanIpcHandlers(
             await libraryCacheManager.saveCache();
         }
 
-        audioEngineState.scannedTracks = tracks;
+        const allTracks = libraryCacheManager ? libraryCacheManager.getAllTracks() : tracks;
+        audioEngineState.scannedTracks = allTracks;
+        const mainWindow = getMainWindow();
         if (mainWindow) {
-            mainWindow.webContents.send('library:updated', tracks);
+            mainWindow.webContents.send('library:updated', allTracks);
         }
         return true;
     }
 
     // 扫描网络目录
     async function scanNetworkDirectory(networkPath, scanStartTime) {
-        const audioExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac'];
+        const audioExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.ape'];
         const tracks = [];
         const tracksToCache = [];
         const networkFileAdapter = getNetworkFileAdapter();
@@ -497,8 +501,9 @@ function registerLibraryScanIpcHandlers(
                 }
             }
 
-            if (mainWindow && tracks.length > 0) {
-                mainWindow.webContents.send('library:scan-progress', {
+            const win = getMainWindow();
+            if (win && tracks.length > 0) {
+                win.webContents.send('library:scan-progress', {
                     current: i + batch.length,
                     total: files.length,
                     tracks: tracks.length
@@ -516,10 +521,12 @@ function registerLibraryScanIpcHandlers(
             await libraryCacheManager.saveCache();
         }
 
-        audioEngineState.scannedTracks = tracks;
+        const allTracks = libraryCacheManager ? libraryCacheManager.getAllTracks() : tracks;
+        audioEngineState.scannedTracks = allTracks;
         console.log(`✅ 网络扫描完成，找到 ${tracks.length} 个音频文件`);
+        const mainWindow = getMainWindow();
         if (mainWindow) {
-            mainWindow.webContents.send('library:updated', tracks);
+            mainWindow.webContents.send('library:updated', allTracks);
         }
         return true;
     }

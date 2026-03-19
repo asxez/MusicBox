@@ -1,6 +1,3 @@
-// 引入 electron 之前设置垃圾回收标志
-process.argv.push('--expose-gc');
-
 const path = require('path');
 const fs = require('fs');
 const {app, BrowserWindow, ipcMain, Menu} = require('electron');
@@ -81,6 +78,18 @@ let mainWindow;
 let desktopLyricsWindow = null; // 桌面歌词窗口
 let libraryCacheManager = null; // 初始化音乐库缓存管理器
 let autoScanScheduler = null; // 自动扫描调度器
+
+// 音频引擎状态管理
+let audioEngineState = {
+    isInitialized: false,
+    currentTrack: null,
+    isPlaying: false,
+    volume: 0.7,
+    position: 0,
+    duration: 0,
+    playlist: [],
+    currentIndex: -1
+};
 
 // 初始化网络磁盘管理器
 let networkDriveManager = null;
@@ -188,18 +197,14 @@ async function initializeAutoScanScheduler() {
 
         // 设置加载函数
         const settingsLoader = async () => {
-            const fs = require('fs');
-            const path = require('path');
             const userDataPath = app.getPath('userData');
             const settingsFilePath = path.join(userDataPath, 'music-folders-settings.json');
 
             try {
-                if (fs.existsSync(settingsFilePath)) {
-                    const data = fs.readFileSync(settingsFilePath, 'utf8');
-                    return JSON.parse(data);
-                }
+                const data = await fs.promises.readFile(settingsFilePath, 'utf8');
+                return JSON.parse(data);
             } catch (error) {
-                console.error('加载音乐文件夹设置失败:', error);
+                // 文件不存在或解析失败
             }
 
             return {
@@ -212,17 +217,15 @@ async function initializeAutoScanScheduler() {
 
         // 扫描本地目录的辅助函数
         const scanLocalDirectory = async (directoryPath) => {
-            const fs = require('fs');
-            const path = require('path');
-            const audioExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma'];
+            const audioExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma', '.ape'];
             const tracksToCache = [];
 
             async function scanDir(dir) {
                 try {
-                    const items = fs.readdirSync(dir);
+                    const items = await fs.promises.readdir(dir);
                     for (const item of items) {
                         const fullPath = path.join(dir, item);
-                        const stat = fs.statSync(fullPath);
+                        const stat = await fs.promises.stat(fullPath);
                         if (stat.isDirectory()) {
                             await scanDir(fullPath);
                         } else if (audioExtensions.includes(path.extname(item).toLowerCase())) {
@@ -347,18 +350,6 @@ app.on('before-quit', () => {
     cleanupTempFile();
 });
 
-// 音频引擎状态管理
-let audioEngineState = {
-    isInitialized: false,
-    currentTrack: null,
-    isPlaying: false,
-    volume: 0.7,
-    position: 0,
-    duration: 0,
-    playlist: [],
-    currentIndex: -1
-};
-
 // 注册音频IPC
 registerAudioIpcHandlers({
     ipcMain,
@@ -450,7 +441,7 @@ registerLibraryMetadataIpcHandlers(
 // 注册音乐库扫描IPC
 registerLibraryScanIpcHandlers({
     ipcMain,
-    mainWindow,
+    getMainWindow: () => mainWindow,
     getLibraryCacheManager: () => libraryCacheManager,
     initializeCacheManager,
     getNetworkDriveManager: () => networkDriveManager,
@@ -483,14 +474,13 @@ registerMemoryIpcHandlers({ipcMain});
 registerHttpServerIpcHandlers({ipcMain});
 
 // 注册扩展管理IPC
-registerExtensionsIpcHandlers({ipcMain, mainWindow});
+registerExtensionsIpcHandlers({ipcMain, getMainWindow: () => mainWindow});
 
 // 注册安全/集成 IPC
 registerSecurityIntegration({isDev});
 
 // 文件读取IPC处理程序
 ipcMain.handle('file:readAudio', async (event, filePath) => {
-    const fs = require('fs');
     try {
         console.log(`📖 读取音频文件: ${filePath}`);
 
@@ -501,7 +491,7 @@ ipcMain.handle('file:readAudio', async (event, filePath) => {
             return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
         } else {
             // 本地文件读取
-            const buffer = fs.readFileSync(filePath);
+            const buffer = await fs.promises.readFile(filePath);
             return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
         }
     } catch (error) {
@@ -510,6 +500,6 @@ ipcMain.handle('file:readAudio', async (event, filePath) => {
     }
 });
 
-ipcMain.on('window-close', () => {
-    mainWindow.close();
+ipcMain.handle('window-close', () => {
+    if (mainWindow) mainWindow.close();
 });

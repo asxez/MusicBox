@@ -539,7 +539,9 @@ class NetworkDriveManager extends EventEmitter {
         try {
             this.isLoadingState = true;
 
-            if (!fs.existsSync(this.stateFilePath)) {
+            try {
+                await fs.promises.access(this.stateFilePath);
+            } catch {
                 console.log('🔄 NetworkDriveManager: 没有找到驱动器状态文件，使用空状态');
                 return;
             }

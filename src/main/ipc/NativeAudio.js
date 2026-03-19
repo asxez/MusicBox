@@ -80,7 +80,7 @@ function registerNativeAudioIpcHandlers({ipcMain, nativeAudioModule, getMainWind
                     // 下载网络文件到临时位置
                     console.log(`⬇️ 开始下载网络文件...`);
                     const buffer = await networkFileAdapter.readFile(filePath);
-                    fs.writeFileSync(newTempFilePath, buffer);
+                    await fs.promises.writeFile(newTempFilePath, buffer);
                     console.log(`✅ 文件下载完成，大小: ${buffer.length} 字节`);
 
                     actualFilePath = newTempFilePath;
@@ -99,10 +99,8 @@ function registerNativeAudioIpcHandlers({ipcMain, nativeAudioModule, getMainWind
             // 只有在新音频加载成功后，才清理旧的临时文件
             if (result.success !== 0 && oldTempFilePath && oldTempFilePath !== currentTempFilePath) {
                 try {
-                    if (fs.existsSync(oldTempFilePath)) {
-                        fs.unlinkSync(oldTempFilePath);
-                        console.log(`🧹 已清理旧临时文件: ${oldTempFilePath}`);
-                    }
+                    await fs.promises.unlink(oldTempFilePath);
+                    console.log(`🧹 已清理旧临时文件: ${oldTempFilePath}`);
                 } catch (cleanupError) {
                     console.warn(`⚠️ 清理旧临时文件失败: ${cleanupError.message}`);
                 }
@@ -566,16 +564,15 @@ function cleanupTempFile() {
     const fs = require('fs');
 
     if (currentTempFilePath) {
-        try {
-            if (fs.existsSync(currentTempFilePath)) {
-                fs.unlinkSync(currentTempFilePath);
-                console.log(`🧹 已清理临时文件: ${currentTempFilePath}`);
-            }
-        } catch (error) {
-            console.warn(`⚠️ 清理临时文件失败: ${error.message}`);
-        } finally {
-            currentTempFilePath = null;
-        }
+        const pathToClean = currentTempFilePath;
+        currentTempFilePath = null;
+        fs.promises.unlink(pathToClean)
+            .then(() => console.log(`🧹 已清理临时文件: ${pathToClean}`))
+            .catch(error => {
+                if (error.code !== 'ENOENT') {
+                    console.warn(`⚠️ 清理临时文件失败: ${error.message}`);
+                }
+            });
     }
 }
 

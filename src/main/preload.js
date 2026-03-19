@@ -54,7 +54,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // 文件系统API
     fs: {
-        fs: fsApi,
         stat: (filePath) => ipcRenderer.invoke('fs:stat', filePath),
         readFile: (filePath, encoding) => ipcRenderer.invoke('fs:readFile', filePath, encoding),
         writeFile: (filePath, data, encoding) => ipcRenderer.invoke('fs:writeFile', filePath, data, encoding)
@@ -228,7 +227,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
         // Playlists
         createPlaylist: (name, description) => ipcRenderer.invoke('library:createPlaylist', name, description),
-        // getPlaylists: () => ipcRenderer.invoke('library:getPlaylists'),
         getPlaylistDetail: (playlistId) => ipcRenderer.invoke('library:getPlaylistDetail', playlistId),
         deletePlaylist: (playlistId) => ipcRenderer.invoke('library:deletePlaylist', playlistId),
         renamePlaylist: (playlistId, newName) => ipcRenderer.invoke('library:renamePlaylist', playlistId, newName),
@@ -261,12 +259,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
             return () => ipcRenderer.removeListener('library:scanProgress', callback);
         },
         onCacheValidationProgress: (callback) => {
-            ipcRenderer.on('library:cacheValidationProgress', (event, progress) => callback(progress));
-            return () => ipcRenderer.removeListener('library:cacheValidationProgress', callback);
+            const wrapper = (event, progress) => callback(progress);
+            ipcRenderer.on('library:cacheValidationProgress', wrapper);
+            return () => ipcRenderer.removeListener('library:cacheValidationProgress', wrapper);
         },
         onCoverUpdated: (callback) => {
-            ipcRenderer.on('cover-updated', (event, data) => callback(data));
-            return () => ipcRenderer.removeListener('cover-updated', callback);
+            const wrapper = (event, data) => callback(data);
+            ipcRenderer.on('cover-updated', wrapper);
+            return () => ipcRenderer.removeListener('cover-updated', wrapper);
         }
     },
 
@@ -418,24 +418,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
         // 事件监听（用于桌面歌词窗口）
         onPlaybackStateChanged: (callback) => {
-            ipcRenderer.on('playback:stateChanged', (event, state) => callback(state));
-            return () => ipcRenderer.removeListener('playback:stateChanged', callback);
+            const wrapper = (event, state) => callback(state);
+            ipcRenderer.on('playback:stateChanged', wrapper);
+            return () => ipcRenderer.removeListener('playback:stateChanged', wrapper);
         },
         onLyricsUpdated: (callback) => {
-            ipcRenderer.on('lyrics:updated', (event, lyricsData) => callback(lyricsData));
-            return () => ipcRenderer.removeListener('lyrics:updated', callback);
+            const wrapper = (event, lyricsData) => callback(lyricsData);
+            ipcRenderer.on('lyrics:updated', wrapper);
+            return () => ipcRenderer.removeListener('lyrics:updated', wrapper);
         },
         onPositionChanged: (callback) => {
-            ipcRenderer.on('playback:positionChanged', (event, position) => callback(position));
-            return () => ipcRenderer.removeListener('playback:positionChanged', callback);
+            const wrapper = (event, position) => callback(position);
+            ipcRenderer.on('playback:positionChanged', wrapper);
+            return () => ipcRenderer.removeListener('playback:positionChanged', wrapper);
         },
         onTrackChanged: (callback) => {
-            ipcRenderer.on('track:changed', (event, trackInfo) => callback(trackInfo));
-            return () => ipcRenderer.removeListener('track:changed', callback);
+            const wrapper = (event, trackInfo) => callback(trackInfo);
+            ipcRenderer.on('track:changed', wrapper);
+            return () => ipcRenderer.removeListener('track:changed', wrapper);
         },
         onSettingsChanged: (callback) => {
-            ipcRenderer.on('settings:changed', (event, settings) => callback(settings));
-            return () => ipcRenderer.removeListener('settings:changed', callback);
+            const wrapper = (event, settings) => callback(settings);
+            ipcRenderer.on('settings:changed', wrapper);
+            return () => ipcRenderer.removeListener('settings:changed', wrapper);
         }
     },
 
