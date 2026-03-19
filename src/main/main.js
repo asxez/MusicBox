@@ -72,7 +72,6 @@ async function parseMetadataWrapper(filePath) {
     return await parseMetadata(filePath, networkFileAdapter);
 }
 
-const isDev = !app.isPackaged;
 let mainWindow;
 let desktopLyricsWindow = null; // 桌面歌词窗口
 let libraryCacheManager = null; // 初始化音乐库缓存管理器
