@@ -50,7 +50,6 @@ const {registerAppIpcHandlers} = require('./ipc/app');
 const {registerHttpServerIpcHandlers} = require('./ipc/HttpServer');
 const {registerTrayIpcHandlers} = require('./ipc/tray');
 const {registerHardwareAccelerationIpcHandlers} = require('./ipc/HardwareAcceleration');
-const {registerSecurityIntegration} = require('./security/SecurityIntegration');
 const {registerExtensionsIpcHandlers} = require('./ipc/extensions');
 const {registerUserDataIpcHandlers} = require('./ipc/userdata');
 
@@ -418,9 +417,6 @@ function registerAllIpcHandlers() {
 
     // 注册扩展管理IPC
     registerExtensionsIpcHandlers({ipcMain, getMainWindow: () => mainWindow});
-
-    // 注册安全/集成 IPC
-    registerSecurityIntegration({isDev});
 
     // 文件读取IPC处理程序
     ipcMain.handle('file:readAudio', async (event, filePath) => {
