@@ -640,5 +640,6 @@ function handleNativeAudioEvent(event) {
 
 module.exports = {
     registerNativeAudioIpcHandlers,
-    cleanupTempFile
+    cleanupTempFile,
+    stopEventPolling
 };

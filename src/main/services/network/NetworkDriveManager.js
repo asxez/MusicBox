@@ -39,29 +39,31 @@ class NetworkDriveManager extends EventEmitter {
             return true;
         }
 
-        if (this.initializationInProgress) {
-            while (this.initializationInProgress && !this.isInitialized) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-            return this.isInitialized;
+        if (this._initPromise) {
+            return this._initPromise;
         }
 
-        try {
-            this.initializationInProgress = true;
-            webdavModule = await import('webdav');
+        this._initPromise = (async () => {
+            try {
+                this.initializationInProgress = true;
+                webdavModule = await import('webdav');
 
-            if (!this.isLoadingState) {
-                await this.loadDriveState();
+                if (!this.isLoadingState) {
+                    await this.loadDriveState();
+                }
+
+                this.isInitialized = true;
+                return true;
+            } catch (error) {
+                console.error('WebDAV模块加载失败:', error);
+                return false;
+            } finally {
+                this.initializationInProgress = false;
+                this._initPromise = null;
             }
+        })();
 
-            this.isInitialized = true;
-            this.initializationInProgress = false;
-            return true;
-        } catch (error) {
-            console.error('WebDAV模块加载失败:', error);
-            this.initializationInProgress = false;
-            return false;
-        }
+        return this._initPromise;
     }
 
     async ensureWebDAVLoaded() {

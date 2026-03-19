@@ -27,6 +27,9 @@ class LibraryCacheManager {
             }
         };
 
+        this._saveTimer = null;
+        this._pendingSave = false;
+
         this.initializeCacheFile();
     }
 
@@ -155,6 +158,28 @@ class LibraryCacheManager {
         }
     }
 
+    // 更新扫描统计信息
+    updateScanStatistics(lastScanTime, scanDuration) {
+        if (!this.cache.statistics) {
+            this.cache.statistics = {};
+        }
+        this.cache.statistics.lastScanTime = lastScanTime;
+        this.cache.statistics.scanDuration = scanDuration;
+    }
+
+    // 节流保存：扫描期间多次调用只触发一次实际写入（延迟2秒）
+    saveCacheThrottled() {
+        this._pendingSave = true;
+        if (this._saveTimer) return;
+        this._saveTimer = setTimeout(async () => {
+            this._saveTimer = null;
+            if (this._pendingSave) {
+                this._pendingSave = false;
+                await this.saveCache();
+            }
+        }, 2000);
+    }
+
     // 验证音乐文件是否仍然有效
     async validateTrack(track) {
         try {
@@ -237,31 +262,36 @@ class LibraryCacheManager {
         const validTracks = [];
         const invalidTracks = [];
         const modifiedTracks = [];
+        const CONCURRENCY = 20;
+        const tracks = this.cache.tracks;
+        let completed = 0;
 
-        for (let i = 0; i < this.cache.tracks.length; i++) {
-            const track = this.cache.tracks[i];
-            const validation = await this.validateTrack(track);
+        for (let i = 0; i < tracks.length; i += CONCURRENCY) {
+            const batch = tracks.slice(i, i + CONCURRENCY);
+            const results = await Promise.all(batch.map(track => this.validateTrack(track)));
 
-            if (validation.valid) {
-                validTracks.push(track);
-            } else {
-                // 检查是否为文件修改（包括本地文件和网络文件）
-                if (validation.reason === 'file_modified' || validation.reason === 'network_file_modified') {
+            for (let j = 0; j < batch.length; j++) {
+                const track = batch[j];
+                const validation = results[j];
+
+                if (validation.valid) {
+                    validTracks.push(track);
+                } else if (validation.reason === 'file_modified' || validation.reason === 'network_file_modified') {
                     modifiedTracks.push({track, stats: validation.stats});
                 } else {
                     invalidTracks.push({track, reason: validation.reason});
                 }
-            }
 
-            // 报告进度
-            if (progressCallback) {
-                progressCallback({
-                    current: i + 1,
-                    total: this.cache.tracks.length,
-                    valid: validTracks.length,
-                    invalid: invalidTracks.length,
-                    modified: modifiedTracks.length
-                });
+                completed++;
+                if (progressCallback) {
+                    progressCallback({
+                        current: completed,
+                        total: tracks.length,
+                        valid: validTracks.length,
+                        invalid: invalidTracks.length,
+                        modified: modifiedTracks.length
+                    });
+                }
             }
         }
 
