@@ -14,6 +14,12 @@ function registerLibraryQueryIpcHandlers({ipcMain, audioEngineState}) {
     ipcMain.handle('library:getTracks', async () => {
         const tracks = audioEngineState.scannedTracks || [];
 
+        const hasComplexCover = tracks.some(track => track.cover && typeof track.cover === 'object');
+        if (!hasComplexCover) {
+            console.log(`📚 返回 ${tracks.length} 个tracks，无需额外清理cover对象`);
+            return tracks;
+        }
+
         // 确保返回的tracks中的cover字段不是对象
         const cleanedTracks = tracks.map(track => {
             const cleanedTrack = {...track};

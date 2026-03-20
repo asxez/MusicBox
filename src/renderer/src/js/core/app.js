@@ -43,7 +43,7 @@ class MusicBoxApp extends EventEmitter {
     constructor() {
         super();
         this.isInitialized = false;
-        this.currentView = 'library';
+        this.currentView = 'home-page';
         this.library = [];
         this.filteredLibrary = [];
         this.components = {};
@@ -81,14 +81,9 @@ class MusicBoxApp extends EventEmitter {
             // 恢复播放状态
             await this.restorePlaybackState();
 
-            // 在组件完全初始化后再初始化插件系统
             this.isInitialized = true;
-            await this.initializePluginSystem();
-
             this.showApp();
-
-            // 通知插件系统应用已完全初始化
-            this.notifyPluginSystemReady();
+            this.schedulePluginSystemInitialization();
 
             // 自动检查更新
             setTimeout(() => {
@@ -154,6 +149,28 @@ class MusicBoxApp extends EventEmitter {
             console.error('❌ App: 插件系统初始化失败:', error);
             // 不抛出错误，让应用继续运行
         }
+    }
+
+    schedulePluginSystemInitialization() {
+        const startPluginSystem = async () => {
+            await this.initializePluginSystem();
+            this.notifyPluginSystemReady();
+        };
+
+        if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(() => {
+                startPluginSystem().catch((error) => {
+                    console.error('❌ App: 延迟初始化插件系统失败:', error);
+                });
+            }, {timeout: 2000});
+            return;
+        }
+
+        setTimeout(() => {
+            startPluginSystem().catch((error) => {
+                console.error('❌ App: 延迟初始化插件系统失败:', error);
+            });
+        }, 300);
     }
 
     // 通知插件系统应用已完全初始化
@@ -680,7 +697,9 @@ class MusicBoxApp extends EventEmitter {
                 this.library = await api.loadCachedTracks();
                 if (this.library.length > 0) {
                     this.filteredLibrary = [...this.library];
-                    this.updateTrackList('cache-load');
+                    if (this.currentView === 'library') {
+                        this.updateTrackList('cache-load');
+                    }
                     this.hideCacheLoadingStatus();
 
                     // 预加载封面数据
@@ -699,7 +718,9 @@ class MusicBoxApp extends EventEmitter {
             } else {
                 // 加载库视图
                 this.filteredLibrary = [...this.library];
-                this.updateTrackList('initial-load');
+                if (this.currentView === 'library') {
+                    this.updateTrackList('initial-load');
+                }
 
                 // 预加载封面数据
                 await this.preloadTrackCovers();
