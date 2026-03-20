@@ -86,9 +86,11 @@ class MusicBoxAPI extends EventEmitter {
                 this.currentTrack = track;
 
                 // 从音频引擎获取最新的索引
+                // 只有在引擎索引与API索引不一致时才同步（说明是引擎主动切换的，如自动播放下一首）
                 if (this.audioEngine.currentIndex !== this.currentIndex) {
+                    const previousIndex = this.currentIndex;
                     this.currentIndex = this.audioEngine.currentIndex;
-                    console.log('🔄 API: 同步更新播放索引:', this.currentIndex);
+                    console.log(`🔄 API: 音频引擎主动切换歌曲，同步索引: ${previousIndex} -> ${this.currentIndex}`);
                     this.emit('trackIndexChanged', this.currentIndex);
                 }
 
@@ -182,6 +184,9 @@ class MusicBoxAPI extends EventEmitter {
                     this.duration = this.audioEngine.getDuration();
                     this.position = 0;
 
+                    // 记录加载前的索引，用于判断是否需要触发 trackIndexChanged
+                    const previousIndex = this.currentIndex;
+
                     //bug fix: #30 issue
                     // 如果当前索引是-1，尝试在播放列表中查找
                     // 注意：不要从audioEngine同步索引，因为setPlaylist已经设置了正确的索引
@@ -203,7 +208,12 @@ class MusicBoxAPI extends EventEmitter {
                     this.emit('trackChanged', this.currentTrack);
                     this.emit('durationChanged', this.duration);
                     this.emit('positionChanged', 0);
-                    this.emit('trackIndexChanged', this.currentIndex);
+
+                    // 只有在索引真正变化时才触发 trackIndexChanged，避免重复触发
+                    if (previousIndex !== this.currentIndex) {
+                        console.log(`🔄 API: loadTrack 索引变化: ${previousIndex} -> ${this.currentIndex}`);
+                        this.emit('trackIndexChanged', this.currentIndex);
+                    }
 
                     // 同步到桌面歌词
                     await this.syncToDesktopLyrics('track', this.currentTrack);
