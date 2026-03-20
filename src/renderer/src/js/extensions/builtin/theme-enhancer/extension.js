@@ -10,32 +10,6 @@ let themeSelectorUI = null;
 
 // 预设主题配置
 const PRESET_THEMES = {
-    light: {
-        name: '浅色',
-        colors: {
-            'color-primary': '#335eea',
-            'color-primary-rgb': '51, 94, 234',
-            'color-body-bg': '#ffffff',
-            'color-text': '#000000',
-            'color-text-secondary': '#7a7a7b',
-            'color-navbar-bg': 'rgba(255, 255, 255, 0.72)',
-            'color-secondary-bg': '#f5f5f7',
-            'color-border': '#e5e5e5'
-        }
-    },
-    dark: {
-        name: '深色',
-        colors: {
-            'color-primary': '#335eea',
-            'color-primary-rgb': '51, 94, 234',
-            'color-body-bg': '#222222',
-            'color-text': '#ffffff',
-            'color-text-secondary': '#a0a0a0',
-            'color-navbar-bg': 'rgba(34, 34, 34, 0.72)',
-            'color-secondary-bg': '#2a2a2a',
-            'color-border': '#3a3a3a'
-        }
-    },
     blue: {
         name: '蓝色',
         colors: {
