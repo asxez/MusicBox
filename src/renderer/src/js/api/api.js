@@ -182,10 +182,9 @@ class MusicBoxAPI extends EventEmitter {
                     this.duration = this.audioEngine.getDuration();
                     this.position = 0;
 
-                    // 更新当前索引
-                    this.currentIndex = this.audioEngine.currentIndex;
-
-                    // 如果当前索引仍然是-1，尝试在播放列表中查找
+                    //bug fix: #30 issue
+                    // 如果当前索引是-1，尝试在播放列表中查找
+                    // 注意：不要从audioEngine同步索引，因为setPlaylist已经设置了正确的索引
                     if (this.currentIndex === -1 && this.playlist.length > 0) {
                         this.currentIndex = this.playlist.findIndex(track => {
                             const trackPath = track.filePath || track.path || track;
@@ -196,6 +195,9 @@ class MusicBoxAPI extends EventEmitter {
                         if (this.currentIndex !== -1) {
                             this.audioEngine.currentIndex = this.currentIndex;
                         }
+                    } else if (this.currentIndex !== -1) {
+                        // 如果已经有正确的索引（由setPlaylist设置），同步到音频引擎
+                        this.audioEngine.currentIndex = this.currentIndex;
                     }
 
                     this.emit('trackChanged', this.currentTrack);
