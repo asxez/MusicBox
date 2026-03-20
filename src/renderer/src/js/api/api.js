@@ -16,6 +16,9 @@ class MusicBoxAPI extends EventEmitter {
         this.currentIndex = -1;
         this.playMode = 'sequence'; // sequence, shuffle, repeat-one
 
+        // 播放历史栈，用于实现真正的"上一首"功能
+        this.playHistory = [];
+
         // 进度跟踪
         this.progressInterval = null;
 
@@ -444,6 +447,10 @@ class MusicBoxAPI extends EventEmitter {
     async setPlaylist(tracks, startIndex = -1) {
         try {
             console.log(`🔄 API: 设置播放列表，${tracks.length}首歌曲，起始索引: ${startIndex}`);
+
+            // 设置新播放列表时清空播放历史
+            this.playHistory = [];
+
             if (this.audioEngine) {
                 const result = this.audioEngine.setPlaylist(tracks, startIndex);
                 if (result) {
@@ -491,6 +498,15 @@ class MusicBoxAPI extends EventEmitter {
 
             // 设置切换锁
             this._trackSwitchLock = true;
+
+            // 将当前索引加入播放历史（在切换到下一首之前）
+            if (this.currentIndex !== -1) {
+                this.playHistory.push(this.currentIndex);
+                // 限制历史记录长度，避免内存占用过大
+                if (this.playHistory.length > 50) {
+                    this.playHistory.shift();
+                }
+            }
 
             // 根据播放模式获取下一首的索引
             const nextIndex = this.getNextTrackIndex();
@@ -569,6 +585,11 @@ class MusicBoxAPI extends EventEmitter {
                 console.log('⚠️ 无法获取上一首歌曲索引');
                 this._trackSwitchLock = false;
                 return false;
+            }
+
+            // 如果从播放历史中获取到了索引，需要从历史栈中移除
+            if (this.playHistory.length > 0 && this.playHistory[this.playHistory.length - 1] === prevIndex) {
+                this.playHistory.pop();
             }
 
             const prevTrack = this.playlist[prevIndex];
@@ -810,11 +831,18 @@ class MusicBoxAPI extends EventEmitter {
     getPreviousTrackIndex() {
         if (this.playlist.length === 0) return -1;
 
+        // 所有播放模式下，上一首都应该从播放历史中获取
+        if (this.playHistory.length > 0) {
+            // 从播放历史栈中弹出上一首的索引
+            return this.playHistory[this.playHistory.length - 1];
+        }
+
+        // 如果没有播放历史，则按照播放模式的默认行为
         switch (this.playMode) {
             case 'sequence':
                 return this.currentIndex > 0 ? this.currentIndex - 1 : this.playlist.length - 1;
             case 'shuffle':
-                // 随机选择一个不同的索引
+                // 没有历史时，随机选择一个不同的索引
                 if (this.playlist.length === 1) return 0;
                 let randomIndex = Math.floor(Math.random() * this.playlist.length);
                 while (randomIndex === this.currentIndex) {
