@@ -1804,6 +1804,15 @@ class MusicBoxApp extends EventEmitter {
 
     // 播放播放列表中的歌曲
     async playTrackFromPlaylist(track, index) {
+        // 防止重复调用的锁定机制
+        if (this._playTrackLock) {
+            console.log('🚫 App: 播放操作正在进行中，忽略重复调用');
+            return;
+        }
+
+        this._playTrackLock = true;
+        console.log(`🎵 App: 开始播放 ${track.title || track.filePath}，索引: ${index}`);
+
         try {
             // 确保API的播放列表与组件播放列表同步
             if (this.components.playlist && this.components.playlist.tracks.length > 0) {
@@ -1820,11 +1829,21 @@ class MusicBoxApp extends EventEmitter {
                     const loadResult = await api.loadTrack(track.filePath);
                     if (loadResult) {
                         await api.play();
+                        console.log(`✅ App: 播放成功 ${track.title || track.filePath}`);
+                    } else {
+                        console.error('❌ App: 加载歌曲失败');
                     }
+                } else {
+                    console.error('❌ App: 设置播放列表失败');
                 }
             }
         } catch (error) {
             console.error('❌ 播放列表播放错误:', error);
+        } finally {
+            // 延迟释放锁，确保播放状态稳定
+            setTimeout(() => {
+                this._playTrackLock = false;
+            }, 300);
         }
     }
 
