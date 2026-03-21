@@ -8,7 +8,8 @@ class DesktopLyrics {
         this.currentLyricEl = document.querySelector('.current-lyric .lyric-text');
         this.nextLyricEl = document.querySelector('.next-lyric .lyric-text');
         this.lockBtn = document.getElementById('lock-btn');
-        this.unlockBtn = document.getElementById('unlock-btn');
+        this.lockIcon = this.lockBtn.querySelector('.lock-icon');
+        this.unlockIcon = this.lockBtn.querySelector('.unlock-icon');
         this.closeBtn = document.getElementById('close-btn');
 
         // 歌词数据
@@ -21,6 +22,13 @@ class DesktopLyrics {
 
         // 窗口状态
         this.isLocked = false;
+
+        // 鼠标悬停状态
+        this.isHovering = false;
+
+        // 拖动状态
+        this.isDragging = false;
+        this.dragStartPos = {x: 0, y: 0};
 
         // 设置
         this.settings = {
@@ -50,19 +58,28 @@ class DesktopLyrics {
     }
 
     setupEventListeners() {
-        // 锁定按钮
+        // 锁定/解锁按钮
         this.lockBtn.addEventListener('click', () => {
-            this.toggleLock();
-        });
-
-        // 解锁按钮
-        this.unlockBtn.addEventListener('click', () => {
             this.toggleLock();
         });
 
         // 关闭按钮
         this.closeBtn.addEventListener('click', async () => {
             await this.close();
+        });
+
+        // 控制栏鼠标事件（锁定状态下动态控制穿透）
+        const controlsBar = document.querySelector('.controls-bar');
+        controlsBar.addEventListener('mouseenter', () => {
+            if (this.isLocked) {
+                window.electronAPI.desktopLyrics.setIgnoreMouseEvents(false);
+            }
+        });
+
+        controlsBar.addEventListener('mouseleave', () => {
+            if (this.isLocked) {
+                window.electronAPI.desktopLyrics.setIgnoreMouseEvents(true, {forward: true});
+            }
         });
     }
 
@@ -312,10 +329,21 @@ class DesktopLyrics {
         if (this.isLocked) {
             this.container.classList.add('locked');
             this.lockBtn.classList.add('locked');
+            this.lockBtn.title = '解锁';
+            // 切换图标显示
+            this.lockIcon.style.display = 'none';
+            this.unlockIcon.style.display = 'block';
+            // 锁定时启用鼠标穿透
+            await window.electronAPI.desktopLyrics.setIgnoreMouseEvents(true, {forward: true});
         } else {
             this.container.classList.remove('locked');
             this.lockBtn.classList.remove('locked');
-            // 解锁按钮通过CSS控制隐藏
+            this.lockBtn.title = '锁定';
+            // 切换图标显示
+            this.lockIcon.style.display = 'block';
+            this.unlockIcon.style.display = 'none';
+            // 解锁时禁用鼠标穿透
+            await window.electronAPI.desktopLyrics.setIgnoreMouseEvents(false);
         }
     }
 
@@ -419,12 +447,11 @@ class DesktopLyrics {
                 console.error('❌ 桌面歌词: 设置置顶状态失败', error);
             }
 
-            // 默认模式下禁用Electron的鼠标穿透
-            // 使用CSS的pointer-events来控制交互
-            try {
+            // 默认模式下根据锁定状态设置穿透
+            if (this.isLocked) {
+                await window.electronAPI.desktopLyrics.setIgnoreMouseEvents(true, {forward: true});
+            } else {
                 await window.electronAPI.desktopLyrics.setIgnoreMouseEvents(false);
-            } catch (error) {
-                console.error('❌ 桌面歌词: 禁用鼠标穿透失败', error);
             }
         }
 

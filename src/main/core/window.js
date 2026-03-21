@@ -320,8 +320,8 @@ async function createDesktopLyricsWindow() {
     }
 
     desktopLyricsWindow = new BrowserWindow({
-        width: 500,
-        height: 120,
+        width: 1000,
+        height: 150,
         x: lyricsX,
         y: lyricsY,
         frame: false,
@@ -346,6 +346,7 @@ async function createDesktopLyricsWindow() {
 
     // 窗口事件处理
     desktopLyricsWindow.once('ready-to-show', () => {
+        desktopLyricsWindow.webContents.openDevTools({mode: 'detach'});
         desktopLyricsWindow.show();
     });
 
