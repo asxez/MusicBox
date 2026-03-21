@@ -457,6 +457,47 @@ impl NativeAudioEngine {
         let engine = self.engine.lock();
         engine.parametric_is_enabled()
     }
+
+    // ==================== 音频模式切换接口 ====================
+
+    /// 设置音频模式（"shared" 或 "exclusive"）
+    #[napi]
+    pub fn set_share_mode(&self, mode: String) -> bool {
+        use crate::audio_config::ShareMode;
+
+        let share_mode = match ShareMode::from_str(&mode) {
+            Some(m) => m,
+            None => return false,
+        };
+
+        let mut engine = self.engine.lock();
+        engine.set_share_mode(share_mode);
+        true
+    }
+
+    /// 获取当前音频模式
+    #[napi]
+    pub fn get_share_mode(&self) -> String {
+        let engine = self.engine.lock();
+        engine.get_share_mode().as_str().to_string()
+    }
+
+    /// 切换音频模式并重新初始化
+    #[napi]
+    pub fn switch_share_mode(&self, mode: String, mut env: Env) -> Result<JsObject> {
+        use crate::audio_config::ShareMode;
+
+        let share_mode = match ShareMode::from_str(&mode) {
+            Some(m) => m,
+            None => return create_error_response(&mut env, "无效的音频模式"),
+        };
+
+        let mut engine = self.engine.lock();
+        match engine.switch_share_mode(share_mode) {
+            Ok(_) => create_success_response(&mut env),
+            Err(e) => create_error_response(&mut env, &e),
+        }
+    }
 }
 
 #[napi]

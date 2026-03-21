@@ -52,6 +52,7 @@ impl WasapiRenderer {
         let channels = device_format.channels as usize;
         let sample_rate = device_format.sample_rate;
         let buffer_durations = config.get_wasapi_buffer_durations();
+        let share_mode = config.share_mode;
 
         let stream_thread = std::thread::spawn(move || {
             if let Err(e) = run_render_loop(
@@ -65,6 +66,7 @@ impl WasapiRenderer {
                 message_receiver,
                 dither_type,
                 buffer_durations,
+                share_mode,
                 equalizer,
                 parametric_equalizer,
                 equalizer_mode,
@@ -96,6 +98,7 @@ fn run_render_loop(
     message_receiver: Receiver<ThreadMessage>,
     dither_type: DitherType,
     buffer_durations: Vec<i64>,
+    share_mode: crate::audio_config::ShareMode,
     equalizer: Arc<Mutex<Option<AudioEqualizer>>>,
     parametric_equalizer: Arc<Mutex<Option<ParametricEqualizer>>>,
     equalizer_mode: Arc<Mutex<EqualizerMode>>,
@@ -132,34 +135,55 @@ fn run_render_loop(
         Some(channelmask),
     );
 
-    // 初始化独占模式
-    // 尝试使用更小的缓冲区以降低延迟
-    // 从最低延迟开始尝试，如果失败则逐步增加
+    // 初始化音频客户端（根据模式选择不同的初始化方式）
     let mut audio_client_result = None;
     let mut actual_buffer_duration = 0i64;
 
-    for &duration in &buffer_durations {
-        let stream_mode = StreamMode::PollingExclusive {
-            buffer_duration_hns: duration,
-            period_hns: duration,
-        };
+    use crate::audio_config::ShareMode;
+    match share_mode {
+        ShareMode::Exclusive => {
+            // 独占模式：尝试使用更小的缓冲区以降低延迟
+            for &duration in &buffer_durations {
+                let stream_mode = StreamMode::PollingExclusive {
+                    buffer_duration_hns: duration,
+                    period_hns: duration,
+                };
 
-        match audio_client.initialize_client(&wave_format, &Direction::Render, &stream_mode) {
-            Ok(()) => {
-                actual_buffer_duration = duration;
-                audio_client_result = Some(());
-                println!("   ✅ 使用缓冲区大小: {:.1}ms", duration as f64 / 10000.0);
-                break;
-            }
-            Err(e) => {
-                if duration == buffer_durations[buffer_durations.len() - 1] {
-                    // 最后一次尝试也失败了
-                    return Err(format!("初始化AudioClient失败: {:?}", e));
+                match audio_client.initialize_client(&wave_format, &Direction::Render, &stream_mode)
+                {
+                    Ok(()) => {
+                        actual_buffer_duration = duration;
+                        audio_client_result = Some(());
+                        println!("   ✅ 独占模式缓冲区: {:.1}ms", duration as f64 / 10000.0);
+                        break;
+                    }
+                    Err(e) => {
+                        if duration == buffer_durations[buffer_durations.len() - 1] {
+                            return Err(format!("初始化独占模式失败: {:?}", e));
+                        }
+                        println!(
+                            "   ⚠️ {:.1}ms缓冲区不支持，尝试更大的缓冲区",
+                            duration as f64 / 10000.0
+                        );
+                    }
                 }
-                println!(
-                    "   ⚠️ {:.1}ms缓冲区不支持，尝试更大的缓冲区",
-                    duration as f64 / 10000.0
-                );
+            }
+        }
+        ShareMode::Shared => {
+            // 共享模式：使用系统默认缓冲区，启用自动格式转换
+            let stream_mode = StreamMode::PollingShared {
+                autoconvert: true,
+                buffer_duration_hns: 0, // 0 表示使用系统默认缓冲区
+            };
+
+            match audio_client.initialize_client(&wave_format, &Direction::Render, &stream_mode) {
+                Ok(()) => {
+                    audio_client_result = Some(());
+                    println!("   ✅ 共享模式已初始化（使用系统默认缓冲区）");
+                }
+                Err(e) => {
+                    return Err(format!("初始化共享模式失败: {:?}", e));
+                }
             }
         }
     }
@@ -180,7 +204,12 @@ fn run_render_loop(
         .start_stream()
         .map_err(|e| format!("启动音频流失败: {:?}", e))?;
 
-    println!("✅ WASAPI独占流已启动");
+    let mode_str = match share_mode {
+        ShareMode::Exclusive => "独占",
+        ShareMode::Shared => "共享",
+    };
+
+    println!("✅ WASAPI{}流已启动", mode_str);
     println!(
         "   设备: {} Hz, {} 声道, 缓冲 {} 帧 ({:.2}ms)",
         device_format.sample_rate,
@@ -190,9 +219,14 @@ fn run_render_loop(
     );
 
     // 计算最优的轮询间隔
-    // 使用缓冲区时长的1/3到1/2，避免欠载和过度轮询
-    let buffer_duration_ms = actual_buffer_duration as f64 / 10000.0;
-    let poll_interval_ms = (buffer_duration_ms / 3.0).max(1.0).min(10.0) as u64;
+    let poll_interval_ms = if share_mode == ShareMode::Exclusive && actual_buffer_duration > 0 {
+        // 独占模式：使用缓冲区时长的1/3到1/2
+        let buffer_duration_ms = actual_buffer_duration as f64 / 10000.0;
+        (buffer_duration_ms / 3.0).max(1.0).min(10.0) as u64
+    } else {
+        // 共享模式：使用固定的轮询间隔
+        5u64
+    };
 
     let mut callback_counter = 0u64;
     let is_float = matches!(device_format.sample_type, SampleType::Float);

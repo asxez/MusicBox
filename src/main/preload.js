@@ -190,6 +190,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
         parametricReset: () => ipcRenderer.invoke('native-audio:parametric-reset'),
         parametricClearBands: () => ipcRenderer.invoke('native-audio:parametric-clear-bands'),
 
+        // WASAPI 模式切换
+        setShareMode: (mode) => ipcRenderer.invoke('native-audio:set-share-mode', mode),
+        getShareMode: () => ipcRenderer.invoke('native-audio:get-share-mode'),
+        switchShareMode: (mode) => ipcRenderer.invoke('native-audio:switch-share-mode', mode),
+
         // 销毁引擎
         destroy: () => ipcRenderer.invoke('native-audio:destroy'),
     },

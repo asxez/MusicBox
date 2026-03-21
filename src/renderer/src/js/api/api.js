@@ -41,18 +41,32 @@ class MusicBoxAPI extends EventEmitter {
 
     async initializeWebAudio() {
         try {
-            // 从设置中读取引擎类型
+            // 从设置中读取引擎类型和模式
             const settings = cacheManager.getLocalCache('musicbox-settings') || {};
             const exclusiveMode = settings.exclusiveMode === true;
+            const wasapiShareMode = settings.wasapiShareMode || 'exclusive';
             const engineType = exclusiveMode ? 'wasapi' : 'webaudio';
 
-            console.log(`🎵 API: 初始化音频引擎，类型: ${engineType}${exclusiveMode ? ' (独占模式)' : ''}`);
+            console.log(`🎵 API: 初始化音频引擎，类型: ${engineType}${exclusiveMode ? ` (${wasapiShareMode === 'exclusive' ? '独占' : '共享'}模式)` : ''}`);
 
             // 使用AudioEngineManager统一管理引擎
             this.audioEngine = new AudioEngineManager();
             const initialized = await this.audioEngine.initialize(engineType);
 
             if (initialized) {
+                // 如果是WASAPI引擎，设置共享模式
+                if (engineType === 'wasapi' && this.audioEngine.currentEngine?.nativeEngine) {
+                    try {
+                        const currentMode = await this.audioEngine.currentEngine.nativeEngine.getShareMode();
+                        if (currentMode !== wasapiShareMode) {
+                            console.log(`🔧 API: 设置WASAPI模式为 ${wasapiShareMode}`);
+                            await this.audioEngine.currentEngine.nativeEngine.setShareMode(wasapiShareMode);
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ API: 设置WASAPI模式失败，使用默认模式:', error);
+                    }
+                }
+
                 // 设置音量
                 const volume = cacheManager.getLocalCache('volume') || 0.7;
                 this.audioEngine.setVolume(volume);
@@ -922,6 +936,38 @@ class MusicBoxAPI extends EventEmitter {
         }
 
         return result;
+    }
+
+    // 切换WASAPI共享模式
+    async switchWasapiShareMode(mode) {
+        if (!this.audioEngine) {
+            console.error('❌ API: 音频引擎未初始化');
+            return false;
+        }
+
+        if (this.audioEngine.getEngineType() !== 'wasapi') {
+            console.warn('⚠️ API: 当前不是WASAPI引擎，无法切换模式');
+            return false;
+        }
+
+        console.log(`🔄 API: 切换WASAPI模式到 ${mode}`);
+
+        try {
+            const result = await this.audioEngine.currentEngine?.switchShareMode(mode);
+            if (result) {
+                // 更新设置
+                const settings = cacheManager.getLocalCache('musicbox-settings') || {};
+                settings.wasapiShareMode = mode;
+                cacheManager.setLocalCache('musicbox-settings', settings);
+                return true;
+            } else {
+                console.error(`❌ API: WASAPI模式切换失败`);
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ API: WASAPI模式切换异常:', error);
+            return false;
+        }
     }
 
     // 获取当前引擎类型
