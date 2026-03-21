@@ -81,7 +81,11 @@ function getDefaultWindowConfig() {
         width: 1440,
         height: 900,
         minWidth: 1080,
-        minHeight: 720
+        minHeight: 720,
+        desktopLyrics: {
+            x: undefined,
+            y: undefined
+        }
     };
 }
 
@@ -298,12 +302,22 @@ async function createDesktopLyricsWindow() {
         return desktopLyricsWindow;
     }
 
-    // 获取主窗口位置和尺寸
-    const mainBounds = mainWindow ? mainWindow.getBounds() : {x: 100, y: 100, width: 1440, height: 900};
+    // 加载窗口配置
+    const windowConfig = await loadWindowConfig();
 
-    // 计算桌面歌词窗口的初始位置（在主窗口下方）
-    const lyricsX = mainBounds.x + 50;
-    const lyricsY = mainBounds.y + 20;
+    // 获取保存的位置，如果没有则使用默认位置
+    let lyricsX, lyricsY;
+    if (windowConfig.desktopLyrics &&
+        typeof windowConfig.desktopLyrics.x === 'number' &&
+        typeof windowConfig.desktopLyrics.y === 'number') {
+        lyricsX = windowConfig.desktopLyrics.x;
+        lyricsY = windowConfig.desktopLyrics.y;
+    } else {
+        // 计算默认位置（在主窗口附近）
+        const mainBounds = mainWindow ? mainWindow.getBounds() : {x: 100, y: 100};
+        lyricsX = mainBounds.x + 50;
+        lyricsY = mainBounds.y + 20;
+    }
 
     desktopLyricsWindow = new BrowserWindow({
         width: 500,
@@ -316,7 +330,7 @@ async function createDesktopLyricsWindow() {
         skipTaskbar: true,
         resizable: false,
         movable: true,
-        focusable: false, // 防止抢夺焦点
+        focusable: false,
         show: false,
         webPreferences: {
             nodeIntegration: false,
@@ -329,18 +343,36 @@ async function createDesktopLyricsWindow() {
     // 加载桌面歌词页面
     const lyricsHtmlPath = path.join(__dirname, '../../renderer/public/DesktopLyrics.html');
     await desktopLyricsWindow.loadFile(lyricsHtmlPath);
-    // desktopLyricsWindow.webContents.openDevTools({mode: 'detach'});
 
     // 窗口事件处理
     desktopLyricsWindow.once('ready-to-show', () => {
         desktopLyricsWindow.show();
     });
 
+    // 监听窗口移动，保存位置
+    let moveTimeout = null;
+    desktopLyricsWindow.on('move', () => {
+        if (moveTimeout) {
+            clearTimeout(moveTimeout);
+        }
+
+        moveTimeout = setTimeout(async () => {
+            if (desktopLyricsWindow && !desktopLyricsWindow.isDestroyed()) {
+                const [x, y] = desktopLyricsWindow.getPosition();
+                const config = await loadWindowConfig();
+                config.desktopLyrics = {x, y};
+                await saveWindowConfig(config);
+            }
+        }, 500);
+    });
+
     desktopLyricsWindow.on('closed', () => {
+        if (moveTimeout) {
+            clearTimeout(moveTimeout);
+        }
         desktopLyricsWindow = null;
     });
 
-    // 防止窗口失去焦点时隐藏
     desktopLyricsWindow.on('blur', () => {
         // 保持窗口可见
     });
