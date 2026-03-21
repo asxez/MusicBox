@@ -388,6 +388,7 @@ class NetworkFileAdapter {
      * @returns {Promise<Array>} 目录内容列表
      */
     async readdirWebDAV(webdavClient, dirPath) {
+        const path = require('path');
         let contents;
         let usedPath;
 
