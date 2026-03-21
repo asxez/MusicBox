@@ -22,6 +22,12 @@ class WasapiEngine {
         // 待应用的播放位置（用于loadTrack后play前的seek）
         this.pendingSeekPosition = null;
 
+        // 播放开始时间戳（用于过滤旧的finished事件）
+        this.playStartTime = 0;
+
+        // 标记是否正在加载新曲目（用于阻止旧曲目的finished事件）
+        this.isLoadingNewTrack = false;
+
         // 事件回调
         this.onTrackChanged = null;
         this.onPlaybackStateChanged = null;
@@ -81,6 +87,9 @@ class WasapiEngine {
 
     async loadTrack(filePath) {
         try {
+            // 标记正在加载新曲目，阻止旧曲目的finished事件触发自动播放
+            this.isLoadingNewTrack = true;
+
             await this.stop();
 
             const result = await this.nativeEngine.loadTrack(filePath);
@@ -123,6 +132,13 @@ class WasapiEngine {
 
             this.isPlaying = true;
             this.isPaused = false;
+
+            // 记录播放开始时间，用于过滤旧的finished事件
+            this.playStartTime = Date.now();
+
+            // 清除加载标记，允许finished事件触发自动播放
+            this.isLoadingNewTrack = false;
+
             this.startProgressTimer();
 
             if (this.onPlaybackStateChanged) {
@@ -359,6 +375,18 @@ class WasapiEngine {
     }
 
     onTrackEnded() {
+        // 如果正在加载新曲目，忽略finished事件（这是旧曲目的finished事件）
+        if (this.isLoadingNewTrack) {
+            return;
+        }
+
+        // 检查finished事件是否来自刚开始播放的曲目
+        // 如果距离play()调用不到2秒，这必定是旧曲目的finished事件（因为歌曲不可能在2秒内播完）
+        const timeSincePlay = Date.now() - this.playStartTime;
+        if (timeSincePlay < 2000) {
+            return;
+        }
+
         this.isPlaying = false;
         this.isPaused = false;
 

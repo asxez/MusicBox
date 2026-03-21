@@ -346,7 +346,7 @@ async function createDesktopLyricsWindow() {
 
     // 窗口事件处理
     desktopLyricsWindow.once('ready-to-show', () => {
-        desktopLyricsWindow.webContents.openDevTools({mode: 'detach'});
+        // desktopLyricsWindow.webContents.openDevTools({mode: 'detach'});
         desktopLyricsWindow.show();
     });
 
