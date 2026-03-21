@@ -170,6 +170,13 @@ interface ElectronAPI {
 
     // 音乐库
     library: {
+        validateCache: () => Promise<{
+            valid: number,
+            invalid: number,
+            modified: number,
+            tracks: object[]
+        }>;
+
         scanDirectory: (path: string) => Promise<boolean>;
         scanNetworkDrive: (driveId: string | number, relativePath: string) => Promise<boolean>;
 
@@ -233,6 +240,8 @@ interface ElectronAPI {
 
         onLibraryUpdated: (callback: (event: any, data: any) => void) => void;
         onScanProgress: (callback: (event: any, progress: any) => void) => void;
+
+        onCacheValidationProgress: (callback: (event: any, progress: any) => void) => function;
 
         // todo
     };

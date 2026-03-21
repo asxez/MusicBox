@@ -400,6 +400,53 @@ class WasapiEngine {
         }
     }
 
+    // ==================== WASAPI模式切换 ====================
+
+    async switchShareMode(mode) {
+        if (!this.nativeEngine?.switchShareMode) {
+            console.error('❌ WasapiEngine: Native引擎不支持模式切换');
+            return false;
+        }
+
+        try {
+            console.log(`🔄 WasapiEngine: 切换到${mode === 'exclusive' ? '独占' : '共享'}模式`);
+
+            // 保存当前状态
+            const wasPlaying = this.isPlaying;
+            const currentPosition = await this.getPosition();
+            const savedTrack = this.currentTrack;
+
+            // 停止当前播放
+            await this.stop();
+
+            // 调用Native引擎切换模式
+            const result = await this.nativeEngine.switchShareMode(mode);
+            if (!result.success) {
+                throw new Error(result.error || '模式切换失败');
+            }
+
+            console.log(`✅ WasapiEngine: 模式切换成功`);
+
+            // 如果之前有歌曲在播放，重新加载并恢复
+            if (savedTrack && savedTrack.filePath) {
+                await this.loadTrack(savedTrack.filePath);
+
+                if (currentPosition > 0) {
+                    this.pendingSeekPosition = currentPosition;
+                }
+
+                if (wasPlaying) {
+                    await this.play();
+                }
+            }
+
+            return true;
+        } catch (error) {
+            console.error('❌ WasapiEngine: 模式切换失败:', error);
+            return false;
+        }
+    }
+
     // ==================== 均衡器接口 ====================
 
     // 获取图形均衡器代理对象

@@ -103,7 +103,11 @@ impl AudioEngine {
     }
 
     pub fn initialize(&mut self) -> Result<(), String> {
-        println!("🎵 AudioEngine: 初始化WASAPI音频引擎（独占模式）");
+        let mode_str = match self.config.share_mode {
+            crate::audio_config::ShareMode::Shared => "共享模式",
+            crate::audio_config::ShareMode::Exclusive => "独占模式",
+        };
+        println!("🎵 AudioEngine: 初始化WASAPI音频引擎（{}）", mode_str);
         let start = std::time::Instant::now();
 
         let hr = initialize_mta();
@@ -138,9 +142,9 @@ impl AudioEngine {
         println!("     声道数: {}", mix_format.get_nchannels());
         println!("     位深度: {} bits", mix_format.get_bitspersample());
 
-        let supported_format = self.query_exclusive_format(&mut audio_client, &mix_format)?;
+        let supported_format = self.query_format(&mut audio_client, &mix_format)?;
 
-        println!("   独占模式支持的格式:");
+        println!("   {}支持的格式:", mode_str);
         println!("     采样率: {} Hz", supported_format.sample_rate);
         println!("     声道数: {}", supported_format.channels);
         println!("     位深度: {} bits", supported_format.bits_per_sample);
@@ -163,11 +167,41 @@ impl AudioEngine {
         println!("🎚️ AudioEngine: 参量均衡器已初始化");
 
         println!(
-            "✅ AudioEngine: WASAPI独占模式初始化成功，耗时: {:?}",
+            "✅ AudioEngine: WASAPI{}初始化成功，耗时: {:?}",
+            mode_str,
             start.elapsed()
         );
 
         Ok(())
+    }
+
+    fn query_format(
+        &self,
+        audio_client: &mut AudioClient,
+        mix_format: &WaveFormat,
+    ) -> Result<AudioFormat, String> {
+        use crate::audio_config::ShareMode;
+
+        match self.config.share_mode {
+            ShareMode::Shared => {
+                // 共享模式：使用系统混合格式
+                println!("   ✅ 使用系统混合格式（共享模式）");
+                Ok(AudioFormat::new(
+                    mix_format.get_samplespersec(),
+                    mix_format.get_nchannels(),
+                    mix_format.get_bitspersample(),
+                    if mix_format.get_bitspersample() == 32 {
+                        SampleType::Float
+                    } else {
+                        SampleType::Int
+                    },
+                ))
+            }
+            ShareMode::Exclusive => {
+                // 独占模式：查询设备支持的格式
+                self.query_exclusive_format(audio_client, mix_format)
+            }
+        }
     }
 
     fn query_exclusive_format(
@@ -803,5 +837,40 @@ impl AudioEngine {
         } else {
             false
         }
+    }
+
+    // ==================== 音频模式切换 ====================
+
+    /// 设置音频模式（共享/独占）
+    /// 注意：需要重新初始化才能生效
+    pub fn set_share_mode(&mut self, mode: crate::audio_config::ShareMode) {
+        self.config.set_share_mode(mode);
+        println!("🔧 AudioEngine: 音频模式已设置为 {:?}", mode);
+    }
+
+    /// 获取当前音频模式
+    pub fn get_share_mode(&self) -> crate::audio_config::ShareMode {
+        self.config.get_share_mode()
+    }
+
+    /// 切换音频模式并重新初始化
+    pub fn switch_share_mode(
+        &mut self,
+        mode: crate::audio_config::ShareMode,
+    ) -> Result<(), String> {
+        println!("🔄 AudioEngine: 切换音频模式到 {:?}", mode);
+
+        // 停止当前播放
+        self.stop()?;
+
+        // 设置新模式
+        self.set_share_mode(mode);
+
+        // 重新初始化
+        self.initialized = false;
+        self.initialize()?;
+
+        println!("✅ AudioEngine: 音频模式切换完成");
+        Ok(())
     }
 }

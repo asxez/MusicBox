@@ -540,6 +540,57 @@ function registerNativeAudioIpcHandlers({ipcMain, nativeAudioModule, getMainWind
         }
     });
 
+    // ==================== WASAPI 模式切换 ====================
+
+    // 设置 WASAPI 共享模式
+    ipcMain.handle('native-audio:set-share-mode', async (event, mode) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const result = nativeAudioEngine.setShareMode(mode);
+            console.log(`🔧 设置WASAPI模式为: ${mode}`);
+            return {success: result};
+        } catch (error) {
+            console.error('❌ 设置WASAPI模式失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // 获取 WASAPI 共享模式
+    ipcMain.handle('native-audio:get-share-mode', async () => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            const mode = nativeAudioEngine.getShareMode();
+            return {success: true, mode};
+        } catch (error) {
+            console.error('❌ 获取WASAPI模式失败:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
+    // 切换 WASAPI 共享模式
+    ipcMain.handle('native-audio:switch-share-mode', async (event, mode) => {
+        try {
+            if (!nativeAudioEngine) {
+                return {success: false, error: '引擎未初始化'};
+            }
+            console.log(`🔄 切换WASAPI模式到: ${mode}`);
+            const result = await nativeAudioEngine.switchShareMode(mode);
+            if (result.success) {
+                console.log(`✅ WASAPI模式切换成功`);
+            } else {
+                console.error(`❌ WASAPI模式切换失败: ${result.error}`);
+            }
+            return result;
+        } catch (error) {
+            console.error('❌ 切换WASAPI模式异常:', error);
+            return {success: false, error: error.message};
+        }
+    });
+
     // 销毁引擎
     ipcMain.handle('native-audio:destroy', async () => {
         try {
