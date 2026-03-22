@@ -55,6 +55,12 @@ export class SystemController extends BaseController {
         }
     }
 
+    @IpcHandle('fs:stat')
+    async fsStat(filePath: string): Promise<any> {
+        if (isDangerousPath(filePath)) throw new Error(`🔒 拒绝访问危险路径: ${filePath}`);
+        return fs.promises.stat(filePath);
+    }
+
     @IpcHandle('fs:readFile')
     async readFile(filePath: string, encoding?: string): Promise<string | number[]> {
         if (isDangerousPath(filePath)) throw new Error(`🔒 拒绝访问危险路径: ${filePath}`);

@@ -30,10 +30,10 @@ export class NativeAudioController extends BaseController {
 
     private startPolling(): void {
         this.stopPolling();
-        this.pollInterval = setInterval(async () => {
+        this.pollInterval = setInterval(() => {
             if (!this.engine) return;
             try {
-                const event = await this.engine.pollEvent();
+                const event = this.engine.pollEvents();
                 if (event) this.dispatchEvent(event);
             } catch {
             }
@@ -342,10 +342,8 @@ export class NativeAudioController extends BaseController {
     @IpcHandle('native-audio:parametric-set-preamp')
     async parametricSetPreamp(gain: number): Promise<any> {
         try {
-            return this.engine ? await this.engine.parametricSetPreamp(gain) && {success: true} : {
-                success: false,
-                error: '引擎未初始化'
-            };
+            this.engine.parametricSetPreamp(gain);
+            return {success: true};
         } catch (e: any) {
             return {success: false, error: e.message};
         }
@@ -425,7 +423,7 @@ export class NativeAudioController extends BaseController {
     }
 
     @IpcHandle('native-audio:parametric-reset')
-    parametricReset(): any {
+    parametricReset(): object {
         try {
             if (!this.engine) return {success: false, error: '引擎未初始化'};
             this.engine.parametricReset();

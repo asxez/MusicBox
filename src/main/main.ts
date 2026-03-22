@@ -23,9 +23,9 @@ app.whenReady().then(async () => {
 
     await application.start();
 
-    app.on('activate', () => {
+    app.on('activate', async () => {
         if (BrowserWindow.getAllWindows().length === 0) {
-            application.createMainWindow();
+            await application.createMainWindow();
         }
     });
 });
