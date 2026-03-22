@@ -63,12 +63,16 @@ export class NetworkController extends BaseController {
     async getMountedDrives(): Promise<any[]> {
         try {
             const drives = this.networkDriveManager.getMountedDrives();
-            return Array.from(drives.entries()).map(([id, info]) => ({
-                id,
-                type: info.type,
-                config: info.config,
-                mountTime: info.mountTime
-            }));
+            return Array.from(drives.entries()).map(([id, info]) => {
+                const status = this.networkDriveManager.getDriveStatus(id);
+                return {
+                    id,
+                    type: info.type,
+                    config: info.config,
+                    connected: status ? status.connected : false,
+                    mountTime: info.mountTime
+                };
+            });
         } catch (error) {
             console.error('❌ 获取挂载磁盘列表失败:', error);
             return [];

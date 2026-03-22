@@ -235,19 +235,33 @@ export class NetworkDriveManager extends EventEmitter {
 
     private async testWebDAVConnection(webdavClient: WebDAVClient): Promise<void> {
         try {
-            const exists = await webdavClient.exists('/');
-            if (exists !== undefined) return;
+            const response = await (webdavClient as any).customRequest('/', {method: 'OPTIONS'});
+            if (response.ok) return;
+        } catch {
+        }
+
+        try {
+            const response = await (webdavClient as any).customRequest('/', {method: 'HEAD'});
+            if (response.ok) return;
+        } catch {
+        }
+
+        try {
+            await webdavClient.exists('/');
+            return;
         } catch {
         }
 
         try {
             await webdavClient.getDirectoryContents('/');
+            return;
         } catch (error: any) {
             if (error.message && error.message.includes('405')) {
                 throw new Error(`WebDAV连接测试失败: 服务器不支持PROPFIND方法。原始错误: ${error.message}`);
             }
-            throw error;
         }
+
+        throw new Error('WebDAV连接测试失败: 所有测试方法都无法连接到服务器，请检查URL、用户名、密码和网络连接');
     }
 
     getDriveInfo(driveId: string): DriveInfo | undefined {
