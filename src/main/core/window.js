@@ -166,7 +166,7 @@ async function createWindow() {
     let htmlPath;
     if (isDev) {
         // 开发环境：从源码目录加载
-        htmlPath = path.join(__dirname, '../../renderer/public/index.html');
+        htmlPath = path.join(__dirname, '../../../src/renderer/public/index.html');
         console.log(`🔧 开发环境 - Loading HTML from: ${htmlPath}`);
     } else {
         // 生产环境：使用app.getAppPath()获取正确路径
@@ -341,7 +341,7 @@ async function createDesktopLyricsWindow() {
     });
 
     // 加载桌面歌词页面
-    const lyricsHtmlPath = path.join(__dirname, '../../renderer/public/DesktopLyrics.html');
+    const lyricsHtmlPath = path.join(__dirname, '../../../src/renderer/public/DesktopLyrics.html');
     await desktopLyricsWindow.loadFile(lyricsHtmlPath);
 
     // 窗口事件处理

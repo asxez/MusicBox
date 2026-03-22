@@ -51,15 +51,6 @@ class Navigation extends Component {
         // 窗口最大化状态
         this.isMaximized = false;
 
-        // 拖拽相关状态
-        this.isKeyDown = false;
-        this.dinatesX = 0;
-        this.dinatesY = 0;
-
-        // 主动尺寸保护机制 - 记录拖拽开始时的窗口尺寸
-        this.originalWindowWidth = 0;
-        this.originalWindowHeight = 0;
-
         // 歌单相关元素
         this.userPlaylistsSection = document.getElementById('user-playlists-section');
         this.userPlaylistsList = document.getElementById('user-playlists-list');
@@ -236,74 +227,6 @@ class Navigation extends Component {
                 error: error
             }
         }
-    }
-
-    setupWindowDrag() {
-        const navbar = this.element;
-        const navbarContent = navbar.querySelector('.navbar-content');
-
-        // 获取不可拖拽的元素
-        const nonDraggableElements = [
-            ...navbar.querySelectorAll('button'),
-            ...navbar.querySelectorAll('input'),
-            ...navbar.querySelectorAll('.search-container')
-        ];
-
-        const mousedown = (e) => {
-            // 只处理左键点击
-            if (e.button !== 0) return;
-            // 检查是否点击在不可拖拽的元素上
-            const isNonDraggable = nonDraggableElements.some(element =>
-                element.contains(e.target) || element === e.target
-            );
-            if (isNonDraggable || this.isMaximized) {
-                return;
-            }
-
-            this.isKeyDown = true;
-            this.dinatesX = e.x;
-            this.dinatesY = e.y;
-
-            // 主动尺寸保护机制 - 记录拖拽开始时的窗口尺寸
-            try {
-                window.electronAPI.window.getSize().then(([width, height]) => {
-                    this.originalWindowWidth = width;
-                    this.originalWindowHeight = height;
-                }).catch(error => {
-                    console.error('❌ Navigation: 获取窗口尺寸失败', error);
-                });
-            } catch (error) {
-                console.error('❌ Navigation: 尺寸记录失败', error);
-            }
-
-            document.onmousemove = async (ev) => {
-                if (this.isKeyDown) {
-                    const x = ev.screenX - this.dinatesX;
-                    const y = ev.screenY - this.dinatesY;
-
-                    // 给主进程传入坐标和原始尺寸信息
-                    let data = {
-                        appX: x,
-                        appY: y,
-                        // 主动尺寸保护机制 - 传递原始窗口尺寸
-                        originalWidth: this.originalWindowWidth,
-                        originalHeight: this.originalWindowHeight
-                    };
-                    await window.electronAPI.window.sendPosition(data);
-                }
-            };
-            document.onmouseup = async (_event) => {
-                this.isKeyDown = false;
-
-                // 主动尺寸保护机制 - 清理缓存的尺寸信息
-                await window.electronAPI.window.clearSizeCache();
-
-                // 重置本地尺寸记录
-                this.originalWindowWidth = 0;
-                this.originalWindowHeight = 0;
-            };
-        };
-        navbarContent.addEventListener('mousedown', mousedown);
     }
 
     // 恢复侧边栏状态
@@ -553,15 +476,6 @@ class Navigation extends Component {
         await this.loadUserPlaylists();
     }
 
-    // 更新特定歌单信息（用于封面更新等）
-    updatePlaylistInfo(updatedPlaylist) {
-        const index = this.userPlaylists.findIndex(p => p.id === updatedPlaylist.id);
-        if (index !== -1) {
-            this.userPlaylists[index] = {...this.userPlaylists[index], ...updatedPlaylist};
-            this.renderUserPlaylists();
-            // console.log('✅ Navigation: 歌单信息已更新', updatedPlaylist.name);
-        }
-    }
 
     // --- 网络磁盘管理 ---
 

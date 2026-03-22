@@ -227,9 +227,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
         getTrackMetadata: (filePath) => ipcRenderer.invoke('library:getTrackMetadata', filePath),
         updateTrackMetadata: (trackId, metadata) => ipcRenderer.invoke('library:updateTrackMetadata', trackId, metadata),
 
-        // Cover cache management
-        clearCoverCache: (filePath) => ipcRenderer.invoke('covers:clearCache', filePath),
-
         // Playlists
         createPlaylist: (name, description) => ipcRenderer.invoke('library:createPlaylist', name, description),
         getPlaylistDetail: (playlistId) => ipcRenderer.invoke('library:getPlaylistDetail', playlistId),
@@ -374,10 +371,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         getPosition: () => ipcRenderer.invoke('window:getPosition'),
         getSize: () => ipcRenderer.invoke('window:getSize'),
         setSize: (width, height) => ipcRenderer.invoke('window:setSize', width, height),
-        sendPosition: (data) => ipcRenderer.send('custom-adsorption', data),
         setBackgroundThrottling: (allowed) => ipcRenderer.invoke('window:setBackgroundThrottling', allowed),
-        // 主动尺寸保护机制 - 清理缓存的尺寸信息
-        clearSizeCache: () => ipcRenderer.send('clear-size-cache'),
         // 监听窗口状态变化
         onMaximizedChanged: (callback) => {
             ipcRenderer.on('window:maximized', (event, isMaximized) => callback(isMaximized));
