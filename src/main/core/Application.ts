@@ -47,7 +47,7 @@ export class Application {
             await this.registerControllers();
 
             // 4. 创建主窗口
-            this.windowManager.createMainWindow();
+            await this.windowManager.createMainWindow();
 
             this.isInitialized = true;
             console.log('✅ 应用启动完成');
@@ -231,7 +231,11 @@ export class Application {
             new ExtensionsController(extensionInstaller, this.windowManager),
             new CoversController(),
             new LyricsController(networkFileAdapter),
-            new TrayController(this.windowManager),
+            (() => {
+                const trayCtrl = new TrayController(this.windowManager);
+                this.windowManager.setTraySettingsGetter(() => trayCtrl.getSettings());
+                return trayCtrl;
+            })(),
             new HttpServerController(),
             new NativeAudioController(nativeAudioModule, this.windowManager, networkFileAdapter),
         ];
@@ -281,37 +285,9 @@ export class Application {
     }
 
     /**
-     * 检查是否有打开的窗口
-     */
-    hasWindows(): boolean {
-        return this.windowManager.hasWindows();
-    }
-
-    /**
      * 创建主窗口
      */
-    createMainWindow(): void {
-        this.windowManager.createMainWindow();
-    }
-
-    /**
-     * 获取服务容器
-     */
-    getContainer(): ServiceContainer {
-        return this.container;
-    }
-
-    /**
-     * 获取窗口管理器
-     */
-    getWindowManager(): WindowManager {
-        return this.windowManager;
-    }
-
-    /**
-     * 获取配置管理器
-     */
-    getConfigManager(): ConfigManager {
-        return this.configManager;
+    async createMainWindow(): Promise<void> {
+        await this.windowManager.createMainWindow();
     }
 }

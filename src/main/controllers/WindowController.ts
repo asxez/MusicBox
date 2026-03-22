@@ -1,12 +1,43 @@
 // 窗口控制器
 
+import { ipcMain } from 'electron';
 import {BaseController, Controller, IpcHandle} from '../decorators/IpcHandler';
 import {WindowManager} from '../core/WindowManager';
 
 @Controller('window')
 export class WindowController extends BaseController {
+    private cachedOriginalSize: { width: number; height: number } | null = null;
+
     constructor(private windowManager: WindowManager) {
         super();
+    }
+
+    override register(): void {
+        super.register();
+        // custom-adsorption and clear-size-cache use ipcMain.on (not decorated)
+        ipcMain.on('custom-adsorption', (_event, res) => {
+            const win = this.windowManager.getMainWindow();
+            if (win && !win.isMaximized()) {
+                if (res.originalWidth && res.originalHeight) {
+                    this.cachedOriginalSize = { width: res.originalWidth, height: res.originalHeight };
+                }
+                const x = Math.round(res.appX);
+                const y = Math.round(res.appY);
+                const targetWidth = this.cachedOriginalSize ? this.cachedOriginalSize.width : win.getSize()[0];
+                const targetHeight = this.cachedOriginalSize ? this.cachedOriginalSize.height : win.getSize()[1];
+                win.setBounds({ x, y, width: targetWidth, height: targetHeight });
+                setTimeout(() => {
+                    if (!win || win.isDestroyed()) return;
+                    const [afterWidth, afterHeight] = win.getSize();
+                    if (afterWidth !== targetWidth || afterHeight !== targetHeight) {
+                        try { win.setSize(targetWidth, targetHeight); } catch { }
+                    }
+                }, 0);
+            }
+        });
+        ipcMain.on('clear-size-cache', () => {
+            this.cachedOriginalSize = null;
+        });
     }
 
     @IpcHandle('window:minimize')

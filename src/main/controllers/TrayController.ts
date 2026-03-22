@@ -24,11 +24,13 @@ export class TrayController extends BaseController {
     }
 
     private async createTrayIcon(): Promise<Electron.NativeImage> {
+        const appPath = app.getAppPath();
         const iconPaths = [
-            path.join(app.getAppPath(), 'resources', 'icons', 'icon.png'),
-            path.join(app.getAppPath(), 'public', 'icon.png'),
-            path.join(__dirname, '../../../resources/icons/icon.png'),
-            path.join(__dirname, '../../../public/favicon.ico')
+            path.join(__dirname, '../../../src/renderer/public/assets/images/favicon.ico'),
+            path.join(appPath, 'src/renderer/public/favicon.ico'),
+            path.join(appPath, 'src/renderer/src/assets/images/favicon.ico'),
+            path.join(appPath, 'public/favicon.ico'),
+            path.join(appPath, 'assets/favicon.ico')
         ];
         for (const iconPath of iconPaths) {
             try {

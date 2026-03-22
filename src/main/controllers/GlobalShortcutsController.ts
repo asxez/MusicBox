@@ -75,13 +75,9 @@ export class GlobalShortcutsController extends BaseController {
     }
 
     @IpcHandle('globalShortcuts:unregister')
-    unregisterShortcut(id: string): boolean {
+    unregisterAll2(): boolean {
         try {
-            const electronKey = this.registered.get(id);
-            if (electronKey) {
-                globalShortcut.unregister(electronKey);
-                this.registered.delete(id);
-            }
+            this.unregisterAll();
             return true;
         } catch (error) {
             console.error('❌ 取消注册全局快捷键失败:', error);
