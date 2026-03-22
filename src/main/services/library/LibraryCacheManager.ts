@@ -126,7 +126,7 @@ export class LibraryCacheManager {
     }
 
     isNetworkPath(filePath: string): boolean {
-        return !!(filePath && typeof filePath === 'string' && filePath.startsWith('network://'));
+        return !!(filePath && filePath.startsWith('network://'));
     }
 
     async loadCache(): Promise<void> {
