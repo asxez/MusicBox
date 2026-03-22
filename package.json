@@ -14,24 +14,30 @@
     "install:renderer": "cd src/renderer && npm install",
     "install:rs": "cd native && npm install",
     "build:rs": "cd native && npm run build",
-    "dev": "npm run build:renderer && npm run build:rs && npm run dev:main",
-    "dev:main": "chcp 65001 && electron src/main/main.js --expose-gc",
+    "build:ts": "tsc -p src/main/tsconfig.json",
+    "watch:ts": "tsc -p src/main/tsconfig.json --watch",
+    "dev": "npm run build:renderer && npm run build:rs && npm run build:ts && npm run dev:main",
+    "dev:main": "chcp 65001 && electron dist/main/main.js --expose-gc",
     "dev:renderer": "cd src/renderer && npm run dev",
-    "build": "npm run build:python && npm run build:renderer && npm run build:rs && npm run build:main",
+    "build": "npm run build:python && npm run build:renderer && npm run build:rs && npm run build:ts && npm run build:main",
     "build:main": "electron-builder",
     "build:renderer": "cd src/renderer && npm run build",
-    "build:win": "npm run build:python && npm run build:renderer && electron-builder --win",
-    "build:mac": "npm run build:python && npm run build:renderer && electron-builder --mac",
-    "build:linux": "npm run build:python && npm run build:renderer && electron-builder --linux",
+    "build:win": "npm run build:python && npm run build:renderer && npm run build:ts && electron-builder --win",
+    "build:mac": "npm run build:python && npm run build:renderer && npm run build:ts && electron-builder --mac",
+    "build:linux": "npm run build:python && npm run build:renderer && npm run build:ts && electron-builder --linux",
     "build:icons": "electron-icon-builder --input=./docs/images/logo.png --output=build --flatten",
     "build:python": "node scripts/build-python-module.js",
     "clean": "rimraf dist && cd src/renderer && npm run clean"
   },
   "devDependencies": {
+    "@types/electron": "^1.4.38",
+    "@types/node": "^25.5.0",
     "cross-env": "^10.0.0",
     "electron": "37.3.1",
     "electron-builder": "^24.0.0",
-    "rimraf": "^4.1.2"
+    "rimraf": "^4.1.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=20.0.0"
