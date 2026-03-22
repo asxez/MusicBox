@@ -389,6 +389,20 @@ export class LibraryCacheManager {
         this.cache.scannedDirectories = dirs;
     }
 
+    addScannedDirectory(directoryPath: string): void {
+        if (!this.cache.scannedDirectories.includes(directoryPath)) {
+            this.cache.scannedDirectories.push(directoryPath);
+        }
+    }
+
+    updateScanStatistics(lastScanTime: number, scanDuration: number): void {
+        if (!this.cache.statistics) {
+            this.cache.statistics = {totalTracks: 0, totalSize: 0, totalPlaylists: 0, lastScanTime: 0, scanDuration: 0};
+        }
+        this.cache.statistics.lastScanTime = lastScanTime;
+        this.cache.statistics.scanDuration = scanDuration;
+    }
+
     clearCache(): Promise<void> {
         this.cache = {
             lastUpdated: Date.now(),

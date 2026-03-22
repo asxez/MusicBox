@@ -344,9 +344,9 @@ export class LibraryController extends BaseController {
 
             if (tracksToCache.length > 0) {
                 this.libraryCacheManager.addTracks(tracksToCache);
-                this.libraryCacheManager.updateScannedDirectories(
-                    [...new Set([...this.libraryCacheManager.getScannedDirectories(), directoryPath])]
-                );
+                this.libraryCacheManager.addScannedDirectory(directoryPath);
+                const scanDuration = Date.now() - scanStartTime;
+                this.libraryCacheManager.updateScanStatistics(scanStartTime, scanDuration);
                 await this.libraryCacheManager.saveCache();
             }
 
@@ -361,7 +361,7 @@ export class LibraryController extends BaseController {
         }
     }
 
-    private async scanNetworkDirectory(networkPath: string, _scanStartTime: number): Promise<boolean> {
+    private async scanNetworkDirectory(networkPath: string, scanStartTime: number): Promise<boolean> {
         const tracks: any[] = [];
         const tracksToCache: any[] = [];
 
@@ -369,16 +369,17 @@ export class LibraryController extends BaseController {
             const files: any[] = [];
             try {
                 const items = await this.networkFileAdapter.readdir(dirPath);
-                for (const item of items) {
-                    const itemPath = this.networkFileAdapter.joinNetworkPath(dirPath, item);
-                    try {
-                        const stat = await this.networkFileAdapter.stat(itemPath);
-                        const isDir = typeof stat.isDirectory === 'function' ? stat.isDirectory() : false;
-                        if (isDir) files.push(...await collectNetworkFiles(itemPath));
-                        else if (AUDIO_EXTENSIONS.includes(path.extname(item).toLowerCase())) {
-                            files.push({path: itemPath, stat, name: item});
-                        }
-                    } catch {
+                const itemPaths = items.map(item => this.networkFileAdapter.joinNetworkPath(dirPath, item));
+                const stats = await Promise.all(
+                    itemPaths.map(p => this.networkFileAdapter.stat(p).catch(() => null))
+                );
+                for (let i = 0; i < items.length; i++) {
+                    const stat = stats[i];
+                    if (!stat) continue;
+                    const isDir = typeof stat.isDirectory === 'function' ? stat.isDirectory() : false;
+                    if (isDir) files.push(...await collectNetworkFiles(itemPaths[i]));
+                    else if (AUDIO_EXTENSIONS.includes(path.extname(items[i]).toLowerCase())) {
+                        files.push({path: itemPaths[i], stat, name: items[i]});
                     }
                 }
             } catch (e: any) {
@@ -393,7 +394,7 @@ export class LibraryController extends BaseController {
             const batch = files.slice(i, i + BATCH_SIZE);
             const results = await Promise.all(batch.map(async ({path: fp, stat, name}) => {
                 try {
-                    const metadata = await this.parseMetadata(fp);
+                    const metadata = await this.parseMetadata(fp, this.networkFileAdapter, {skipCover: true, skipLyrics: true});
                     return {
                         trackData: {
                             filePath: fp, fileName: name,
@@ -429,11 +430,15 @@ export class LibraryController extends BaseController {
 
         if (tracksToCache.length > 0) {
             this.libraryCacheManager.addTracks(tracksToCache);
+            this.libraryCacheManager.addScannedDirectory(networkPath);
+            const scanDuration = Date.now() - scanStartTime;
+            this.libraryCacheManager.updateScanStatistics(scanStartTime, scanDuration);
             await this.libraryCacheManager.saveCache();
         }
 
         const allTracks = this.libraryCacheManager.getAllTracks();
         this.audioEngineState.scannedTracks = allTracks;
+        console.log(`✅ 网络扫描完成，找到 ${tracks.length} 个音频文件`);
         const win = this.windowManager.getMainWindow();
         if (win) win.webContents.send('library:updated', allTracks);
         return true;
@@ -615,22 +620,26 @@ export class LibraryController extends BaseController {
             const stats = await this.networkFileAdapter.stat(networkPath);
             const isDir = typeof stats.isDirectory === 'function' ? stats.isDirectory() : Boolean((stats as any).isDirectory);
             if (isDir) return {success: false, error: '这是一个文件夹，不是音频文件'};
-            const metadata = await this.parseMetadata(networkPath);
+            const metadata = await this.parseMetadata(networkPath, this.networkFileAdapter);
             const fileName = path.basename(networkPath);
             const trackData = {
                 filePath: networkPath, fileName,
                 title: metadata.title || path.basename(fileName, ext),
                 artist: metadata.artist || '未知艺术家', album: metadata.album || '未知专辑',
-                duration: metadata.duration, bitrate: metadata.bitrate, sampleRate: metadata.sampleRate,
-                year: metadata.year, genre: Array.isArray(metadata.genre) ? metadata.genre[0] : (metadata.genre || ''),
+                duration: metadata.duration || 0, bitrate: metadata.bitrate, sampleRate: metadata.sampleRate,
+                year: metadata.year, genre: Array.isArray(metadata.genre) ? metadata.genre.join(', ') : (metadata.genre || ''),
+                track: (metadata as any).track, disc: (metadata as any).disc,
                 embeddedLyrics: metadata.embeddedLyrics,
-                fileSize: stats.size, isNetworkFile: true
+                fileSize: stats.size || 0, isNetworkFile: true
             };
             const cacheTrack = {trackData, filePath: networkPath, stats};
-            this.libraryCacheManager.addTracks([cacheTrack]);
+            const addedTracks = this.libraryCacheManager.addTracks([cacheTrack]);
             await this.libraryCacheManager.saveCache();
             this.audioEngineState.scannedTracks = this.libraryCacheManager.getAllTracks();
-            return {success: true, track: trackData, isNew: true};
+            console.log(`✅ 单个文件扫描完成: ${trackData.title} - ${trackData.artist}`);
+            const win = this.windowManager.getMainWindow();
+            if (win) win.webContents.send('library:updated', [trackData]);
+            return {success: true, track: addedTracks[0], isNew: true};
         } catch (error: any) {
             console.error('❌ 扫描单个文件失败:', error);
             return {success: false, error: error.message};

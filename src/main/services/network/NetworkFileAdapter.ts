@@ -27,7 +27,7 @@ export class NetworkFileAdapter {
     }
 
     isNetworkPath(filePath: string): boolean {
-        if (!filePath || typeof filePath !== 'string') return false;
+        if (!filePath) return false;
         const isValid = filePath.startsWith('network://') && filePath.length > 10;
         if (!isValid && filePath.startsWith('network:')) {
             console.warn(`路径格式错误: ${filePath}, 正确格式: network://driveId/path`);
@@ -59,20 +59,42 @@ export class NetworkFileAdapter {
         const pathParts = filePath.split('/');
         const encodedParts = pathParts.map(part => {
             if (part === '') return part;
-            if (this.isAlreadyEncoded(part)) return part;
             return encodeURIComponent(part);
         });
         return encodedParts.join('/');
     }
 
-    private isAlreadyEncoded(str: string): boolean {
+    // 解码WebDAV路径
+    decodeWebDAVPath(encodedPath: string): string {
+        if (!encodedPath) {
+            return encodedPath;
+        }
+
         try {
-            const decoded = decodeURIComponent(str);
-            if (decoded === str) return false;
-            const hasEncodedChars = /%[0-9A-Fa-f]{2}/.test(str);
+            // 分割路径为各个部分，分别解码每个部分
+            const pathParts = encodedPath.split('/');
+            const decodedParts = pathParts.map(part => {
+                if (part === '') {
+                    return part;
+                }
+                return decodeURIComponent(part);
+            });
+
+            return decodedParts.join('/');
+        } catch (error: any) {
+            console.warn(`⚠️ NetworkFileAdapter: 路径解码失败 "${encodedPath}":`, error.message);
+            return encodedPath; // 解码失败时返回原路径
+        }
+    }
+
+    // 检查路径是否已经被URL编码
+    private isPathEncoded(path: string): boolean {
+        try {
+            const decoded = decodeURIComponent(path);
+            const hasEncodedChars = path.includes('%') && path !== decoded;
             if (hasEncodedChars) {
-                const reencoded = encodeURIComponent(decoded);
-                return reencoded === str;
+                const reEncoded = encodeURIComponent(decoded);
+                return reEncoded === path;
             }
             return false;
         } catch {
@@ -190,8 +212,8 @@ export class NetworkFileAdapter {
                 else resolve({
                     size: stats.size,
                     mtime: stats.mtime,
-                    isDirectory: () => stats.isDirectory(),
-                    isFile: () => stats.isFile()
+                    isDirectory: () => typeof stats.isDirectory === 'function' ? stats.isDirectory() : Boolean(stats.isDirectory),
+                    isFile: () => typeof stats.isFile === 'function' ? stats.isFile() : !Boolean(stats.isDirectory)
                 });
             });
         });
@@ -260,22 +282,25 @@ export class NetworkFileAdapter {
         let contents: FileStat[];
         try {
             const encodedPath = this.encodeWebDAVPath(dirPath);
+            console.log(`    编码后路径: "${encodedPath}"`);
             try {
                 contents = await webdavClient.getDirectoryContents(encodedPath) as FileStat[];
+                console.log(`    ✅ 使用编码路径成功，共 ${contents.length} 项`);
             } catch {
                 contents = await webdavClient.getDirectoryContents(dirPath) as FileStat[];
+                console.log(`    ✅ 使用原始路径成功，共 ${contents.length} 项`);
             }
-        } catch (error) {
-            throw error;
+        } catch (error: any) {
+            throw new Error(`WebDAV目录读取失败: ${error.message}`);
         }
 
-        return contents
-            .filter((item: FileStat) => item.type === 'file')
-            .map((item: FileStat) => {
-                const name = item.basename;
-                this.storeFilePathMapping(name, item.basename, item.basename);
-                return name;
-            });
+        return contents.map((item: FileStat) => {
+            const baseName = path.basename(item.filename);
+            const isAlreadyEncoded = this.isPathEncoded(baseName);
+            const finalName = isAlreadyEncoded ? this.decodeWebDAVPath(baseName) : baseName;
+            this.storeFilePathMapping(finalName, item.filename, baseName);
+            return finalName;
+        });
     }
 
     async writeFile(networkPath: string, buffer: Buffer): Promise<boolean> {
