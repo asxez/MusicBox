@@ -178,7 +178,7 @@ export class LibraryCacheManager {
         this.cache.lastUpdated = Date.now();
 
         try {
-            await fs.promises.writeFile(this.cacheFilePath, JSON.stringify(this.cache, null, 2), 'utf8');
+            await fs.promises.writeFile(this.cacheFilePath, JSON.stringify(this.cache), 'utf8');
         } catch (error) {
             console.error('❌ LibraryCacheManager: 保存缓存失败:', error);
             throw error;
@@ -416,11 +416,7 @@ export class LibraryCacheManager {
     }
 
     getAllTracks(): CachedTrack[] {
-        return this.cache.tracks.map(t => {
-            const clean = {...t};
-            if (clean.cover && typeof clean.cover === 'object') clean.cover = null;
-            return clean;
-        });
+        return this.cache.tracks;
     }
 
     updateTrackInCache(filePath: string, updatedData: Partial<CachedTrack>): boolean {

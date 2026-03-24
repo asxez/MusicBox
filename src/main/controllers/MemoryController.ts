@@ -2,13 +2,42 @@
 
 import {BaseController, Controller, IpcHandle} from '../decorators/IpcHandler';
 
+const AUTO_GC_INTERVAL = 30_000;   // 每30秒检查一次
+const AUTO_GC_THRESHOLD = 200;     // heapUsed 超过 200MB 时触发
+
 @Controller('memory')
 export class MemoryController extends BaseController {
     private lastCleanupTime = 0;
     private readonly cleanupCooldown = 5000;
+    private autoGCTimer: NodeJS.Timeout | null = null;
 
     constructor() {
         super();
+    }
+
+    override register(): void {
+        super.register();
+        this.autoGCTimer = setInterval(() => {
+            const m = process.memoryUsage();
+            let format = function (bytes: any) {
+                return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+            };
+            console.log('Process: heapTotal ' + format(m.heapTotal) + ' heapUsed ' + format(m.heapUsed) + ' rss ' + format(m.rss) + ' external:' + format(m.external));
+            console.log('-----------------------------------------------------------');
+
+            if (m.heapUsed / 1024 / 1024 > AUTO_GC_THRESHOLD) {
+                this.performGC();
+            }
+        }, AUTO_GC_INTERVAL);
+        this.autoGCTimer.unref();
+    }
+
+    override unregister(): void {
+        if (this.autoGCTimer) {
+            clearInterval(this.autoGCTimer);
+            this.autoGCTimer = null;
+        }
+        super.unregister();
     }
 
     private getMemoryStats() {
