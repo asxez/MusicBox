@@ -383,7 +383,7 @@ export async function parseMetadata(
             const picture = metadata.common.picture[0];
             cover = {
                 format: picture.format,
-                data: picture.data
+                data: Buffer.from(picture.data)
             };
         }
 

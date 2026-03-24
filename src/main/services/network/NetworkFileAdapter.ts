@@ -103,6 +103,10 @@ export class NetworkFileAdapter {
     }
 
     storeFilePathMapping(finalName: string, originalPath: string, baseName: string): void {
+        if (this.filePathMappings.size >= 500) {
+            const entries = [...this.filePathMappings.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+            for (let i = 0; i < 1000; i++) this.filePathMappings.delete(entries[i][0]);
+        }
         this.filePathMappings.set(finalName, {originalPath, baseName, timestamp: Date.now()});
     }
 
