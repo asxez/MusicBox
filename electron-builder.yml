@@ -1,11 +1,11 @@
 appId: com.musicbox.app
 productName: MusicBox
-copyright: Copyright © 2025 asxez MusicBox
+copyright: Copyright © 2025-2026 asxez MusicBox
 directories:
   output: dist
   buildResources: build
 files:
-  - src/main/**/*
+  - dist/main/**/*
   - src/renderer/public/**/*
   - node_modules/**/*
   - "!node_modules/**/{CHANGELOG.md,README.md,readme.md,readme.txt,author,authors,contributors,copying,copyright,*license*,licence*,notice,Notice}"
@@ -27,17 +27,17 @@ files:
   - "!src/main/metadata_editor*"
 
 asarUnpack:
-  - "src/main/metadata_editor*"
-  - "src/main/NativeAudio.node"
+  - "dist/main/metadata_editor*"
+  - "dist/main/NativeAudio.node"
 
 extraResources:
-  - from: "src/main/metadata_editor.exe"
+  - from: "dist/main/metadata_editor.exe"
     to: "metadata_editor.exe"
     filter: ["**/*"]
-  - from: "src/main/metadata_editor"
+  - from: "dist/main/metadata_editor"
     to: "metadata_editor"
     filter: ["**/*"]
-  - from: "src/main/NativeAudio.node"
+  - from: "dist/main/NativeAudio.node"
     to: "NativeAudio.node"
     filter: ["**/*"]
 

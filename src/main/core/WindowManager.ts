@@ -260,10 +260,11 @@ export class WindowManager {
 
         // 页面加载完成后显示
         this.desktopLyricsWindow.once('ready-to-show', () => {
+            // this.desktopLyricsWindow?.webContents.openDevTools({mode: 'detach'});
             this.desktopLyricsWindow?.show();
         });
 
-        // 监听窗口移动，保存位置（防抖500ms）
+        // 监听窗口移动，保存位置
         let moveTimeout: NodeJS.Timeout | null = null;
         this.desktopLyricsWindow.on('move', () => {
             if (moveTimeout) clearTimeout(moveTimeout);

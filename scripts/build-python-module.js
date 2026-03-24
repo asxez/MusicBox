@@ -7,7 +7,7 @@ class PythonModuleBuilder {
     constructor() {
         this.projectRoot = path.resolve(__dirname, '..');
         this.srcMain = path.join(this.projectRoot, 'src', 'main');
-        this.distDir = path.join(this.projectRoot, 'dist', 'python-modules');
+        this.distDir = path.join(this.projectRoot, 'dist', 'main');
         this.pythonScript = path.join(this.srcMain, 'metadata_editor.py');
         this.requirementsFile = path.join(this.projectRoot, 'requirements.txt');
         this.specFile = path.join(this.projectRoot, 'pyinstaller.spec');
@@ -194,9 +194,12 @@ class PythonModuleBuilder {
     }
 
     async copyToMainDirectory(executablePath) {
-        const targetPath = path.join(this.srcMain, this.executableName);
+        const targetPath = path.join(this.distDir, this.executableName);
 
         try {
+            if (!fs.existsSync(this.distDir)) {
+                fs.mkdirSync(this.distDir, {recursive: true});
+            }
             fs.copyFileSync(executablePath, targetPath);
             this.log(`可执行文件已复制到: ${targetPath}`, 'success');
 

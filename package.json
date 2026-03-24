@@ -2,7 +2,7 @@
   "name": "musicbox",
   "version": "0.2.5",
   "description": "A visually stunning, plugin-based, and highly customizable local music player.",
-  "main": "src/main/main.js",
+  "main": "dist/main/main.js",
   "author": {
     "name": "asxez",
     "email": "2973918177@qq.com"
