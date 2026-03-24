@@ -453,7 +453,7 @@ export class LibraryController extends BaseController {
                 console.warn('⚠️ getTrackMetadata: 未提供文件路径');
                 return null;
             }
-            const metadata = await this.parseMetadata(filePath);
+            const metadata = await this.parseMetadata(filePath, this.networkFileAdapter.isNetworkPath(filePath) ? this.networkFileAdapter : undefined);
             return {
                 filePath,
                 title: metadata.title, artist: metadata.artist, album: metadata.album,

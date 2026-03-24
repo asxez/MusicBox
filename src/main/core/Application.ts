@@ -162,7 +162,6 @@ export class Application {
 
         const {ExtensionInstaller} = await import('../services/extensions/ExtensionInstaller');
         this.container.register('extensionInstaller', () => new ExtensionInstaller());
-
         console.log(`✅ 服务注册完成 (${this.container.getStats().registered} 个)`);
     }
 
@@ -209,7 +208,9 @@ export class Application {
             console.warn('⚠️ 原生音频模块未找到，NativeAudio功能不可用');
         }
 
-        const audioController = new AudioController(parseMetadata);
+        const boundParseMetadata = (filePath: string) =>
+            parseMetadata(filePath, networkFileAdapter.isNetworkPath(filePath) ? networkFileAdapter : null);
+        const audioController = new AudioController(boundParseMetadata);
 
         this.controllers = [
             audioController,
