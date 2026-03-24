@@ -209,7 +209,7 @@ export class Application {
         }
 
         const boundParseMetadata = (filePath: string) =>
-            parseMetadata(filePath, networkFileAdapter.isNetworkPath(filePath) ? networkFileAdapter : null);
+            parseMetadata(filePath, networkFileAdapter.isNetworkPath(filePath) ? networkFileAdapter : null, {skipCover: true});
         const audioController = new AudioController(boundParseMetadata);
 
         this.controllers = [
