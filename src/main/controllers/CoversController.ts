@@ -8,6 +8,13 @@ import {BaseController, Controller, IpcHandle} from '../decorators/IpcHandler';
 import {cleanCoverFileName} from '../utils/string';
 import {generateCoverSearchPatterns, findBestCoverMatch} from '../utils/FileSearch';
 
+interface DirCache {
+    files: string[];
+    expiresAt: number;
+}
+
+const DIR_CACHE_TTL = 60_000;
+
 async function downloadImageFromUrl(url: string, filePath: string): Promise<{ success: boolean; error?: string }> {
     return new Promise(resolve => {
         const client = url.startsWith('https') ? https : http;
@@ -38,8 +45,19 @@ async function downloadImageFromUrl(url: string, filePath: string): Promise<{ su
 
 @Controller('covers')
 export class CoversController extends BaseController {
+    private dirCache = new Map<string, DirCache>();
+
     constructor() {
         super();
+    }
+
+    private async getCachedDir(coverDir: string): Promise<string[]> {
+        const now = Date.now();
+        const cached = this.dirCache.get(coverDir);
+        if (cached && cached.expiresAt > now) return cached.files;
+        const files = await fs.promises.readdir(coverDir);
+        this.dirCache.set(coverDir, {files, expiresAt: now + DIR_CACHE_TTL});
+        return files;
     }
 
     @IpcHandle('covers:checkLocalCover')
@@ -57,7 +75,7 @@ export class CoversController extends BaseController {
                 return {success: false, error: '封面缓存目录不存在'};
             }
 
-            const files = await fs.promises.readdir(coverDir);
+            const files = await this.getCachedDir(coverDir);
             const imageFiles = files.filter(f => ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(path.extname(f).toLowerCase()));
 
             if (isAlbum) {
@@ -95,13 +113,16 @@ export class CoversController extends BaseController {
         try {
             await fs.promises.mkdir(coverDir, {recursive: true});
             const fullPath = path.join(coverDir, fileName);
+            const invalidate = () => this.dirCache.delete(coverDir);
 
             if (dataType === 'arrayBuffer') {
                 await fs.promises.writeFile(fullPath, Buffer.from(imageData));
+                invalidate();
                 return {success: true, filePath: fullPath, fileName};
             } else if (dataType === 'string' || typeof imageData === 'string') {
                 if (imageData.startsWith('http')) {
                     const result = await downloadImageFromUrl(imageData, fullPath);
+                    if (result.success) invalidate();
                     return result.success ? {success: true, filePath: fullPath, fileName} : {
                         success: false,
                         error: result.error
@@ -109,10 +130,12 @@ export class CoversController extends BaseController {
                 } else {
                     const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
                     await fs.promises.writeFile(fullPath, base64Data, 'base64');
+                    invalidate();
                     return {success: true, filePath: fullPath, fileName};
                 }
             } else if (imageData instanceof Buffer) {
                 await fs.promises.writeFile(fullPath, imageData);
+                invalidate();
                 return {success: true, filePath: fullPath, fileName};
             }
             return {success: false, error: `不支持的图片数据格式: ${typeof imageData}`};

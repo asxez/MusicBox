@@ -53,18 +53,18 @@ export class LibraryController extends BaseController {
                 this.windowManager.sendToMainWindow('library:cacheValidationProgress', progress);
             });
 
-            if (result.invalid.length > 0) {
+            const hasInvalid = result.invalid.length > 0;
+            if (hasInvalid) {
                 this.libraryCacheManager.removeInvalidTracks(result.invalid);
                 await this.libraryCacheManager.saveCache();
             }
 
-            const validTracks = this.libraryCacheManager.getAllTracks();
             console.log(`✅ 缓存验证完成 - 有效: ${result.valid.length}, 无效: ${result.invalid.length}, 已修改: ${result.modified.length}`);
             return {
                 valid: result.valid.length,
                 invalid: result.invalid.length,
                 modified: result.modified.length,
-                tracks: validTracks,
+                tracks: hasInvalid ? this.libraryCacheManager.getAllTracks() : undefined,
                 mountedDrives,
             };
         } catch (error: any) {
@@ -111,26 +111,13 @@ export class LibraryController extends BaseController {
 
     @IpcHandle('library:getTracks')
     async getTracks(): Promise<any[]> {
-        const tracks = this.libraryCacheManager.getAllTracks();
-        if (!tracks.some((t: any) => t.cover && typeof t.cover === 'object')) return tracks;
-        return tracks.map((t: any) => {
-            const clean = {...t};
-            if (clean.cover && typeof clean.cover === 'object') clean.cover = null;
-            return clean;
-        });
+        return this.libraryCacheManager.getAllTracks();
     }
 
     @IpcHandle('library:search')
     async search(query: string): Promise<any[]> {
         try {
-            if (!this.libraryCacheManager.getAllTracks().length) return [];
-            const term = query.trim().toLowerCase();
-            return this.libraryCacheManager.getAllTracks().filter((t: any) =>
-                (t.title || '').toLowerCase().includes(term) ||
-                (t.artist || '').toLowerCase().includes(term) ||
-                (t.album || '').toLowerCase().includes(term) ||
-                (t.fileName || '').toLowerCase().includes(term)
-            );
+            return this.libraryCacheManager.searchTracks(query);
         } catch (error) {
             console.error('❌ 搜索失败:', error);
             return [];
@@ -692,7 +679,7 @@ export class LibraryController extends BaseController {
                 const batch = files.slice(i, i + BATCH_SIZE);
                 const results = await Promise.all(batch.map(async ({path: fp, stat, name}) => {
                     try {
-                        const metadata = await this.parseMetadata(fp);
+                        const metadata = await this.parseMetadata(fp, null, {skipCover: true, skipLyrics: true});
                         const ext = path.extname(name);
                         return {
                             filePath: fp, fileName: name, title: metadata.title || path.basename(name, ext),

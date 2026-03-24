@@ -7,10 +7,28 @@ import {extractEmbeddedLyrics, getMimeTypeFromExtension} from '../utils/metadata
 import {generateLyricsSearchPatterns, findBestLyricsMatch} from '../utils/FileSearch';
 import {NetworkFileAdapter} from '../services/network/NetworkFileAdapter';
 
+interface DirCache {
+    files: string[];
+    expiresAt: number;
+}
+
+const DIR_CACHE_TTL = 60_000; // 60 秒
+
 @Controller('lyrics')
 export class LyricsController extends BaseController {
+    private dirCache = new Map<string, DirCache>();
+
     constructor(private networkFileAdapter: NetworkFileAdapter) {
         super();
+    }
+
+    private async getCachedDir(lyricsDir: string): Promise<string[]> {
+        const now = Date.now();
+        const cached = this.dirCache.get(lyricsDir);
+        if (cached && cached.expiresAt > now) return cached.files;
+        const files = await fs.promises.readdir(lyricsDir);
+        this.dirCache.set(lyricsDir, {files, expiresAt: now + DIR_CACHE_TTL});
+        return files;
     }
 
     @IpcHandle('lyrics:readLocalFile')
@@ -83,7 +101,7 @@ export class LyricsController extends BaseController {
                 return {success: false, error: '歌词目录不存在'};
             }
 
-            const files = await fs.promises.readdir(lyricsDir);
+            const files = await this.getCachedDir(lyricsDir);
             const lyricsFiles = files.filter(f => path.extname(f).toLowerCase() === extension.toLowerCase());
 
             const searchPatterns = generateLyricsSearchPatterns(title, artist, album, extension);
@@ -116,6 +134,7 @@ export class LyricsController extends BaseController {
             fileName = fileName.replace(/[<>:"/\\|?*]/g, '_');
             const filePath = path.join(lyricsDir, fileName);
             await fs.promises.writeFile(filePath, content, 'utf-8');
+            this.dirCache.delete(lyricsDir);
             return {success: true, filePath, fileName};
         } catch (error: any) {
             return {success: false, error: error.message};
