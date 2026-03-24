@@ -4,7 +4,7 @@
   "description": "Native audio engine for MusicBox with WASAPI exclusive mode support",
   "main": "NativeAudio.node",
   "scripts": {
-    "build": "cargo-cp-artifact -nc ../src/main/NativeAudio.node -- cargo build --message-format=json-render-diagnostics --release",
+    "build": "cargo-cp-artifact -nc ../dist/main/NativeAudio.node -- cargo build --message-format=json-render-diagnostics --release",
     "build-debug": "cargo-cp-artifact -nc NativeAudio.node -- cargo build --message-format=json-render-diagnostics"
   },
   "napi": {
