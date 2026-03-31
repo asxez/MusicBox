@@ -256,8 +256,15 @@ class NetworkDriveDetailPage extends Component {
     }
 
     async scanDrive() {
+        // 显示扫描进度提示
+        this.showScanTip();
+
+        // 监听扫描进度
+        const removeListener = window.electronAPI.library.onScanProgress((event, progress) => {
+            this.updateScanTip(progress);
+        });
+
         try {
-            app.showInfo('开始扫描网络磁盘...');
             const result = await window.electronAPI.library.scanNetworkDrive(this.currentDrive.id, '/');
 
             if (result) {
@@ -270,7 +277,51 @@ class NetworkDriveDetailPage extends Component {
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 扫描失败', error);
             app.showError('扫描失败，请重试');
+        } finally {
+            removeListener();
+            this.hideScanTip();
         }
+    }
+
+    showScanTip() {
+        // 禁用扫描按钮防止重复点击
+        const scanBtn = this.container.querySelector('#scan-drive-btn');
+        if (scanBtn) scanBtn.disabled = true;
+
+        // 在操作按钮区域下方插入进度提示
+        const actionsEl = this.container.querySelector('.drive-actions');
+        if (!actionsEl) return;
+
+        const tip = document.createElement('div');
+        tip.id = 'scan-tip';
+        tip.className = 'scan-tip';
+        tip.innerHTML = `
+            <div class="scan-tip-bar">
+                <div class="scan-tip-fill" id="scan-tip-fill"></div>
+            </div>
+            <p class="scan-tip-text" id="scan-tip-text">⏳ 正在扫描网络磁盘...</p>
+        `;
+        actionsEl.parentNode.insertBefore(tip, actionsEl.nextSibling);
+    }
+
+    updateScanTip(progress) {
+        const fill = document.getElementById('scan-tip-fill');
+        const text = document.getElementById('scan-tip-text');
+
+        if (fill && text) {
+            const percent = progress.total > 0 ?
+                (progress.current / progress.total) * 100 : 0;
+            fill.style.width = `${percent}%`;
+            text.textContent = `⏳ 扫描中: ${progress.current}/${progress.total}`;
+        }
+    }
+
+    hideScanTip() {
+        const tip = document.getElementById('scan-tip');
+        if (tip) tip.remove();
+
+        const scanBtn = this.container.querySelector('#scan-drive-btn');
+        if (scanBtn) scanBtn.disabled = false;
     }
 
     async removeDrive() {

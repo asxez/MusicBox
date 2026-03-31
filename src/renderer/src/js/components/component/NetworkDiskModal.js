@@ -377,11 +377,18 @@ class NetworkDiskModal extends Component {
 
     // 扫描网络磁盘
     async scanNetworkDrive(driveId) {
-        try {
-            this.showNotification('正在扫描网络磁盘...', 'info');
+        // 禁用扫描按钮并显示进度提示
+        this.showScanTip(driveId);
 
+        // 监听扫描进度
+        const removeListener = window.electronAPI.library.onScanProgress((event, progress) => {
+            this.updateScanTip(driveId, progress);
+        });
+
+        try {
             // 使用API层的统一方法
             const success = await api.scanNetworkDrive(driveId, '/');
+
             if (success) {
                 this.showNotification('网络磁盘扫描完成', 'success');
             } else {
@@ -389,6 +396,54 @@ class NetworkDiskModal extends Component {
             }
         } catch (error) {
             this.showNotification(`扫描失败: ${error.message}`, 'error');
+        } finally {
+            removeListener();
+            this.hideScanTip(driveId);
+        }
+    }
+
+    showScanTip(driveId) {
+        const btn = this.mountedDrivesList?.querySelector(`.scan-drive-btn[data-drive-id="${driveId}"]`);
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '扫描中...';
+        }
+
+        const driveItem = this.mountedDrivesList?.querySelector(`.mounted-drive-item[data-drive-id="${driveId}"]`);
+        if (!driveItem) return;
+
+        const tip = document.createElement('div');
+        tip.className = 'scan-tip';
+        tip.dataset.scanTipDriveId = driveId;
+        tip.innerHTML = `
+            <div class="scan-tip-bar">
+                <div class="scan-tip-fill" data-scan-fill="${driveId}"></div>
+            </div>
+            <p class="scan-tip-text" data-scan-text="${driveId}">⏳ 正在扫描网络磁盘...</p>
+        `;
+        driveItem.appendChild(tip);
+    }
+
+    updateScanTip(driveId, progress) {
+        const fill = this.mountedDrivesList?.querySelector(`[data-scan-fill="${driveId}"]`);
+        const text = this.mountedDrivesList?.querySelector(`[data-scan-text="${driveId}"]`);
+
+        if (fill && text) {
+            const percent = progress.total > 0 ?
+                (progress.current / progress.total) * 100 : 0;
+            fill.style.width = `${percent}%`;
+            text.textContent = `⏳ 扫描中: ${progress.current}/${progress.total}`;
+        }
+    }
+
+    hideScanTip(driveId) {
+        const tip = this.mountedDrivesList?.querySelector(`[data-scan-tip-drive-id="${driveId}"]`);
+        if (tip) tip.remove();
+
+        const btn = this.mountedDrivesList?.querySelector(`.scan-drive-btn[data-drive-id="${driveId}"]`);
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '扫描';
         }
     }
 
