@@ -256,34 +256,30 @@ class NetworkDriveDetailPage extends Component {
     }
 
     async scanDrive() {
+        // 显示扫描进度提示
+        this.showScanTip();
+
+        // 监听扫描进度
+        const removeListener = window.electronAPI.library.onScanProgress((event, progress) => {
+            this.updateScanTip(progress);
+        });
+
         try {
-            // 显示扫描进度提示
-            this.showScanTip();
-
-            // 监听扫描进度
-            const onProgress = (event, progress) => {
-                this.updateScanTip(progress);
-            };
-            const removeListener = window.electronAPI.library.onScanProgress(onProgress);
-
             const result = await window.electronAPI.library.scanNetworkDrive(this.currentDrive.id, '/');
 
-            // 移除进度监听
-            removeListener();
-
             if (result) {
-                this.hideScanTip();
                 await this.loadDriveTracks();
                 this.render();
                 app.showInfo(`扫描完成，找到 ${this.tracks.length} 首歌曲`);
             } else {
-                this.hideScanTip();
                 app.showError('扫描失败，请检查网络连接');
             }
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 扫描失败', error);
-            this.hideScanTip();
             app.showError('扫描失败，请重试');
+        } finally {
+            removeListener();
+            this.hideScanTip();
         }
     }
 
@@ -316,7 +312,7 @@ class NetworkDriveDetailPage extends Component {
             const percent = progress.total > 0 ?
                 (progress.current / progress.total) * 100 : 0;
             fill.style.width = `${percent}%`;
-            text.textContent = `⏳ 扫描中: ${progress.current}/${progress.total} (${progress.tracks} 首歌曲)`;
+            text.textContent = `⏳ 扫描中: ${progress.current}/${progress.total}`;
         }
     }
 

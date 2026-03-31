@@ -377,21 +377,17 @@ class NetworkDiskModal extends Component {
 
     // 扫描网络磁盘
     async scanNetworkDrive(driveId) {
+        // 禁用扫描按钮并显示进度提示
+        this.showScanTip(driveId);
+
+        // 监听扫描进度
+        const removeListener = window.electronAPI.library.onScanProgress((event, progress) => {
+            this.updateScanTip(driveId, progress);
+        });
+
         try {
-            // 禁用扫描按钮并显示进度提示
-            this.showScanTip(driveId);
-
-            // 监听扫描进度
-            const onProgress = (event, progress) => {
-                this.updateScanTip(driveId, progress);
-            };
-            const removeListener = window.electronAPI.library.onScanProgress(onProgress);
-
             // 使用API层的统一方法
             const success = await api.scanNetworkDrive(driveId, '/');
-
-            removeListener();
-            this.hideScanTip(driveId);
 
             if (success) {
                 this.showNotification('网络磁盘扫描完成', 'success');
@@ -399,8 +395,10 @@ class NetworkDiskModal extends Component {
                 this.showNotification('网络磁盘扫描失败', 'error');
             }
         } catch (error) {
-            this.hideScanTip(driveId);
             this.showNotification(`扫描失败: ${error.message}`, 'error');
+        } finally {
+            removeListener();
+            this.hideScanTip(driveId);
         }
     }
 
@@ -434,7 +432,7 @@ class NetworkDiskModal extends Component {
             const percent = progress.total > 0 ?
                 (progress.current / progress.total) * 100 : 0;
             fill.style.width = `${percent}%`;
-            text.textContent = `⏳ 扫描中: ${progress.current}/${progress.total} (${progress.tracks} 首歌曲)`;
+            text.textContent = `⏳ 扫描中: ${progress.current}/${progress.total}`;
         }
     }
 
