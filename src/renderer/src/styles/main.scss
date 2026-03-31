@@ -5655,6 +5655,33 @@ a {
   }
 }
 
+// Network drive scan tip
+.scan-tip {
+  padding: var(--spacing-md) var(--spacing-lg);
+}
+
+.scan-tip-bar {
+  height: 4px;
+  background: var(--color-secondary-bg);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: var(--spacing-xs);
+
+  .scan-tip-fill {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+}
+
+.scan-tip-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
 // Empty State
 .empty-state {
   display: flex;
