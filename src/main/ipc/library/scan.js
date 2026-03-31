@@ -391,7 +391,7 @@ function registerLibraryScanIpcHandlers(
 
             const win = getMainWindow();
             if (win && tracks.length > 0) {
-                win.webContents.send('library:scanProgress', {
+                win.webContents.send('library:scan-progress', {
                     current: i + batch.length,
                     total: files.length,
                     tracks: tracks.length
@@ -502,7 +502,7 @@ function registerLibraryScanIpcHandlers(
 
             const win = getMainWindow();
             if (win && tracks.length > 0) {
-                win.webContents.send('library:scanProgress', {
+                win.webContents.send('library:scan-progress', {
                     current: i + batch.length,
                     total: files.length,
                     tracks: tracks.length
