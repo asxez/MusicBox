@@ -9158,6 +9158,13 @@ a {
               text-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
               line-height: 1.1;
               word-wrap: break-word;
+              // 限制最大行数，防止长名字挤占空间
+              display: -webkit-box;
+              -webkit-line-clamp: 2;
+              -webkit-box-orient: vertical;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              max-height: calc(56px * 1.1 * 2); // 最多2行
             }
           }
 
@@ -9844,6 +9851,7 @@ a {
 
             .artist-title-section .artist-title {
               font-size: 48px;
+              max-height: calc(48px * 1.1 * 2); // 最多2行
             }
 
             .artist-stats-modern {
@@ -10083,6 +10091,7 @@ a {
 
             .artist-title-section .artist-title {
               font-size: 32px;
+              max-height: calc(32px * 1.1 * 2); // 最多2行
             }
 
             .artist-stats-modern {
