@@ -15,7 +15,6 @@ import {
     extensionsRegistry
 } from '@extensions/core/ExtensionsRegistry';
 import {Disposable} from '@extensions/core/Lifecycle';
-import {ExtensionHostManager} from '@extensions/core/ExtensionHostManager';
 import {DependencyResolver} from '@extensions/core/ExtensionDependencies';
 import {PermissionManager} from '@extensions/core/ExtensionPermissions';
 import {ConfigurationManager} from '@extensions/core/ExtensionConfiguration';
@@ -50,7 +49,6 @@ class ExtensionService extends Disposable {
     private _onWillActivateExtension = new Emitter<ExtensionActivationEvent>();
     private _onDidActivateExtension = new Emitter<ExtensionActivationEvent>();
     private _onDidActivateExtensionError = new Emitter<ExtensionActivationErrorEvent>();
-    private _hostManager: ExtensionHostManager;
     private _dependencyResolver: DependencyResolver;
     private _permissionManager: PermissionManager;
     private _configurationManager: ConfigurationManager;
@@ -59,7 +57,6 @@ class ExtensionService extends Disposable {
         super();
         this._instantiationService = instantiationService;
         this._registry = extensionsRegistry;
-        this._hostManager = new ExtensionHostManager(this);
         this._dependencyResolver = new DependencyResolver(this._registry);
         this._permissionManager = new PermissionManager();
         this._configurationManager = new ConfigurationManager();
@@ -81,7 +78,6 @@ class ExtensionService extends Disposable {
                 this._configurationManager
             );
 
-            await this._hostManager.startAll();
             this._registerCoreExtensionPoints();
             await this._scanAndLoadExtensions();
             this._dependencyResolver.buildDependencyGraph();
@@ -731,19 +727,11 @@ class ExtensionService extends Disposable {
         return this._dependencyResolver;
     }
 
-    getHostManager(): ExtensionHostManager {
-        return this._hostManager;
-    }
-
     dispose(): void {
         super.dispose();
 
         if (this._activator) {
             this._activator.dispose();
-        }
-
-        if (this._hostManager) {
-            this._hostManager.dispose();
         }
 
         if (this._permissionManager) {
