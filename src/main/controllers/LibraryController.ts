@@ -454,7 +454,7 @@ export class LibraryController extends BaseController {
     }
 
     @IpcHandle('library:updateMetadata')
-    async updateMetadata(filePath: string, metadata: any): Promise<{ success: boolean; error?: string }> {
+    async updateMetadata(filePath: string, metadata: any): Promise<{ success: boolean; updatedMetadata?: any; coverUpdated?: boolean; error?: string }> {
         try {
             const isNetwork = this.networkFileAdapter.isNetworkPath(filePath);
             let result: any;
@@ -474,6 +474,20 @@ export class LibraryController extends BaseController {
                     album: metadata.album, year: metadata.year, genre: metadata.genre
                 });
                 await this.libraryCacheManager.saveCache();
+
+                // 返回更新后的元数据
+                return {
+                    success: true,
+                    updatedMetadata: {
+                        filePath,
+                        title: metadata.title,
+                        artist: metadata.artist,
+                        album: metadata.album,
+                        year: metadata.year,
+                        genre: metadata.genre
+                    },
+                    coverUpdated: !!metadata.cover
+                };
             }
             return result;
         } catch (error: any) {
@@ -495,8 +509,22 @@ export class LibraryController extends BaseController {
     }
 
     @IpcHandle('library:updateTrackMetadata')
-    async updateTrackMetadata(filePath: string, metadata: any): Promise<any> {
-        return this.updateMetadata(filePath, metadata);
+    async updateTrackMetadata(data: any): Promise<any> {
+        // 支持两种调用方式：
+        // 1. updateTrackMetadata({ filePath, title, artist, ... })
+        // 2. updateTrackMetadata(filePath, metadata) - 向后兼容
+        if (typeof data === 'string') {
+            // 旧的调用方式：第一个参数是 filePath 字符串
+            const filePath = data;
+            const metadata = arguments[1];
+            return this.updateMetadata(filePath, metadata);
+        } else if (data && typeof data === 'object' && data.filePath) {
+            // 新的调用方式：传入包含 filePath 的对象
+            const { filePath, ...metadata } = data;
+            return this.updateMetadata(filePath, metadata);
+        } else {
+            return { success: false, error: '无效的参数格式' };
+        }
     }
 
     @IpcHandle('file:readAudio')
