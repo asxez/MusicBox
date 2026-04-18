@@ -246,15 +246,17 @@ fn run_render_loop(
         DitherType::NoiseShaped => "噪声整形",
     };
 
+    let dither_label = if ditherer.is_some() {
+        format!(" ({}抖动)", dither_name)
+    } else {
+        String::new()
+    };
+
     println!(
         "   音频处理: {} 位 {:?}{}",
         device_format.bits_per_sample,
         device_format.sample_type,
-        if ditherer.is_some() {
-            &format!(" ({}抖动)", dither_name)
-        } else {
-            ""
-        }
+        dither_label
     );
 
     // 渲染循环
