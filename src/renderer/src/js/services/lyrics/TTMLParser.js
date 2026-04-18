@@ -80,18 +80,47 @@ class TTMLParser {
                 for (const span of spanElements) {
                     const spanBegin = span.getAttribute('begin');
                     const spanEnd = span.getAttribute('end');
-                    const text = span.textContent.trim();
+                    let text = span.textContent.trim();
+
+                    // 过滤括号内容（通常是歌手标注或和声部分）
+                    // 匹配中文括号、英文括号、全角括号
+                    const originalText = text;
+                    text = text.replace(/[\(（].*?[\)）]/g, '').trim();
+
+                    // 如果整个span都是括号内容，跳过
+                    if (text === '' && originalText !== '') {
+                        continue;
+                    }
 
                     if (text) {
                         fullText += text;
 
+                        // 确保每个字都有时间戳
                         if (spanBegin) {
-                            words.push({
-                                text: text,
-                                time: this.parseTime(spanBegin),
-                                endTime: spanEnd ? this.parseTime(spanEnd) : null
-                            });
+                            const wordStartTime = this.parseTime(spanBegin);
+                            const wordEndTime = spanEnd ? this.parseTime(spanEnd) : null;
+
+                            // 如果span包含多个字符，为每个字符分配时间
+                            if (text.length > 1 && wordEndTime) {
+                                const duration = wordEndTime - wordStartTime;
+                                const charDuration = duration / text.length;
+
+                                for (let i = 0; i < text.length; i++) {
+                                    words.push({
+                                        text: text[i],
+                                        time: wordStartTime + (i * charDuration),
+                                        endTime: wordStartTime + ((i + 1) * charDuration)
+                                    });
+                                }
+                            } else {
+                                words.push({
+                                    text: text,
+                                    time: wordStartTime,
+                                    endTime: wordEndTime
+                                });
+                            }
                         } else {
+                            // 没有时间戳的span，使用段落的时间
                             words.push({
                                 text: text,
                                 time: startTime,
@@ -99,6 +128,11 @@ class TTMLParser {
                             });
                         }
                     }
+                }
+
+                // 如果过滤后没有有效内容，返回null
+                if (fullText === '' || words.length === 0) {
+                    return null;
                 }
 
                 return {
@@ -109,7 +143,11 @@ class TTMLParser {
                     type: 'word-by-word'
                 };
             } else {
-                const content = pElement.textContent.trim();
+                let content = pElement.textContent.trim();
+
+                // 过滤括号内容
+                content = content.replace(/[\(（].*?[\)）]/g, '').trim();
+
                 if (!content) {
                     return null;
                 }
