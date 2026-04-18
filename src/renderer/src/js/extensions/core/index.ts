@@ -8,7 +8,6 @@ export * from './Instantiation';
 export * from './ExtensionsRegistry';
 export * from './ExtensionActivator';
 export * from './ExtensionService';
-export * from './ExtensionHostManager';
 export * from './ExtensionPermissions';
 export * from './ExtensionConfiguration';
 export * from './ExtensionDependencies';
