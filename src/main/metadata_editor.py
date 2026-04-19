@@ -9,6 +9,12 @@ import os
 import sys
 import traceback
 
+# 设置标准输出编码为 UTF-8
+if sys.platform == 'win32':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 try:
     from mutagen import File
     from mutagen.id3 import ID3NoHeaderError
