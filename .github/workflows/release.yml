@@ -7,6 +7,11 @@ on:
         description: 'Release version (e.g., v1.0.0)'
         required: true
         type: string
+      draft:
+        description: 'Create as draft release'
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   build-windows:
@@ -37,16 +42,22 @@ jobs:
           npm run install:rs
           pip install -r requirements.txt
 
+      - name: Build Rust module
+        run: npm run build:rs
+
       - name: Build application
         run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
           path: |
-            release/*.exe
-            release/*.zip
+            dist/*.exe
+            dist/*.zip
+          if-no-files-found: error
 
   build-macos:
     runs-on: macos-latest
@@ -78,14 +89,17 @@ jobs:
 
       - name: Build application
         run: npm run build:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-build
           path: |
-            release/*.dmg
-            release/*.zip
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error
 
   build-linux:
     runs-on: ubuntu-latest
@@ -122,15 +136,18 @@ jobs:
 
       - name: Build application
         run: npm run build:linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux-build
           path: |
-            release/*.AppImage
-            release/*.deb
-            release/*.rpm
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.rpm
+          if-no-files-found: error
 
   create-release:
     needs: [build-windows, build-macos, build-linux]
@@ -142,30 +159,30 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: windows-build
-          path: release/windows
+          path: artifacts/windows
 
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
         with:
           name: macos-build
-          path: release/macos
+          path: artifacts/macos
 
       - name: Download Linux artifacts
         uses: actions/download-artifact@v4
         with:
           name: linux-build
-          path: release/linux
+          path: artifacts/linux
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.version }}
           name: Release ${{ inputs.version }}
-          draft: false
+          draft: ${{ inputs.draft }}
           prerelease: false
           files: |
-            release/windows/*
-            release/macos/*
-            release/linux/*
+            artifacts/windows/*
+            artifacts/macos/*
+            artifacts/linux/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
