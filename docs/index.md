@@ -55,7 +55,7 @@ features:
 
   - icon: 🎼
     title: 图形/参量均衡器支持
-    details: 内置超强均衡器，体验极致自定义音效，轻松打造专属听觉体验
+    details: 内置强大均衡器，体验极致自定义音效，轻松打造专属听觉体验
 
   - icon: 📃
     title: 桌面歌词
@@ -109,6 +109,8 @@ features:
   <img src="/images/4.png" alt="MusicBox 截图 4" />
   <img src="/images/5.png" alt="MusicBox 截图 5" />
   <img src="/images/6.png" alt="MusicBox 截图 6" />
+  <img src="/images/7.png" alt="MusicBox 截图 7" />
+  <img src="/images/8.png" alt="MusicBox 截图 8" />
 </div>
 
 <style scoped>
