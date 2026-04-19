@@ -139,7 +139,11 @@ npm run build
 
 ## 🙏 致谢
 
+**以下排名不分先后**
+
 - 所有为项目做出贡献的开发者们
+- [AMLL TTML 歌词站](https://amlldb.bikonoo.com/) 提供的 TTML 歌词接口
+- [锂 API](https://api.lrc.cx/) 提供的 TXT 歌词接口 
 
 ## 📌 相关截图
 
@@ -149,6 +153,8 @@ npm run build
 ![MusicBox 应用截图](docs/images/4.png)
 ![MusicBox 应用截图](docs/images/5.png)
 ![MusicBox 应用截图](docs/images/6.png)
+![MusicBox 应用截图](docs/images/7.png)
+![MusicBox 应用截图](docs/images/8.png)
 
 ---
 
