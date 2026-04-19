@@ -91,7 +91,7 @@ export class MetadataHandler {
 
             this.pythonPath = await this.detectPython();
             if (!this.pythonPath) {
-                console.warn('未检测到Python环境，将只支持MP3格式的元数据修改');
+                console.warn('⚠️ 未检测到Python环境，将只支持MP3格式的元数据修改');
                 this.initialized = true;
                 return false;
             }
@@ -112,11 +112,21 @@ export class MetadataHandler {
             }
 
             this.initialized = true;
+            console.log('✅ 元数据处理器初始化完成');
             return true;
         } catch (error) {
             console.error('❌ 元数据处理器初始化失败:', error);
             this.initialized = true;
             return false;
+        }
+    }
+
+    /**
+     * 确保已初始化（按需初始化）
+     */
+    private async ensureInitialized(): Promise<void> {
+        if (!this.initialized) {
+            await this.initialize();
         }
     }
 
@@ -151,7 +161,7 @@ export class MetadataHandler {
     }
 
     async updateMetadata(filePath: string, metadata: MetadataInput): Promise<MetadataResult> {
-        if (!this.initialized) await this.initialize();
+        await this.ensureInitialized();
 
         switch (this.getHandlerType(filePath)) {
             case 'nodeid3':
