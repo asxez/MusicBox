@@ -1,7 +1,7 @@
 //! 音频引擎配置
 
-use crate::dither::DitherType;
-use crate::resampler::ResamplingQuality;
+use crate::renderer::DitherType;
+use crate::decoder::ResamplingQuality;
 
 /// WASAPI共享模式
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

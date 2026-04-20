@@ -1,10 +1,10 @@
 //! WASAPI音频渲染器
 
-use crate::audio_config::AudioConfig;
-use crate::audio_engine::EqualizerMode;
-use crate::dither::{DitherType, Ditherer};
-use crate::graphic_equalizer::AudioEqualizer;
-use crate::parametric_equalizer::ParametricEqualizer;
+use crate::core::AudioConfig;
+use crate::core::EqualizerMode;
+use crate::renderer::{DitherType, Ditherer};
+use crate::equalizer::AudioEqualizer;
+use crate::equalizer::ParametricEqualizer;
 use parking_lot::Mutex;
 use ringbuf::HeapCons;
 use ringbuf::consumer::Consumer;
@@ -15,8 +15,8 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::time::Duration as StdDuration;
 use wasapi::*;
 
-use crate::audio_format::AudioFormat;
-use crate::thread_message::ThreadMessage;
+use crate::core::AudioFormat;
+use crate::utils::ThreadMessage;
 
 // Windows HRESULT 错误码常量
 const S_OK: i32 = 0;
@@ -98,7 +98,7 @@ fn run_render_loop(
     message_receiver: Receiver<ThreadMessage>,
     dither_type: DitherType,
     buffer_durations: Vec<i64>,
-    share_mode: crate::audio_config::ShareMode,
+    share_mode: crate::core::ShareMode,
     equalizer: Arc<Mutex<Option<AudioEqualizer>>>,
     parametric_equalizer: Arc<Mutex<Option<ParametricEqualizer>>>,
     equalizer_mode: Arc<Mutex<EqualizerMode>>,
@@ -139,7 +139,7 @@ fn run_render_loop(
     let mut audio_client_result = None;
     let mut actual_buffer_duration = 0i64;
 
-    use crate::audio_config::ShareMode;
+    use crate::core::ShareMode;
     match share_mode {
         ShareMode::Exclusive => {
             // 独占模式：尝试使用更小的缓冲区以降低延迟

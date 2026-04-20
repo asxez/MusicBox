@@ -40,7 +40,7 @@ export default defineConfig({
         // 静态资源输出配置
         assetFileNames: (assetInfo) => {
           // CSS 文件
-          if (assetInfo.name.endsWith('.css')) {
+          if (assetInfo.name && assetInfo.name.endsWith('.css')) {
             return 'styles/[name].[hash][extname]';
           }
           // 其他资源

@@ -1,8 +1,8 @@
 //! WASAPI音频引擎核心实现
 
-use crate::audio_config::AudioConfig;
-use crate::graphic_equalizer::AudioEqualizer;
-use crate::parametric_equalizer::ParametricEqualizer;
+use crate::core::AudioConfig;
+use crate::equalizer::AudioEqualizer;
+use crate::equalizer::ParametricEqualizer;
 use parking_lot::Mutex;
 use rodio::{Decoder, Source};
 use std::fs::File;
@@ -16,11 +16,11 @@ use wasapi::*;
 use ringbuf::traits::{Observer, Split};
 use ringbuf::{HeapProd, HeapRb};
 
-use crate::audio_format::AudioFormat;
+use crate::core::AudioFormat;
 use crate::decoder;
-use crate::playback_tracker::PlaybackTracker;
+use crate::utils::PlaybackTracker;
 use crate::renderer::WasapiRenderer;
-use crate::thread_message::ThreadMessage;
+use crate::utils::ThreadMessage;
 
 /// 组合 Read 和 Seek traits 的 trait，用于动态分发
 trait ReadSeek: Read + Seek + Send + Sync {}
@@ -104,8 +104,8 @@ impl AudioEngine {
 
     pub fn initialize(&mut self) -> Result<(), String> {
         let mode_str = match self.config.share_mode {
-            crate::audio_config::ShareMode::Shared => "共享模式",
-            crate::audio_config::ShareMode::Exclusive => "独占模式",
+            crate::core::ShareMode::Shared => "共享模式",
+            crate::core::ShareMode::Exclusive => "独占模式",
         };
         println!("🎵 AudioEngine: 初始化WASAPI音频引擎（{}）", mode_str);
         let start = std::time::Instant::now();
@@ -180,7 +180,7 @@ impl AudioEngine {
         audio_client: &mut AudioClient,
         mix_format: &WaveFormat,
     ) -> Result<AudioFormat, String> {
-        use crate::audio_config::ShareMode;
+        use crate::core::ShareMode;
 
         match self.config.share_mode {
             ShareMode::Shared => {
@@ -705,7 +705,7 @@ impl AudioEngine {
         q: f64,
         filter_type: &str,
     ) -> Option<usize> {
-        use crate::parametric_equalizer::ParamFilterType;
+        use crate::equalizer::ParamFilterType;
 
         let filter_type = ParamFilterType::from_str(filter_type)?;
 
@@ -736,7 +736,7 @@ impl AudioEngine {
         filter_type: Option<&str>,
         enabled: Option<bool>,
     ) -> bool {
-        use crate::parametric_equalizer::ParamFilterType;
+        use crate::equalizer::ParamFilterType;
 
         let filter_type_enum = if let Some(ft) = filter_type {
             ParamFilterType::from_str(ft)
@@ -843,20 +843,20 @@ impl AudioEngine {
 
     /// 设置音频模式（共享/独占）
     /// 注意：需要重新初始化才能生效
-    pub fn set_share_mode(&mut self, mode: crate::audio_config::ShareMode) {
+    pub fn set_share_mode(&mut self, mode: crate::core::ShareMode) {
         self.config.set_share_mode(mode);
         println!("🔧 AudioEngine: 音频模式已设置为 {:?}", mode);
     }
 
     /// 获取当前音频模式
-    pub fn get_share_mode(&self) -> crate::audio_config::ShareMode {
+    pub fn get_share_mode(&self) -> crate::core::ShareMode {
         self.config.get_share_mode()
     }
 
     /// 切换音频模式并重新初始化
     pub fn switch_share_mode(
         &mut self,
-        mode: crate::audio_config::ShareMode,
+        mode: crate::core::ShareMode,
     ) -> Result<(), String> {
         println!("🔄 AudioEngine: 切换音频模式到 {:?}", mode);
 
