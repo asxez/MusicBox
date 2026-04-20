@@ -9,19 +9,15 @@ use napi::{Env, JsObject, Result};
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-mod audio_config;
-mod audio_engine;
-mod audio_format;
+// 模块声明
+mod core;
 mod decoder;
-mod dither;
-mod graphic_equalizer;
-mod parametric_equalizer;
-mod playback_tracker;
 mod renderer;
-mod resampler;
-mod thread_message;
+mod equalizer;
+mod utils;
 
-use audio_engine::AudioEngine;
+// 重新导出核心类型
+use core::{AudioEngine, ShareMode, EqualizerMode};
 
 /// 创建成功响应对象
 fn create_success_response(env: &mut Env) -> Result<JsObject> {
@@ -303,7 +299,6 @@ impl NativeAudioEngine {
     #[napi]
     pub fn set_equalizer_mode(&self, mode: String) -> bool {
         let engine = self.engine.lock();
-        use crate::audio_engine::EqualizerMode;
 
         let eq_mode = match mode.to_lowercase().as_str() {
             "graphic" => EqualizerMode::Graphic,
@@ -319,7 +314,6 @@ impl NativeAudioEngine {
     #[napi]
     pub fn get_equalizer_mode(&self) -> String {
         let engine = self.engine.lock();
-        use crate::audio_engine::EqualizerMode;
 
         match engine.get_equalizer_mode() {
             EqualizerMode::Graphic => "graphic".to_string(),
@@ -463,8 +457,6 @@ impl NativeAudioEngine {
     /// 设置音频模式（"shared" 或 "exclusive"）
     #[napi]
     pub fn set_share_mode(&self, mode: String) -> bool {
-        use crate::audio_config::ShareMode;
-
         let share_mode = match ShareMode::from_str(&mode) {
             Some(m) => m,
             None => return false,
@@ -485,8 +477,6 @@ impl NativeAudioEngine {
     /// 切换音频模式并重新初始化
     #[napi]
     pub fn switch_share_mode(&self, mode: String, mut env: Env) -> Result<JsObject> {
-        use crate::audio_config::ShareMode;
-
         let share_mode = match ShareMode::from_str(&mode) {
             Some(m) => m,
             None => return create_error_response(&mut env, "无效的音频模式"),

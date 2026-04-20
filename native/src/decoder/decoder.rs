@@ -1,7 +1,7 @@
 //! 音频解码器
 
-use crate::resampler::{AudioResampler, ResamplingQuality};
-use crate::thread_message::ThreadMessage;
+use crate::decoder::{AudioResampler, ResamplingQuality};
+use crate::utils::ThreadMessage;
 use ringbuf::producer::Producer;
 use ringbuf::HeapProd;
 use rodio::Decoder;
