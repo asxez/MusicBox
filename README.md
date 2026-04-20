@@ -54,6 +54,7 @@
 
 ✅已完成，❌未完成，🔄进行中，❓待定
 
+- ❌ 重构渲染进程，移除 app.js 的上帝对象模式（难度巨大）
 - ✅ 歌词逐字
 - ✅ 高级均衡器
 - ✅ 主进程重构
@@ -143,7 +144,7 @@ npm run build
 
 - 所有为项目做出贡献的开发者们
 - [AMLL TTML 歌词站](https://amlldb.bikonoo.com/) 提供的 TTML 歌词接口
-- [锂 API](https://api.lrc.cx/) 提供的 TXT 歌词接口 
+- [锂 API](https://api.lrc.cx/) 提供的 Lrc 歌词接口 
 
 ## 📌 相关截图
 
