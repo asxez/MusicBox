@@ -18,8 +18,8 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/asxez/MusicBox)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#-安装)
-[![Electron](https://img.shields.io/badge/Electron-37.3.1-47848f.svg)](https://electronjs.org/)
-[![Node](https://img.shields.io/badge/Node-%3E%3D22.18.0-green.svg)](https://nodejs.org/)
+[![Electron](https://img.shields.io/badge/Electron-41.2.1-47848f.svg)](https://electronjs.org/)
+[![Node](https://img.shields.io/badge/Node-%3E%3D24.15.0-green.svg)](https://nodejs.org/)
 
 ---
 
@@ -75,7 +75,7 @@
 
 #### 环境要求
 
-- Node.js >= 22.18.0
+- Node.js >= 24.15.0
 - Python >= 3.8
 - Rust == 1.94.1
 

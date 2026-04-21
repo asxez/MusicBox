@@ -33,7 +33,7 @@
     "@types/electron": "^1.4.38",
     "@types/node": "^25.5.0",
     "cross-env": "^10.0.0",
-    "electron": "37.3.1",
+    "electron": "41.2.1",
     "electron-builder": "^24.0.0",
     "rimraf": "^4.1.2",
     "ts-node": "^10.9.2",
