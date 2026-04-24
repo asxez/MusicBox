@@ -1,0 +1,244 @@
+import {cacheManager} from "@services/CacheManager";
+import {api} from "@api/api";
+import {libraryAPI} from "@js/api";
+
+export class PlaybackController {
+    constructor({app}) {
+        this.app = app;
+        this.playTrackLock = false;
+    }
+
+    async handlePlayAllTracks(tracks) {
+        const app = this.app;
+
+        if (!tracks || tracks.length === 0) return;
+
+        try {
+            await api.setPlaylist(tracks, 0);
+            if (app.components.playlist && app.components.playlist.setTracks) {
+                app.components.playlist.setTracks(tracks, 0);
+            }
+            await this.playTrackFromPlaylist(tracks[0], 0);
+        } catch (error) {
+            app.showError('播放失败，请重试');
+        }
+    }
+
+    async handleTrackPlayed(track, _index) {
+        const app = this.app;
+
+        console.log('🎵 从音乐库播放歌曲:', track.title, '当前视图:', app.currentView);
+
+        if (app.components.playlist) {
+            if (app.currentView === 'library') {
+                const currentLibrary = app.filteredLibrary && app.filteredLibrary.length > 0
+                    ? app.filteredLibrary
+                    : app.library;
+
+                if (currentLibrary.length > 0) {
+                    const trackIndex = currentLibrary.findIndex(t => t.filePath === track.filePath);
+                    const startIndex = trackIndex !== -1 ? trackIndex : 0;
+
+                    console.log(`🎵 设置播放列表: ${currentLibrary.length} 首歌曲，从第 ${startIndex + 1} 首开始播放`);
+
+                    app.components.playlist.setTracks(currentLibrary, startIndex);
+                    await this.playTrackFromPlaylist(track, startIndex);
+                } else {
+                    console.warn('⚠️ 音乐库为空，无法播放');
+                }
+            } else {
+                if (app.components.playlist.tracks.length === 0) {
+                    console.log('🎵 播放列表为空，添加当前歌曲，当前视图:', app.currentView);
+                    app.components.playlist.setTracks([track], 0);
+                    console.log('🔍 setTracks 完成，当前视图:', app.currentView);
+                    await this.playTrackFromPlaylist(track, 0);
+                } else {
+                    const existingIndex = app.components.playlist.tracks.findIndex(t =>
+                        t.filePath === track.filePath
+                    );
+                    if (existingIndex === -1) {
+                        const newIndex = app.components.playlist.addTrack(track);
+                        await this.playTrackFromPlaylist(track, newIndex);
+                    } else {
+                        await this.playTrackFromPlaylist(track, existingIndex);
+                    }
+                }
+            }
+        } else {
+            console.warn('播放列表组件不存在，使用传统播放方式');
+            await api.setPlaylist([track], 0);
+        }
+    }
+
+    async playTrackFromPlaylist(track, index) {
+        const app = this.app;
+
+        if (this.playTrackLock) {
+            console.log('🚫 App: 播放操作正在进行中，忽略重复调用');
+            return;
+        }
+
+        this.playTrackLock = true;
+        console.log(`🎵 App: 开始播放 ${track.title || track.filePath}，索引: ${index}`);
+
+        try {
+            if (app.components.playlist && app.components.playlist.tracks.length > 0) {
+                console.log('🔄 同步播放列表到API:', app.components.playlist.tracks.length, '首歌曲');
+
+                const setPlaylistResult = await api.setPlaylist(app.components.playlist.tracks, index);
+
+                if (setPlaylistResult) {
+                    app.components.playlist.setCurrentTrack(index);
+
+                    const loadResult = await api.loadTrack(track.filePath);
+                    if (loadResult) {
+                        await api.play();
+                        console.log(`✅ App: 播放成功 ${track.title || track.filePath}`);
+                    } else {
+                        console.error('❌ App: 加载歌曲失败');
+                    }
+                } else {
+                    console.error('❌ App: 设置播放列表失败');
+                }
+            }
+        } catch (error) {
+            console.error('❌ 播放列表播放错误:', error);
+        } finally {
+            setTimeout(() => {
+                this.playTrackLock = false;
+            }, 300);
+        }
+    }
+
+    handleTrackIndexChanged(index) {
+        const playlist = this.app.components.playlist;
+
+        if (playlist) {
+            if (index >= 0 && index < playlist.tracks.length) {
+                playlist.setCurrentTrack(index);
+            } else {
+                console.warn('⚠️ 索引超出播放列表范围:', index, '/', playlist.tracks.length);
+            }
+        }
+    }
+
+    async restorePlaybackState() {
+        const app = this.app;
+
+        try {
+            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
+            const playbackState = cacheManager.getLocalCache('playback-state');
+
+            if (settings.rememberPosition && playbackState) {
+                const {currentTrack, position, isPlaying, playlist, currentIndex, playMode} = playbackState;
+
+                if (playMode) {
+                    api.setPlayMode(playMode);
+                }
+
+                if (playlist && playlist.length > 0) {
+                    const validTracks = [];
+                    let validCurrentIndex = -1;
+
+                    for (let i = 0; i < playlist.length; i++) {
+                        const track = playlist[i];
+                        if (track && track.filePath) {
+                            validTracks.push(track);
+                            if (i === currentIndex) {
+                                validCurrentIndex = validTracks.length - 1;
+                            }
+                        }
+                    }
+
+                    if (validTracks.length > 0) {
+                        await api.setPlaylist(validTracks, validCurrentIndex);
+
+                        if (app.components.playlist) {
+                            app.components.playlist.setTracks(validTracks, validCurrentIndex);
+                        }
+
+                        if (validCurrentIndex >= 0 && validTracks[validCurrentIndex]) {
+                            const trackToLoad = validTracks[validCurrentIndex];
+                            const loadResult = await api.loadTrack(trackToLoad.filePath);
+                            if (loadResult) {
+                                if (position > 0) {
+                                    const setPositionResult = await api.setPosition(position);
+                                    console.log('App: setPosition 结果:', setPositionResult);
+                                }
+
+                                if (settings.autoplay && isPlaying) {
+                                    setTimeout(async () => {
+                                        await api.play();
+                                    }, 1000);
+                                }
+                            }
+                        }
+                    } else {
+                        console.warn('⚠️ App: 播放列表中没有有效歌曲');
+                        if (settings.autoplay) {
+                            await this.autoplayFirstTrack();
+                        }
+                    }
+                } else if (currentTrack) {
+                    console.log('💾 App: 恢复单个歌曲（兼容模式）:', currentTrack.title);
+                    const loadResult = await api.loadTrack(currentTrack.filePath);
+                    if (loadResult) {
+                        if (position > 0) {
+                            await api.setPosition(position);
+                        }
+                        if (settings.autoplay && isPlaying) {
+                            setTimeout(async () => {
+                                await api.play();
+                            }, 1000);
+                        }
+                    }
+                } else {
+                    console.warn('⚠️ App: 没有保存的播放信息');
+                    if (settings.autoplay) {
+                        await this.autoplayFirstTrack();
+                    }
+                }
+            } else if (settings.autoplay) {
+                console.log('▶️ App: 仅启用自动播放，播放第一首歌曲');
+                await this.autoplayFirstTrack();
+            } else {
+                console.log('ℹ️ App: 未启用自动播放或记住播放位置');
+            }
+        } catch (error) {
+            console.error('❌ App: 恢复播放状态失败:', error);
+        }
+    }
+
+    async autoplayFirstTrack() {
+        setTimeout(async () => {
+            const tracks = await libraryAPI.getTracks();
+            if (tracks && tracks.length > 0) {
+                console.log('🎵 App: 加载第一首歌曲:', tracks[0].title);
+                const loadResult = await api.loadTrack(tracks[0].filePath);
+                console.log('📂 App: 加载结果:', loadResult);
+                if (loadResult) {
+                    await api.play();
+                }
+            } else {
+                console.warn('⚠️ App: 音乐库为空，无法自动播放');
+            }
+        }, 1000);
+    }
+
+    async savePlaybackState() {
+        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
+
+        if (settings.rememberPosition) {
+            const playbackState = {
+                currentTrack: api.currentTrack,
+                position: api.position,
+                isPlaying: api.isPlaying,
+                playlist: api.playlist,
+                currentIndex: api.currentIndex,
+                playMode: api.playMode,
+                timestamp: Date.now()
+            };
+            cacheManager.setLocalCache('playback-state', playbackState);
+        }
+    }
+}
