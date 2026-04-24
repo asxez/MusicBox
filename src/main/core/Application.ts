@@ -232,6 +232,8 @@ export class Application {
             const libraryCacheManager = await this.container.get<any>('libraryCacheManager');
             await libraryCacheManager.loadCache();
             console.log('✅ 音乐库缓存加载完成');
+
+            this.windowManager.sendToMainWindow('library:updated', libraryCacheManager.getAllTracks());
         } catch (error) {
             console.error('❌ 重型服务初始化失败:', error);
         }
