@@ -208,7 +208,6 @@ interface ElectronAPI {
         getPlaylistDetail: (playlistId: string) => Promise<{
             success: boolean,
             playlist?: {
-                tracks: object,
                 trackIds: string[],
                 id: string,
                 name: string,
@@ -217,6 +216,7 @@ interface ElectronAPI {
                 updatedAt: number,
                 coverImage: any | null
             },
+            tracks?: object[],
             error?: string
         }>;
 
@@ -238,8 +238,8 @@ interface ElectronAPI {
             error?: string
         }>;
 
-        onLibraryUpdated: (callback: (event: any, data: any) => void) => void;
-        onScanProgress: (callback: (event: any, progress: any) => void) => void;
+        onLibraryUpdated: (callback: (event: any, data: any) => void) => () => void;
+        onScanProgress: (callback: (event: any, progress: any) => void) => () => void;
 
         onCacheValidationProgress: (callback: (event: any, progress: any) => void) => function;
 

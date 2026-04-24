@@ -327,7 +327,7 @@ class PlaylistDetailPage extends Component {
         try {
             const result = await window.electronAPI.library.getPlaylistDetail(this.currentPlaylist.id);
             if (result.success) {
-                this.tracks = result.playlist.tracks || [];
+                this.tracks = result.tracks || result.playlist?.tracks || [];
 
                 // 同步更新currentPlaylist对象，确保UI状态正确
                 if (result.playlist) {

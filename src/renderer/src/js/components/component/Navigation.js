@@ -20,10 +20,21 @@ class Navigation extends Component {
         this.setupEventListeners();
         this.restoreSidebarState();
         this.loadUserPlaylists();
+        this.setupLibraryUpdateListener();
         this.loadNetworkDrives();
         this.initializeSidebarButtonsState();
         this.initializeWindowState().then(r => {
             if (!r.status) console.error('❌ Navigation: 初始化窗口状态失败', r.error);
+        });
+    }
+
+    setupLibraryUpdateListener() {
+        if (!window.electronAPI?.library?.onLibraryUpdated) {
+            return;
+        }
+
+        this.removeLibraryUpdatedListener = window.electronAPI.library.onLibraryUpdated(async () => {
+            await this.refreshPlaylists();
         });
     }
 
@@ -592,6 +603,11 @@ class Navigation extends Component {
     }
 
     destroy() {
+        if (this.removeLibraryUpdatedListener) {
+            this.removeLibraryUpdatedListener();
+            this.removeLibraryUpdatedListener = null;
+        }
+
         // 清理用户歌单数据
         this.userPlaylists = [];
 
