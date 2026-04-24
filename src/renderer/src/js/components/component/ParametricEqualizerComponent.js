@@ -142,14 +142,15 @@ class ParametricEqualizerComponent extends Component {
 
     // 初始化均衡器
     async initializeEqualizer() {
-        if (api.audioEngine.currentEngine) {
-            if (api.audioEngine.engineType !== 'wasapi') {
+        const audioEngine = api.audioEngine;
+        if (audioEngine?.currentEngine) {
+            if (audioEngine.engineType !== 'wasapi') {
                 this.equalizer = null;
                 this.setParametricEqualizerEnable(false);
                 return;
             }
 
-            this.equalizer = api.audioEngine.currentEngine.getParametricEqualizer();
+            this.equalizer = audioEngine.currentEngine.getParametricEqualizer();
             if (this.equalizer) {
                 this.setParametricEqualizerEnable(true);
 
