@@ -2,6 +2,12 @@ import {EventEmitter} from '@utils';
 import {cacheManager} from "@services/CacheManager";
 import AudioEngineManager from "@services/audio/AudioEngineManager";
 import {libraryAPI, lyricsAPI} from "@api/modules";
+import {
+    electronAudioAdapter,
+    electronDesktopLyricsAdapter,
+    electronLibraryAdapter,
+    electronWindowAdapter
+} from "@api/adapters";
 
 class MusicBoxAPI extends EventEmitter {
     constructor() {
@@ -145,22 +151,22 @@ class MusicBoxAPI extends EventEmitter {
         }
 
         // Electron IPC events（仅在音频引擎不可用时使用）
-        if (window.electronAPI.audio) {
-            window.electronAPI.audio.onTrackChanged((event, track) => {
+        if (electronAudioAdapter.isAvailable()) {
+            electronAudioAdapter.onTrackChanged((event, track) => {
                 if (!this.audioEngine) {
                     this.currentTrack = track;
                     this.emit('trackChanged', track);
                 }
             });
 
-            window.electronAPI.audio.onPlaybackStateChanged((event, state) => {
+            electronAudioAdapter.onPlaybackStateChanged((event, state) => {
                 if (!this.audioEngine) {
                     this.isPlaying = state === 'playing';
                     this.emit('playbackStateChanged', state);
                 }
             });
 
-            window.electronAPI.audio.onPositionChanged((event, position) => {
+            electronAudioAdapter.onPositionChanged((event, position) => {
                 if (!this.audioEngine) {
                     this.position = position;
                     this.emit('positionChanged', position);
@@ -169,12 +175,12 @@ class MusicBoxAPI extends EventEmitter {
         }
 
         // Library events
-        if (window.electronAPI.library) {
-            window.electronAPI.library.onLibraryUpdated((event, data) => {
+        if (electronLibraryAdapter.isAvailable()) {
+            electronLibraryAdapter.onLibraryUpdated((event, data) => {
                 this.emit('libraryUpdated', data);
             });
 
-            window.electronAPI.library.onScanProgress((event, progress) => {
+            electronLibraryAdapter.onScanProgress((event, progress) => {
                 this.emit('scanProgress', progress);
             });
         }
@@ -183,7 +189,7 @@ class MusicBoxAPI extends EventEmitter {
     // Audio Engine Methods
     async initializeAudio() {
         try {
-            const result = await window.electronAPI.audio.init();
+            const result = await electronAudioAdapter.init();
             this.isInitialized = result;
             return result;
         } catch (error) {
@@ -237,15 +243,15 @@ class MusicBoxAPI extends EventEmitter {
 
                     // 更新播放列表中的时长信息
                     this.updateTrackDuration(filePath, this.duration);
-                    await window.electronAPI.audio.loadTrack(filePath);
+                    await electronAudioAdapter.loadTrack(filePath);
                     return true;
                 }
             }
 
-            const result = await window.electronAPI.audio.loadTrack(filePath);
+            const result = await electronAudioAdapter.loadTrack(filePath);
             if (result) {
-                this.currentTrack = await window.electronAPI.audio.getCurrentTrack();
-                this.duration = await window.electronAPI.audio.getDuration();
+                this.currentTrack = await electronAudioAdapter.getCurrentTrack();
+                this.duration = await electronAudioAdapter.getDuration();
                 this.position = 0;
 
                 this.emit('trackChanged', this.currentTrack);
@@ -271,14 +277,14 @@ class MusicBoxAPI extends EventEmitter {
                     // 不在这里手动设置状态，让音频引擎的事件回调来处理
 
                     // 同步到主进程
-                    await window.electronAPI.audio.play();
+                    await electronAudioAdapter.play();
                     return true;
                 } else {
                     console.log('❌ API: Web Audio Engine 播放失败');
                 }
             }
 
-            const result = await window.electronAPI.audio.play();
+            const result = await electronAudioAdapter.play();
             if (result) {
                 this.isPlaying = true;
                 this.emit('playbackStateChanged', 'playing');
@@ -298,14 +304,14 @@ class MusicBoxAPI extends EventEmitter {
                     // 不在这里手动设置状态，让音频引擎的事件回调来处理
 
                     // 同步到主进程
-                    await window.electronAPI.audio.pause();
+                    await electronAudioAdapter.pause();
                     return true;
                 } else {
                     console.log('❌ API: Web Audio Engine 暂停失败');
                 }
             }
 
-            const result = await window.electronAPI.audio.pause();
+            const result = await electronAudioAdapter.pause();
             if (result) {
                 this.isPlaying = false;
                 this.emit('playbackStateChanged', 'paused');
@@ -319,7 +325,7 @@ class MusicBoxAPI extends EventEmitter {
 
     async stop() {
         try {
-            const result = await window.electronAPI.audio.stop();
+            const result = await electronAudioAdapter.stop();
             if (result) {
                 this.isPlaying = false;
                 this.position = 0;
@@ -342,12 +348,12 @@ class MusicBoxAPI extends EventEmitter {
                     this.emit('positionChanged', position);
 
                     // 同步到主进程
-                    await window.electronAPI.audio.seek(position);
+                    await electronAudioAdapter.seek(position);
                     return true;
                 }
             }
 
-            const result = await window.electronAPI.audio.seek(position);
+            const result = await electronAudioAdapter.seek(position);
             if (result) {
                 this.position = position;
                 this.emit('positionChanged', position);
@@ -408,12 +414,12 @@ class MusicBoxAPI extends EventEmitter {
                     this.volume = volume;
                     this.emit('volumeChanged', volume);
                     // 同步到主进程
-                    await window.electronAPI.audio.setVolume(volume);
+                    await electronAudioAdapter.setVolume(volume);
                     return true;
                 }
             }
 
-            await window.electronAPI.audio.setVolume(volume);
+            await electronAudioAdapter.setVolume(volume);
             this.volume = volume;
             this.emit('volumeChanged', volume);
             return true;
@@ -479,12 +485,12 @@ class MusicBoxAPI extends EventEmitter {
                     this.saveCurrentPlaybackState();
 
                     // 同步到主进程
-                    await window.electronAPI.audio.setPlaylist(tracks);
+                    await electronAudioAdapter.setPlaylist(tracks);
                     return true;
                 }
             }
 
-            await window.electronAPI.audio.setPlaylist(tracks);
+            await electronAudioAdapter.setPlaylist(tracks);
             this.playlist = tracks;
             this.currentIndex = startIndex;
             this.emit('playlistChanged', tracks);
@@ -654,7 +660,7 @@ class MusicBoxAPI extends EventEmitter {
 
     async scanDirectory(path) {
         try {
-            const result = await window.electronAPI.library.scanDirectory(path);
+            const result = await electronLibraryAdapter.scanDirectory(path);
             if (result) {
                 const tracks = await libraryAPI.getTracks();
                 this.emit('libraryUpdated', tracks);
@@ -668,7 +674,7 @@ class MusicBoxAPI extends EventEmitter {
 
     async scanNetworkDrive(driveId, relativePath = '/') {
         try {
-            const result = await window.electronAPI.library.scanNetworkDrive(driveId, relativePath);
+            const result = await electronLibraryAdapter.scanNetworkDrive(driveId, relativePath);
             if (result) {
                 // 刷新音乐库列表
                 const tracks = await libraryAPI.getTracks();
@@ -683,7 +689,7 @@ class MusicBoxAPI extends EventEmitter {
 
     async addTrackToLibrary(audioFile) {
         try {
-            const result = await window.electronAPI.library.addTrackToLibrary(audioFile);
+            const result = await electronLibraryAdapter.addTrackToLibrary(audioFile);
             if (result && result.success) {
                 // 关键步骤：与扫描文件夹功能保持一致，重新获取最新数据
                 const tracks = await libraryAPI.getTracks();
@@ -699,7 +705,7 @@ class MusicBoxAPI extends EventEmitter {
     // 音乐库缓存方法
     async loadCachedTracks() {
         try {
-            const tracks = await window.electronAPI.library.loadCachedTracks();
+            const tracks = await electronLibraryAdapter.loadCachedTracks();
             if (tracks && tracks.length > 0) {
                 // 注意：这里不触发libraryUpdated，避免重复的封面查找
                 // libraryUpdated事件应该只在真正的库更新时触发
@@ -716,11 +722,11 @@ class MusicBoxAPI extends EventEmitter {
     async validateCache() {
         try {
             // 设置验证进度监听器
-            const progressListener = window.electronAPI.library.onCacheValidationProgress((progress) => {
+            const progressListener = electronLibraryAdapter.onCacheValidationProgress((progress) => {
                 this.emit('cacheValidationProgress', progress);
             });
 
-            const result = await window.electronAPI.library.validateCache();
+            const result = await electronLibraryAdapter.validateCache();
 
             // 移除进度监听器
             if (progressListener) {
@@ -748,7 +754,7 @@ class MusicBoxAPI extends EventEmitter {
 
     async clearCache() {
         try {
-            const success = await window.electronAPI.library.clearCache();
+            const success = await electronLibraryAdapter.clearCache();
             if (success) {
                 this.emit('libraryUpdated', []);
                 return true;
@@ -763,7 +769,7 @@ class MusicBoxAPI extends EventEmitter {
 
     // 歌单封面管理方法
     async updatePlaylistCover(playlistId, imagePath) {
-        const result = await window.electronAPI.library.updatePlaylistCover(playlistId, imagePath);
+        const result = await electronLibraryAdapter.updatePlaylistCover(playlistId, imagePath);
         if (result.success) {
             this.emit('playlistCoverUpdated', {playlistId, imagePath});
             return {success: true};
@@ -773,7 +779,7 @@ class MusicBoxAPI extends EventEmitter {
     }
 
     async getPlaylistCover(playlistId) {
-        const result = await window.electronAPI.library.getPlaylistCover(playlistId);
+        const result = await electronLibraryAdapter.getPlaylistCover(playlistId);
         if (result.success) {
             return {success: true, coverPath: result.coverPath};
         } else {
@@ -782,7 +788,7 @@ class MusicBoxAPI extends EventEmitter {
     }
 
     async removePlaylistCover(playlistId) {
-        const result = await window.electronAPI.library.removePlaylistCover(playlistId);
+        const result = await electronLibraryAdapter.removePlaylistCover(playlistId);
         if (result.success) {
             this.emit('playlistCoverRemoved', {playlistId});
             return {success: true};
@@ -980,23 +986,23 @@ class MusicBoxAPI extends EventEmitter {
         try {
             switch (type) {
                 case 'track':
-                    await window.electronAPI.desktopLyrics.updateTrack(data);
+                    await electronDesktopLyricsAdapter.updateTrack(data);
                     // 如果歌曲变化，也需要更新歌词
                     if (data && data.lyrics) {
-                        await window.electronAPI.desktopLyrics.updateLyrics(data.lyrics);
+                        await electronDesktopLyricsAdapter.updateLyrics(data.lyrics);
                     } else if (data && data.title && data.artist) {
                         // 尝试获取歌词
                         await this.loadLyricsForDesktop(data);
                     }
                     break;
                 case 'playbackState':
-                    await window.electronAPI.desktopLyrics.updatePlaybackState(data);
+                    await electronDesktopLyricsAdapter.updatePlaybackState(data);
                     break;
                 case 'position':
-                    await window.electronAPI.desktopLyrics.updatePosition(data);
+                    await electronDesktopLyricsAdapter.updatePosition(data);
                     break;
                 case 'lyrics':
-                    await window.electronAPI.desktopLyrics.updateLyrics(data);
+                    await electronDesktopLyricsAdapter.updateLyrics(data);
                     break;
             }
         } catch (error) {
@@ -1044,13 +1050,13 @@ class MusicBoxAPI extends EventEmitter {
     // 桌面歌词控制方法
     async toggleDesktopLyrics() {
         try {
-            const result = await window.electronAPI.desktopLyrics.toggle();
+            const result = await electronDesktopLyricsAdapter.toggle();
             if (result.success && result.visible) {
                 // 如果显示了桌面歌词，同步当前状态
                 await this.syncCurrentStateToDesktopLyrics();
-                await window.electronAPI.window.setBackgroundThrottling(true);
+                await electronWindowAdapter.setBackgroundThrottling(true);
             }
-            await window.electronAPI.window.setBackgroundThrottling(false);
+            await electronWindowAdapter.setBackgroundThrottling(false);
             return result;
         } catch (error) {
             console.error('❌ 切换桌面歌词失败:', error);
@@ -1131,13 +1137,13 @@ class MusicBoxAPI extends EventEmitter {
         try {
             // 同步当前歌曲信息
             if (this.currentTrack) {
-                const _updateTrackResult = await window.electronAPI.desktopLyrics.updateTrack(this.currentTrack);
+                const _updateTrackResult = await electronDesktopLyricsAdapter.updateTrack(this.currentTrack);
 
                 // 确保歌词被加载并发送到桌面歌词窗口
                 // 无论 track.lyrics 是否存在，都重新加载以确保桌面歌词窗口收到数据
                 if (this.currentTrack.lyrics && this.currentTrack.lyrics.length > 0) {
                     // 如果歌词已缓存，直接发送
-                    const updateLyricsResult = await window.electronAPI.desktopLyrics.updateLyrics(this.currentTrack.lyrics);
+                    const updateLyricsResult = await electronDesktopLyricsAdapter.updateLyrics(this.currentTrack.lyrics);
                     console.log('🔄 syncCurrentStateToDesktopLyrics: updateLyrics 结果', updateLyricsResult);
                 } else if (this.currentTrack.title && this.currentTrack.artist) {
                     // 否则重新加载歌词
@@ -1162,7 +1168,7 @@ class MusicBoxAPI extends EventEmitter {
 
     async hideDesktopLyrics() {
         try {
-            return await window.electronAPI.desktopLyrics.hide();
+            return await electronDesktopLyricsAdapter.hide();
         } catch (error) {
             console.error('❌ 隐藏桌面歌词失败:', error);
             return {success: false, error: error.message};
@@ -1171,7 +1177,7 @@ class MusicBoxAPI extends EventEmitter {
 
     async isDesktopLyricsVisible() {
         try {
-            return await window.electronAPI.desktopLyrics.isVisible();
+            return await electronDesktopLyricsAdapter.isVisible();
         } catch (error) {
             console.error('❌ 检查桌面歌词状态失败:', error);
             return false;
@@ -1180,7 +1186,7 @@ class MusicBoxAPI extends EventEmitter {
 
     async updateDesktopLyricsSettings(settings) {
         try {
-            return await window.electronAPI.desktopLyrics.updateSettings(settings);
+            return await electronDesktopLyricsAdapter.updateSettings(settings);
         } catch (error) {
             console.error('❌ 更新桌面歌词设置失败:', error);
             return {success: false, error: error.message};

@@ -38,6 +38,7 @@ import {ActivationEvents} from "@extensions/core/ExtensionsRegistry";
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import {updateAPI, fileAPI, libraryAPI, trayAPI, windowAPI} from "@js/api";
+import {electronLibraryAdapter} from "@api/adapters";
 
 class MusicBoxApp extends EventEmitter {
     constructor() {
@@ -1914,7 +1915,7 @@ class MusicBoxApp extends EventEmitter {
         }
 
         try {
-            const result = await window.electronAPI.library.removeTrack(track.fileId);
+            const result = await electronLibraryAdapter.removeTrack(track.fileId);
             if (result.success) {
                 // 从本地音乐库数组中移除
                 const libraryIndex = this.library.findIndex(t => t.fileId === track.fileId);
@@ -1987,7 +1988,7 @@ class MusicBoxApp extends EventEmitter {
             const t = this.filteredLibrary[i];
             if (!t) continue;
             try {
-                const result = await window.electronAPI.library.removeTrack(t.fileId);
+                const result = await electronLibraryAdapter.removeTrack(t.fileId);
                 if (result.success) {
                     successCount++;
                     const libIdx = this.library.findIndex(x => x.fileId === t.fileId);
