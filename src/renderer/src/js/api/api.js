@@ -1,6 +1,6 @@
 import {EventEmitter} from '@utils';
 import {cacheManager} from "@services/CacheManager";
-import AudioEngineManager from "@services/audio/AudioEngineManager";
+import {AudioEngineService, PlaybackPersistenceService, PlaybackStateStore, PlaylistService} from "@services/playback";
 import {libraryAPI, lyricsAPI} from "@api/modules";
 import {
     electronAudioAdapter,
@@ -13,26 +13,38 @@ class MusicBoxAPI extends EventEmitter {
     constructor() {
         super();
         this.isInitialized = false;
-        this.currentTrack = null;
-        this.isPlaying = false;
-        this.volume = 0.7;
-        this.position = 0;
-        this.duration = 0;
-        this.playlist = [];
-        this.currentIndex = -1;
-        this.playMode = 'sequence'; // sequence, shuffle, repeat-one
+        this.playbackState = new PlaybackStateStore();
+        this.playbackPersistence = new PlaybackPersistenceService({
+            cacheManager,
+            delay: 2000,
+            getState: () => this.getPlaybackState()
+        });
+        this.playlistService = new PlaylistService({
+            getState: () => this.getPlaybackState(),
+            setState: (state) => this.playbackState.update(state)
+        });
+        this.audioEngineService = new AudioEngineService({cacheManager});
 
         // 播放历史栈，用于实现真正的"上一首"功能
-        this.playHistory = [];
+        Object.defineProperty(this, 'playHistory', {
+            get: () => this.playlistService.playHistory,
+            set: (history) => {
+                this.playlistService.playHistory = history;
+            }
+        });
 
         // 进度跟踪
         this.progressInterval = null;
 
         // 播放位置保存节流
-        this.savePositionTimeout = null;
 
         // 音频引擎
-        this.audioEngine = null;
+        Object.defineProperty(this, 'audioEngine', {
+            get: () => this.audioEngineService.engine,
+            set: (audioEngine) => {
+                this.audioEngineService.engine = audioEngine;
+            }
+        });
 
         // 音频切换锁，防止快速切换时的竞态条件
         this._trackSwitchLock = false;
@@ -45,62 +57,83 @@ class MusicBoxAPI extends EventEmitter {
         });
     }
 
+    get currentTrack() {
+        return this.playbackState.get('currentTrack');
+    }
+
+    set currentTrack(track) {
+        this.playbackState.set('currentTrack', track);
+    }
+
+    get isPlaying() {
+        return this.playbackState.get('isPlaying');
+    }
+
+    set isPlaying(isPlaying) {
+        this.playbackState.set('isPlaying', isPlaying);
+    }
+
+    get volume() {
+        return this.playbackState.get('volume');
+    }
+
+    set volume(volume) {
+        this.playbackState.set('volume', volume);
+    }
+
+    get position() {
+        return this.playbackState.get('position');
+    }
+
+    set position(position) {
+        this.playbackState.set('position', position);
+    }
+
+    get duration() {
+        return this.playbackState.get('duration');
+    }
+
+    set duration(duration) {
+        this.playbackState.set('duration', duration);
+    }
+
+    get playlist() {
+        return this.playbackState.get('playlist');
+    }
+
+    set playlist(playlist) {
+        this.playbackState.set('playlist', playlist);
+    }
+
+    get currentIndex() {
+        return this.playbackState.get('currentIndex');
+    }
+
+    set currentIndex(currentIndex) {
+        this.playbackState.set('currentIndex', currentIndex);
+    }
+
+    get playMode() {
+        return this.playbackState.get('playMode');
+    }
+
+    set playMode(playMode) {
+        this.playbackState.set('playMode', playMode);
+    }
+
+    getPlaybackState() {
+        return this.playbackState.getSnapshot();
+    }
+
     async initializeWebAudio() {
-        try {
-            // 从设置中读取引擎类型和模式
-            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
-            const exclusiveMode = settings.exclusiveMode === true;
-            const wasapiShareMode = settings.wasapiShareMode || 'exclusive';
-            const engineType = exclusiveMode ? 'wasapi' : 'webaudio';
+        this.audioEngine = await this.audioEngineService.initialize();
 
-            console.log(`🎵 API: 初始化音频引擎，类型: ${engineType}${exclusiveMode ? ` (${wasapiShareMode === 'exclusive' ? '独占' : '共享'}模式)` : ''}`);
-
-            // 使用AudioEngineManager统一管理引擎
-            this.audioEngine = new AudioEngineManager();
-            const initialized = await this.audioEngine.initialize(engineType);
-
-            if (initialized) {
-                // 如果是WASAPI引擎，设置共享模式
-                if (engineType === 'wasapi' && this.audioEngine.currentEngine?.nativeEngine) {
-                    try {
-                        const currentMode = await this.audioEngine.currentEngine.nativeEngine.getShareMode();
-                        if (currentMode !== wasapiShareMode) {
-                            console.log(`🔧 API: 设置WASAPI模式为 ${wasapiShareMode}`);
-                            await this.audioEngine.currentEngine.nativeEngine.setShareMode(wasapiShareMode);
-                        }
-                    } catch (error) {
-                        console.warn('⚠️ API: 设置WASAPI模式失败，使用默认模式:', error);
-                    }
-                }
-
-                // 设置音量
-                const volume = cacheManager.getLocalCache('volume') || 0.7;
-                this.audioEngine.setVolume(volume);
-
-                // 设置无间隙播放状态
-                const gaplessEnabled = settings.gaplessPlayback !== false;
-                this.audioEngine.setGaplessPlayback(gaplessEnabled);
-
-                // 设置播放模式回调函数，让引擎能够根据播放模式计算下一首/上一首
-                this.audioEngine.getNextTrackIndex = () => this.getNextTrackIndex();
-                this.audioEngine.getPreviousTrackIndex = () => this.getPreviousTrackIndex();
-                console.log(`✅ API: 音频引擎初始化成功 (${this.audioEngine.getEngineType()})`);
-            } else {
-                console.error('❌ API: 音频引擎初始化失败');
-            }
-        } catch (error) {
-            console.error('❌ API: 音频引擎初始化错误:', error);
-            // 发生错误时，尝试回退到WebAudioEngine
-            try {
-                console.log('🔄 API: 尝试回退到WebAudioEngine...');
-                this.audioEngine = new AudioEngineManager();
-                await this.audioEngine.initialize('webaudio');
-                console.log('✅ API: 已回退到WebAudioEngine');
-            } catch (fallbackError) {
-                console.error('❌ API: 回退到WebAudioEngine也失败:', fallbackError);
-            }
+        if (this.audioEngine) {
+            this.audioEngine.getNextTrackIndex = () => this.getNextTrackIndex();
+            this.audioEngine.getPreviousTrackIndex = () => this.getPreviousTrackIndex();
         }
     }
+
 
     setupEventListeners() {
         // 音频引擎事件监听
@@ -469,13 +502,12 @@ class MusicBoxAPI extends EventEmitter {
             console.log(`🔄 API: 设置播放列表，${tracks.length}首歌曲，起始索引: ${startIndex}`);
 
             // 设置新播放列表时清空播放历史
-            this.playHistory = [];
+            this.playlistService.clearHistory();
 
             if (this.audioEngine) {
                 const result = this.audioEngine.setPlaylist(tracks, startIndex);
                 if (result) {
-                    this.playlist = tracks;
-                    this.currentIndex = startIndex;
+                    this.playlistService.setPlaylist(tracks, startIndex);
 
                     console.log(`✅ API: 播放列表设置成功，当前索引: ${this.currentIndex}`);
                     this.emit('playlistChanged', tracks);
@@ -491,8 +523,7 @@ class MusicBoxAPI extends EventEmitter {
             }
 
             await electronAudioAdapter.setPlaylist(tracks);
-            this.playlist = tracks;
-            this.currentIndex = startIndex;
+            this.playlistService.setPlaylist(tracks, startIndex);
             this.emit('playlistChanged', tracks);
             this.emit('trackIndexChanged', this.currentIndex);
 
@@ -520,13 +551,7 @@ class MusicBoxAPI extends EventEmitter {
             this._trackSwitchLock = true;
 
             // 将当前索引加入播放历史（在切换到下一首之前）
-            if (this.currentIndex !== -1) {
-                this.playHistory.push(this.currentIndex);
-                // 限制历史记录长度，避免内存占用过大
-                if (this.playHistory.length > 50) {
-                    this.playHistory.shift();
-                }
-            }
+            this.playlistService.pushHistory(this.currentIndex);
 
             // 根据播放模式获取下一首的索引
             const nextIndex = this.getNextTrackIndex();
@@ -608,9 +633,7 @@ class MusicBoxAPI extends EventEmitter {
             }
 
             // 如果从播放历史中获取到了索引，需要从历史栈中移除
-            if (this.playHistory.length > 0 && this.playHistory[this.playHistory.length - 1] === prevIndex) {
-                this.playHistory.pop();
-            }
+            this.playlistService.popHistoryIfMatches(prevIndex);
 
             const prevTrack = this.playlist[prevIndex];
             if (!prevTrack) {
@@ -805,9 +828,7 @@ class MusicBoxAPI extends EventEmitter {
     }
 
     setPlayMode(mode) {
-        const validModes = ['sequence', 'shuffle', 'repeat-one'];
-        if (validModes.includes(mode)) {
-            this.playMode = mode;
+        if (this.playlistService.setPlayMode(mode)) {
             this.emit('playModeChanged', mode);
             cacheManager.setLocalCache('playMode', mode);
             return true;
@@ -820,60 +841,18 @@ class MusicBoxAPI extends EventEmitter {
     }
 
     togglePlayMode() {
-        const modes = ['sequence', 'shuffle', 'repeat-one'];
-        const currentIndex = modes.indexOf(this.playMode);
-        const nextIndex = (currentIndex + 1) % modes.length;
-        this.setPlayMode(modes[nextIndex]);
-        return this.playMode;
+        const mode = this.playlistService.togglePlayMode();
+        this.emit('playModeChanged', mode);
+        cacheManager.setLocalCache('playMode', mode);
+        return mode;
     }
 
     getNextTrackIndex() {
-        if (this.playlist.length === 0) return -1;
-
-        switch (this.playMode) {
-            case 'sequence':
-                return (this.currentIndex + 1) % this.playlist.length;
-            case 'shuffle':
-                // 随机选择一个不同的索引
-                if (this.playlist.length === 1) return 0;
-                let randomIndex = Math.floor(Math.random() * this.playlist.length);
-                while (randomIndex === this.currentIndex) {
-                    randomIndex = Math.floor(Math.random() * this.playlist.length);
-                }
-                return randomIndex;
-            case 'repeat-one':
-                return this.currentIndex;
-            default:
-                return (this.currentIndex + 1) % this.playlist.length;
-        }
+        return this.playlistService.getNextTrackIndex();
     }
 
     getPreviousTrackIndex() {
-        if (this.playlist.length === 0) return -1;
-
-        // 所有播放模式下，上一首都应该从播放历史中获取
-        if (this.playHistory.length > 0) {
-            // 从播放历史栈中弹出上一首的索引
-            return this.playHistory[this.playHistory.length - 1];
-        }
-
-        // 如果没有播放历史，则按照播放模式的默认行为
-        switch (this.playMode) {
-            case 'sequence':
-                return this.currentIndex > 0 ? this.currentIndex - 1 : this.playlist.length - 1;
-            case 'shuffle':
-                // 没有历史时，随机选择一个不同的索引
-                if (this.playlist.length === 1) return 0;
-                let randomIndex = Math.floor(Math.random() * this.playlist.length);
-                while (randomIndex === this.currentIndex) {
-                    randomIndex = Math.floor(Math.random() * this.playlist.length);
-                }
-                return randomIndex;
-            case 'repeat-one':
-                return this.currentIndex;
-            default:
-                return this.currentIndex > 0 ? this.currentIndex - 1 : this.playlist.length - 1;
-        }
+        return this.playlistService.getPreviousTrackIndex();
     }
 
     updateTrackDuration(filePath, duration) {
@@ -892,94 +871,54 @@ class MusicBoxAPI extends EventEmitter {
 
     // 获取均衡器实例
     getEqualizer() {
-        if (this.audioEngine) {
-            return this.audioEngine.getEqualizer();
-        }
-        return null;
+        return this.audioEngineService.getEqualizer();
     }
+
 
     // 启用/禁用均衡器
     setEqualizerEnabled(enabled) {
-        if (this.audioEngine) {
-            this.audioEngine.setEqualizerEnabled(enabled);
-        }
+        this.audioEngineService.setEqualizerEnabled(enabled);
     }
+
 
     // 设置无间隙播放状态
     setGaplessPlayback(enabled) {
-        if (this.audioEngine) {
-            this.audioEngine.setGaplessPlayback(enabled);
-            console.log(`🎵 API: 无间隙播放${enabled ? '启用' : '禁用'}`);
-        }
+        this.audioEngineService.setGaplessPlayback(enabled);
+        console.log(`?? API: ?????${enabled ? '??' : '??'}`);
     }
+
 
     // 获取无间隙播放状态
     getGaplessPlayback() {
-        if (this.audioEngine) {
-            return this.audioEngine.getGaplessPlayback();
-        }
-        return false;
+        return this.audioEngineService.getGaplessPlayback();
     }
+
 
     // 切换音频引擎
     async switchAudioEngine(engineType) {
-        if (!this.audioEngine) {
-            console.error('❌ API: 音频引擎未初始化');
-            return false;
-        }
+        const result = await this.audioEngineService.switchEngine(engineType);
 
-        console.log(`🔄 API: 切换音频引擎到 ${engineType}`);
-        const result = await this.audioEngine.switchEngine(engineType);
-
-        if (result) {
-            console.log(`✅ API: 音频引擎切换成功`);
-            // 更新设置
-            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
-            settings.exclusiveMode = (engineType === 'wasapi');
-            cacheManager.setLocalCache('musicbox-settings', settings);
-        } else {
-            console.error(`❌ API: 音频引擎切换失败`);
+        if (result && this.audioEngine) {
+            this.audioEngine.getNextTrackIndex = () => this.getNextTrackIndex();
+            this.audioEngine.getPreviousTrackIndex = () => this.getPreviousTrackIndex();
+            this.setupEventListeners();
         }
 
         return result;
     }
 
+
     // 切换WASAPI共享模式
     async switchWasapiShareMode(mode) {
-        if (!this.audioEngine) {
-            console.error('❌ API: 音频引擎未初始化');
-            return false;
-        }
-
-        if (this.audioEngine.getEngineType() !== 'wasapi') {
-            console.warn('⚠️ API: 当前不是WASAPI引擎，无法切换模式');
-            return false;
-        }
-
-        console.log(`🔄 API: 切换WASAPI模式到 ${mode}`);
-
-        try {
-            const result = await this.audioEngine.currentEngine?.switchShareMode(mode);
-            if (result) {
-                // 更新设置
-                const settings = cacheManager.getLocalCache('musicbox-settings') || {};
-                settings.wasapiShareMode = mode;
-                cacheManager.setLocalCache('musicbox-settings', settings);
-                return true;
-            } else {
-                console.error(`❌ API: WASAPI模式切换失败`);
-                return false;
-            }
-        } catch (error) {
-            console.error('❌ API: WASAPI模式切换异常:', error);
-            return false;
-        }
+        return this.audioEngineService.switchWasapiShareMode(mode);
     }
+
 
     // 获取当前引擎类型
     getAudioEngineType() {
-        return this.audioEngine?.getEngineType() || 'unknown';
+        return this.audioEngineService.getEngineType();
     }
+
 
     // 桌面歌词同步方法
     async syncToDesktopLyrics(type, data) {
@@ -1064,73 +1003,12 @@ class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    // 节流保存播放位置
     throttledSavePosition(position) {
-        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
-
-        // 只有启用记住播放位置时才保存
-        if (!settings.rememberPosition) return;
-
-        // 清除之前的定时器
-        if (this.savePositionTimeout) {
-            clearTimeout(this.savePositionTimeout);
-        }
-
-        // 设置新的定时器，2秒后保存
-        this.savePositionTimeout = setTimeout(() => {
-            try {
-                const playbackState = {
-                    currentTrack: this.currentTrack,
-                    position: position,
-                    isPlaying: this.isPlaying,
-                    playlist: this.playlist,
-                    currentIndex: this.currentIndex,
-                    playMode: this.playMode,
-                    timestamp: Date.now()
-                };
-
-                cacheManager.setLocalCache('playback-state', playbackState);
-            } catch (error) {
-                console.error('❌ API: 保存播放位置失败:', error);
-            }
-        }, 2000);
+        this.playbackPersistence.throttledSavePosition(position);
     }
 
-    // 立即保存当前播放状态
     saveCurrentPlaybackState() {
-        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
-
-        // 只有启用记住播放位置时才保存
-        if (!settings.rememberPosition) {
-            return;
-        }
-
-        try {
-            const playbackState = {
-                currentTrack: this.currentTrack,
-                position: this.position,
-                isPlaying: this.isPlaying,
-                playlist: this.playlist,
-                currentIndex: this.currentIndex,
-                playMode: this.playMode,
-                timestamp: Date.now()
-            };
-
-            console.log('💾 API: 保存播放状态:', {
-                hasTrack: !!this.currentTrack,
-                trackTitle: this.currentTrack?.title,
-                position: this.position,
-                isPlaying: this.isPlaying,
-                playlistLength: this.playlist.length,
-                currentIndex: this.currentIndex,
-                playMode: this.playMode
-            });
-
-            cacheManager.setLocalCache('playback-state', playbackState);
-            console.log('✅ API: 播放状态已保存（包含播放列表）');
-        } catch (error) {
-            console.error('❌ API: 保存播放状态失败:', error);
-        }
+        this.playbackPersistence.saveCurrentPlaybackState();
     }
 
     async syncCurrentStateToDesktopLyrics() {
@@ -1194,6 +1072,7 @@ class MusicBoxAPI extends EventEmitter {
     }
 
     destroy() {
+        this.playbackPersistence.destroy();
         this.stopProgressTracking();
         this.removeAllListeners();
     }
