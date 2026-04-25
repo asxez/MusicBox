@@ -4,8 +4,19 @@
 
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
+import type {Playlist, Track} from "@api/types/library";
 
 class AddToPlaylistDialog extends Component {
+    private isVisible: boolean;
+    private currentTrack: Track | null;
+    private playlists: Array<Playlist & {trackIds?: string[]}>;
+    private listenersSetup: boolean;
+    private overlay!: HTMLElement;
+    private closeBtn!: HTMLElement;
+    private cancelBtn!: HTMLElement;
+    private playlistList!: HTMLElement;
+    private createNewBtn!: HTMLElement;
+
     constructor() {
         super(null, false);
         this.isVisible = false;
@@ -14,7 +25,7 @@ class AddToPlaylistDialog extends Component {
         this.listenersSetup = false; // 事件监听器是否已设置
     }
 
-    async show(track) {
+    async show(track: Track): Promise<void> {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupEventListeners();
@@ -28,29 +39,28 @@ class AddToPlaylistDialog extends Component {
         await this.loadPlaylists();
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
         this.overlay.style.display = 'none';
         this.currentTrack = null;
     }
 
-    destroy() {
+    destroy(): void {
         this.currentTrack = null;
         this.playlists = [];
         this.listenersSetup = false;
-        return super.destroy();
+        super.destroy();
     }
 
-    setupElements() {
-        this.overlay = document.getElementById('add-to-playlist-dialog');
-        this.dialog = this.overlay.querySelector('.modal-dialog');
-        this.closeBtn = document.getElementById('add-to-playlist-close');
-        this.cancelBtn = document.getElementById('add-to-playlist-cancel');
-        this.playlistList = document.getElementById('playlist-selection-list');
-        this.createNewBtn = document.getElementById('create-new-playlist-option');
+    setupElements(): void {
+        this.overlay = document.getElementById('add-to-playlist-dialog') as HTMLElement;
+        this.closeBtn = document.getElementById('add-to-playlist-close') as HTMLElement;
+        this.cancelBtn = document.getElementById('add-to-playlist-cancel') as HTMLElement;
+        this.playlistList = document.getElementById('playlist-selection-list') as HTMLElement;
+        this.createNewBtn = document.getElementById('create-new-playlist-option') as HTMLElement;
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         this.addEventListenerManaged(this.closeBtn, 'click', () => this.hide());
         this.addEventListenerManaged(this.cancelBtn, 'click', () => this.hide());
         // 创建新歌单按钮
@@ -60,21 +70,22 @@ class AddToPlaylistDialog extends Component {
         });
 
         // 点击遮罩层关闭
-        this.addEventListenerManaged(this.overlay, 'click', (e) => {
+        this.addEventListenerManaged(this.overlay, 'click', (e: Event) => {
             if (e.target === this.overlay) {
                 this.hide();
             }
         });
 
         // ESC键关闭
-        this.addEventListenerManaged(document, 'keydown', (e) => {
-            if (e.key === 'Escape' && this.isVisible) {
+        this.addEventListenerManaged(document, 'keydown', (e: Event) => {
+            const event = e as KeyboardEvent;
+            if (event.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
         });
     }
 
-    async loadPlaylists() {
+    async loadPlaylists(): Promise<void> {
         try {
             this.playlists = await window.electronAPI.library.getPlaylists();
             this.renderPlaylistList();
@@ -85,7 +96,7 @@ class AddToPlaylistDialog extends Component {
         }
     }
 
-    renderPlaylistList() {
+    renderPlaylistList(): void {
         if (this.playlists.length === 0) {
             this.playlistList.innerHTML = `
                 <div class="empty-state">
@@ -110,19 +121,21 @@ class AddToPlaylistDialog extends Component {
         // 添加点击事件
         this.playlistList.querySelectorAll('.playlist-item').forEach(item => {
             item.addEventListener('click', () => {
-                const playlistId = item.dataset.playlistId;
-                this.addToPlaylist(playlistId);
+                const playlistId = (item as HTMLElement).dataset.playlistId;
+                if (playlistId) {
+                    this.addToPlaylist(playlistId);
+                }
             });
         });
     }
 
-    async addToPlaylist(playlistId) {
+    async addToPlaylist(playlistId: string): Promise<void> {
         if (!this.currentTrack) {
             return;
         }
 
         try {
-            const result = await window.electronAPI.library.addToPlaylist(
+            const result = await (window.electronAPI.library.addToPlaylist as any)(
                 playlistId,
                 this.currentTrack.fileId
             );
@@ -143,7 +156,7 @@ class AddToPlaylistDialog extends Component {
         }
     }
 
-    escapeHtml(text) {
+    escapeHtml(text: string = ''): string {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;

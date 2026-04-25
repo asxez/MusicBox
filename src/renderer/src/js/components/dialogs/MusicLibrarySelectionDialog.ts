@@ -4,8 +4,27 @@
 
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
+import type {Playlist, Track} from "@api/types/library";
+
+type PlaylistWithTrackIds = Playlist & {trackIds?: string[]};
 
 class MusicLibrarySelectionDialog extends Component {
+    private isVisible: boolean;
+    private currentPlaylist: PlaylistWithTrackIds | null;
+    private allTracks: Track[];
+    private filteredTracks: Track[];
+    private selectedTracks: Set<string>;
+    private listenersSetup: boolean;
+    private overlay!: HTMLElement;
+    private closeBtn!: HTMLElement;
+    private cancelBtn!: HTMLElement;
+    private confirmBtn!: HTMLButtonElement;
+    private searchInput!: HTMLInputElement;
+    private selectAllBtn!: HTMLElement;
+    private clearSelectionBtn!: HTMLElement;
+    private selectedCountElement!: HTMLElement;
+    private trackListContainer!: HTMLElement;
+
     constructor() {
         super(null, false);
         this.isVisible = false;
@@ -16,7 +35,7 @@ class MusicLibrarySelectionDialog extends Component {
         this.listenersSetup = false; // 事件监听器是否已设置
     }
 
-    async show(playlist) {
+    async show(playlist: PlaylistWithTrackIds): Promise<void> {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupEventListeners();
@@ -33,36 +52,35 @@ class MusicLibrarySelectionDialog extends Component {
         await this.loadMusicLibrary();
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
         this.overlay.style.display = 'none';
         this.currentPlaylist = null;
         this.selectedTracks.clear();
     }
 
-    destroy() {
+    destroy(): void {
         this.currentPlaylist = null;
         this.allTracks = [];
         this.filteredTracks = [];
-        this.selectedTracks = null;
+        this.selectedTracks.clear();
         this.listenersSetup = false;
-        return super.destroy();
+        super.destroy();
     }
 
-    setupElements() {
-        this.overlay = document.getElementById('music-library-selection-dialog');
-        this.dialog = this.overlay.querySelector('.modal-dialog');
-        this.closeBtn = document.getElementById('music-library-close');
-        this.cancelBtn = document.getElementById('music-library-cancel');
-        this.confirmBtn = document.getElementById('music-library-confirm');
-        this.searchInput = document.getElementById('library-search-input');
-        this.selectAllBtn = document.getElementById('select-all-tracks');
-        this.clearSelectionBtn = document.getElementById('clear-selection');
-        this.selectedCountElement = document.getElementById('selected-count');
-        this.trackListContainer = document.getElementById('library-track-list');
+    setupElements(): void {
+        this.overlay = document.getElementById('music-library-selection-dialog') as HTMLElement;
+        this.closeBtn = document.getElementById('music-library-close') as HTMLElement;
+        this.cancelBtn = document.getElementById('music-library-cancel') as HTMLElement;
+        this.confirmBtn = document.getElementById('music-library-confirm') as HTMLButtonElement;
+        this.searchInput = document.getElementById('library-search-input') as HTMLInputElement;
+        this.selectAllBtn = document.getElementById('select-all-tracks') as HTMLElement;
+        this.clearSelectionBtn = document.getElementById('clear-selection') as HTMLElement;
+        this.selectedCountElement = document.getElementById('selected-count') as HTMLElement;
+        this.trackListContainer = document.getElementById('library-track-list') as HTMLElement;
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         this.addEventListenerManaged(this.closeBtn, 'click', () => this.hide());
         this.addEventListenerManaged(this.cancelBtn, 'click', () => this.hide());
         this.addEventListenerManaged(this.confirmBtn, 'click', () => this.addSelectedTracks());
@@ -73,20 +91,21 @@ class MusicLibrarySelectionDialog extends Component {
         this.addEventListenerManaged(this.clearSelectionBtn, 'click', () => this.clearSelection());
 
         // 点击遮罩层关闭
-        this.addEventListenerManaged(this.overlay, 'click', (e) => {
+        this.addEventListenerManaged(this.overlay, 'click', (e: Event) => {
             if (e.target === this.overlay) {
                 this.hide();
             }
         });
 
-        this.addEventListenerManaged(document, 'keydown', (e) => {
-            if (e.key === 'Escape' && this.isVisible) {
+        this.addEventListenerManaged(document, 'keydown', (e: Event) => {
+            const event = e as KeyboardEvent;
+            if (event.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
         });
     }
 
-    async loadMusicLibrary() {
+    async loadMusicLibrary(): Promise<void> {
         try {
             // 显示加载状态
             this.trackListContainer.innerHTML = `
@@ -101,9 +120,10 @@ class MusicLibrarySelectionDialog extends Component {
             this.allTracks = tracks || [];
 
             // 过滤掉已在歌单中的歌曲
-            if (this.currentPlaylist && this.currentPlaylist.trackIds) {
+            const existingTrackIds = this.currentPlaylist?.trackIds;
+            if (existingTrackIds) {
                 this.allTracks = this.allTracks.filter(track =>
-                    !this.currentPlaylist.trackIds.includes(track.fileId)
+                    !track.fileId || !existingTrackIds.includes(track.fileId)
                 );
             }
 
@@ -124,7 +144,7 @@ class MusicLibrarySelectionDialog extends Component {
         }
     }
 
-    renderTrackList() {
+    renderTrackList(): void {
         if (this.filteredTracks.length === 0) {
             this.trackListContainer.innerHTML = `
                 <div class="library-empty-state">
@@ -152,28 +172,34 @@ class MusicLibrarySelectionDialog extends Component {
         this.setupTrackListEvents();
     }
 
-    setupTrackListEvents() {
+    setupTrackListEvents(): void {
         // 为每个歌曲项添加事件监听
         this.trackListContainer.querySelectorAll('.library-track-item').forEach(item => {
-            const checkbox = item.querySelector('.track-checkbox');
+            const checkbox = item.querySelector('.track-checkbox') as HTMLInputElement | null;
+            if (!checkbox) {
+                return;
+            }
             const trackId = checkbox.dataset.trackId;
+            if (!trackId) {
+                return;
+            }
 
             // 点击整行切换选择状态
-            item.addEventListener('click', (e) => {
-                if (e.target.type !== 'checkbox') {
+            item.addEventListener('click', (e: Event) => {
+                if (!(e.target instanceof HTMLInputElement)) {
                     checkbox.checked = !checkbox.checked;
                 }
                 this.handleTrackSelection(trackId, checkbox.checked);
             });
 
             // 复选框变化事件
-            checkbox.addEventListener('change', (e) => {
-                this.handleTrackSelection(trackId, e.target.checked);
+            checkbox.addEventListener('change', (e: Event) => {
+                this.handleTrackSelection(trackId, (e.target as HTMLInputElement).checked);
             });
         });
     }
 
-    handleTrackSelection(trackId, isSelected) {
+    handleTrackSelection(trackId: string, isSelected: boolean): void {
         if (isSelected) {
             this.selectedTracks.add(trackId);
         } else {
@@ -184,12 +210,15 @@ class MusicLibrarySelectionDialog extends Component {
         this.updateTrackItemStyles();
     }
 
-    updateTrackItemStyles() {
+    updateTrackItemStyles(): void {
         this.trackListContainer.querySelectorAll('.library-track-item').forEach(item => {
-            const checkbox = item.querySelector('.track-checkbox');
+            const checkbox = item.querySelector('.track-checkbox') as HTMLInputElement | null;
+            if (!checkbox) {
+                return;
+            }
             const trackId = checkbox.dataset.trackId;
 
-            if (this.selectedTracks.has(trackId)) {
+            if (trackId && this.selectedTracks.has(trackId)) {
                 item.classList.add('selected');
             } else {
                 item.classList.remove('selected');
@@ -197,9 +226,9 @@ class MusicLibrarySelectionDialog extends Component {
         });
     }
 
-    updateSelectedCount() {
+    updateSelectedCount(): void {
         const count = this.selectedTracks.size;
-        this.selectedCountElement.textContent = count;
+        this.selectedCountElement.textContent = String(count);
         this.confirmBtn.disabled = count === 0;
 
         if (count === 0) {
@@ -209,7 +238,7 @@ class MusicLibrarySelectionDialog extends Component {
         }
     }
 
-    handleSearch() {
+    handleSearch(): void {
         const query = this.searchInput.value.trim().toLowerCase();
 
         if (query === '') {
@@ -233,34 +262,36 @@ class MusicLibrarySelectionDialog extends Component {
         this.renderTrackList();
     }
 
-    selectAllTracks() {
+    selectAllTracks(): void {
         this.selectedTracks.clear();
         this.filteredTracks.forEach(track => {
-            this.selectedTracks.add(track.fileId);
+            if (track.fileId) {
+                this.selectedTracks.add(track.fileId);
+            }
         });
 
         // 更新UI
         this.trackListContainer.querySelectorAll('.track-checkbox').forEach(checkbox => {
-            checkbox.checked = true;
+            (checkbox as HTMLInputElement).checked = true;
         });
 
         this.updateSelectedCount();
         this.updateTrackItemStyles();
     }
 
-    clearSelection() {
+    clearSelection(): void {
         this.selectedTracks.clear();
 
         // 更新UI
         this.trackListContainer.querySelectorAll('.track-checkbox').forEach(checkbox => {
-            checkbox.checked = false;
+            (checkbox as HTMLInputElement).checked = false;
         });
 
         this.updateSelectedCount();
         this.updateTrackItemStyles();
     }
 
-    async addSelectedTracks() {
+    async addSelectedTracks(): Promise<void> {
         if (this.selectedTracks.size === 0 || !this.currentPlaylist) {
             return;
         }
@@ -277,7 +308,7 @@ class MusicLibrarySelectionDialog extends Component {
             // 批量添加歌曲
             for (const trackId of selectedTrackIds) {
                 try {
-                    const result = await window.electronAPI.library.addToPlaylist(
+                    const result = await (window.electronAPI.library.addToPlaylist as any)(
                         this.currentPlaylist.id,
                         trackId
                     );
@@ -319,7 +350,7 @@ class MusicLibrarySelectionDialog extends Component {
         }
     }
 
-    formatDuration(duration) {
+    formatDuration(duration?: number): string {
         if (!duration || duration <= 0) return '--:--';
 
         const minutes = Math.floor(duration / 60);
@@ -327,7 +358,7 @@ class MusicLibrarySelectionDialog extends Component {
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
 
-    escapeHtml(text) {
+    escapeHtml(text: string = ''): string {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
