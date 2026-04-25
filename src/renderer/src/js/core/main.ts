@@ -77,6 +77,6 @@ import '@components/index.js';
 // ============================================
 // 9. 导入主应用
 // ============================================
-import './app.js';
+import './app';
 
 console.log('✅ MusicBox 应用已通过 Vite 加载完成');
