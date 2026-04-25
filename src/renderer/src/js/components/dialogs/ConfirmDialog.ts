@@ -1,6 +1,29 @@
 import {Component} from "@components/base/Component";
 
+type ConfirmDialogType = 'default' | 'danger' | 'warning';
+
+interface ConfirmDialogOptions {
+    title?: string;
+    message?: string;
+    confirmText?: string;
+    cancelText?: string;
+    type?: ConfirmDialogType;
+    confirmButtonClass?: string;
+    cancelButtonClass?: string;
+}
+
 class ConfirmDialog extends Component {
+    private isVisible: boolean;
+    private currentResolve: ((result: boolean) => void) | null;
+    private listenersSetup: boolean;
+    private overlay!: HTMLElement;
+    private dialog!: HTMLElement;
+    private titleElement!: HTMLElement;
+    private messageElement!: HTMLElement;
+    private closeBtn!: HTMLElement;
+    private cancelBtn!: HTMLElement;
+    private confirmBtn!: HTMLElement;
+
     constructor() {
         super(null, false);
         this.isVisible = false;
@@ -8,7 +31,7 @@ class ConfirmDialog extends Component {
         this.listenersSetup = false;
     }
 
-    show(options) {
+    show(options: string | ConfirmDialogOptions): Promise<boolean> {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupEventListeners();
@@ -51,7 +74,7 @@ class ConfirmDialog extends Component {
         });
     }
 
-    hide(result) {
+    hide(result: boolean): void {
         this.isVisible = false;
         this.overlay.style.display = 'none';
 
@@ -61,17 +84,17 @@ class ConfirmDialog extends Component {
         }
     }
 
-    setupElements() {
-        this.overlay = document.getElementById('confirm-dialog');
-        this.dialog = this.overlay.querySelector('.modal-dialog');
-        this.titleElement = document.getElementById('confirm-dialog-title');
-        this.messageElement = document.getElementById('confirm-dialog-message');
-        this.closeBtn = document.getElementById('confirm-dialog-close');
-        this.cancelBtn = document.getElementById('confirm-dialog-cancel');
-        this.confirmBtn = document.getElementById('confirm-dialog-confirm');
+    setupElements(): void {
+        this.overlay = document.getElementById('confirm-dialog') as HTMLElement;
+        this.dialog = this.overlay.querySelector('.modal-dialog') as HTMLElement;
+        this.titleElement = document.getElementById('confirm-dialog-title') as HTMLElement;
+        this.messageElement = document.getElementById('confirm-dialog-message') as HTMLElement;
+        this.closeBtn = document.getElementById('confirm-dialog-close') as HTMLElement;
+        this.cancelBtn = document.getElementById('confirm-dialog-cancel') as HTMLElement;
+        this.confirmBtn = document.getElementById('confirm-dialog-confirm') as HTMLElement;
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         this.addEventListenerManaged(this.closeBtn, 'click', () => this.hide(false));
         this.addEventListenerManaged(this.cancelBtn, 'click', () => this.hide(false));
         this.addEventListenerManaged(this.confirmBtn, 'click', () => this.hide(true));
@@ -82,7 +105,8 @@ class ConfirmDialog extends Component {
             }
         });
 
-        this.addEventListenerManaged(document, 'keydown', (e) => {
+        this.addEventListenerManaged(document, 'keydown', (event) => {
+            const e = event as KeyboardEvent;
             if (!this.isVisible) return;
 
             if (e.key === 'Escape') {

@@ -64,10 +64,10 @@ import '@components/component/UpdateModal.js';
 // 7. 导入对话框组件
 // ============================================
 import '@components/dialogs/AddToPlaylistDialog.js';
-import '@components/dialogs/CreatePlaylistDialog.js';
+import '@components/dialogs/CreatePlaylistDialog';
 import '@components/dialogs/EditTrackInfoDialog.js';
 import '@components/dialogs/MusicLibrarySelectionDialog.js';
-import '@components/dialogs/RenamePlaylistDialog.js';
+import '@components/dialogs/RenamePlaylistDialog';
 
 // ============================================
 // 8. 导入组件索引

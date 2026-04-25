@@ -5,7 +5,30 @@
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
 
+interface PlaylistLike {
+    id: string;
+    name: string;
+    [key: string]: unknown;
+}
+
+interface RenamePlaylistResult {
+    success: boolean;
+    playlist?: PlaylistLike;
+    error?: string;
+}
+
 class RenamePlaylistDialog extends Component {
+    private isVisible: boolean;
+    private currentPlaylist: PlaylistLike | null;
+    private listenersSetup: boolean;
+    private overlay!: HTMLElement;
+    public dialog!: HTMLElement;
+    private closeBtn!: HTMLElement;
+    private cancelBtn!: HTMLElement;
+    private confirmBtn!: HTMLButtonElement;
+    private nameInput!: HTMLInputElement;
+    private errorElement!: HTMLElement;
+
     constructor() {
         super(null, false);
         this.isVisible = false;
@@ -13,7 +36,7 @@ class RenamePlaylistDialog extends Component {
         this.listenersSetup = false; // 事件监听器是否已设置
     }
 
-    show(playlist) {
+    show(playlist: PlaylistLike): void {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupEventListeners();
@@ -33,34 +56,35 @@ class RenamePlaylistDialog extends Component {
         }, 100);
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
         this.overlay.style.display = 'none';
         this.currentPlaylist = null;
     }
 
-    destroy() {
+    destroy(): void {
         this.currentPlaylist = null;
         this.listenersSetup = false;
-        return super.destroy();
+        super.destroy();
     }
 
-    setupElements() {
-        this.overlay = document.getElementById('rename-playlist-dialog');
-        this.dialog = this.overlay.querySelector('.modal-dialog');
-        this.closeBtn = document.getElementById('rename-playlist-close');
-        this.cancelBtn = document.getElementById('rename-playlist-cancel');
-        this.confirmBtn = document.getElementById('rename-playlist-confirm');
-        this.nameInput = document.getElementById('rename-playlist-input');
-        this.errorElement = document.getElementById('rename-playlist-error');
+    setupElements(): void {
+        this.overlay = document.getElementById('rename-playlist-dialog') as HTMLElement;
+        this.dialog = this.overlay.querySelector('.modal-dialog') as HTMLElement;
+        this.closeBtn = document.getElementById('rename-playlist-close') as HTMLElement;
+        this.cancelBtn = document.getElementById('rename-playlist-cancel') as HTMLElement;
+        this.confirmBtn = document.getElementById('rename-playlist-confirm') as HTMLButtonElement;
+        this.nameInput = document.getElementById('rename-playlist-input') as HTMLInputElement;
+        this.errorElement = document.getElementById('rename-playlist-error') as HTMLElement;
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         this.addEventListenerManaged(this.closeBtn, 'click', () => this.hide());
         this.addEventListenerManaged(this.cancelBtn, 'click', () => this.hide());
         this.addEventListenerManaged(this.confirmBtn, 'click', () => this.renamePlaylist());
         this.addEventListenerManaged(this.nameInput, 'input', () => this.validateInput());
-        this.addEventListenerManaged(this.nameInput, 'keydown', (e) => {
+        this.addEventListenerManaged(this.nameInput, 'keydown', (event) => {
+            const e = event as KeyboardEvent;
             if (e.key === 'Enter' && !this.confirmBtn.disabled) {
                 this.renamePlaylist();
             }
@@ -73,14 +97,15 @@ class RenamePlaylistDialog extends Component {
             }
         });
 
-        this.addEventListenerManaged(document, 'keydown', (e) => {
+        this.addEventListenerManaged(document, 'keydown', (event) => {
+            const e = event as KeyboardEvent;
             if (e.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
         });
     }
 
-    validateInput() {
+    validateInput(): boolean {
         const name = this.nameInput.value.trim();
         const isValid = name.length > 0 && name.length <= 50 && name !== this.currentPlaylist?.name;
         this.confirmBtn.disabled = !isValid;
@@ -97,16 +122,16 @@ class RenamePlaylistDialog extends Component {
         return isValid;
     }
 
-    showError(message) {
+    showError(message: string): void {
         this.errorElement.textContent = message;
         this.errorElement.style.display = 'block';
     }
 
-    hideError() {
+    hideError(): void {
         this.errorElement.style.display = 'none';
     }
 
-    async renamePlaylist() {
+    async renamePlaylist(): Promise<void> {
         if (!this.validateInput() || !this.currentPlaylist) {
             return;
         }
@@ -116,7 +141,7 @@ class RenamePlaylistDialog extends Component {
         try {
             this.confirmBtn.disabled = true;
             this.confirmBtn.textContent = '重命名中...';
-            const result = await window.electronAPI.library.renamePlaylist(this.currentPlaylist.id, newName);
+            const result = await window.electronAPI.library.renamePlaylist(this.currentPlaylist.id, newName) as RenamePlaylistResult;
 
             if (result.success) {
                 // 触发重命名成功事件

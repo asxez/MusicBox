@@ -5,7 +5,33 @@
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
 
+interface TrackToAdd {
+    fileId: string;
+    [key: string]: unknown;
+}
+
+interface PlaylistResult {
+    success: boolean;
+    playlist?: {
+        id: string;
+        [key: string]: unknown;
+    };
+    error?: string;
+}
+
 class CreatePlaylistDialog extends Component {
+    private isVisible: boolean;
+    private currentTrackToAdd: TrackToAdd | null;
+    private listenersSetup: boolean;
+    private overlay!: HTMLElement;
+    public dialog!: HTMLElement;
+    private closeBtn!: HTMLElement;
+    private cancelBtn!: HTMLElement;
+    private confirmBtn!: HTMLButtonElement;
+    private nameInput!: HTMLInputElement;
+    private descriptionInput!: HTMLInputElement;
+    private errorElement!: HTMLElement;
+
     constructor() {
         super(null, false);
         this.isVisible = false;
@@ -13,7 +39,7 @@ class CreatePlaylistDialog extends Component {
         this.listenersSetup = false; // 事件监听器是否已设置
     }
 
-    show(trackToAdd = null) {
+    show(trackToAdd: TrackToAdd | null = null): void {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupEventListeners();
@@ -35,36 +61,37 @@ class CreatePlaylistDialog extends Component {
         }, 100);
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
         this.overlay.style.display = 'none';
         this.currentTrackToAdd = null;
     }
 
-    destroy() {
+    destroy(): void {
         this.listenersSetup = false;
-        return super.destroy();
+        super.destroy();
     }
 
-    setupElements() {
-        this.overlay = document.getElementById('create-playlist-dialog');
-        this.dialog = this.overlay.querySelector('.modal-dialog');
-        this.closeBtn = document.getElementById('create-playlist-close');
-        this.cancelBtn = document.getElementById('create-playlist-cancel');
-        this.confirmBtn = document.getElementById('create-playlist-confirm');
-        this.nameInput = document.getElementById('playlist-name-input');
-        this.descriptionInput = document.getElementById('playlist-description-input');
-        this.errorElement = document.getElementById('playlist-name-error');
+    setupElements(): void {
+        this.overlay = document.getElementById('create-playlist-dialog') as HTMLElement;
+        this.dialog = this.overlay.querySelector('.modal-dialog') as HTMLElement;
+        this.closeBtn = document.getElementById('create-playlist-close') as HTMLElement;
+        this.cancelBtn = document.getElementById('create-playlist-cancel') as HTMLElement;
+        this.confirmBtn = document.getElementById('create-playlist-confirm') as HTMLButtonElement;
+        this.nameInput = document.getElementById('playlist-name-input') as HTMLInputElement;
+        this.descriptionInput = document.getElementById('playlist-description-input') as HTMLInputElement;
+        this.errorElement = document.getElementById('playlist-name-error') as HTMLElement;
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         this.addEventListenerManaged(this.closeBtn, 'click', () => this.hide());
         this.addEventListenerManaged(this.cancelBtn, 'click', () => this.hide());
         this.addEventListenerManaged(this.confirmBtn, 'click', () => this.createPlaylist());
 
         // 输入框事件
         this.addEventListenerManaged(this.nameInput, 'input', () => this.validateInput());
-        this.addEventListenerManaged(this.nameInput, 'keydown', (e) => {
+        this.addEventListenerManaged(this.nameInput, 'keydown', (event) => {
+            const e = event as KeyboardEvent;
             if (e.key === 'Enter' && !this.confirmBtn.disabled) {
                 this.createPlaylist();
             }
@@ -77,14 +104,15 @@ class CreatePlaylistDialog extends Component {
             }
         });
 
-        this.addEventListenerManaged(document, 'keydown', (e) => {
+        this.addEventListenerManaged(document, 'keydown', (event) => {
+            const e = event as KeyboardEvent;
             if (e.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
         });
     }
 
-    validateInput() {
+    validateInput(): boolean {
         const name = this.nameInput.value.trim();
         const isValid = name.length > 0 && name.length <= 50;
         this.confirmBtn.disabled = !isValid;
@@ -97,16 +125,16 @@ class CreatePlaylistDialog extends Component {
         return isValid;
     }
 
-    showError(message) {
+    showError(message: string): void {
         this.errorElement.textContent = message;
         this.errorElement.style.display = 'block';
     }
 
-    hideError() {
+    hideError(): void {
         this.errorElement.style.display = 'none';
     }
 
-    async createPlaylist() {
+    async createPlaylist(): Promise<void> {
         if (!this.validateInput()) {
             return;
         }
@@ -118,12 +146,12 @@ class CreatePlaylistDialog extends Component {
             // 显示加载状态
             this.confirmBtn.disabled = true;
             this.confirmBtn.textContent = '创建中...';
-            const result = await window.electronAPI.library.createPlaylist(name, description);
-            if (result.success) {
+            const result = await window.electronAPI.library.createPlaylist(name, description) as PlaylistResult;
+            if (result.success && result.playlist) {
                 // 如果有要添加的歌曲，立即添加
                 if (this.currentTrackToAdd) {
                     try {
-                        await window.electronAPI.library.addToPlaylist(
+                        await (window.electronAPI.library.addToPlaylist as any)(
                             result.playlist.id,
                             this.currentTrackToAdd.fileId
                         );

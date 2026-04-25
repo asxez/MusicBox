@@ -37,8 +37,8 @@ class Component extends EventEmitter {
         }
     }
 
-    show(): void {}
-    hide(): void {}
+    show(..._args: any[]): any {}
+    hide(..._args: any[]): any {}
 
     // 添加事件监听器
     addEventListenerManaged(
