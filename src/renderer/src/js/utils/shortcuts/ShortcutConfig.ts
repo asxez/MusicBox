@@ -5,7 +5,34 @@
 
 import {cacheManager} from "@services/CacheManager";
 
+export interface ShortcutDefinition {
+    id: string;
+    name: string;
+    description: string;
+    key: string;
+    enabled: boolean;
+}
+
+export type ShortcutType = 'local' | 'global';
+export type ShortcutMap = Record<string, ShortcutDefinition>;
+
+export interface ShortcutConfigData {
+    enableGlobalShortcuts: boolean;
+    localShortcuts: ShortcutMap;
+    globalShortcuts: ShortcutMap;
+}
+
+export interface ShortcutConflict {
+    type: ShortcutType;
+    id: string;
+    name: string;
+    key: string;
+}
+
 class ShortcutConfig {
+    private config: ShortcutConfigData;
+    private isCollapsed: boolean;
+
     constructor() {
         this.config = this.loadConfig();
         this.isCollapsed = true;
@@ -15,7 +42,7 @@ class ShortcutConfig {
     /**
      * 获取默认快捷键配置
      */
-    getDefaultConfig() {
+    getDefaultConfig(): ShortcutConfigData {
         return {
             // 是否启用全局快捷键
             enableGlobalShortcuts: false,
@@ -163,9 +190,9 @@ class ShortcutConfig {
         };
     }
 
-    loadConfig() {
+    loadConfig(): ShortcutConfigData {
         try {
-            const saved = cacheManager.getLocalCache('musicbox-shortcuts');
+            const saved = cacheManager.getLocalCache<Partial<ShortcutConfigData>>('musicbox-shortcuts');
             if (saved && typeof saved === 'object') {
                 return this.mergeWithDefaults(saved);
             }
@@ -178,7 +205,7 @@ class ShortcutConfig {
     /**
      * 将保存的配置与默认配置合并
      */
-    mergeWithDefaults(savedConfig) {
+    mergeWithDefaults(savedConfig: Partial<ShortcutConfigData>): ShortcutConfigData {
         const defaultConfig = this.getDefaultConfig();
 
         // 深度合并配置
@@ -190,11 +217,12 @@ class ShortcutConfig {
 
         // 合并局内快捷键
         if (savedConfig.localShortcuts) {
-            Object.keys(defaultConfig.localShortcuts).forEach(key => {
-                if (savedConfig.localShortcuts[key]) {
+            Object.keys(defaultConfig.localShortcuts).forEach((key) => {
+                const savedShortcut = savedConfig.localShortcuts?.[key];
+                if (savedShortcut) {
                     merged.localShortcuts[key] = {
                         ...defaultConfig.localShortcuts[key],
-                        ...savedConfig.localShortcuts[key]
+                        ...savedShortcut
                     };
                 }
             });
@@ -202,11 +230,12 @@ class ShortcutConfig {
 
         // 合并全局快捷键
         if (savedConfig.globalShortcuts) {
-            Object.keys(defaultConfig.globalShortcuts).forEach(key => {
-                if (savedConfig.globalShortcuts[key]) {
+            Object.keys(defaultConfig.globalShortcuts).forEach((key) => {
+                const savedShortcut = savedConfig.globalShortcuts?.[key];
+                if (savedShortcut) {
                     merged.globalShortcuts[key] = {
                         ...defaultConfig.globalShortcuts[key],
-                        ...savedConfig.globalShortcuts[key]
+                        ...savedShortcut
                     };
                 }
             });
@@ -218,7 +247,7 @@ class ShortcutConfig {
     /**
      * 保存配置到本地存储
      */
-    saveConfig() {
+    saveConfig(): boolean {
         try {
             cacheManager.setLocalCache('musicbox-shortcuts', this.config);
             return true;
@@ -231,16 +260,16 @@ class ShortcutConfig {
     /**
      * 获取当前配置
      */
-    getConfig() {
+    getConfig(): ShortcutConfigData {
         return this.config;
     }
 
-    reloadConfig() {
+    reloadConfig(): ShortcutConfigData {
         this.config = this.loadConfig();
         return this.config;
     }
 
-    async initializeGlobalShortcuts() {
+    async initializeGlobalShortcuts(): Promise<void> {
         try {
             await window.electronAPI.globalShortcuts.setEnabled(this.config.enableGlobalShortcuts);
 
@@ -250,7 +279,9 @@ class ShortcutConfig {
             }
 
             window.electronAPI.globalShortcuts.onTriggered((_, shortcutId) => {
-                this.handleGlobalShortcutTriggered(shortcutId);
+                if (typeof shortcutId === 'string') {
+                    this.handleGlobalShortcutTriggered(shortcutId);
+                }
             });
         } catch (error) {
             console.error('初始化全局快捷键失败:', error);
@@ -260,7 +291,7 @@ class ShortcutConfig {
     /**
      * 处理全局快捷键触发
      */
-    handleGlobalShortcutTriggered(shortcutId) {
+    handleGlobalShortcutTriggered(shortcutId: string): void {
         // 触发自定义事件，让应用处理快捷键操作
         const event = new CustomEvent('globalShortcutTriggered', {
             detail: {shortcutId}
@@ -271,7 +302,7 @@ class ShortcutConfig {
     /**
      * 更新快捷键配置
      */
-    async updateShortcut(type, id, key) {
+    async updateShortcut(type: ShortcutType, id: string, key: string): Promise<boolean> {
         if (type === 'local' && this.config.localShortcuts[id]) {
             this.config.localShortcuts[id].key = key;
         } else if (type === 'global' && this.config.globalShortcuts[id]) {
@@ -292,7 +323,7 @@ class ShortcutConfig {
     /**
      * 启用/禁用全局快捷键
      */
-    async setGlobalShortcutsEnabled(enabled) {
+    async setGlobalShortcutsEnabled(enabled: boolean): Promise<boolean> {
         this.config.enableGlobalShortcuts = enabled;
 
         // 通知主进程更新全局快捷键状态
@@ -318,7 +349,7 @@ class ShortcutConfig {
     /**
      * 启用/禁用特定快捷键
      */
-    setShortcutEnabled(type, id, enabled) {
+    setShortcutEnabled(type: ShortcutType, id: string, enabled: boolean): boolean {
         if (type === 'local' && this.config.localShortcuts[id]) {
             this.config.localShortcuts[id].enabled = enabled;
         } else if (type === 'global' && this.config.globalShortcuts[id]) {
@@ -330,7 +361,7 @@ class ShortcutConfig {
     /**
      * 重置为默认配置
      */
-    resetToDefaults() {
+    resetToDefaults(): boolean {
         this.config = this.getDefaultConfig();
         return this.saveConfig();
     }
@@ -338,8 +369,8 @@ class ShortcutConfig {
     /**
      * 检查快捷键冲突
      */
-    checkConflicts(_, id, newKey) {
-        const conflicts = [];
+    checkConflicts(_type: ShortcutType, id: string, newKey: string): ShortcutConflict[] {
+        const conflicts: ShortcutConflict[] = [];
 
         // 检查局内快捷键冲突
         Object.entries(this.config.localShortcuts).forEach(([key, shortcut]) => {
@@ -371,8 +402,8 @@ class ShortcutConfig {
     /**
      * 获取所有启用的局内快捷键
      */
-    getEnabledLocalShortcuts() {
-        const enabled = {};
+    getEnabledLocalShortcuts(): ShortcutMap {
+        const enabled: ShortcutMap = {};
         Object.entries(this.config.localShortcuts).forEach(([id, shortcut]) => {
             if (shortcut.enabled) {
                 enabled[id] = shortcut;
@@ -384,12 +415,12 @@ class ShortcutConfig {
     /**
      * 获取所有启用的全局快捷键
      */
-    getEnabledGlobalShortcuts() {
+    getEnabledGlobalShortcuts(): ShortcutMap {
         if (!this.config.enableGlobalShortcuts) {
             return {};
         }
 
-        const enabled = {};
+        const enabled: ShortcutMap = {};
         Object.entries(this.config.globalShortcuts).forEach(([id, shortcut]) => {
             if (shortcut.enabled) {
                 enabled[id] = shortcut;
@@ -401,7 +432,7 @@ class ShortcutConfig {
     /**
      * 初始化快捷键配置折叠功能
      */
-    initializeCollapsibleShortcuts() {
+    initializeCollapsibleShortcuts(): void {
         const header = document.getElementById('shortcuts-header');
         const container = document.getElementById('shortcuts-container');
         const summary = document.getElementById('shortcuts-summary');
@@ -430,8 +461,8 @@ class ShortcutConfig {
         }
 
         // 移除之前的事件监听器（如果存在）
-        const newHeader = header.cloneNode(true);
-        header.parentNode.replaceChild(newHeader, header);
+        const newHeader = header.cloneNode(true) as HTMLElement;
+        header.parentNode?.replaceChild(newHeader, header);
 
         // 绑定点击事件
         newHeader.addEventListener('click', (e) => {
@@ -464,7 +495,7 @@ class ShortcutConfig {
     /**
      * 切换快捷键配置的折叠状态
      */
-    toggleShortcutsCollapse() {
+    toggleShortcutsCollapse(): void {
         const header = document.getElementById('shortcuts-header');
         const container = document.getElementById('shortcuts-container');
         if (!header || !container) {
@@ -536,7 +567,7 @@ class ShortcutConfig {
     /**
      * 更新快捷键摘要信息
      */
-    updateShortcutsSummary() {
+    updateShortcutsSummary(): void {
         const summary = document.getElementById('shortcuts-summary');
         if (!summary) return;
 
@@ -556,15 +587,15 @@ class ShortcutConfig {
     /**
      * 保存折叠状态
      */
-    saveCollapseState() {
+    saveCollapseState(): void {
         cacheManager.setLocalCache('shortcuts-collapsed', this.isCollapsed);
     }
 
     /**
      * 加载折叠状态
      */
-    loadCollapseState() {
-        const saved = cacheManager.getLocalCache('shortcuts-collapsed');
+    loadCollapseState(): void {
+        const saved = cacheManager.getLocalCache<boolean>('shortcuts-collapsed');
         if (typeof saved === 'boolean') {
             this.isCollapsed = saved;
         }
@@ -573,14 +604,14 @@ class ShortcutConfig {
     /**
      * 刷新快捷键摘要
      */
-    refreshSummary() {
+    refreshSummary(): void {
         this.updateShortcutsSummary();
     }
 
     /**
      * 强制应用折叠样式
      */
-    forceApplyCollapseStyles() {
+    forceApplyCollapseStyles(): void {
         // 注入内联样式确保折叠功能工作
         const styleId = 'shortcuts-collapse-fallback-styles';
         let existingStyle = document.getElementById(styleId);
@@ -648,7 +679,7 @@ class ShortcutConfig {
     /**
      * 使用内联样式强制折叠/展开
      */
-    forceToggleWithInlineStyles(collapse) {
+    forceToggleWithInlineStyles(collapse: boolean): void {
         const container = document.getElementById('shortcuts-container');
         const header = document.getElementById('shortcuts-header');
         if (!container || !header) return;
@@ -685,5 +716,5 @@ class ShortcutConfig {
     }
 }
 
-let shortcutConfig = new ShortcutConfig();
+const shortcutConfig = new ShortcutConfig();
 export {shortcutConfig};

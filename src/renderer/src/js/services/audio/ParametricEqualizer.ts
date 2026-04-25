@@ -3,10 +3,23 @@
  * 提供对原生参量均衡器的前端接口封装
  */
 
-import ParametricEqualizerPresets from "@services/audio/ParametricEqualizerPresets";
+import ParametricEqualizerPresets, {
+    ParametricFilterType,
+    ParametricPreset,
+    ParametricRuntimeBand
+} from "@services/audio/ParametricEqualizerPresets";
 
 class ParametricEqualizer {
-    constructor(nativeEngine, audioEngine = null) {
+    private nativeEngine: any;
+    private readonly audioEngine: any | null;
+    private enabled: boolean;
+    private preampGain: number;
+    private bands: ParametricBand[];
+    private readonly presets: ParametricEqualizerPresets;
+    private currentPresetId: string | null;
+    private currentPresetIsCustom: boolean;
+
+    constructor(nativeEngine: any, audioEngine: any | null = null) {
         this.nativeEngine = nativeEngine;
         this.audioEngine = audioEngine;
         this.enabled = false;
@@ -20,17 +33,17 @@ class ParametricEqualizer {
     /**
      * 初始化参量均衡器
      */
-    async init() {
+    async init(): Promise<void> {
         try {
             // 从native获取初始状态
             const enabledResult = await this.nativeEngine.parametricIsEnabled();
             if (enabledResult.success) {
-                this.enabled = enabledResult.enabled;
+                this.enabled = Boolean(enabledResult.enabled);
             }
 
             const preampResult = await this.nativeEngine.parametricGetPreamp();
             if (preampResult.success) {
-                this.preampGain = preampResult.preamp;
+                this.preampGain = Number(preampResult.preamp);
             }
 
             const bandsResult = await this.nativeEngine.parametricGetBands();
@@ -47,11 +60,10 @@ class ParametricEqualizer {
     /**
      * 启用/禁用参量均衡器
      */
-    async setEnabled(enabled) {
+    async setEnabled(enabled: boolean): Promise<boolean> {
         try {
-            // 如果启用参量均衡器，先切换到参量模式
-            if (enabled && this.audioEngine?.setEqualizerMode) {
-                const modeResult = await this.audioEngine.setEqualizerMode('parametric');
+            if (enabled) {
+                const modeResult = await this.setEqualizerMode('parametric');
                 if (!modeResult) {
                     console.warn('⚠️ 切换到参量均衡器模式失败');
                 }
@@ -62,9 +74,8 @@ class ParametricEqualizer {
                 this.enabled = enabled;
                 console.log(`🎚️ 参量均衡器: ${enabled ? '启用' : '禁用'}`);
 
-                // 如果禁用参量均衡器，切换回图形均衡器模式
-                if (!enabled && this.audioEngine?.setEqualizerMode) {
-                    await this.audioEngine.setEqualizerMode('graphic');
+                if (!enabled) {
+                    await this.setEqualizerMode('graphic');
                 }
             }
             return result.success;
@@ -77,7 +88,7 @@ class ParametricEqualizer {
     /**
      * 检查是否启用
      */
-    isEnabled() {
+    isEnabled(): boolean {
         return this.enabled;
     }
 
@@ -85,20 +96,51 @@ class ParametricEqualizer {
      * 确保均衡器模式正确
      * 如果参量均衡器已启用，确保切换到 parametric 模式
      */
-    async ensureCorrectMode() {
-        if (this.enabled && this.audioEngine?.setEqualizerMode) {
-            const currentMode = await this.audioEngine.getEqualizerMode();
+    async ensureCorrectMode(): Promise<void> {
+        if (this.enabled) {
+            const currentMode = await this.getEqualizerMode();
             if (currentMode !== 'parametric') {
                 console.log('🎚️ 参量均衡器已启用，切换到参量模式');
-                await this.audioEngine.setEqualizerMode('parametric');
+                await this.setEqualizerMode('parametric');
             }
         }
+    }
+
+    private async setEqualizerMode(mode: EqualizerMode): Promise<boolean> {
+        if (typeof this.nativeEngine?.setEqualizerMode === 'function') {
+            const result = await this.nativeEngine.setEqualizerMode(mode);
+            return isSuccessResult(result);
+        }
+
+        if (typeof this.audioEngine?.setEqualizerMode === 'function') {
+            const result = await this.audioEngine.setEqualizerMode(mode);
+            return isSuccessResult(result);
+        }
+
+        return false;
+    }
+
+    private async getEqualizerMode(): Promise<EqualizerMode> {
+        if (typeof this.nativeEngine?.getEqualizerMode === 'function') {
+            const result = await this.nativeEngine.getEqualizerMode();
+            if (result && typeof result === 'object' && 'mode' in result) {
+                return result.mode === 'parametric' ? 'parametric' : 'graphic';
+            }
+            return result === 'parametric' ? 'parametric' : 'graphic';
+        }
+
+        if (typeof this.audioEngine?.getEqualizerMode === 'function') {
+            const result = await this.audioEngine.getEqualizerMode();
+            return result === 'parametric' ? 'parametric' : 'graphic';
+        }
+
+        return 'graphic';
     }
 
     /**
      * 设置前置增益
      */
-    async setPreamp(gain) {
+    async setPreamp(gain: number): Promise<boolean> {
         try {
             const result = await this.nativeEngine.parametricSetPreamp(gain);
             if (result.success) {
@@ -114,7 +156,7 @@ class ParametricEqualizer {
     /**
      * 获取前置增益
      */
-    getPreamp() {
+    getPreamp(): number {
         return this.preampGain;
     }
 
@@ -126,7 +168,7 @@ class ParametricEqualizer {
      * @param {string} filterType - 滤波器类型 (peak, lowshelf, highshelf, lowpass, highpass, bandpass, notch)
      * @returns {Promise<number|null>} 频段ID，失败返回null
      */
-    async addBand(frequency, gain, q, filterType) {
+    async addBand(frequency: number, gain: number, q: number, filterType: ParametricFilterType): Promise<number | null> {
         try {
             const result = await this.nativeEngine.parametricAddBand({
                 frequency,
@@ -151,7 +193,7 @@ class ParametricEqualizer {
     /**
      * 移除频段
      */
-    async removeBand(bandId) {
+    async removeBand(bandId: number): Promise<boolean> {
         try {
             const result = await this.nativeEngine.parametricRemoveBand(bandId);
             if (result.success) {
@@ -169,7 +211,7 @@ class ParametricEqualizer {
     /**
      * 更新频段
      */
-    async updateBand(bandId, updates) {
+    async updateBand(bandId: number, updates: Partial<ParametricBand>): Promise<boolean> {
         try {
             const config = {
                 bandId,
@@ -192,21 +234,21 @@ class ParametricEqualizer {
     /**
      * 获取所有频段
      */
-    getBands() {
+    getBands(): ParametricBand[] {
         return [...this.bands];
     }
 
     /**
      * 获取单个频段
      */
-    getBand(bandId) {
-        return this.bands.find(band => band.id === bandId);
+    getBand(bandId: number): ParametricBand | undefined {
+        return this.bands.find((band) => band.id === bandId);
     }
 
     /**
      * 刷新频段列表（从native获取最新数据）
      */
-    async refreshBands() {
+    async refreshBands(): Promise<void> {
         try {
             const result = await this.nativeEngine.parametricGetBands();
             if (result.success) {
@@ -220,7 +262,7 @@ class ParametricEqualizer {
     /**
      * 重置参量均衡器（将所有频段增益设为0）
      */
-    async reset() {
+    async reset(): Promise<boolean> {
         try {
             const result = await this.nativeEngine.parametricReset();
             if (result.success) {
@@ -238,7 +280,7 @@ class ParametricEqualizer {
     /**
      * 清除所有频段
      */
-    async clearBands() {
+    async clearBands(): Promise<boolean> {
         try {
             const result = await this.nativeEngine.parametricClearBands();
             if (result.success) {
@@ -255,7 +297,7 @@ class ParametricEqualizer {
     /**
      * 销毁参量均衡器
      */
-    destroy() {
+    destroy(): void {
         this.bands = [];
         this.enabled = false;
         this.preampGain = 0;
@@ -267,7 +309,7 @@ class ParametricEqualizer {
      * @param {string} presetId - 预设ID
      * @param {boolean} isCustom - 是否为自定义预设
      */
-    async loadPreset(presetId, isCustom = false) {
+    async loadPreset(presetId: string, isCustom = false): Promise<boolean> {
         try {
             const preset = this.presets.getPreset(presetId, isCustom);
             if (!preset) {
@@ -318,7 +360,7 @@ class ParametricEqualizer {
      * @param {string} name - 预设名称
      * @param {string} description - 预设描述
      */
-    async saveAsCustomPreset(name, description = '') {
+    async saveAsCustomPreset(name: string, description = ''): Promise<{success: boolean; id?: string; error?: string}> {
         try {
             // 刷新频段确保数据最新
             await this.refreshBands();
@@ -344,14 +386,14 @@ class ParametricEqualizer {
             return {success: true, id};
         } catch (error) {
             console.error('❌ 保存自定义预设失败:', error);
-            return {success: false, error: error.message};
+            return {success: false, error: getErrorMessage(error)};
         }
     }
 
     /**
      * 删除自定义预设
      */
-    async deleteCustomPreset(id) {
+    async deleteCustomPreset(id: string): Promise<boolean> {
         try {
             this.presets.removeCustomPreset(id);
             await this.saveCustomPresets();
@@ -366,14 +408,14 @@ class ParametricEqualizer {
     /**
      * 获取所有预设
      */
-    getAllPresets() {
+    getAllPresets(): ReturnType<ParametricEqualizerPresets['getAllPresets']> {
         return this.presets.getAllPresets();
     }
 
     /**
      * 导出当前设置为JSON文件
      */
-    async exportCurrentSettings(name = '我的参量均衡器设置') {
+    async exportCurrentSettings(name = '我的参量均衡器设置'): Promise<{success: boolean; filePath?: string; cancelled?: boolean; error?: string}> {
         try {
             // 刷新频段确保数据最新
             await this.refreshBands();
@@ -395,10 +437,10 @@ class ParametricEqualizer {
                     {name: '参量均衡器预设', extensions: ['peq.json', 'json']},
                     {name: '所有文件', extensions: ['*']}
                 ]
-            });
+            }) as unknown as {success: boolean; filePath?: string; cancelled?: boolean};
 
             if (result.success && result.filePath) {
-                await window.electronAPI.fs.writeFile(result.filePath, jsonString);
+                await (window.electronAPI.fs.writeFile as any)(result.filePath, jsonString);
                 console.log('✅ 导出设置成功:', result.filePath);
                 return {success: true, filePath: result.filePath};
             }
@@ -406,14 +448,14 @@ class ParametricEqualizer {
             return {success: false, cancelled: true};
         } catch (error) {
             console.error('❌ 导出设置失败:', error);
-            return {success: false, error: error.message};
+            return {success: false, error: getErrorMessage(error)};
         }
     }
 
     /**
      * 从JSON文件导入设置
      */
-    async importSettings() {
+    async importSettings(): Promise<{success: boolean; preset?: ParametricPreset; cancelled?: boolean; error?: string}> {
         try {
             const result = await window.electronAPI.dialog.openFile({
                 title: '导入参量均衡器设置',
@@ -427,6 +469,10 @@ class ParametricEqualizer {
             if (result.success && result.filePaths && result.filePaths.length > 0) {
                 const filePath = result.filePaths[0];
                 const jsonString = await window.electronAPI.fs.readFile(filePath, 'utf-8');
+                if (typeof jsonString !== 'string') {
+                    return {success: false, error: '无法读取预设文件内容'};
+                }
+
                 const preset = this.presets.importPreset(jsonString);
                 if (!preset) {
                     return {success: false, error: '无效的预设文件格式'};
@@ -464,17 +510,17 @@ class ParametricEqualizer {
             return {success: false, cancelled: true};
         } catch (error) {
             console.error('❌ 导入设置失败:', error);
-            return {success: false, error: error.message};
+            return {success: false, error: getErrorMessage(error)};
         }
     }
 
     /**
      * 保存自定义预设到本地存储
      */
-    async saveCustomPresets() {
+    async saveCustomPresets(): Promise<void> {
         try {
             const customPresets = this.presets.getCustomPresets();
-            await window.electronAPI.settings.set('parametric-equalizer.custom-presets', customPresets);
+            await getSettingsApi().set('parametric-equalizer.custom-presets', customPresets);
         } catch (error) {
             console.error('❌ 保存自定义预设到本地存储失败:', error);
         }
@@ -483,9 +529,9 @@ class ParametricEqualizer {
     /**
      * 从本地存储加载自定义预设
      */
-    async loadCustomPresets() {
+    async loadCustomPresets(): Promise<void> {
         try {
-            const customPresets = await window.electronAPI.settings.get('parametric-equalizer.custom-presets');
+            const customPresets = await getSettingsApi().get('parametric-equalizer.custom-presets');
             if (customPresets) {
                 this.presets.loadCustomPresets(customPresets);
                 console.log('🎚️ 加载自定义预设:', Object.keys(customPresets).length, '个');
@@ -498,7 +544,7 @@ class ParametricEqualizer {
     /**
      * 保存当前状态（用于持久化）
      */
-    async saveCurrentState() {
+    async saveCurrentState(): Promise<void> {
         try {
             // 刷新频段确保数据最新
             await this.refreshBands();
@@ -511,7 +557,7 @@ class ParametricEqualizer {
                 currentPresetIsCustom: this.currentPresetIsCustom
             };
 
-            await window.electronAPI.settings.set('parametric-equalizer.state', state);
+            await getSettingsApi().set('parametric-equalizer.state', state);
             console.log('💾 保存参量均衡器状态');
         } catch (error) {
             console.error('❌ 保存参量均衡器状态失败:', error);
@@ -521,9 +567,9 @@ class ParametricEqualizer {
     /**
      * 加载保存的状态（用于恢复）
      */
-    async loadSavedState() {
+    async loadSavedState(): Promise<boolean> {
         try {
-            const state = await window.electronAPI.settings.get('parametric-equalizer.state');
+            const state = await getSettingsApi().get<ParametricEqualizerState>('parametric-equalizer.state');
             if (!state) {
                 console.log('💡 没有保存的参量均衡器状态');
                 return false;
@@ -578,12 +624,51 @@ class ParametricEqualizer {
     /**
      * 获取当前预设信息
      */
-    getCurrentPresetInfo() {
+    getCurrentPresetInfo(): {id: string | null; isCustom: boolean} {
         return {
             id: this.currentPresetId,
             isCustom: this.currentPresetIsCustom
         };
     }
+}
+
+interface ParametricBand extends ParametricRuntimeBand {
+    id: number;
+}
+
+type EqualizerMode = 'graphic' | 'parametric';
+
+interface ParametricEqualizerState {
+    enabled?: boolean;
+    preamp?: number;
+    bands?: ParametricBand[];
+    currentPresetId?: string | null;
+    currentPresetIsCustom?: boolean;
+}
+
+interface ElectronSettingsStore {
+    get<T = unknown>(key: string): Promise<T | null>;
+    set<T = unknown>(key: string, value: T): Promise<void>;
+}
+
+function getSettingsApi(): ElectronSettingsStore {
+    return window.electronAPI.settings as ElectronSettingsStore;
+}
+
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+function isSuccessResult(result: unknown): boolean {
+    if (result === true) {
+        return true;
+    }
+
+    if (result && typeof result === 'object' && 'success' in result) {
+        return (result as {success?: unknown}).success === true;
+    }
+
+    return false;
 }
 
 export default ParametricEqualizer;

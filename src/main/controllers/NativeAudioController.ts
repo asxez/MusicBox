@@ -332,6 +332,7 @@ export class NativeAudioController extends BaseController {
     parametricSetEnabled(enabled: boolean): any {
         try {
             if (!this.engine) return {success: false, error: '引擎未初始化'};
+            this.engine.setEqualizerMode(enabled ? 'parametric' : 'graphic');
             this.engine.parametricSetEnabled(enabled);
             return {success: true};
         } catch (e: any) {

@@ -1,9 +1,7 @@
 /**
  * Format time in seconds to MM:SS or HH:MM:SS format
- * @param {number} seconds - Time in seconds
- * @returns {string} Formatted time string
  */
-function formatTime(seconds) {
+function formatTime(seconds: number): string {
     if (isNaN(seconds) || seconds < 0) return '0:00';
 
     const hours = Math.floor(seconds / 3600);
@@ -19,13 +17,10 @@ function formatTime(seconds) {
 
 /**
  * Debounce function to limit the rate of function calls
- * @param {Function} func - Function to debounce
- * @param {number} wait - Wait time in milliseconds
- * @returns {Function} Debounced function
  */
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
+function debounce<T extends (...args: any[]) => void>(func: T, wait: number): (...args: Parameters<T>) => void {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    return function executedFunction(...args: Parameters<T>): void {
         const later = () => {
             clearTimeout(timeout);
             func(...args);
@@ -37,10 +32,8 @@ function debounce(func, wait) {
 
 /**
  * Sanitize string for use in HTML
- * @param {string} str - String to sanitize
- * @returns {string} Sanitized string
  */
-function sanitizeHTML(str) {
+function sanitizeHTML(str: string): string {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
@@ -48,11 +41,10 @@ function sanitizeHTML(str) {
 
 /**
  * Show toast notification
- * @param {string} message - Message to show
- * @param {string} type - Type of toast (success, error, info, warning)
- * @param {number} duration - Duration in milliseconds
  */
-function showToast(message, type = 'info', duration = 1500) {
+type ToastType = 'success' | 'error' | 'info' | 'warning';
+
+function showToast(message: string, type: ToastType = 'info', duration = 1500): void {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     toast.textContent = message;
@@ -98,19 +90,23 @@ function showToast(message, type = 'info', duration = 1500) {
 }
 
 // 自定义事件
+type EventCallback = (...args: any[]) => void;
+
 class EventEmitter {
+    private readonly events: Record<string, EventCallback[]>;
+
     constructor() {
         this.events = {};
     }
 
-    on(event, callback) {
+    on(event: string, callback: EventCallback): void {
         if (!this.events[event]) {
             this.events[event] = [];
         }
         this.events[event].push(callback);
     }
 
-    off(event, callback) {
+    off(event: string, callback: EventCallback): void {
         if (!this.events[event]) return;
 
         const index = this.events[event].indexOf(callback);
@@ -119,10 +115,10 @@ class EventEmitter {
         }
     }
 
-    emit(event, ...args) {
+    emit(event: string, ...args: any[]): void {
         if (!this.events[event]) return;
 
-        this.events[event].forEach(callback => {
+        this.events[event].forEach((callback) => {
             try {
                 callback(...args);
             } catch (error) {
@@ -131,29 +127,41 @@ class EventEmitter {
         });
     }
 
-    removeAllListeners(eventName) {
+    removeAllListeners(eventName?: string): void {
+        if (!eventName) return;
         if (this.events[eventName]) {
             delete this.events[eventName];
         }
     }
 }
 
-const theme = {
+interface ThemeController {
+    readonly current: string;
+    set(themeName: string | null): void;
+    toggle(): void;
+    init(): void;
+    on(event: string, callback: EventCallback): void;
+    off(event: string, callback: EventCallback): void;
+    emit(event: string, ...args: any[]): void;
+}
+
+const theme: ThemeController = {
     get current() {
         return document.documentElement.getAttribute('data-theme') || 'light';
     },
 
-    set(themeName) {
-        document.documentElement.setAttribute('data-theme', themeName);
-        localStorage.setItem('theme', themeName);
+    set(themeName: string | null): void {
+        const normalizedTheme = String(themeName);
+        document.documentElement.setAttribute('data-theme', normalizedTheme);
+        localStorage.setItem('theme', normalizedTheme);
         this.emit('change', themeName);
     },
 
-    toggle() {
+    toggle(): void {
         this.set(this.current === 'light' ? 'dark' : 'light');
     },
 
-    init() {
+    init(): void {
         const savedTheme = localStorage.getItem('theme');
         this.set(savedTheme);
         console.log("☁️ 主题初始化：", savedTheme);

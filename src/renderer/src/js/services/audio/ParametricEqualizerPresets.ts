@@ -3,7 +3,37 @@
  * 提供专业的参量均衡器预设和导入/导出功能
  */
 
+export type ParametricFilterType = 'peak' | 'lowshelf' | 'highshelf' | 'lowpass' | 'highpass' | 'bandpass' | 'notch';
+
+export interface ParametricPresetBand {
+    type: ParametricFilterType;
+    freq: number;
+    gain: number;
+    q: number;
+    enabled: boolean;
+}
+
+export interface ParametricPreset {
+    name: string;
+    description: string;
+    preamp_db: number;
+    bands: ParametricPresetBand[];
+}
+
+export interface ParametricRuntimeBand {
+    filterType: ParametricFilterType;
+    frequency: number;
+    gain: number;
+    q: number;
+    enabled: boolean;
+}
+
+export type ParametricPresetMap = Record<string, ParametricPreset>;
+
 class ParametricEqualizerPresets {
+    private readonly builtInPresets: ParametricPresetMap;
+    private customPresets: ParametricPresetMap;
+
     constructor() {
         this.builtInPresets = {
             // ────────────────────────────────────────────────
@@ -175,7 +205,7 @@ class ParametricEqualizerPresets {
     /**
      * 获取所有预设（内置 + 自定义）
      */
-    getAllPresets() {
+    getAllPresets(): {builtin: ParametricPresetMap; custom: ParametricPresetMap} {
         return {
             builtin: this.builtInPresets,
             custom: this.customPresets
@@ -185,7 +215,7 @@ class ParametricEqualizerPresets {
     /**
      * 获取预设
      */
-    getPreset(id, isCustom = false) {
+    getPreset(id: string, isCustom = false): ParametricPreset | undefined {
         if (isCustom) {
             return this.customPresets[id];
         }
@@ -195,30 +225,30 @@ class ParametricEqualizerPresets {
     /**
      * 添加自定义预设
      */
-    addCustomPreset(id, preset) {
+    addCustomPreset(id: string, preset: ParametricPreset): void {
         this.customPresets[id] = preset;
     }
 
     /**
      * 删除自定义预设
      */
-    removeCustomPreset(id) {
+    removeCustomPreset(id: string): void {
         delete this.customPresets[id];
     }
 
     /**
      * 导出预设为JSON
      */
-    exportPreset(preset) {
+    exportPreset(preset: ParametricPreset): string {
         return JSON.stringify(preset, null, 2);
     }
 
     /**
      * 从JSON导入预设
      */
-    importPreset(jsonString) {
+    importPreset(jsonString: string): ParametricPreset | null {
         try {
-            const preset = JSON.parse(jsonString);
+            const preset = JSON.parse(jsonString) as unknown;
 
             // 验证预设格式
             if (!this.validatePreset(preset)) {
@@ -235,22 +265,28 @@ class ParametricEqualizerPresets {
     /**
      * 验证预设格式
      */
-    validatePreset(preset) {
+    validatePreset(preset: unknown): preset is ParametricPreset {
+        if (!preset || typeof preset !== 'object') {
+            return false;
+        }
+
+        const candidate = preset as Partial<ParametricPreset>;
+
         // 检查必需字段
-        if (!preset.name || typeof preset.name !== 'string') {
+        if (!candidate.name || typeof candidate.name !== 'string') {
             return false;
         }
 
-        if (preset.preamp_db === undefined || typeof preset.preamp_db !== 'number') {
+        if (candidate.preamp_db === undefined || typeof candidate.preamp_db !== 'number') {
             return false;
         }
 
-        if (!Array.isArray(preset.bands)) {
+        if (!Array.isArray(candidate.bands)) {
             return false;
         }
 
         // 验证每个频段
-        for (const band of preset.bands) {
+        for (const band of candidate.bands) {
             if (!this.validateBand(band)) {
                 return false;
             }
@@ -262,26 +298,31 @@ class ParametricEqualizerPresets {
     /**
      * 验证频段格式
      */
-    validateBand(band) {
-        const validTypes = ['peak', 'lowshelf', 'highshelf', 'lowpass', 'highpass', 'bandpass', 'notch'];
-
-        if (!validTypes.includes(band.type)) {
+    validateBand(band: unknown): band is ParametricPresetBand {
+        if (!band || typeof band !== 'object') {
             return false;
         }
 
-        if (typeof band.freq !== 'number' || band.freq < 20 || band.freq > 20000) {
+        const candidate = band as Partial<ParametricPresetBand>;
+        const validTypes: ParametricFilterType[] = ['peak', 'lowshelf', 'highshelf', 'lowpass', 'highpass', 'bandpass', 'notch'];
+
+        if (!candidate.type || !validTypes.includes(candidate.type)) {
             return false;
         }
 
-        if (typeof band.gain !== 'number' || band.gain < -20 || band.gain > 20) {
+        if (typeof candidate.freq !== 'number' || candidate.freq < 20 || candidate.freq > 20000) {
             return false;
         }
 
-        if (typeof band.q !== 'number' || band.q < 0.1 || band.q > 10) {
+        if (typeof candidate.gain !== 'number' || candidate.gain < -20 || candidate.gain > 20) {
             return false;
         }
 
-        if (typeof band.enabled !== 'boolean') {
+        if (typeof candidate.q !== 'number' || candidate.q < 0.1 || candidate.q > 10) {
+            return false;
+        }
+
+        if (typeof candidate.enabled !== 'boolean') {
             return false;
         }
 
@@ -291,12 +332,12 @@ class ParametricEqualizerPresets {
     /**
      * 从当前均衡器状态创建预设
      */
-    createPresetFromState(name, description, preamp, bands) {
+    createPresetFromState(name: string, description: string, preamp: number, bands: ParametricRuntimeBand[]): ParametricPreset {
         return {
             name,
             description: description || '',
             preamp_db: preamp,
-            bands: bands.map(band => ({
+            bands: bands.map((band) => ({
                 type: band.filterType,
                 freq: band.frequency,
                 gain: band.gain,
@@ -309,16 +350,16 @@ class ParametricEqualizerPresets {
     /**
      * 加载自定义预设
      */
-    loadCustomPresets(presets) {
+    loadCustomPresets(presets: unknown): void {
         if (presets && typeof presets === 'object') {
-            this.customPresets = presets;
+            this.customPresets = presets as ParametricPresetMap;
         }
     }
 
     /**
      * 获取自定义预设
      */
-    getCustomPresets() {
+    getCustomPresets(): ParametricPresetMap {
         return this.customPresets;
     }
 }

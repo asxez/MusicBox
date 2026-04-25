@@ -13,7 +13,7 @@ import '@api/api.js';
 // 2. 导入基础工具
 // ============================================
 import '@utils/md5';
-import '@utils/shortcuts/ShortcutConfig.js';
+import '@utils/shortcuts/ShortcutConfig';
 import '@utils/shortcuts/ShortcutRecorder';
 
 // ============================================
