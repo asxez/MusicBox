@@ -1,11 +1,11 @@
 import {ElectronNamespaceAdapter} from './ElectronBridge';
 
-class ElectronWindowAdapter extends ElectronNamespaceAdapter {
+class ElectronWindowAdapter extends ElectronNamespaceAdapter<'window'> {
     constructor() {
         super('window');
     }
 
-    setBackgroundThrottling(allowed) {
+    setBackgroundThrottling(allowed: boolean): Promise<void> {
         return this.call('setBackgroundThrottling', allowed);
     }
 }
