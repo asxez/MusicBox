@@ -3,7 +3,51 @@
  * 负责内嵌封面的提取、格式转换和缓存管理
  */
 
+interface EmbeddedCoverResult {
+    success: boolean;
+    error?: string;
+    url?: string;
+    mimeType?: string;
+    format?: string;
+    size?: number;
+    source?: 'embedded';
+    cachedAt?: number;
+}
+
+interface EmbeddedCoverData {
+    data: any;
+    format?: string;
+}
+
+interface TrackMetadataWithCover {
+    cover?: EmbeddedCoverData;
+}
+
+interface BufferLike {
+    length: number;
+    constructor?: {
+        name?: string;
+    };
+    slice?: (...args: any[]) => unknown;
+    toString?: (...args: any[]) => string;
+}
+
+interface CoverConversionResult {
+    success: boolean;
+    error?: string;
+    url?: string;
+    mimeType?: string;
+    size?: number;
+}
+
 class EmbeddedCoverManager {
+    private readonly cache: Map<string, EmbeddedCoverResult>;
+    private readonly maxCacheSize: number;
+    private readonly objectUrls: Set<string>;
+    private readonly urlReferences: Map<string, number>;
+    private readonly pendingReleases: Map<string, ReturnType<typeof setTimeout>>;
+    private readonly processingFiles: Set<string>;
+
     constructor() {
         this.cache = new Map();
         this.maxCacheSize = 5;
@@ -18,7 +62,7 @@ class EmbeddedCoverManager {
      * @param {string} filePath - 音频文件路径
      * @returns {Promise<Object>} 封面获取结果
      */
-    async getEmbeddedCover(filePath) {
+    async getEmbeddedCover(filePath: string): Promise<EmbeddedCoverResult> {
         try {
             // 参数验证
             if (!filePath || typeof filePath !== 'string') {
@@ -35,7 +79,7 @@ class EmbeddedCoverManager {
             // 检查缓存
             const cacheKey = this.generateCacheKey(filePath);
             if (this.cache.has(cacheKey)) {
-                const cachedResult = this.cache.get(cacheKey);
+                const cachedResult = this.cache.get(cacheKey)!;
                 // 对于成功的缓存结果，增加URL引用计数
                 if (cachedResult.success && cachedResult.url && cachedResult.url.startsWith('blob:')) {
                     const currentCount = this.urlReferences.get(cachedResult.url) || 0;
@@ -47,7 +91,7 @@ class EmbeddedCoverManager {
             // 防止重复处理同一文件
             if (this.processingFiles.has(filePath)) {
                 // 等待处理完成
-                return new Promise((resolve) => {
+                return new Promise<EmbeddedCoverResult>((resolve) => {
                     const checkInterval = setInterval(() => {
                         if (!this.processingFiles.has(filePath)) {
                             clearInterval(checkInterval);
@@ -67,16 +111,16 @@ class EmbeddedCoverManager {
             this.processingFiles.add(filePath);
 
             // 从主进程获取元数据（包括封面）
-            const metadata = await window.electronAPI.library.getTrackMetadata(filePath);
+            const metadata = await window.electronAPI.library.getTrackMetadata(filePath) as TrackMetadataWithCover | null;
             if (!metadata || typeof metadata !== 'object') {
-                const errorResult = {success: false, error: '主进程返回无效响应'};
+                const errorResult: EmbeddedCoverResult = {success: false, error: '主进程返回无效响应'};
                 this.setCache(cacheKey, errorResult);
                 this.processingFiles.delete(filePath);
                 return errorResult;
             }
 
             if (!metadata.cover) {
-                const errorResult = {success: false, error: '音频文件中未找到内嵌封面'};
+                const errorResult: EmbeddedCoverResult = {success: false, error: '音频文件中未找到内嵌封面'};
                 this.setCache(cacheKey, errorResult);
                 this.processingFiles.delete(filePath);
                 return errorResult;
@@ -84,7 +128,7 @@ class EmbeddedCoverManager {
 
             // 验证封面数据
             if (!metadata.cover.data || !metadata.cover.format) {
-                const errorResult = {success: false, error: '内嵌封面数据格式无效'};
+                const errorResult: EmbeddedCoverResult = {success: false, error: '内嵌封面数据格式无效'};
                 this.setCache(cacheKey, errorResult);
                 this.processingFiles.delete(filePath);
                 return errorResult;
@@ -93,7 +137,7 @@ class EmbeddedCoverManager {
             // 转换封面数据为可用的URL
             const convertedCover = this.convertCoverToUrl(metadata.cover);
             if (!convertedCover.success) {
-                const errorResult = {success: false, error: `封面格式转换失败: ${convertedCover.error}`};
+                const errorResult: EmbeddedCoverResult = {success: false, error: `封面格式转换失败: ${convertedCover.error}`};
                 this.setCache(cacheKey, errorResult);
                 this.processingFiles.delete(filePath);
                 return errorResult;
@@ -101,13 +145,13 @@ class EmbeddedCoverManager {
 
             // 验证转换后的URL格式
             if (typeof convertedCover.url !== 'string') {
-                const errorResult = {success: false, error: '封面URL格式无效'};
+                const errorResult: EmbeddedCoverResult = {success: false, error: '封面URL格式无效'};
                 this.setCache(cacheKey, errorResult);
                 this.processingFiles.delete(filePath);
                 return errorResult;
             }
 
-            const finalResult = {
+            const finalResult: EmbeddedCoverResult = {
                 success: true,
                 url: convertedCover.url,
                 mimeType: convertedCover.mimeType,
@@ -127,17 +171,18 @@ class EmbeddedCoverManager {
             this.processingFiles.delete(filePath);
 
             // 提供更具体的错误信息
-            let errorMessage = error.message || '未知错误';
-            if (error.name === 'TypeError') {
+            const caughtError = error instanceof Error ? error : new Error(String(error));
+            let errorMessage = caughtError.message || '未知错误';
+            if (caughtError.name === 'TypeError') {
                 errorMessage = '数据类型错误，可能是API响应格式不正确';
-            } else if (error.name === 'NetworkError') {
+            } else if (caughtError.name === 'NetworkError') {
                 errorMessage = '网络错误，无法与主进程通信';
             }
 
-            const errorResult = {success: false, error: errorMessage};
+            const errorResult: EmbeddedCoverResult = {success: false, error: errorMessage};
 
             // 对于某些错误，不缓存结果（如网络错误）
-            if (!error.name || error.name !== 'NetworkError') {
+            if (!caughtError.name || caughtError.name !== 'NetworkError') {
                 const cacheKey = this.generateCacheKey(filePath);
                 this.setCache(cacheKey, errorResult);
             }
@@ -151,13 +196,13 @@ class EmbeddedCoverManager {
      * @param {Object} coverData - 封面数据对象
      * @returns {Object} 转换结果
      */
-    convertCoverToUrl(coverData) {
+    convertCoverToUrl(coverData: EmbeddedCoverData): CoverConversionResult {
         try {
             if (!coverData || !coverData.data) {
                 throw new Error('封面数据无效');
             }
 
-            let imageData = coverData.data;
+            let imageData: any = coverData.data;
             const format = coverData.format || 'jpeg';
 
             // 处理不同类型的数据
@@ -170,7 +215,7 @@ class EmbeddedCoverManager {
             } else if (imageData instanceof Uint8Array) {
                 console.log('✅ EmbeddedCoverManager: 数据已是Uint8Array格式');
             } else if (this.isBufferLike(imageData)) {
-                imageData = new Uint8Array(imageData);
+                imageData = new Uint8Array(imageData as any);
                 console.log('🔄 EmbeddedCoverManager: 转换Buffer-like对象为Uint8Array');
             } else {
                 // 降级处理
@@ -195,7 +240,7 @@ class EmbeddedCoverManager {
 
             // 创建Blob
             const mimeType = `image/${format.toLowerCase()}`;
-            const blob = new Blob([imageData], {type: mimeType});
+            const blob = new Blob([imageData as BlobPart], {type: mimeType});
 
             // 验证Blob
             if (blob.size === 0) {
@@ -230,7 +275,7 @@ class EmbeddedCoverManager {
             console.error('❌ EmbeddedCoverManager: 封面URL转换失败:', error);
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : String(error)
             };
         }
     }
@@ -240,24 +285,25 @@ class EmbeddedCoverManager {
      * @param {*} obj - 要检查的对象
      * @returns {boolean} 是否为Buffer-like对象
      */
-    isBufferLike(obj) {
+    isBufferLike(obj: unknown): obj is BufferLike {
         if (!obj) return false;
+        const candidate = obj as any;
 
         // 检查是否有Buffer的特征
-        if (typeof obj === 'object' &&
-            typeof obj.length === 'number' &&
-            typeof obj.constructor === 'function') {
+        if (typeof candidate === 'object' &&
+            typeof candidate.length === 'number' &&
+            typeof candidate.constructor === 'function') {
 
             // 检查构造函数名称
-            const constructorName = obj.constructor.name;
+            const constructorName = candidate.constructor.name;
             if (constructorName === 'Buffer') {
                 return true;
             }
 
             // 检查是否有Buffer的方法
-            if (typeof obj.slice === 'function' &&
-                typeof obj.toString === 'function' &&
-                obj.length >= 0) {
+            if (typeof candidate.slice === 'function' &&
+                typeof candidate.toString === 'function' &&
+                candidate.length >= 0) {
                 return true;
             }
         }
@@ -270,7 +316,7 @@ class EmbeddedCoverManager {
      * @param {string} filePath - 文件路径
      * @returns {string} 缓存键
      */
-    generateCacheKey(filePath) {
+    generateCacheKey(filePath: string): string {
         return `cover_${filePath}`;
     }
 
@@ -279,17 +325,19 @@ class EmbeddedCoverManager {
      * @param {string} key - 缓存键
      * @param {Object} data - 缓存数据
      */
-    setCache(key, data) {
+    setCache(key: string, data: EmbeddedCoverResult): void {
         if (this.cache.size >= this.maxCacheSize) {
             const firstKey = this.cache.keys().next().value;
-            const oldData = this.cache.get(firstKey);
+            const oldData = firstKey ? this.cache.get(firstKey) : null;
 
             // 清理旧的Object URL - 使用引用计数安全释放
             if (oldData && oldData.url && oldData.url.startsWith('blob:')) {
                 this.releaseUrlReference(oldData.url);
             }
 
-            this.cache.delete(firstKey);
+            if (firstKey) {
+                this.cache.delete(firstKey);
+            }
         }
 
         this.cache.set(key, {
@@ -301,7 +349,7 @@ class EmbeddedCoverManager {
     /**
      * 清空缓存
      */
-    clearCache() {
+    clearCache(): void {
         // 清理所有Object URLs
         this.objectUrls.forEach(url => {
             URL.revokeObjectURL(url);
@@ -322,7 +370,7 @@ class EmbeddedCoverManager {
      * 减少URL引用计数，如果计数为0则安全释放
      * @param {string} url - blob URL
      */
-    releaseUrlReference(url) {
+    releaseUrlReference(url: string): void {
         if (!url || !url.startsWith('blob:')) return;
 
         const currentCount = this.urlReferences.get(url) || 0;
@@ -339,7 +387,7 @@ class EmbeddedCoverManager {
      * 安排URL延迟释放
      * @param {string} url - blob URL
      */
-    scheduleUrlRelease(url) {
+    scheduleUrlRelease(url: string): void {
         if (this.pendingReleases.has(url)) {
             console.log(`⏳ EmbeddedCoverManager: URL已在待释放队列 - ${url.substring(0, 50)}...`);
             return;
@@ -358,7 +406,7 @@ class EmbeddedCoverManager {
      * 安全释放URL
      * @param {string} url - blob URL
      */
-    safeReleaseUrl(url) {
+    safeReleaseUrl(url: string): void {
         try {
             if (this.objectUrls.has(url)) {
                 URL.revokeObjectURL(url);
@@ -375,13 +423,13 @@ class EmbeddedCoverManager {
      * 清理特定文件的封面缓存
      * @param {string} filePath - 文件路径
      */
-    clearCacheForFile(filePath) {
+    clearCacheForFile(filePath: string): boolean {
         if (!filePath) return false;
 
         const cacheKey = this.generateCacheKey(filePath);
         if (this.cache.has(cacheKey)) {
             const cachedResult = this.cache.get(cacheKey);
-            if (cachedResult.success && cachedResult.url && cachedResult.url.startsWith('blob:')) {
+            if (cachedResult?.success && cachedResult.url && cachedResult.url.startsWith('blob:')) {
                 // 使用安全的引用计数释放
                 this.releaseUrlReference(cachedResult.url);
             }
@@ -399,7 +447,7 @@ class EmbeddedCoverManager {
      * @param {string} url - blob URL
      * @returns {boolean} URL是否有效
      */
-    isBlobUrlValid(url) {
+    isBlobUrlValid(url: string): boolean {
         if (!url || !url.startsWith('blob:')) {
             return false;
         }
@@ -408,5 +456,5 @@ class EmbeddedCoverManager {
     }
 }
 
-let embeddedCoverManager = new EmbeddedCoverManager();
+const embeddedCoverManager = new EmbeddedCoverManager();
 export {embeddedCoverManager};

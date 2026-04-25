@@ -167,6 +167,22 @@ export interface ElectronLyricsAPI {
     getEmbedded(filePath: string): Promise<{success: boolean; lyrics?: EmbeddedLyricsData; source?: string; error?: string}>;
 }
 
+export interface ElectronCoversAPI {
+    checkLocalCover(
+        coverDir: string,
+        title: string,
+        artist: string,
+        album: string,
+        isAlbum?: boolean
+    ): Promise<{success: boolean; filePath?: string; fileName?: string; error?: string}>;
+    saveCoverFile(
+        coverDir: string,
+        fileName: string,
+        imageData: unknown,
+        dataType: string
+    ): Promise<{success: boolean; filePath?: string; fileName?: string; error?: string}>;
+}
+
 export interface ElectronWindowAPI {
     minimize(): Promise<void>;
     maximize(): Promise<void>;

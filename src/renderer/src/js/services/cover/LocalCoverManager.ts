@@ -3,7 +3,24 @@
  * 负责本地封面文件的缓存、检索和管理逻辑
  */
 
+import type {Track} from "@api/types/track";
+
+export interface LocalCoverResult {
+    success: boolean;
+    error?: string;
+    filePath?: string;
+    fileName?: string;
+    source?: string;
+}
+
+type CoverImageData = string | Blob;
+type CoverImageFormat = 'jpg' | 'jpeg' | 'png' | 'webp' | 'gif' | string;
+
 class LocalCoverManager {
+    private coverDirectory: string | null;
+    private readonly cache: Map<string, string>;
+    private readonly maxCacheSize: number;
+
     constructor() {
         this.coverDirectory = null;
         this.cache = new Map();
@@ -14,7 +31,7 @@ class LocalCoverManager {
      * 设置本地封面缓存目录
      * @param {string} directory - 封面缓存目录路径
      */
-    setCoverDirectory(directory) {
+    setCoverDirectory(directory: string): void {
         this.coverDirectory = directory;
         this.cache.clear(); // 清空缓存
     }
@@ -23,7 +40,7 @@ class LocalCoverManager {
      * 获取当前封面缓存目录
      * @returns {string|null} 当前设置的封面缓存目录
      */
-    getCoverDirectory() {
+    getCoverDirectory(): string | null {
         return this.coverDirectory;
     }
 
@@ -34,9 +51,9 @@ class LocalCoverManager {
      * @param {string} album - 专辑名称
      * @returns {string} 封面文件名（不含扩展名）
      */
-    generateCoverFileName(title, artist, album = '') {
+    generateCoverFileName(title: string, artist: string, album = ''): string {
         // 清理文件名中的非法字符
-        const cleanString = (str) => {
+        const cleanString = (str: unknown): string => {
             if (str == null) return '';
             return String(str)
                 .replace(/[<>:"/\\|?*]/g, '_')
@@ -71,8 +88,8 @@ class LocalCoverManager {
      * @param {string} album - 专辑名称
      * @returns {string} 缓存键
      */
-    generateCacheKey(title, artist, album = '') {
-        const s = (v) => (v == null ? '' : String(v)).toLowerCase();
+    generateCacheKey(title: string, artist: string, album = ''): string {
+        const s = (v: unknown): string => (v == null ? '' : String(v)).toLowerCase();
         if (!title && !album) {
             // Artist-only 缓存键前缀，避免与单曲/专辑封面混淆
             return `artist|${s(artist)}`;
@@ -91,7 +108,7 @@ class LocalCoverManager {
      * @param {string} album - 专辑名称
      * @returns {Promise<Object>} 检查结果
      */
-    async checkLocalCover(title, artist, album = '') {
+    async checkLocalCover(title: string, artist: string, album = ''): Promise<LocalCoverResult> {
         try {
             if (!this.coverDirectory) {
                 return {success: false, error: '未设置封面缓存目录'};
@@ -99,7 +116,7 @@ class LocalCoverManager {
 
             const cacheKey = this.generateCacheKey(title, artist, album);
             if (this.cache.has(cacheKey)) {
-                const cachedPath = this.cache.get(cacheKey);
+                const cachedPath = this.cache.get(cacheKey)!;
                 return {
                     success: true,
                     filePath: cachedPath,
@@ -143,7 +160,7 @@ class LocalCoverManager {
             }
         } catch (error) {
             console.error('❌ LocalCoverManager: 检查本地封面缓存失败:', error);
-            return {success: false, error: error.message};
+            return {success: false, error: error instanceof Error ? error.message : String(error)};
         }
     }
 
@@ -156,7 +173,13 @@ class LocalCoverManager {
      * @param {string} imageFormat - 图片格式（jpg, png等）
      * @returns {Promise<Object>} 保存结果
      */
-    async saveCoverToCache(title, artist, album = '', imageData, imageFormat = 'jpg') {
+    async saveCoverToCache(
+        title: string,
+        artist: string,
+        album = '',
+        imageData: CoverImageData,
+        imageFormat: CoverImageFormat = 'jpg'
+    ): Promise<LocalCoverResult> {
         try {
             if (!this.coverDirectory) {
                 return {success: false, error: '未设置封面缓存目录'};
@@ -168,8 +191,8 @@ class LocalCoverManager {
             let fullFileName = `${fileName}.${imageFormat}`;
 
             // 处理不同类型的图片数据
-            let processedImageData;
-            let dataType;
+            let processedImageData: string | ArrayBuffer;
+            let dataType: 'arrayBuffer' | 'string';
 
             if (imageData instanceof Blob) {
                 // 将Blob转换为ArrayBuffer以便IPC传输
@@ -203,7 +226,7 @@ class LocalCoverManager {
             if (saveResult.success) {
                 // 添加到内存缓存
                 const cacheKey = this.generateCacheKey(title, artist, album);
-                this.addToCache(cacheKey, saveResult.filePath);
+                this.addToCache(cacheKey, saveResult.filePath!);
                 console.log(`✅ LocalCoverManager: 封面保存成功 - ${fullFileName}`);
                 return {
                     success: true,
@@ -217,7 +240,7 @@ class LocalCoverManager {
             }
         } catch (error) {
             console.error('❌ LocalCoverManager: 保存封面到本地缓存失败:', error);
-            return {success: false, error: error.message};
+            return {success: false, error: error instanceof Error ? error.message : String(error)};
         }
     }
 
@@ -226,10 +249,12 @@ class LocalCoverManager {
      * @param {string} key - 缓存键
      * @param {string} filePath - 文件路径
      */
-    addToCache(key, filePath) {
+    addToCache(key: string, filePath: string): void {
         if (this.cache.size >= this.maxCacheSize) {
             const firstKey = this.cache.keys().next().value;
-            this.cache.delete(firstKey);
+            if (firstKey) {
+                this.cache.delete(firstKey);
+            }
         }
         this.cache.set(key, filePath);
     }
@@ -237,7 +262,7 @@ class LocalCoverManager {
     /**
      * 清空内存缓存
      */
-    clearCache() {
+    clearCache(): void {
         this.cache.clear();
     }
 
@@ -247,7 +272,7 @@ class LocalCoverManager {
      * @param {string} artist - 艺术家
      * @param {string} album - 专辑名称
      */
-    clearCacheForTrack(title, artist, album = '') {
+    clearCacheForTrack(title: string, artist: string, album = ''): boolean {
         const cacheKey = this.generateCacheKey(title, artist, album);
         if (this.cache.has(cacheKey)) {
             this.cache.delete(cacheKey);
@@ -264,7 +289,7 @@ class LocalCoverManager {
      * @param {string} album - 专辑名称
      * @returns {Promise<Object>} 刷新结果
      */
-    async refreshCoverForTrack(title, artist, album = '') {
+    async refreshCoverForTrack(title: string, artist: string, album = ''): Promise<LocalCoverResult> {
         // 清理缓存
         this.clearCacheForTrack(title, artist, album);
 
@@ -276,20 +301,18 @@ class LocalCoverManager {
      * 预加载常用封面文件
      * @param {Array} trackList - 歌曲列表
      */
-    async preloadCovers(trackList) {
+    async preloadCovers(trackList: Track[]): Promise<void> {
         if (!this.coverDirectory || !Array.isArray(trackList)) {
             return;
         }
-        let loadedCount = 0;
         for (const track of trackList.slice(0, 6)) { // 预加载数量
             try {
-                await this.checkLocalCover(track.title, track.artist, track.album);
-                loadedCount++;
+                await this.checkLocalCover(track.title, track.artist, track.album || '');
             } catch (error) {
             }
         }
     }
 }
 
-let localCoverManager = new LocalCoverManager();
+const localCoverManager = new LocalCoverManager();
 export {localCoverManager};

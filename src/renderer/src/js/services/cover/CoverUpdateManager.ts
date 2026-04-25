@@ -6,24 +6,39 @@
 import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {embeddedCoverManager} from "@services/cover/EmbeddedCoverManager";
 
+export interface CoverUpdateData {
+    filePath: string;
+    title: string;
+    artist: string;
+    album?: string;
+    timestamp: number;
+    type?: 'cover-updated';
+}
+
+type CoverUpdateCallback = (data: CoverUpdateData) => void | Promise<void>;
+
 class CoverUpdateManager {
+    private readonly updateCallbacks: Set<CoverUpdateCallback>;
+    private initialized: boolean;
+    private readonly pendingUpdates: Map<string, boolean>;
+
     constructor() {
         this.updateCallbacks = new Set();
         this.initialized = false;
         this.pendingUpdates = new Map();
     }
 
-    initialize() {
+    initialize(): void {
         if (this.initialized) return;
 
         // 监听主进程的封面更新事件
         window.electronAPI.library.onCoverUpdated(async (data) => {
-            await this.handleCoverUpdate(data);
+            await this.handleCoverUpdate(data as CoverUpdateData);
         });
         this.initialized = true;
     }
 
-    async handleCoverUpdate(data) {
+    async handleCoverUpdate(data: CoverUpdateData): Promise<void> {
         const {filePath, title, artist, album, timestamp} = data;
 
         // 防止重复更新
@@ -36,7 +51,7 @@ class CoverUpdateManager {
         try {
             // 清理相关缓存
             embeddedCoverManager.clearCacheForFile(filePath);
-            localCoverManager.clearCacheForTrack(title, artist, album);
+            localCoverManager.clearCacheForTrack(title, artist, album || '');
 
             // 通知组件更新
             this.notifyCallbacks({
@@ -58,7 +73,7 @@ class CoverUpdateManager {
         }
     }
 
-    onCoverUpdate(callback) {
+    onCoverUpdate(callback: CoverUpdateCallback): () => void {
         if (typeof callback !== 'function') {
             return () => {
             };
@@ -70,7 +85,7 @@ class CoverUpdateManager {
         };
     }
 
-    notifyCallbacks(data) {
+    notifyCallbacks(data: CoverUpdateData): void {
         this.updateCallbacks.forEach(callback => {
             try {
                 callback(data);
@@ -80,7 +95,7 @@ class CoverUpdateManager {
         });
     }
 
-    async refreshCover(filePath, title, artist, album = '') {
+    async refreshCover(filePath: string, title: string, artist: string, album = ''): Promise<void> {
         try {
             await this.handleCoverUpdate({
                 filePath,
@@ -95,14 +110,15 @@ class CoverUpdateManager {
         }
     }
 
-    destroy() {
+    destroy(): void {
         this.updateCallbacks.clear();
         this.pendingUpdates.clear();
         this.initialized = false;
     }
 }
 
-let coverUpdateManager = new CoverUpdateManager();
+const coverUpdateManager = new CoverUpdateManager();
+window.coverUpdateManager = coverUpdateManager;
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         coverUpdateManager.initialize();

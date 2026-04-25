@@ -3,12 +3,19 @@
  */
 
 class URLValidator {
+    private readonly validationCache: Map<string, {
+        valid: boolean;
+        timestamp: number;
+        timeout?: number;
+    }>;
+    private readonly cacheTimeout: number;
+
     constructor() {
         this.validationCache = new Map();
         this.cacheTimeout = 30000;
     }
 
-    async isValidUrl(url) {
+    async isValidUrl(url: string): Promise<boolean> {
         if (!url || typeof url !== 'string') {
             return false;
         }
@@ -37,7 +44,7 @@ class URLValidator {
     }
 
     // 检查URL基本格式
-    isValidUrlFormat(url) {
+    isValidUrlFormat(url: string): boolean {
         try {
             new URL(url);
             return true;
@@ -47,11 +54,11 @@ class URLValidator {
     }
 
     // 验证blob URL
-    async validateBlobUrl(blobUrl) {
+    async validateBlobUrl(blobUrl: string): Promise<boolean> {
         // 检查缓存
         const cacheKey = blobUrl;
         const cached = this.validationCache.get(cacheKey);
-        if (cached && (Date.now() - cached.timestamp) < cached.timeout) {
+        if (cached && (Date.now() - cached.timestamp) < (cached.timeout || this.cacheTimeout)) {
             return cached.valid;
         }
 
@@ -88,7 +95,7 @@ class URLValidator {
     }
 
     // 验证HTTP URL
-    async validateHttpUrl(httpUrl) {
+    async validateHttpUrl(httpUrl: string): Promise<boolean> {
         // 检查缓存
         const cacheKey = httpUrl;
         const cached = this.validationCache.get(cacheKey);
@@ -100,7 +107,7 @@ class URLValidator {
             // 使用HEAD请求检查资源是否存在
             const response = await fetch(httpUrl, {
                 method: 'HEAD',
-                timeout: 5000
+                signal: AbortSignal.timeout(5000)
             });
 
             const isValid = response.ok;
@@ -126,7 +133,7 @@ class URLValidator {
     }
 
     // 验证data URL
-    validateDataUrl(dataUrl) {
+    validateDataUrl(dataUrl: string): boolean {
         try {
             const dataUrlPattern = /^data:([a-zA-Z0-9][a-zA-Z0-9\/+\-]*);base64,(.+)$/;
             return dataUrlPattern.test(dataUrl);
@@ -136,7 +143,7 @@ class URLValidator {
     }
 
     // 测试图片加载
-    testImageLoad(url) {
+    testImageLoad(url: string): Promise<boolean> {
         return new Promise((resolve) => {
             const img = new Image();
             let resolved = false;
@@ -158,7 +165,7 @@ class URLValidator {
             img.onerror = (event) => {
                 console.warn('⚠️ URLValidator: 图片加载失败', {
                     url: url.substring(0, 50) + '...',
-                    error: event.error || 'Unknown error'
+                    error: event instanceof ErrorEvent ? event.error : 'Unknown error'
                 });
                 cleanup();
                 resolve(false);
@@ -190,14 +197,14 @@ class URLValidator {
 
     // 图片加载测试
     // 用于网络磁盘文件的异步加载
-    async testImageLoadWithRetry(url, maxRetries = 3, retryDelay = 500) {
+    async testImageLoadWithRetry(url: string, maxRetries = 3, retryDelay = 500): Promise<boolean> {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             const success = await this.testImageLoad(url);
             if (success) return true;
 
             // 若不是最后一次尝试，延迟重试
             if (attempt < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                await new Promise<void>(resolve => setTimeout(resolve, retryDelay));
                 // 递增延迟时间，给网络磁盘文件更多时间准备
                 retryDelay = Math.min(retryDelay * 1.5, 2000);
             }
@@ -208,7 +215,7 @@ class URLValidator {
     }
 
     // 安全设置图片源
-    async safeSetImageSrc(imgElement, url, fallbackUrl = null) {
+    async safeSetImageSrc(imgElement: HTMLImageElement | null, url: string | null, fallbackUrl: string | null = null): Promise<boolean> {
         if (!imgElement || !url) {
             return false;
         }
@@ -240,12 +247,12 @@ class URLValidator {
     }
 
     // 清理验证缓存
-    clearCache() {
+    clearCache(): void {
         this.validationCache.clear();
     }
 
     // 清理过期的缓存项
-    cleanupExpiredCache() {
+    cleanupExpiredCache(): void {
         const now = Date.now();
         for (const [key, value] of this.validationCache.entries()) {
             const timeout = value.timeout || this.cacheTimeout;
@@ -256,10 +263,8 @@ class URLValidator {
     }
 }
 
-let urlValidator = new URLValidator();
+const urlValidator = new URLValidator();
 setInterval(() => {
-    if (urlValidator) {
-        urlValidator.cleanupExpiredCache();
-    }
+    urlValidator.cleanupExpiredCache();
 }, 15000);
 export { urlValidator };

@@ -3,9 +3,21 @@
  * 负责捕获用户按键并转换为快捷键字符串
  */
 
-import {EventEmitter} from "@utils";
+import {EventEmitter} from "@utils/index.js";
+
+interface ShortcutValidationResult {
+    valid: boolean;
+    error?: string;
+}
+
+type ShortcutKey = string;
 
 class ShortcutRecorder extends EventEmitter {
+    public isRecording: boolean;
+    private readonly pressedKeys: Set<ShortcutKey>;
+    private recordedKeys: ShortcutKey[];
+    private currentElement: HTMLElement | null;
+
     constructor() {
         super();
         this.isRecording = false;
@@ -22,7 +34,7 @@ class ShortcutRecorder extends EventEmitter {
     /**
      * 开始录制快捷键
      */
-    startRecording(element) {
+    startRecording(element: HTMLElement | null): void {
         if (this.isRecording) {
             this.stopRecording();
         }
@@ -51,7 +63,7 @@ class ShortcutRecorder extends EventEmitter {
     /**
      * 停止录制快捷键
      */
-    stopRecording() {
+    stopRecording(): void {
         if (!this.isRecording) return;
 
         this.isRecording = false;
@@ -77,7 +89,7 @@ class ShortcutRecorder extends EventEmitter {
     /**
      * 处理按键按下事件
      */
-    handleKeyDown(event) {
+    handleKeyDown(event: KeyboardEvent): void {
         if (!this.isRecording) return;
 
         event.preventDefault();
@@ -118,7 +130,7 @@ class ShortcutRecorder extends EventEmitter {
     /**
      * 处理按键释放事件
      */
-    handleKeyUp(event) {
+    handleKeyUp(event: KeyboardEvent): void {
         if (!this.isRecording) return;
 
         const key = this.normalizeKey(event);
@@ -135,7 +147,7 @@ class ShortcutRecorder extends EventEmitter {
     /**
      * 处理窗口失焦事件
      */
-    handleBlur() {
+    handleBlur(): void {
         if (this.isRecording) {
             this.stopRecording();
         }
@@ -144,9 +156,8 @@ class ShortcutRecorder extends EventEmitter {
     /**
      * 标准化按键名称
      */
-    normalizeKey(event) {
+    normalizeKey(event: KeyboardEvent): string | null {
         const key = event.key;
-        const code = event.code;
 
         // 修饰键
         if (key === 'Control') return 'Ctrl';
@@ -177,7 +188,7 @@ class ShortcutRecorder extends EventEmitter {
         }
 
         // 其他特殊字符
-        const specialKeys = {
+        const specialKeys: Record<string, string> = {
             '`': 'Backquote',
             '-': 'Minus',
             '=': 'Equal',
@@ -197,8 +208,9 @@ class ShortcutRecorder extends EventEmitter {
     /**
      * 检查是否是完整的快捷键组合
      */
-    isCompleteShortcut(event) {
+    isCompleteShortcut(event: KeyboardEvent): boolean {
         const key = this.normalizeKey(event);
+        if (!key) return false;
 
         // 单独的修饰键不算完整快捷键
         if (['Ctrl', 'Alt', 'Shift', 'Cmd'].includes(key)) {
@@ -222,12 +234,12 @@ class ShortcutRecorder extends EventEmitter {
     /**
      * 生成快捷键字符串
      */
-    generateShortcutString() {
+    generateShortcutString(): string {
         if (this.pressedKeys.size === 0) return '';
 
         const keys = Array.from(this.pressedKeys);
-        const modifiers = [];
-        const mainKeys = [];
+        const modifiers: ShortcutKey[] = [];
+        const mainKeys: ShortcutKey[] = [];
 
         // 分离修饰键和主键
         keys.forEach(key => {
@@ -239,7 +251,7 @@ class ShortcutRecorder extends EventEmitter {
         });
 
         // 按固定顺序排列修饰键
-        const orderedModifiers = [];
+        const orderedModifiers: ShortcutKey[] = [];
         if (modifiers.includes('Ctrl')) orderedModifiers.push('Ctrl');
         if (modifiers.includes('Alt')) orderedModifiers.push('Alt');
         if (modifiers.includes('Shift')) orderedModifiers.push('Shift');
@@ -252,7 +264,7 @@ class ShortcutRecorder extends EventEmitter {
     /**
      * 验证快捷键字符串格式
      */
-    static validateShortcut(shortcutString) {
+    static validateShortcut(shortcutString: unknown): ShortcutValidationResult {
         if (!shortcutString || typeof shortcutString !== 'string') {
             return {valid: false, error: '快捷键不能为空'};
         }
@@ -292,7 +304,7 @@ class ShortcutRecorder extends EventEmitter {
     /**
      * 格式化快捷键显示
      */
-    static formatShortcut(shortcutString) {
+    static formatShortcut(shortcutString: string | null | undefined): string {
         if (!shortcutString) return '';
 
         return shortcutString
@@ -308,5 +320,5 @@ class ShortcutRecorder extends EventEmitter {
     }
 }
 
-let shortcutRecorder = new ShortcutRecorder();
+const shortcutRecorder = new ShortcutRecorder();
 export {shortcutRecorder};

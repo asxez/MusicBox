@@ -5,6 +5,7 @@
 
 import type {
     ElectronAudioAPI,
+    ElectronCoversAPI,
     ElectronDesktopLyricsAPI,
     ElectronGlobalShortcutsAPI,
     ElectronLibraryAPI,
@@ -182,6 +183,7 @@ interface ElectronAPI {
     // 桌面歌词
     desktopLyrics: ElectronDesktopLyricsAPI;
     lyrics: ElectronLyricsAPI;
+    covers: ElectronCoversAPI;
     networkDrive: {};
 
     // 设置相关
@@ -196,6 +198,10 @@ declare global {
     interface Window {
         electronAPI: ElectronAPI;
         createExtensionAPI?: () => {};
+        coverUpdateManager?: {
+            refreshCover(filePath: string, title: string, artist: string, album?: string): Promise<void>;
+            onCoverUpdate(callback: (data: unknown) => void): () => void;
+        };
     }
 }
 
