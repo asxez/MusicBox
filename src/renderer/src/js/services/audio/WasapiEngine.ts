@@ -4,7 +4,56 @@
 
 import ParametricEqualizer from "@services/audio/ParametricEqualizer";
 
+type WasapiShareMode = 'exclusive' | 'shared';
+type EqualizerMode = 'graphic' | 'parametric';
+type NativeResult<T extends Record<string, unknown> = Record<string, unknown>> = {success?: boolean; error?: string} & T;
+
+type TrackSource = string | {
+    filePath?: string;
+    path?: string;
+    title?: string;
+    artist?: string;
+    album?: string;
+    duration?: number;
+    cover?: unknown;
+    [key: string]: unknown;
+};
+
+interface WasapiTrack {
+    filePath: string;
+    title: string;
+    artist: string;
+    album: string;
+    duration: number;
+    cover?: unknown;
+}
+
+interface NativeAudioEventBridge {
+    onNativeAudioEvent(eventName: string, callback: (data: unknown) => void): () => void;
+}
+
 class WasapiEngine {
+    public nativeEngine: any | null;
+    public isPlaying: boolean;
+    public isPaused: boolean;
+    public duration: number;
+    private volume: number;
+    public currentTrack: WasapiTrack | null;
+    public playlist: TrackSource[];
+    public currentIndex: number;
+    private gaplessPlaybackEnabled: boolean;
+    private parametricEqualizer: ParametricEqualizer | null;
+    private pendingSeekPosition: number | null;
+    private playStartTime: number;
+    private isLoadingNewTrack: boolean;
+    public onTrackChanged: ((track: WasapiTrack | null) => void | Promise<void>) | null;
+    public onPlaybackStateChanged: ((isPlaying: boolean) => void | Promise<void>) | null;
+    public onPositionChanged: ((position: number) => void | Promise<void>) | null;
+    public onVolumeChanged: ((volume: number) => void) | null;
+    public getNextTrackIndex: (() => number) | null;
+    public getPreviousTrackIndex: (() => number) | null;
+    private progressTimer: ReturnType<typeof setInterval> | null;
+
     constructor() {
         this.nativeEngine = null;
         this.isPlaying = false;
@@ -40,19 +89,21 @@ class WasapiEngine {
         this.progressTimer = null;
     }
 
-    async initialize() {
+    async initialize(): Promise<boolean> {
         try {
             if (!window.electronAPI?.nativeAudio) {
                 throw new Error('Native音频模块未加载');
             }
 
+            const nativeAudio = window.electronAPI.nativeAudio as any;
+
             // 初始化Rust音频引擎
-            const result = await window.electronAPI.nativeAudio.initialize();
+            const result = await nativeAudio.initialize() as NativeResult;
             if (!result.success) {
                 throw new Error(result.error || '初始化失败');
             }
 
-            this.nativeEngine = window.electronAPI.nativeAudio;
+            this.nativeEngine = nativeAudio;
 
             // 初始化参量均衡器（传入this以便切换均衡器模式）
             this.parametricEqualizer = new ParametricEqualizer(this.nativeEngine, this);
@@ -68,14 +119,16 @@ class WasapiEngine {
         }
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
+        const electronAPI = window.electronAPI as typeof window.electronAPI & NativeAudioEventBridge;
+
         // 监听播放结束事件
-        window.electronAPI.onNativeAudioEvent('track-ended', () => {
+        electronAPI.onNativeAudioEvent('track-ended', () => {
             this.onTrackEnded();
         });
 
         // 监听错误事件
-        window.electronAPI.onNativeAudioEvent('error', (errorMsg) => {
+        electronAPI.onNativeAudioEvent('error', (errorMsg: unknown) => {
             console.error('❌ Native音频错误:', errorMsg);
             this.isPlaying = false;
             this.isPaused = false;
@@ -85,29 +138,29 @@ class WasapiEngine {
         });
     }
 
-    async loadTrack(filePath) {
+    async loadTrack(filePath: string): Promise<boolean> {
         try {
             // 标记正在加载新曲目，阻止旧曲目的finished事件触发自动播放
             this.isLoadingNewTrack = true;
 
             await this.stop();
 
-            const result = await this.nativeEngine.loadTrack(filePath);
+            const result = await this.nativeEngine.loadTrack(filePath) as NativeResult<{duration?: number}>;
             if (!result.success) {
                 throw new Error(result.error || '加载失败');
             }
 
             // 获取音频元数据
             const metadata = await window.electronAPI.library.getTrackMetadata(filePath);
-            this.duration = metadata.duration || result.duration || 0;
+            this.duration = metadata?.duration || result.duration || 0;
 
             this.currentTrack = {
                 filePath: filePath,
-                title: metadata.title || '未知标题',
-                artist: metadata.artist || '未知艺术家',
-                album: metadata.album || '未知专辑',
+                title: metadata?.title || '未知标题',
+                artist: metadata?.artist || '未知艺术家',
+                album: metadata?.album || '未知专辑',
                 duration: this.duration,
-                cover: metadata.cover
+                cover: metadata?.cover
             };
 
             // 重置pending seek位置
@@ -119,13 +172,13 @@ class WasapiEngine {
         }
     }
 
-    async play() {
+    async play(): Promise<boolean> {
         try {
             if (!this.currentTrack) {
                 return false;
             }
 
-            const result = await this.nativeEngine.play();
+            const result = await this.nativeEngine.play() as NativeResult;
             if (!result.success) {
                 throw new Error(result.error || '播放失败');
             }
@@ -169,9 +222,9 @@ class WasapiEngine {
         }
     }
 
-    async pause() {
+    async pause(): Promise<boolean> {
         try {
-            const result = await this.nativeEngine.pause();
+            const result = await this.nativeEngine.pause() as NativeResult;
             if (!result.success) {
                 throw new Error(result.error || '暂停失败');
             }
@@ -191,9 +244,9 @@ class WasapiEngine {
         }
     }
 
-    async stop() {
+    async stop(): Promise<boolean> {
         try {
-            const result = await this.nativeEngine.stop();
+            const result = await this.nativeEngine.stop() as NativeResult | undefined;
 
             this.isPlaying = false;
             this.isPaused = false;
@@ -211,11 +264,11 @@ class WasapiEngine {
         }
     }
 
-    async seek(position) {
+    async seek(position: number): Promise<boolean> {
         try {
             // 如果正在播放或暂停，立即执行seek
             if (this.isPlaying || this.isPaused) {
-                const result = await this.nativeEngine.seek(position);
+                const result = await this.nativeEngine.seek(position) as NativeResult;
                 if (!result.success) {
                     throw new Error(result.error || '跳转失败');
                 }
@@ -242,7 +295,7 @@ class WasapiEngine {
         }
     }
 
-    setVolume(volume) {
+    setVolume(volume: number): boolean {
         try {
             this.volume = Math.max(0, Math.min(1, volume));
             this.nativeEngine.setVolume(this.volume);
@@ -258,34 +311,34 @@ class WasapiEngine {
         }
     }
 
-    getVolume() {
+    getVolume(): number {
         return this.volume;
     }
 
-    async getPosition() {
+    async getPosition(): Promise<number> {
         try {
-            const result = await this.nativeEngine.getPosition();
+            const result = await this.nativeEngine.getPosition() as NativeResult<{position?: number}>;
             return result.position || 0.0;
         } catch (error) {
             return 0.0;
         }
     }
 
-    getDuration() {
+    getDuration(): number {
         return this.duration;
     }
 
-    getCurrentTrack() {
+    getCurrentTrack(): WasapiTrack | null {
         return this.currentTrack;
     }
 
-    setPlaylist(tracks, startIndex = 0) {
+    setPlaylist(tracks: TrackSource[], startIndex = 0): boolean {
         this.playlist = tracks || [];
         this.currentIndex = startIndex;
         return true;
     }
 
-    async nextTrack(nextIndex = null) {
+    async nextTrack(nextIndex: number | null = null): Promise<boolean> {
         if (this.playlist.length === 0) {
             return false;
         }
@@ -306,7 +359,7 @@ class WasapiEngine {
         }
 
         const nextTrack = this.playlist[this.currentIndex];
-        const filePath = nextTrack.filePath || nextTrack.path || nextTrack;
+        const filePath = getTrackFilePath(nextTrack);
 
         if (!filePath) {
             return false;
@@ -325,7 +378,7 @@ class WasapiEngine {
         return false;
     }
 
-    async previousTrack(prevIndex = null) {
+    async previousTrack(prevIndex: number | null = null): Promise<boolean> {
         if (this.playlist.length === 0) {
             return false;
         }
@@ -346,7 +399,7 @@ class WasapiEngine {
         }
 
         const prevTrack = this.playlist[this.currentIndex];
-        const filePath = prevTrack.filePath || prevTrack.path || prevTrack;
+        const filePath = getTrackFilePath(prevTrack);
 
         if (!filePath) {
             return false;
@@ -365,16 +418,16 @@ class WasapiEngine {
         return false;
     }
 
-    setGaplessPlayback(enabled) {
+    setGaplessPlayback(enabled: boolean): void {
         this.gaplessPlaybackEnabled = enabled;
         console.log(`🎵 WasapiEngine: 无间隙播放${enabled ? '启用' : '禁用'}`);
     }
 
-    getGaplessPlayback() {
+    getGaplessPlayback(): boolean {
         return this.gaplessPlaybackEnabled;
     }
 
-    onTrackEnded() {
+    onTrackEnded(): void {
         // 如果正在加载新曲目，忽略finished事件（这是旧曲目的finished事件）
         if (this.isLoadingNewTrack) {
             return;
@@ -398,7 +451,7 @@ class WasapiEngine {
         }
     }
 
-    startProgressTimer() {
+    startProgressTimer(): void {
         this.stopProgressTimer();
         this.progressTimer = setInterval(async () => {
             if (this.isPlaying && this.onPositionChanged) {
@@ -407,14 +460,14 @@ class WasapiEngine {
         }, 50);
     }
 
-    stopProgressTimer() {
+    stopProgressTimer(): void {
         if (this.progressTimer) {
             clearInterval(this.progressTimer);
             this.progressTimer = null;
         }
     }
 
-    destroy() {
+    destroy(): void {
         this.stop();
         this.stopProgressTimer();
         this.currentTrack = null;
@@ -430,7 +483,7 @@ class WasapiEngine {
 
     // ==================== WASAPI模式切换 ====================
 
-    async switchShareMode(mode) {
+    async switchShareMode(mode: WasapiShareMode): Promise<boolean> {
         if (!this.nativeEngine?.switchShareMode) {
             console.error('❌ WasapiEngine: Native引擎不支持模式切换');
             return false;
@@ -448,7 +501,7 @@ class WasapiEngine {
             await this.stop();
 
             // 调用Native引擎切换模式
-            const result = await this.nativeEngine.switchShareMode(mode);
+            const result = await this.nativeEngine.switchShareMode(mode) as NativeResult;
             if (!result.success) {
                 throw new Error(result.error || '模式切换失败');
             }
@@ -478,7 +531,7 @@ class WasapiEngine {
     // ==================== 均衡器接口 ====================
 
     // 获取图形均衡器代理对象
-    getEqualizer() {
+    getEqualizer(): WasapiEqualizer | null {
         if (!this.nativeEngine) {
             return null;
         }
@@ -488,26 +541,26 @@ class WasapiEngine {
     }
 
     // 获取参量均衡器实例
-    getParametricEqualizer() {
+    getParametricEqualizer(): ParametricEqualizer | null {
         return this.parametricEqualizer;
     }
 
     // 设置均衡器启用状态
-    setEqualizerEnabled(enabled) {
+    setEqualizerEnabled(enabled: boolean): void {
         if (this.nativeEngine) {
             this.nativeEngine.setEqualizerEnabled(enabled);
         }
     }
 
     // 设置均衡器模式 ('graphic' 或 'parametric')
-    async setEqualizerMode(mode) {
+    async setEqualizerMode(mode: EqualizerMode): Promise<boolean> {
         if (!this.nativeEngine?.setEqualizerMode) {
             console.warn('⚠️ 均衡器模式切换不支持');
             return false;
         }
 
         try {
-            const result = await this.nativeEngine.setEqualizerMode(mode);
+            const result = await this.nativeEngine.setEqualizerMode(mode) as NativeResult;
             if (result.success) {
                 console.log(`🎛️ 切换到${mode === 'graphic' ? '图形' : '参量'}均衡器模式`);
                 return true;
@@ -520,15 +573,15 @@ class WasapiEngine {
     }
 
     // 获取当前均衡器模式
-    async getEqualizerMode() {
+    async getEqualizerMode(): Promise<EqualizerMode> {
         if (!this.nativeEngine?.getEqualizerMode) {
             return 'graphic'; // 默认返回图形模式
         }
 
         try {
-            const result = await this.nativeEngine.getEqualizerMode();
+            const result = await this.nativeEngine.getEqualizerMode() as NativeResult<{mode?: EqualizerMode}>;
             if (result.success) {
-                return result.mode;
+                return result.mode || 'graphic';
             }
             return 'graphic';
         } catch (error) {
@@ -544,7 +597,13 @@ class WasapiEngine {
  */
 
 class WasapiEqualizer {
-    constructor(nativeEngine) {
+    private readonly nativeEngine: any;
+    private readonly presets: Record<string, number[]>;
+    private gains: number[];
+    private qValues: number[];
+    private preampGain: number;
+
+    constructor(nativeEngine: any) {
         this.nativeEngine = nativeEngine;
         this.presets = {
             'flat': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -572,7 +631,7 @@ class WasapiEqualizer {
     }
 
     // 设置频段增益
-    setBandGain(bandIndex, gain) {
+    setBandGain(bandIndex: number, gain: number): void {
         if (bandIndex < 0 || bandIndex >= 10) {
             return;
         }
@@ -586,7 +645,7 @@ class WasapiEqualizer {
     }
 
     // 获取频段增益
-    getBandGain(bandIndex) {
+    getBandGain(bandIndex: number): number {
         if (bandIndex < 0 || bandIndex >= 10) {
             return 0;
         }
@@ -596,12 +655,12 @@ class WasapiEqualizer {
     }
 
     // 设置所有频段增益
-    setAllGains(gains) {
+    setAllGains(gains: number[]): void {
         if (!Array.isArray(gains) || gains.length !== 10) {
             return;
         }
 
-        this.gains = gains.map(g => Math.max(-12, Math.min(12, g)));
+        this.gains = gains.map((g) => Math.max(-12, Math.min(12, g)));
 
         // 逐个设置到Rust引擎
         for (let i = 0; i < 10; i++) {
@@ -612,13 +671,13 @@ class WasapiEqualizer {
     }
 
     // 获取所有频段增益
-    getAllGains() {
+    getAllGains(): number[] {
         // 从本地缓存返回
         return [...this.gains];
     }
 
     // 设置前置增益
-    setPreamp(gainDb) {
+    setPreamp(gainDb: number): void {
         this.preampGain = Math.max(-12, Math.min(12, gainDb));
 
         if (this.nativeEngine?.setEqualizerPreamp) {
@@ -627,13 +686,13 @@ class WasapiEqualizer {
     }
 
     // 获取前置增益
-    getPreamp() {
+    getPreamp(): number {
         // 从本地缓存返回
         return this.preampGain;
     }
 
     // 设置单个频段Q值
-    setBandQ(bandIndex, q) {
+    setBandQ(bandIndex: number, q: number): void {
         if (bandIndex < 0 || bandIndex >= 10) {
             return;
         }
@@ -647,7 +706,7 @@ class WasapiEqualizer {
     }
 
     // 获取单个频段Q值
-    getBandQ(bandIndex) {
+    getBandQ(bandIndex: number): number {
         if (bandIndex < 0 || bandIndex >= 10) {
             return 1.0;
         }
@@ -657,12 +716,12 @@ class WasapiEqualizer {
     }
 
     // 获取所有Q值
-    getAllQValues() {
+    getAllQValues(): number[] {
         return [...this.qValues];
     }
 
     // 应用预设
-    applyPreset(presetName) {
+    applyPreset(presetName: string): unknown {
         if (this.presets[presetName]) {
             this.setAllGains(this.presets[presetName]);
             return true;
@@ -677,12 +736,12 @@ class WasapiEqualizer {
     }
 
     // 获取预设名称列表
-    getPresetNames() {
+    getPresetNames(): string[] {
         return Object.keys(this.presets);
     }
 
     // 重置均衡器
-    reset() {
+    reset(): void {
         this.gains = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         this.qValues = [0.707, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.707];
         this.preampGain = 0;
@@ -693,7 +752,7 @@ class WasapiEqualizer {
     }
 
     // 获取频率响应曲线
-    async getFrequencyResponse() {
+    async getFrequencyResponse(): Promise<unknown[]> {
         if (this.nativeEngine?.getEqualizerFrequencyResponse) {
             try {
                 const result = await this.nativeEngine.getEqualizerFrequencyResponse();
@@ -706,6 +765,14 @@ class WasapiEqualizer {
         }
         return [];
     }
+}
+
+function getTrackFilePath(track: TrackSource): string | null {
+    if (typeof track === 'string') {
+        return track;
+    }
+
+    return track.filePath || track.path || null;
 }
 
 export default WasapiEngine;
