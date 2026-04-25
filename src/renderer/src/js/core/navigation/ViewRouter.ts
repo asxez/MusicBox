@@ -1,9 +1,17 @@
+import type {AppView, RendererAppContext} from '@core/types/app';
+
+interface ViewRouterOptions {
+    app: RendererAppContext;
+}
+
 export class ViewRouter {
-    constructor({app}) {
+    private readonly app: RendererAppContext;
+
+    constructor({app}: ViewRouterOptions) {
         this.app = app;
     }
 
-    async handleViewChange(view) {
+    async handleViewChange(view: AppView): Promise<void> {
         const app = this.app;
         const components = app.components;
 
@@ -54,7 +62,7 @@ export class ViewRouter {
         }
     }
 
-    hideAllPages() {
+    hideAllPages(): void {
         const components = this.app.components;
 
         if (components.homePage) components.homePage.hide();
@@ -67,7 +75,7 @@ export class ViewRouter {
         if (components.trackList) components.trackList.hide();
     }
 
-    updateSidebarSelection(type, id = null) {
+    updateSidebarSelection(type: string, id: string | null = null): void {
         document.querySelectorAll('.sidebar-link, .playlist-sidebar-item, .network-drive-sidebar-item').forEach(item => {
             item.classList.remove('active');
         });

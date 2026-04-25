@@ -17,7 +17,7 @@
     "fuse.js": "^6.6.2"
   },
   "devDependencies": {
-    "@vitejs/plugin-legacy": "^7.2.1",
+    "@vitejs/plugin-legacy": "^8.0.1",
     "chokidar": "^3.6.0",
     "concurrently": "^7.6.0",
     "eslint": "9.26.0",
@@ -25,8 +25,8 @@
     "rimraf": "^4.1.2",
     "sass": "^1.58.3",
     "terser": "^5.16.6",
-    "typescript": "^5.7.2",
+    "typescript": "^6.0.3",
     "vite": "8.0.5",
-    "vite-plugin-static-copy": "^3.1.4"
+    "vite-plugin-static-copy": "^4.1.0"
   }
 }

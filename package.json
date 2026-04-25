@@ -32,27 +32,26 @@
   },
   "devDependencies": {
     "@types/electron": "^1.4.38",
-    "@types/node": "^25.5.0",
-    "cross-env": "^10.0.0",
+    "@types/node": "^25.6.0",
+    "cross-env": "^10.1.0",
     "electron": "41.2.1",
-    "electron-builder": "^24.0.0",
+    "electron-builder": "^26.8.1",
     "rimraf": "^4.1.2",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "ts-node": "^10.9.2"
   },
   "engines": {
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "adm-zip": "^0.5.16",
-    "chardet": "^2.1.0",
+    "adm-zip": "^0.5.17",
+    "chardet": "^2.1.1",
     "electron-icon-builder": "^2.0.1",
     "fuse.js": "^6.6.2",
-    "iconv-lite": "^0.6.3",
+    "iconv-lite": "^0.7.2",
     "music-metadata": "11.12.3",
     "node-id3": "^0.2.9",
-    "node-smb2": "^1.3.3",
+    "node-smb2": "^1.3.5",
     "pidusage": "^4.0.1",
-    "webdav": "^5.8.0"
+    "webdav": "^5.9.0"
   }
 }

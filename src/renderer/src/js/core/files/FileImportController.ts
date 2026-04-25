@@ -1,13 +1,24 @@
-import {showToast} from '@utils';
+import {showToast} from '@utils/index.js';
 import {api} from "@api/api";
 import {fileAPI, libraryAPI} from "@js/api";
+import type {RendererAppContext} from '@core/types/app';
+
+interface FileImportControllerOptions {
+    app: RendererAppContext;
+}
+
+interface LocalAudioFile extends File {
+    path: string;
+}
 
 export class FileImportController {
-    constructor({app}) {
+    private readonly app: RendererAppContext;
+
+    constructor({app}: FileImportControllerOptions) {
         this.app = app;
     }
 
-    async scanMusicFolder() {
+    async scanMusicFolder(): Promise<void> {
         try {
             const folderPath = await fileAPI.openDirectory();
             if (folderPath) {
@@ -24,7 +35,7 @@ export class FileImportController {
         }
     }
 
-    async addMusicFiles() {
+    async addMusicFiles(): Promise<void> {
         try {
             const filePaths = await fileAPI.openFiles();
             if (filePaths.length > 0) {
@@ -51,13 +62,17 @@ export class FileImportController {
         }
     }
 
-    setupFileLoading() {
-        this.app.addManagedEventListener(document, 'dragover', (e) => {
+    setupFileLoading(): void {
+        this.app.addManagedEventListener(document, 'dragover', (event) => {
+            const e = event as DragEvent;
             e.preventDefault();
-            e.dataTransfer.dropEffect = 'copy';
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = 'copy';
+            }
         });
 
-        this.app.addManagedEventListener(document, 'drop', async (e) => {
+        this.app.addManagedEventListener(document, 'drop', async (event) => {
+            const e = event as DragEvent;
             e.preventDefault();
             await this.handleFileDrop(e);
         });
@@ -65,8 +80,8 @@ export class FileImportController {
         this.addFileMenuItems();
     }
 
-    async handleFileDrop(e) {
-        const files = Array.from(e.dataTransfer.files);
+    async handleFileDrop(e: DragEvent): Promise<void> {
+        const files = Array.from(e.dataTransfer?.files || []) as LocalAudioFile[];
         const audioFiles = files.filter(file =>
             file.type.startsWith('audio/') ||
             /\.(mp3|wav|flac|ogg|m4a|aac)$/i.test(file.name)
@@ -74,14 +89,17 @@ export class FileImportController {
 
         if (audioFiles.length > 0) {
             if (audioFiles.length === 1) {
-                await this.loadAndPlayFile(audioFiles[0].path);
+                const filePath = audioFiles[0].path;
+                if (filePath) {
+                    await this.loadAndPlayFile(filePath);
+                }
             } else {
                 await this.addFilesToPlaylist(audioFiles);
             }
         }
     }
 
-    async openDirectoryDialog() {
+    async openDirectoryDialog(): Promise<void> {
         try {
             const directory = await fileAPI.openDirectoryDialog();
             if (directory) {
@@ -92,7 +110,7 @@ export class FileImportController {
         }
     }
 
-    async loadAndPlayFile(filePath) {
+    async loadAndPlayFile(filePath: string): Promise<void> {
         try {
             const success = await api.loadTrack(filePath);
             if (success) {
@@ -106,10 +124,14 @@ export class FileImportController {
         }
     }
 
-    async addFilesToPlaylist(files) {
+    async addFilesToPlaylist(files: Array<LocalAudioFile | string>): Promise<void> {
         try {
             if (files.length > 0) {
-                await this.loadAndPlayFile(files[0].path || files[0]);
+                const firstFile = files[0];
+                const filePath = typeof firstFile === 'string' ? firstFile : firstFile.path;
+                if (filePath) {
+                    await this.loadAndPlayFile(filePath);
+                }
             }
             this.app.showSuccess(`Added ${files.length} files to playlist`);
         } catch (error) {
@@ -118,7 +140,7 @@ export class FileImportController {
         }
     }
 
-    async scanDirectory(directoryPath) {
+    async scanDirectory(directoryPath: string): Promise<void> {
         try {
             this.app.showInfo('扫描音乐文件...');
             const success = await api.scanDirectory(directoryPath);
@@ -133,8 +155,8 @@ export class FileImportController {
         }
     }
 
-    addFileMenuItems() {
-        const searchInput = document.getElementById('search-input');
+    addFileMenuItems(): void {
+        const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
         if (searchInput) {
             searchInput.placeholder = '搜索... (Ctrl+O 添加音乐, Ctrl+Shift+O 添加音乐目录)';
         }

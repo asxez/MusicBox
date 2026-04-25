@@ -5,7 +5,7 @@
     "lib": ["ES2022"],
     "outDir": "../../dist/main",
     "rootDir": ".",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -18,8 +18,7 @@
     "noFallthroughCasesInSwitch": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "allowJs": true,
-    "baseUrl": ".",
+    "allowJs": false,
     "paths": {}
   },
   "include": ["**/*.ts", "**/*.js"],

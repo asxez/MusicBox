@@ -2,11 +2,11 @@ import {EventEmitter, showToast} from '@utils';
 
 import {ComponentRegistry} from './components/ComponentRegistry.js';
 import {ComponentEventBinder} from './components/ComponentEventBinder.js';
-import {DOMEventBinder} from './events/DOMEventBinder.js';
-import {APIEventBinder} from './events/APIEventBinder.js';
-import {ViewRouter} from './navigation/ViewRouter.js';
-import {ShortcutController} from './keyboard/ShortcutController.js';
-import {FileImportController} from './files/FileImportController.js';
+import {DOMEventBinder} from './events/DOMEventBinder';
+import {APIEventBinder} from './events/APIEventBinder';
+import {ViewRouter} from './navigation/ViewRouter';
+import {ShortcutController} from './keyboard/ShortcutController';
+import {FileImportController} from './files/FileImportController';
 import {PluginBootstrap} from './plugins/PluginBootstrap.js';
 import {LibraryController} from './library/LibraryController.js';
 import {PlaybackController} from './playback/PlaybackController.js';

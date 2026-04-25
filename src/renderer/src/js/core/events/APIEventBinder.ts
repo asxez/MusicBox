@@ -1,16 +1,27 @@
 import {api} from "@api/api";
+import type {MusicBoxAPIEvents} from '@api/types/events';
+import type {ManagedAPIListener, RendererAppContext} from '@core/types/app';
+
+interface APIEventBinderOptions {
+    apiEventListeners: ManagedAPIListener[];
+}
 
 export class APIEventBinder {
-    constructor({apiEventListeners}) {
+    private readonly apiEventListeners: ManagedAPIListener[];
+
+    constructor({apiEventListeners}: APIEventBinderOptions) {
         this.apiEventListeners = apiEventListeners;
     }
 
-    addManagedAPIEventListener(event, handler) {
+    addManagedAPIEventListener<K extends keyof MusicBoxAPIEvents>(
+        event: K,
+        handler: (payload: MusicBoxAPIEvents[K]) => void | Promise<void>
+    ): void {
         api.on(event, handler);
-        this.apiEventListeners.push({event, handler});
+        this.apiEventListeners.push({event, handler} as ManagedAPIListener);
     }
 
-    dispose() {
+    dispose(): void {
         this.apiEventListeners.forEach(({event, handler}) => {
             try {
                 api.off(event, handler);
@@ -21,8 +32,8 @@ export class APIEventBinder {
         this.apiEventListeners.length = 0;
     }
 
-    bindAppEvents(app) {
-        this.addManagedAPIEventListener('libraryUpdated', async (_data) => {
+    bindAppEvents(app: RendererAppContext): void {
+        this.addManagedAPIEventListener('libraryUpdated', async () => {
             await app.refreshLibrary();
         });
 

@@ -1,18 +1,36 @@
 import {api} from "@api/api";
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
+import type {RendererAppContext} from '@core/types/app';
+
+interface ShortcutControllerOptions {
+    app: RendererAppContext;
+}
+
+interface ShortcutDefinition {
+    id: string;
+    name: string;
+    key: string;
+    enabled?: boolean;
+}
+
+type ShortcutMap = Record<string, ShortcutDefinition>;
 
 export class ShortcutController {
-    constructor({app}) {
+    private readonly app: RendererAppContext;
+
+    constructor({app}: ShortcutControllerOptions) {
         this.app = app;
     }
 
-    initKeyboardShortcuts() {
+    initKeyboardShortcuts(): void {
         let lastKeyTime = 0;
         const debounceDelay = 200;
 
-        this.app.addManagedEventListener(document, 'keydown', async (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        this.app.addManagedEventListener(document, 'keydown', async (event) => {
+            const e = event as KeyboardEvent;
+            const target = e.target as HTMLElement | null;
+            if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') {
                 return;
             }
 
@@ -46,7 +64,7 @@ export class ShortcutController {
         });
     }
 
-    getActivePlayer() {
+    getActivePlayer(): any | null {
         const components = this.app.components;
 
         if (components.lyrics && components.lyrics.isVisible) {
@@ -61,8 +79,8 @@ export class ShortcutController {
         return null;
     }
 
-    generateKeyString(event) {
-        const keys = [];
+    generateKeyString(event: KeyboardEvent): string {
+        const keys: string[] = [];
 
         if (event.ctrlKey) keys.push('Ctrl');
         if (event.altKey) keys.push('Alt');
@@ -74,7 +92,7 @@ export class ShortcutController {
         return keys.join('+');
     }
 
-    normalizeKey(event) {
+    normalizeKey(event: KeyboardEvent): string | null {
         const key = event.key;
 
         if (key === ' ') return 'Space';
@@ -98,11 +116,11 @@ export class ShortcutController {
         return null;
     }
 
-    getEnabledShortcuts() {
-        return shortcutConfig.getEnabledLocalShortcuts();
+    getEnabledShortcuts(): ShortcutMap {
+        return shortcutConfig.getEnabledLocalShortcuts() as ShortcutMap;
     }
 
-    findMatchingShortcut(pressedKey, shortcuts) {
+    findMatchingShortcut(pressedKey: string, shortcuts: ShortcutMap): ShortcutDefinition | null {
         for (const [_id, shortcut] of Object.entries(shortcuts)) {
             if (shortcut.key === pressedKey) {
                 return shortcut;
@@ -111,11 +129,11 @@ export class ShortcutController {
         return null;
     }
 
-    async executeShortcutAction(shortcutId) {
+    async executeShortcutAction(shortcutId: string): Promise<void> {
         const components = this.app.components;
 
         switch (shortcutId) {
-            case 'playPause':
+            case 'playPause': {
                 const player = this.getActivePlayer();
                 if (player && typeof player.togglePlayPause === 'function') {
                     await player.togglePlayPause();
@@ -123,6 +141,7 @@ export class ShortcutController {
                     console.warn('⚠️ 未找到活跃的播放器组件');
                 }
                 break;
+            }
 
             case 'previousTrack':
                 await api.previousTrack();
@@ -132,15 +151,17 @@ export class ShortcutController {
                 await api.nextTrack();
                 break;
 
-            case 'volumeUp':
-                const currentVolume = await api.getVolume();
+            case 'volumeUp': {
+                const currentVolume = api.getVolume();
                 await api.setVolume(Math.min(1, currentVolume + 0.01));
                 break;
+            }
 
-            case 'volumeDown':
-                const volume = await api.getVolume();
+            case 'volumeDown': {
+                const volume = api.getVolume();
                 await api.setVolume(Math.max(0, volume - 0.01));
                 break;
+            }
 
             case 'search':
                 document.getElementById('search-input')?.focus();
@@ -159,7 +180,7 @@ export class ShortcutController {
                     if (components.lyrics.isVisible) {
                         components.lyrics.hide();
                     } else {
-                        const currentTrack = api.getCurrentTrack();
+                        const currentTrack = api.currentTrack;
                         if (currentTrack) {
                             await components.lyrics.show(currentTrack);
                         }
@@ -188,7 +209,7 @@ export class ShortcutController {
         }
     }
 
-    async handleSystemShortcuts(e) {
+    async handleSystemShortcuts(e: KeyboardEvent): Promise<void> {
         if (e.ctrlKey || e.metaKey) {
             switch (e.key) {
                 case 'o':
@@ -203,11 +224,11 @@ export class ShortcutController {
         }
     }
 
-    async initGlobalShortcuts() {
+    async initGlobalShortcuts(): Promise<void> {
         await shortcutConfig.initializeGlobalShortcuts();
 
         this.app.addManagedEventListener(window, 'globalShortcutTriggered', (event) => {
-            const {shortcutId} = event.detail;
+            const {shortcutId} = (event as CustomEvent<{shortcutId: string}>).detail;
             this.executeShortcutAction(shortcutId);
         });
     }
