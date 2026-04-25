@@ -4,7 +4,129 @@
 
 import {embeddedCoverManager} from "@services/cover/EmbeddedCoverManager";
 
+type TrackSource = any;
+
+interface TrackSourceShape {
+    filePath?: string;
+    path?: string;
+    title?: string;
+    artist?: string;
+    album?: string;
+    duration?: number;
+    cover?: unknown;
+    [key: string]: unknown;
+}
+
+interface WebAudioTrack {
+    filePath: string;
+    title?: string;
+    artist?: string;
+    album?: string;
+    duration: number;
+    bitrate?: number;
+    sampleRate?: number;
+    year?: number;
+    genre?: string;
+    track?: number;
+    disc?: number;
+    cover?: unknown;
+    [key: string]: unknown;
+}
+
+interface CoverData {
+    data?: BlobPart;
+    format?: string;
+    [key: string]: unknown;
+}
+
+interface TrackMetadata {
+    title?: string;
+    artist?: string;
+    album?: string;
+    duration?: number;
+    bitrate?: number;
+    sampleRate?: number;
+    year?: number;
+    genre?: string;
+    track?: number;
+    disc?: number;
+    cover?: unknown;
+    [key: string]: unknown;
+}
+
+interface ReadAudioFileBridge {
+    readAudioFile?(filePath: string): Promise<ArrayBuffer>;
+}
+
+function getTrackFilePath(track: TrackSource | null): string | null {
+    if (!track) {
+        return null;
+    }
+
+    if (typeof track === 'string') {
+        return track;
+    }
+
+    const trackObject = track as TrackSourceShape;
+    return trackObject.filePath || trackObject.path || null;
+}
+
+function getTrackTitle(track: TrackSource): string | undefined {
+    return typeof track === 'string' ? undefined : (track as TrackSourceShape).title;
+}
+
+function getTrackDuration(track: TrackSource): number | undefined {
+    return typeof track === 'string' ? undefined : (track as TrackSourceShape).duration;
+}
+
+function normalizeTrack(track: TrackSource, filePath: string, duration: number): WebAudioTrack {
+    if (typeof track === 'string') {
+        return {
+            filePath,
+            duration
+        };
+    }
+
+    return {
+        ...(typeof track === 'string' ? {} : track),
+        filePath,
+        duration
+    };
+}
+
 class WebAudioEngine {
+    public audioContext: any;
+    private audioBuffer: any;
+    private sourceNode: any;
+    private gainNode: any;
+    public isPlaying: boolean;
+    public isPaused: boolean;
+    private startTime: number;
+    private pauseTime: number;
+    public duration: number;
+    private volume: number;
+    public currentTrack: WebAudioTrack | null;
+    public playlist: TrackSource[];
+    public currentIndex: number;
+    private equalizer: any;
+    private equalizerEnabled: boolean;
+    private onEqualizerChanged: ((state: {enabled: boolean}) => void) | null;
+    public onTrackChanged: ((track: WebAudioTrack | null) => void | Promise<void>) | null;
+    public onPlaybackStateChanged: ((isPlaying: boolean) => void | Promise<void>) | null;
+    public onPositionChanged: ((position: number) => void | Promise<void>) | null;
+    public onVolumeChanged: ((volume: number) => void) | null;
+    public getNextTrackIndex: (() => number) | null;
+    public getPreviousTrackIndex: (() => number) | null;
+    private progressTimer: ReturnType<typeof setInterval> | null;
+    private coverObjectUrls: Set<string>;
+    private gaplessPlaybackEnabled: boolean;
+    private nextAudioBuffer: any;
+    private nextTrackInfo: any;
+    private isPreloading: boolean;
+    private preloadPromise: Promise<boolean> | null;
+    private isWindowVisible: boolean;
+    private memoryCleanupTimer: ReturnType<typeof setTimeout> | null;
+
     constructor() {
         this.audioContext = null;
         this.audioBuffer = null;
@@ -53,7 +175,7 @@ class WebAudioEngine {
         this.memoryCleanupTimer = null;
     }
 
-    async initialize() {
+    async initialize(): Promise<boolean> {
         try {
             // 初始化窗口可见性监听
             this.initVisibilityListener();
@@ -69,16 +191,17 @@ class WebAudioEngine {
         }
     }
 
-    async loadTrack(filePath) {
+    async loadTrack(filePath: string): Promise<boolean> {
         try {
             this.stop();
 
             // 清理旧的音频缓冲区以释放内存
             this.clearCurrentAudioBuffer();
 
-            let arrayBuffer;
-            if (window.electronAPI && window.electronAPI.readAudioFile) {
-                arrayBuffer = await window.electronAPI.readAudioFile(filePath);
+            let arrayBuffer: ArrayBuffer | null;
+            const electronAPI = window.electronAPI as typeof window.electronAPI & ReadAudioFileBridge;
+            if (electronAPI && electronAPI.readAudioFile) {
+                arrayBuffer = await electronAPI.readAudioFile(filePath);
             } else {
                 const fileUrl = filePath.startsWith('file://') ? filePath : `file:///${filePath.replace(/\\/g, '/')}`;
                 const response = await fetch(fileUrl);
@@ -98,19 +221,20 @@ class WebAudioEngine {
             this.duration = (metadata.duration && metadata.duration > 0) ? metadata.duration : webAudioDuration;
 
             // 处理内嵌封面
-            let coverUrl = null;
-            if (metadata.cover && metadata.cover.data) {
+            let coverUrl: string | null = null;
+            const embeddedCover = metadata.cover as CoverData | undefined;
+            if (embeddedCover?.data) {
                 try {
                     if (embeddedCoverManager) {
-                        const coverResult = embeddedCoverManager.convertCoverToUrl(metadata.cover);
+                        const coverResult = embeddedCoverManager.convertCoverToUrl(embeddedCover as any);
                         if (coverResult.success && typeof coverResult.url === 'string') {
                             coverUrl = coverResult.url;
                             this.coverObjectUrls.add(coverUrl);
                         }
                     } else {
                         // 直接处理封面数据
-                        const coverBlob = new Blob([metadata.cover.data], {
-                            type: `image/${metadata.cover.format.toLowerCase()}`
+                        const coverBlob = new Blob([embeddedCover.data], {
+                            type: `image/${(embeddedCover.format || 'jpeg').toLowerCase()}`
                         });
                         coverUrl = URL.createObjectURL(coverBlob);
                         this.coverObjectUrls.add(coverUrl);
@@ -158,7 +282,7 @@ class WebAudioEngine {
     }
 
     // 播放音频
-    async play() {
+    async play(): Promise<boolean> {
         try {
             if (!this.audioBuffer) {
                 return false;
@@ -256,7 +380,7 @@ class WebAudioEngine {
     }
 
     // 暂停播放
-    async pause() {
+    async pause(): Promise<boolean> {
         try {
             if (!this.isPlaying && !this.sourceNode) {
                 console.log('⚠️ 音频未在播放且无音频源，无法暂停');
@@ -313,7 +437,7 @@ class WebAudioEngine {
     }
 
     // 停止播放
-    stop() {
+    stop(): boolean {
         try {
             // 停止音频源（不触发onended事件）
             if (this.sourceNode) {
@@ -363,7 +487,7 @@ class WebAudioEngine {
     }
 
     // 清理封面对象URL
-    cleanupCoverUrls() {
+    cleanupCoverUrls(): void {
         for (const url of this.coverObjectUrls) {
             try {
                 URL.revokeObjectURL(url);
@@ -375,7 +499,7 @@ class WebAudioEngine {
     }
 
     // 跳转到指定位置
-    async seek(position) {
+    async seek(position: number): Promise<boolean> {
         try {
             if (!this.audioBuffer) {
                 return false;
@@ -421,7 +545,7 @@ class WebAudioEngine {
     }
 
     // 设置音量
-    setVolume(volume) {
+    setVolume(volume: number): boolean {
         try {
             this.volume = Math.max(0, Math.min(1, volume));
 
@@ -445,12 +569,12 @@ class WebAudioEngine {
     }
 
     // 获取当前音量
-    getVolume() {
+    getVolume(): number {
         return this.volume;
     }
 
     // 设置无间隙播放状态
-    setGaplessPlayback(enabled) {
+    setGaplessPlayback(enabled: boolean): void {
         this.gaplessPlaybackEnabled = enabled;
         console.log(`🎵 WebAudioEngine: 无间隙播放${enabled ? '启用' : '禁用'}`);
 
@@ -461,12 +585,12 @@ class WebAudioEngine {
     }
 
     // 获取无间隙播放状态
-    getGaplessPlayback() {
+    getGaplessPlayback(): boolean {
         return this.gaplessPlaybackEnabled;
     }
 
     // 获取当前播放位置
-    async getPosition() {
+    async getPosition(): Promise<number> {
         if (!this.isPlaying && !this.isPaused) {
             return 0;
         }
@@ -479,17 +603,17 @@ class WebAudioEngine {
     }
 
     // 获取音频时长
-    getDuration() {
+    getDuration(): number {
         return this.duration;
     }
 
     // 获取当前歌曲信息
-    getCurrentTrack() {
+    getCurrentTrack(): WebAudioTrack | null {
         return this.currentTrack;
     }
 
     // 设置播放列表
-    setPlaylist(tracks, startIndex = -1) {
+    setPlaylist(tracks: TrackSource[], startIndex = -1): boolean {
         this.playlist = tracks;
         this.currentIndex = startIndex; // 设置起始索引
 
@@ -511,7 +635,7 @@ class WebAudioEngine {
     }
 
     // 清理当前音频缓冲区
-    clearCurrentAudioBuffer() {
+    clearCurrentAudioBuffer(): void {
         if (this.audioBuffer) {
             this.audioBuffer = null;
 
@@ -523,7 +647,7 @@ class WebAudioEngine {
     }
 
     // 清理下一首歌曲的缓冲区
-    clearNextTrackBuffer() {
+    clearNextTrackBuffer(): void {
         if (this.nextAudioBuffer) {
             this.nextAudioBuffer = null;
             this.nextTrackInfo = null;
@@ -536,7 +660,7 @@ class WebAudioEngine {
     }
 
     // 预加载下一首歌曲
-    async preloadNextTrack(nextIndex = null) {
+    async preloadNextTrack(nextIndex: number | null = null): Promise<boolean> {
         if (!this.gaplessPlaybackEnabled || this.playlist.length <= 1) {
             return false;
         }
@@ -560,15 +684,15 @@ class WebAudioEngine {
             return false;
         }
 
-        const filePath = nextTrackInfo.filePath || nextTrackInfo.path || nextTrackInfo;
+        const filePath = getTrackFilePath(nextTrackInfo);
         if (!filePath) {
             console.warn('⚠️ 下一首歌曲文件路径为空');
             return false;
         }
 
         // 若已预加载了相同歌曲，直接返回
-        if (this.nextTrackInfo && this.nextTrackInfo.filePath === filePath && this.nextAudioBuffer) {
-            console.log('✅ 下一首歌曲已预加载:', nextTrackInfo.title || filePath);
+        if (this.nextTrackInfo && getTrackFilePath(this.nextTrackInfo) === filePath && this.nextAudioBuffer) {
+            console.log('✅ 下一首歌曲已预加载:', getTrackTitle(nextTrackInfo) || filePath);
             return true;
         }
 
@@ -583,11 +707,12 @@ class WebAudioEngine {
     }
 
     // 加载下一首歌曲的音频缓冲区
-    async loadNextTrackBuffer(filePath, trackInfo) {
+    async loadNextTrackBuffer(filePath: string, trackInfo: TrackSource): Promise<boolean> {
         try {
-            console.log(`🔄 预加载下一首歌曲: ${trackInfo.title || filePath}`);
+            console.log(`🔄 预加载下一首歌曲: ${getTrackTitle(trackInfo) || filePath}`);
 
-            let arrayBuffer = await window.electronAPI.readAudioFile(filePath);
+            const electronAPI = window.electronAPI as typeof window.electronAPI & ReadAudioFileBridge;
+            let arrayBuffer: ArrayBuffer | null = await electronAPI.readAudioFile!(filePath);
             this.nextAudioBuffer = await this.audioContext.decodeAudioData(arrayBuffer); // 解码
 
             // 清理arrayBuffer引用以释放内存
@@ -598,7 +723,7 @@ class WebAudioEngine {
                 duration: this.nextAudioBuffer.duration
             };
 
-            console.log(`✅ 下一首歌曲预加载完成: ${trackInfo.title || filePath}`);
+            console.log(`✅ 下一首歌曲预加载完成: ${getTrackTitle(trackInfo) || filePath}`);
             return true;
         } catch (error) {
             console.error('❌ 预加载下一首歌曲失败:', error);
@@ -608,7 +733,7 @@ class WebAudioEngine {
     }
 
     // 播放下一首
-    async nextTrack(nextIndex = null) {
+    async nextTrack(nextIndex: number | null = null): Promise<boolean> {
         if (this.playlist.length === 0) {
             console.log('⚠️ 播放列表为空');
             return false;
@@ -638,20 +763,20 @@ class WebAudioEngine {
         const nextTrack = this.playlist[this.currentIndex];
 
         // 获取文件路径，支持多种数据结构
-        const filePath = nextTrack.filePath || nextTrack.path || nextTrack;
+        const filePath = getTrackFilePath(nextTrack);
 
         if (!filePath) {
             console.error('❌ 下一首歌曲文件路径为空:', nextTrack);
             return false;
         }
 
-        console.log(`⏭️ 切换到下一首 (索引 ${this.currentIndex}): ${nextTrack.title || filePath}`);
+        console.log(`⏭️ 切换到下一首 (索引 ${this.currentIndex}): ${getTrackTitle(nextTrack) || filePath}`);
 
         // 若启用无间隙播放且已预加载，检查预加载的歌曲是否与当前要播放的歌曲一致
         const canUsePreloadedBuffer = this.gaplessPlaybackEnabled &&
             this.nextAudioBuffer &&
             this.nextTrackInfo &&
-            this.nextTrackInfo.filePath === filePath;
+            getTrackFilePath(this.nextTrackInfo) === filePath;
 
         if (canUsePreloadedBuffer) {
             console.log('🎵 使用预加载的音频缓冲区进行无间隙播放');
@@ -660,8 +785,8 @@ class WebAudioEngine {
 
             // 使用预加载的缓冲区
             this.audioBuffer = this.nextAudioBuffer;
-            this.duration = this.nextTrackInfo.duration;
-            this.currentTrack = this.nextTrackInfo;
+            this.duration = getTrackDuration(this.nextTrackInfo) || this.nextAudioBuffer.duration;
+            this.currentTrack = normalizeTrack(this.nextTrackInfo, filePath, this.duration);
 
             // 清理预加载的资源
             this.clearNextTrackBuffer();
@@ -683,7 +808,7 @@ class WebAudioEngine {
             return playResult;
         } else {
             // 普通加载方式（预加载不可用或预加载的歌曲不匹配）
-            if (this.nextAudioBuffer && this.nextTrackInfo && this.nextTrackInfo.filePath !== filePath) {
+            if (this.nextAudioBuffer && this.nextTrackInfo && getTrackFilePath(this.nextTrackInfo) !== filePath) {
                 console.log('⚠️ 预加载的歌曲与目标歌曲不一致，清理预加载缓冲区');
                 this.clearNextTrackBuffer();
             }
@@ -709,7 +834,7 @@ class WebAudioEngine {
     }
 
     // 播放上一首
-    async previousTrack(prevIndex = null) {
+    async previousTrack(prevIndex: number | null = null): Promise<boolean> {
         if (this.playlist.length === 0) {
             console.log('⚠️ 播放列表为空');
             return false;
@@ -739,14 +864,14 @@ class WebAudioEngine {
         const prevTrack = this.playlist[this.currentIndex];
 
         // 获取文件路径，支持多种数据结构
-        const filePath = prevTrack.filePath || prevTrack.path || prevTrack;
+        const filePath = getTrackFilePath(prevTrack);
 
         if (!filePath) {
             console.error('❌ 上一首歌曲文件路径为空:', prevTrack);
             return false;
         }
 
-        console.log(`⏮️ 切换到上一首 (索引 ${this.currentIndex}): ${prevTrack.title || filePath}`);
+        console.log(`⏮️ 切换到上一首 (索引 ${this.currentIndex}): ${getTrackTitle(prevTrack) || filePath}`);
 
         const loadResult = await this.loadTrack(filePath);
         if (loadResult) {
@@ -763,7 +888,7 @@ class WebAudioEngine {
         return false;
     }
 
-    async getTrackMetadata(filePath) {
+    async getTrackMetadata(filePath: string): Promise<TrackMetadata> {
         // console.log('🔄 从主进程获取音频元数据...');
         const metadata = await window.electronAPI.library.getTrackMetadata(filePath);
         if (metadata) {
@@ -782,10 +907,11 @@ class WebAudioEngine {
                 cover: metadata.cover
             };
         }
+        return {};
     }
 
     // 歌曲播放结束处理
-    onTrackEnded() {
+    onTrackEnded(): void {
         // console.log('🔚 歌曲播放结束');
         this.isPlaying = false;
         this.isPaused = false;
@@ -807,7 +933,7 @@ class WebAudioEngine {
     }
 
     // 开始进度更新定时器
-    startProgressTimer() {
+    startProgressTimer(): void {
         this.stopProgressTimer();
         this.progressTimer = setInterval(async () => {
             if (this.isPlaying && this.onPositionChanged) {
@@ -817,7 +943,7 @@ class WebAudioEngine {
     }
 
     // 停止进度更新定时器
-    stopProgressTimer() {
+    stopProgressTimer(): void {
         if (this.progressTimer) {
             clearInterval(this.progressTimer);
             this.progressTimer = null;
@@ -825,7 +951,7 @@ class WebAudioEngine {
     }
 
     // 初始化均衡器
-    initializeEqualizer() {
+    initializeEqualizer(): void {
         if (!this.audioContext) {
             console.error('❌ 音频上下文未初始化，无法创建均衡器');
             return;
@@ -834,12 +960,12 @@ class WebAudioEngine {
     }
 
     // 获取均衡器实例
-    getEqualizer() {
+    getEqualizer(): AudioEqualizer | null {
         return this.equalizer;
     }
 
     // 启用/禁用均衡器
-    setEqualizerEnabled(enabled) {
+    setEqualizerEnabled(enabled: boolean): void {
         // 如果状态没有变化，直接返回
         if (this.equalizerEnabled === enabled) {
             return;
@@ -859,7 +985,7 @@ class WebAudioEngine {
     }
 
     // 连接音频源到音频链
-    connectSourceToChain() {
+    connectSourceToChain(): void {
         console.log('🔗 开始连接音频源到音频链...');
         if (!this.sourceNode) {
             console.warn('⚠️ sourceNode不存在，无法连接音频链');
@@ -869,8 +995,8 @@ class WebAudioEngine {
         // 确保gainNode连接到destination
         try {
             // 检查gainNode是否已连接到destination，如果没有则连接
-            this.gainNode.disconnect();
-            this.gainNode.connect(this.audioContext.destination);
+            this.gainNode?.disconnect();
+            this.gainNode?.connect(this.audioContext!.destination);
             console.log('✅ gainNode -> destination 连接确保');
         } catch (error) {
             console.warn('⚠️ gainNode连接确保失败:', error);
@@ -882,7 +1008,7 @@ class WebAudioEngine {
             try {
                 // 确保均衡器输出连接到gainNode
                 this.equalizer.output.disconnect();
-                this.equalizer.output.connect(this.gainNode);
+                this.equalizer.output.connect(this.gainNode!);
                 console.log('✅ equalizer.output -> gainNode 连接确保');
 
                 // 音频源 -> 均衡器输入
@@ -893,7 +1019,7 @@ class WebAudioEngine {
                 console.error('❌ 均衡器音频链连接失败:', error);
                 // 回退到直接连接
                 try {
-                    this.sourceNode.connect(this.gainNode);
+                    this.sourceNode.connect(this.gainNode!);
                     console.log('🔄 回退到直接连接: sourceNode -> gainNode');
                 } catch (fallbackError) {
                     console.error('❌ 回退连接也失败:', fallbackError);
@@ -903,7 +1029,7 @@ class WebAudioEngine {
             console.log('🔗 使用直接路径: sourceNode -> gainNode -> destination');
             try {
                 // 音频源 -> 增益节点
-                this.sourceNode.connect(this.gainNode);
+                this.sourceNode.connect(this.gainNode!);
                 console.log('✅ sourceNode -> gainNode 连接成功');
             } catch (error) {
                 console.error('❌ 直接音频链连接失败:', error);
@@ -912,7 +1038,7 @@ class WebAudioEngine {
     }
 
     // 重新连接音频链 - 支持实时切换
-    reconnectAudioChain() {
+    reconnectAudioChain(): boolean {
         console.log('🔄 开始重新连接音频链（实时切换模式）...');
 
         if (!this.audioContext || !this.gainNode) {
@@ -948,7 +1074,7 @@ class WebAudioEngine {
         try {
             // 先断开所有连接，然后重新建立到destination的连接
             this.gainNode.disconnect();
-            this.gainNode.connect(this.audioContext.destination);
+                this.gainNode.connect(this.audioContext.destination);
         } catch (error) {
             console.warn('⚠️ gainNode重连失败:', error);
         }
@@ -991,7 +1117,7 @@ class WebAudioEngine {
     }
 
     // 初始化窗口可见性监听
-    initVisibilityListener() {
+    initVisibilityListener(): void {
         try {
             // 监听页面可见性变化
             document.addEventListener('visibilitychange', async () => {
@@ -1014,7 +1140,7 @@ class WebAudioEngine {
     }
 
     // 处理窗口可见性变化
-    async handleVisibilityChange() {
+    async handleVisibilityChange(): Promise<void> {
         if (document.hidden) {
             this.isWindowVisible = false;
             this.handleWindowHidden();
@@ -1025,18 +1151,18 @@ class WebAudioEngine {
     }
 
     // 处理窗口隐藏（最小化或隐藏到托盘）
-    handleWindowHidden() {
+    handleWindowHidden(): void {
         this.scheduleMemoryCleanup();
     }
 
     // 处理窗口显示
-    async handleWindowVisible() {
+    async handleWindowVisible(): Promise<void> {
         this.cancelScheduledMemoryCleanup();
         await this.forceGarbageCollection();
     }
 
     // 调度内存清理
-    scheduleMemoryCleanup() {
+    scheduleMemoryCleanup(): void {
         // 取消之前的清理任务
         this.cancelScheduledMemoryCleanup();
 
@@ -1047,7 +1173,7 @@ class WebAudioEngine {
     }
 
     // 取消调度的内存清理
-    cancelScheduledMemoryCleanup() {
+    cancelScheduledMemoryCleanup(): void {
         if (this.memoryCleanupTimer) {
             clearTimeout(this.memoryCleanupTimer);
             this.memoryCleanupTimer = null;
@@ -1055,7 +1181,7 @@ class WebAudioEngine {
     }
 
     // 执行内存清理
-    async performMemoryCleanup() {
+    async performMemoryCleanup(): Promise<void> {
         if (this.isWindowVisible) {
             return;
         }
@@ -1071,13 +1197,14 @@ class WebAudioEngine {
     }
 
     // 强制垃圾回收
-    async forceGarbageCollection() {
-        if (typeof window.gc === 'function') {
-            window.gc();
+    async forceGarbageCollection(): Promise<void> {
+        const maybeWindowWithGc = window as Window & {gc?: () => void};
+        if (typeof maybeWindowWithGc.gc === 'function') {
+            maybeWindowWithGc.gc();
         }
     }
 
-    destroy() {
+    destroy(): void {
         this.stop();
         this.stopProgressTimer();
 
@@ -1109,7 +1236,18 @@ class WebAudioEngine {
 
 // 音频均衡器类
 class AudioEqualizer {
-    constructor(audioContext) {
+    private readonly audioContext: AudioContext;
+    private filters: BiquadFilterNode[];
+    public input: GainNode | null;
+    public output: GainNode | null;
+    private preampNode: GainNode | null;
+    private readonly frequencies: number[];
+    private readonly presets: Record<string, number[]>;
+    private gains: number[];
+    private qValues: number[];
+    private preampGain: number;
+
+    constructor(audioContext: AudioContext) {
         this.audioContext = audioContext;
         this.filters = [];
         this.input = null;
@@ -1147,7 +1285,7 @@ class AudioEqualizer {
     }
 
     // 初始化均衡器
-    initialize() {
+    initialize(): void {
         try {
             // 创建输入和输出节点
             this.input = this.audioContext.createGain();
@@ -1169,10 +1307,10 @@ class AudioEqualizer {
     }
 
     // 创建滤波器链
-    createFilterChain() {
+    createFilterChain(): void {
         console.log(`🔗 频段数量: ${this.frequencies.length}`);
 
-        let previousNode = this.preampNode;
+        let previousNode: AudioNode = this.preampNode!;
         console.log(`🔗 起始节点: preampNode (${!!this.preampNode})`);
 
         for (let i = 0; i < this.frequencies.length; i++) {
@@ -1212,7 +1350,7 @@ class AudioEqualizer {
 
         try {
             // 连接到输出
-            previousNode.connect(this.output);
+            previousNode.connect(this.output!);
             console.log(`✅ 最后一个滤波器连接到输出: filter${this.filters.length - 1} -> output`);
         } catch (error) {
             console.error('❌ 连接到输出失败:', error);
@@ -1223,7 +1361,7 @@ class AudioEqualizer {
     }
 
     // 设置频段增益
-    setBandGain(bandIndex, gain) {
+    setBandGain(bandIndex: number, gain: number): void {
         if (bandIndex < 0 || bandIndex >= this.frequencies.length) {
             console.error('❌ 无效的频段索引:', bandIndex, '有效范围: 0-' + (this.frequencies.length - 1));
             return;
@@ -1240,7 +1378,7 @@ class AudioEqualizer {
     }
 
     // 获取频段增益
-    getBandGain(bandIndex) {
+    getBandGain(bandIndex: number): number {
         if (bandIndex < 0 || bandIndex >= this.gains.length) {
             return 0;
         }
@@ -1248,7 +1386,7 @@ class AudioEqualizer {
     }
 
     // 设置所有频段增益
-    setAllGains(gains) {
+    setAllGains(gains: number[]): void {
         if (!Array.isArray(gains) || gains.length !== this.frequencies.length) {
             console.error('❌ 无效的增益数组');
             return;
@@ -1260,12 +1398,12 @@ class AudioEqualizer {
     }
 
     // 获取所有频段增益
-    getAllGains() {
+    getAllGains(): number[] {
         return [...this.gains];
     }
 
     // 设置前置增益 (dB)
-    setPreamp(gainDb) {
+    setPreamp(gainDb: number): void {
         this.preampGain = Math.max(-12, Math.min(12, gainDb));
         if (this.preampNode) {
             const linearGain = Math.pow(10, this.preampGain / 20);
@@ -1274,12 +1412,12 @@ class AudioEqualizer {
     }
 
     // 获取前置增益 (dB)
-    getPreamp() {
+    getPreamp(): number {
         return this.preampGain;
     }
 
     // 设置单个频段Q值
-    setBandQ(bandIndex, q) {
+    setBandQ(bandIndex: number, q: number): void {
         if (bandIndex < 0 || bandIndex >= this.frequencies.length) {
             return;
         }
@@ -1293,7 +1431,7 @@ class AudioEqualizer {
     }
 
     // 获取单个频段Q值
-    getBandQ(bandIndex) {
+    getBandQ(bandIndex: number): number {
         if (bandIndex < 0 || bandIndex >= this.qValues.length) {
             return 1.0;
         }
@@ -1301,12 +1439,12 @@ class AudioEqualizer {
     }
 
     // 获取所有Q值
-    getAllQValues() {
+    getAllQValues(): number[] {
         return [...this.qValues];
     }
 
     // 设置所有Q值
-    setAllQValues(qValues) {
+    setAllQValues(qValues: number[]): void {
         if (!Array.isArray(qValues) || qValues.length !== this.frequencies.length) {
             return;
         }
@@ -1318,13 +1456,11 @@ class AudioEqualizer {
 
     // 获取频率响应曲线数据
     // 可视化
-    getFrequencyResponse() {
+    getFrequencyResponse(): Array<{frequency: number; gain: number}> {
         const numPoints = 128;
-        const response = [];
+        const response: Array<{frequency: number; gain: number}> = [];
         const minFreq = 20;
         const maxFreq = 20000;
-        const sampleRate = this.audioContext.sampleRate;
-
         // 为每个滤波器获取频率响应
         const frequencies = new Float32Array(numPoints);
         for (let i = 0; i < numPoints; i++) {
@@ -1360,7 +1496,7 @@ class AudioEqualizer {
     }
 
     // 应用预设
-    applyPreset(presetName) {
+    applyPreset(presetName: string): boolean {
         if (!this.presets[presetName]) {
             console.error('❌ 未知的预设:', presetName);
             return false;
@@ -1370,19 +1506,19 @@ class AudioEqualizer {
     }
 
     // 获取可用预设列表
-    getPresetNames() {
+    getPresetNames(): string[] {
         return Object.keys(this.presets);
     }
 
     // 重置所有频段为平坦响应
-    reset() {
+    reset(): void {
         this.setAllGains([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
         this.setPreamp(0);
         this.setAllQValues([0.707, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.707]);
     }
 
     // 断开所有连接
-    disconnect() {
+    disconnect(): void {
         try {
             if (this.input) {
                 this.input.disconnect();
@@ -1408,7 +1544,7 @@ class AudioEqualizer {
         });
     }
 
-    destroy() {
+    destroy(): void {
         this.disconnect();
         this.filters = [];
         this.input = null;

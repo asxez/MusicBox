@@ -21,7 +21,8 @@ class EqualizerComponent extends Component {
         window.equalizerComponent = this;
     }
 
-    show() {
+    async show() {
+        await this.refreshEqualizerReference();
         this.modal.style.display = 'flex';
         requestAnimationFrame(() => {
             this.modal.classList.add('show');
@@ -89,7 +90,9 @@ class EqualizerComponent extends Component {
     }
 
     setupEventListeners() {
-        this.addEventListenerManaged(this.openBtn, 'click', () => this.show());
+        this.addEventListenerManaged(this.openBtn, 'click', () => {
+            this.show();
+        });
         this.addEventListenerManaged(this.closeBtn, 'click', () => this.hide());
         this.addEventListenerManaged(this.modal, 'click', (e) => {
             if (e.target === this.modal) {
@@ -178,11 +181,30 @@ class EqualizerComponent extends Component {
         }
     }
 
+    async refreshEqualizerReference() {
+        if (!api.getEqualizer) {
+            return false;
+        }
+
+        const latestEqualizer = api.getEqualizer();
+        if (!latestEqualizer) {
+            return false;
+        }
+
+        if (latestEqualizer !== this.equalizer) {
+            this.equalizer = latestEqualizer;
+            this.loadSettings();
+        }
+
+        return true;
+    }
+
     isVisible() {
         return this.modal.classList.contains('show');
     }
 
-    setEnabled(enabled) {
+    async setEnabled(enabled) {
+        await this.refreshEqualizerReference();
         // console.log(`🎛️ 设置均衡器状态: ${enabled} (当前状态: ${this.isEnabled})`);
 
         // 防止重复设置相同状态
@@ -221,6 +243,7 @@ class EqualizerComponent extends Component {
 
     // 应用预设
     async applyPreset(presetName) {
+        await this.refreshEqualizerReference();
         if (!this.equalizer) return;
 
         // 检查是否是自定义预设
@@ -242,6 +265,7 @@ class EqualizerComponent extends Component {
     }
 
     updateBandGain(bandIndex, gain) {
+        this.refreshEqualizerReference();
         // console.log(`🎛️ 调节频段 ${bandIndex}，增益: ${gain}dB`);
 
         if (!this.equalizer) {
@@ -270,6 +294,7 @@ class EqualizerComponent extends Component {
     }
 
     updatePreamp(gain) {
+        this.refreshEqualizerReference();
         if (!this.equalizer) {
             console.error('❌ 均衡器实例不存在');
             return;
