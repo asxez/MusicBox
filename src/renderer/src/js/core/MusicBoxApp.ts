@@ -1,4 +1,4 @@
-import {EventEmitter, showToast} from '@utils';
+import {EventEmitter, showToast} from '@utils/index.js';
 
 import {ComponentRegistry} from './components/ComponentRegistry';
 import {ComponentEventBinder} from './components/ComponentEventBinder';
@@ -16,8 +16,50 @@ import {cacheManager} from "@services/CacheManager";
 import {api} from "@api/api";
 
 import {updateAPI} from "@js/api";
+import type {MusicBoxAPIEvents, ScanProgress} from "@api/types/events";
+import type {Playlist} from "@api/types/playlist";
+import type {Track} from "@api/types/track";
+import type {
+    AppView,
+    ComponentMap,
+    ConfirmOptions,
+    ManagedAPIListener,
+    ManagedDOMListener
+} from "@core/types/app";
+
+interface InitResult {
+    status: boolean;
+    error?: unknown;
+}
+
+interface NetworkDriveLike {
+    id: string | number;
+    [key: string]: any;
+}
+
+type ShortcutDefinitionMap = Record<string, any>;
 
 export class MusicBoxApp extends EventEmitter {
+    isInitialized: boolean;
+    currentView: AppView;
+    library: Track[];
+    filteredLibrary: Track[];
+    components: ComponentMap;
+    coversPreloadedByApp: boolean;
+    eventListeners: ManagedDOMListener[];
+    apiEventListeners: ManagedAPIListener[];
+    private readonly componentRegistry: ComponentRegistry;
+    private readonly componentEventBinder: ComponentEventBinder;
+    private readonly domEventBinder: DOMEventBinder;
+    private readonly apiEventBinder: APIEventBinder;
+    private readonly viewRouter: ViewRouter;
+    private readonly shortcutController: ShortcutController;
+    private readonly fileImportController: FileImportController;
+    private readonly pluginBootstrap: PluginBootstrap;
+    private readonly libraryController: LibraryController;
+    private readonly playbackController: PlaybackController;
+    private readonly playlistController: PlaylistController;
+
     constructor() {
         super();
         this.isInitialized = false;
@@ -27,7 +69,7 @@ export class MusicBoxApp extends EventEmitter {
         this.components = {};
         this.componentRegistry = new ComponentRegistry({
             components: this.components,
-            setupComponentEvents: (componentName) => this.setupComponentEvents(componentName)
+            setupComponentEvents: (componentName: string) => this.setupComponentEvents(componentName)
         });
         this.coversPreloadedByApp = false; // 防重复标志：封面预加载
 
@@ -45,16 +87,16 @@ export class MusicBoxApp extends EventEmitter {
         this.playbackController = new PlaybackController({app: this});
         this.playlistController = new PlaylistController({app: this});
 
-        this.init().then((res) => {
+        this.init().then((res: InitResult) => {
             if (!res.status) console.error('Failed to initialize MusicBox:', res.error);
         });
     }
 
-    async init() {
+    async init(): Promise<InitResult> {
         try {
             if (document.readyState === 'loading') {
-                await new Promise(resolve => {
-                    document.addEventListener('DOMContentLoaded', resolve);
+                await new Promise<void>(resolve => {
+                    document.addEventListener('DOMContentLoaded', () => resolve(), {once: true});
                 });
             }
 
@@ -93,7 +135,7 @@ export class MusicBoxApp extends EventEmitter {
         }
     }
 
-    async initializeAPI() {
+    async initializeAPI(): Promise<void> {
         api.setPlayMode(cacheManager.getLocalCache('playMode'));
         const success = await api.initializeAudio();
         if (!success) {
@@ -102,65 +144,75 @@ export class MusicBoxApp extends EventEmitter {
     }
 
     // 初始化插件系统
-    async initializePluginSystem() {
+    async initializePluginSystem(): Promise<void> {
         await this.pluginBootstrap.initializePluginSystem();
     }
 
-    schedulePluginSystemInitialization() {
+    schedulePluginSystemInitialization(): void {
         this.pluginBootstrap.schedulePluginSystemInitialization();
     }
 
     // 通知插件系统应用已完全初始化
-    notifyPluginSystemReady() {
+    notifyPluginSystemReady(): void {
         this.pluginBootstrap.notifyPluginSystemReady();
     }
 
-    initializeComponents() {
+    initializeComponents(): void {
         this.componentRegistry.initializeComponents();
         this.componentEventBinder.bindInitialComponentEvents();
     }
 
-    initializePageComponentsOnDemand() {
+    initializePageComponentsOnDemand(): void {
         this.componentRegistry.initializePageComponentsOnDemand();
     }
 
-    initializeComponent(componentName) {
+    initializeComponent(componentName: string): void {
         this.componentRegistry.initializeComponent(componentName);
     }
 
-    destroyComponent(componentName) {
+    destroyComponent(componentName: string): void {
         this.componentRegistry.destroyComponent(componentName);
     }
 
-    addManagedEventListener(element, event, handler, options) {
+    addManagedEventListener(
+        element: EventTarget,
+        event: string,
+        handler: EventListenerOrEventListenerObject,
+        options?: boolean | AddEventListenerOptions
+    ): void {
         this.domEventBinder.addManagedEventListener(element, event, handler, options);
     }
 
-    addManagedAPIEventListener(event, handler) {
+    addManagedAPIEventListener<K extends keyof MusicBoxAPIEvents>(
+        event: K,
+        handler: (payload: MusicBoxAPIEvents[K]) => void | Promise<void>
+    ): void {
         this.apiEventBinder.addManagedAPIEventListener(event, handler);
     }
 
-    async setupEventListeners() {
+    async setupEventListeners(): Promise<void> {
         await this.domEventBinder.bindAppEvents(this);
         this.apiEventBinder.bindAppEvents(this);
     }
 
-    async loadInitialData() {
+    async loadInitialData(): Promise<void> {
         await this.libraryController.loadInitialData();
     }
 
     // 预加载歌曲封面
-    async preloadTrackCovers() {
+    async preloadTrackCovers(): Promise<void> {
         await this.libraryController.preloadTrackCovers();
     }
 
     // 同步桌面歌词按钮状态
-    async syncDesktopLyricsButtonState() {
+    async syncDesktopLyricsButtonState(): Promise<void> {
         try {
             if (this.components.player && this.components.settings) {
                 // 从设置中获取桌面歌词状态
-                const settings = cacheManager.getLocalCache('musicbox-settings') || {};
-                const desktopLyricsEnabled = settings.hasOwnProperty('desktopLyrics') ? settings.desktopLyrics : true;
+                const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as Record<string, unknown>;
+                const desktopLyricsEnabled = Object.prototype.hasOwnProperty.call(settings, 'desktopLyrics')
+                    ? settings.desktopLyrics
+                    : true;
 
                 // 更新Player组件的按钮状态
                 await this.components.player.updateDesktopLyricsButtonVisibility(desktopLyricsEnabled);
@@ -170,7 +222,7 @@ export class MusicBoxApp extends EventEmitter {
         }
     }
 
-    showCacheLoadingStatus() {
+    showCacheLoadingStatus(): void {
         const statusElement = document.getElementById('cache-loading-status');
         if (statusElement) {
             statusElement.style.display = 'block';
@@ -178,18 +230,18 @@ export class MusicBoxApp extends EventEmitter {
         }
     }
 
-    hideCacheLoadingStatus() {
+    hideCacheLoadingStatus(): void {
         const statusElement = document.getElementById('cache-loading-status');
         if (statusElement) {
             statusElement.style.display = 'none';
         }
     }
 
-    async validateCacheInBackground() {
+    async validateCacheInBackground(): Promise<void> {
         await this.libraryController.validateCacheInBackground();
     }
 
-    showApp() {
+    showApp(): void {
         const loading = document.getElementById('loading');
         const app = document.getElementById('app');
 
@@ -210,7 +262,7 @@ export class MusicBoxApp extends EventEmitter {
         }
     }
 
-    showWelcomeScreen() {
+    showWelcomeScreen(): void {
         const contentArea = document.getElementById('content-area');
         if (!contentArea) return;
 
@@ -246,15 +298,15 @@ export class MusicBoxApp extends EventEmitter {
         });
     }
 
-    async scanMusicFolder() {
+    async scanMusicFolder(): Promise<void> {
         await this.fileImportController.scanMusicFolder();
     }
 
-    async addMusicFiles() {
+    async addMusicFiles(): Promise<void> {
         await this.fileImportController.addMusicFiles();
     }
 
-    showScanProgress() {
+    showScanProgress(): void {
         const contentArea = document.getElementById('content-area');
         if (!contentArea) return;
 
@@ -271,7 +323,7 @@ export class MusicBoxApp extends EventEmitter {
         `;
     }
 
-    updateScanProgress(progress) {
+    updateScanProgress(progress: ScanProgress): void {
         const progressFill = document.getElementById('scan-progress-fill');
         const statusText = document.getElementById('scan-status');
 
@@ -286,164 +338,165 @@ export class MusicBoxApp extends EventEmitter {
         }
     }
 
-    async refreshLibrary() {
+    async refreshLibrary(): Promise<void> {
         await this.libraryController.refreshLibrary();
     }
 
-    updateTrackList(source = 'unknown') {
+    updateTrackList(source = 'unknown'): void {
         this.libraryController.updateTrackList(source);
     }
 
-    handleSearchResults(results) {
+    handleSearchResults(results: Track[]): void {
         this.libraryController.handleSearchResults(results);
     }
 
-    handleSearchCleared() {
+    handleSearchCleared(): void {
         this.libraryController.handleSearchCleared();
     }
 
-    setupComponentEvents(componentName = null) {
-        this.componentEventBinder.setupComponentEvents(componentName);
+    setupComponentEvents(componentName: string | null = null): void {
+        this.componentEventBinder.setupComponentEvents(componentName as any);
     }
 
-    setupSingleComponentEvents(componentName) {
+    setupSingleComponentEvents(componentName: string): void {
         this.componentEventBinder.setupSingleComponentEvents(componentName);
     }
 
-    async handlePlayAllTracks(tracks) {
+    async handlePlayAllTracks(tracks: Track[]): Promise<void> {
         await this.playbackController.handlePlayAllTracks(tracks);
     }
 
-    async handleViewChange(view) {
+    async handleViewChange(view: AppView): Promise<void> {
         await this.viewRouter.handleViewChange(view);
     }
 
-    hideAllPages() {
+    hideAllPages(): void {
         this.viewRouter.hideAllPages();
     }
 
-    async handleTrackPlayed(track, _index) {
+    async handleTrackPlayed(track: Track, _index: number): Promise<void> {
         await this.playbackController.handleTrackPlayed(track, _index);
     }
 
     // 统一的快捷键管理器
-    initKeyboardShortcuts() {
+    initKeyboardShortcuts(): void {
         this.shortcutController.initKeyboardShortcuts();
     }
 
     // 获取当前活跃的播放器组件
-    getActivePlayer() {
+    getActivePlayer(): any | null {
         return this.shortcutController.getActivePlayer();
     }
 
     // 生成按键字符串
-    generateKeyString(event) {
+    generateKeyString(event: KeyboardEvent): string {
         return this.shortcutController.generateKeyString(event);
     }
 
     // 标准化按键名称
-    normalizeKey(event) {
+    normalizeKey(event: KeyboardEvent): string | null {
         return this.shortcutController.normalizeKey(event);
     }
 
     // 获取当前启用的快捷键
-    getEnabledShortcuts() {
+    getEnabledShortcuts(): ShortcutDefinitionMap {
         return this.shortcutController.getEnabledShortcuts();
     }
 
     // 查找匹配的快捷键
-    findMatchingShortcut(pressedKey, shortcuts) {
+    findMatchingShortcut(pressedKey: string, shortcuts: ShortcutDefinitionMap): any | null {
         return this.shortcutController.findMatchingShortcut(pressedKey, shortcuts);
     }
 
     // 执行快捷键对应的操作
-    async executeShortcutAction(shortcutId) {
+    async executeShortcutAction(shortcutId: string): Promise<void> {
         await this.shortcutController.executeShortcutAction(shortcutId);
     }
 
     // 处理系统快捷键
-    async handleSystemShortcuts(e) {
+    async handleSystemShortcuts(e: KeyboardEvent): Promise<void> {
         await this.shortcutController.handleSystemShortcuts(e);
     }
 
     // 初始化全局快捷键
-    async initGlobalShortcuts() {
+    async initGlobalShortcuts(): Promise<void> {
         await this.shortcutController.initGlobalShortcuts();
     }
 
-    showCreatePlaylistDialog() {
+    showCreatePlaylistDialog(): void {
         if (this.components.createPlaylistDialog) {
             this.components.createPlaylistDialog.show();
         }
     }
 
     // 处理添加到自定义歌单
-    async handleAddToCustomPlaylist(track, _index) {
+    async handleAddToCustomPlaylist(track: Track, _index: number): Promise<void> {
         await this.playlistController.handleAddToCustomPlaylist(track, _index);
     }
 
     // 处理歌单创建成功
-    async handlePlaylistCreated() {
+    async handlePlaylistCreated(): Promise<void> {
         await this.playlistController.handlePlaylistCreated();
     }
 
     // 处理歌曲添加到歌单成功
-    async handleTrackAddedToPlaylist() {
+    async handleTrackAddedToPlaylist(): Promise<void> {
         await this.playlistController.handleTrackAddedToPlaylist();
     }
 
     // 处理歌单选择
-    async handlePlaylistSelected(playlist) {
+    async handlePlaylistSelected(playlist: Playlist): Promise<void> {
         await this.playlistController.handlePlaylistSelected(playlist);
     }
 
     // 处理网络磁盘选择
-    async handleNetworkDriveSelected(drive) {
+    async handleNetworkDriveSelected(drive: unknown): Promise<void> {
+        const networkDrive = drive as NetworkDriveLike;
         this.hideAllPages();
-        this.updateSidebarSelection('network-drive', drive.id);
+        this.updateSidebarSelection('network-drive', String(networkDrive.id));
         this.currentView = 'network-drive-detail';
         if (this.components.networkDriveDetailPage) {
-            await this.components.networkDriveDetailPage.show(drive);
+            await this.components.networkDriveDetailPage.show(networkDrive);
         }
     }
 
     // 处理网络磁盘移除
-    async handleDriveRemoved() {
+    async handleDriveRemoved(): Promise<void> {
         await this.components.navigation.loadNetworkDrives();
         await this.refreshLibrary();
     }
 
     // 更新侧边栏选中状态
-    updateSidebarSelection(type, id = null) {
+    updateSidebarSelection(type: string, id: string | null = null): void {
         this.viewRouter.updateSidebarSelection(type, id);
     }
 
     // 处理歌单更新
-    async handlePlaylistUpdated() {
+    async handlePlaylistUpdated(): Promise<void> {
         await this.playlistController.handlePlaylistUpdated();
     }
 
     // 处理歌单重命名成功
-    async handlePlaylistRenamed() {
+    async handlePlaylistRenamed(): Promise<void> {
         await this.playlistController.handlePlaylistRenamed();
     }
 
     // 处理显示添加歌曲对话框
-    async handleShowAddSongsDialog(playlist) {
+    async handleShowAddSongsDialog(playlist: Playlist): Promise<void> {
         await this.playlistController.handleShowAddSongsDialog(playlist);
     }
 
     // 处理歌曲添加到歌单成功
-    async handleTracksAddedToPlaylist() {
+    async handleTracksAddedToPlaylist(): Promise<void> {
         await this.playlistController.handleTracksAddedToPlaylist();
     }
 
     // 处理歌单封面更新
-    async handlePlaylistCoverUpdated(playlist) {
+    async handlePlaylistCoverUpdated(playlist: Playlist): Promise<void> {
         await this.playlistController.handlePlaylistCoverUpdated(playlist);
     }
 
-    async cleanup() {
+    async cleanup(): Promise<void> {
         // 保存播放状态和音量
         await this.savePlaybackState();
         if (this.components.player) {
@@ -465,7 +518,7 @@ export class MusicBoxApp extends EventEmitter {
         });
 
         // 清理组件引用，保持 registry/binder 持有同一个 components 对象
-        Object.keys(this.components).forEach((key) => {
+        Object.keys(this.components).forEach((key: string) => {
             delete this.components[key];
         });
 
@@ -475,39 +528,39 @@ export class MusicBoxApp extends EventEmitter {
     }
 
     // 文件加载方法
-    setupFileLoading() {
+    setupFileLoading(): void {
         this.fileImportController.setupFileLoading();
     }
 
-    async handleFileDrop(e) {
+    async handleFileDrop(e: DragEvent): Promise<void> {
         await this.fileImportController.handleFileDrop(e);
     }
 
-    async openDirectoryDialog() {
+    async openDirectoryDialog(): Promise<void> {
         await this.fileImportController.openDirectoryDialog();
     }
 
-    async loadAndPlayFile(filePath) {
+    async loadAndPlayFile(filePath: string): Promise<void> {
         await this.fileImportController.loadAndPlayFile(filePath);
     }
 
-    async addFilesToPlaylist(files) {
+    async addFilesToPlaylist(files: any[]): Promise<void> {
         await this.fileImportController.addFilesToPlaylist(files);
     }
 
-    async scanDirectory(directoryPath) {
+    async scanDirectory(directoryPath: string): Promise<void> {
         await this.fileImportController.scanDirectory(directoryPath);
     }
 
-    addFileMenuItems() {
+    addFileMenuItems(): void {
         this.fileImportController.addFileMenuItems();
     }
 
-    showSuccess(message) {
+    showSuccess(message: string): void {
         showToast(message, 'success');
     }
 
-    showError(message) {
+    showError(message: string): void {
         const loading = document.getElementById('loading');
         if (loading) {
             loading.innerHTML = `
@@ -521,81 +574,81 @@ export class MusicBoxApp extends EventEmitter {
         showToast(message, 'error');
     }
 
-    showInfo(message) {
+    showInfo(message: string): void {
         showToast(message, 'info');
     }
 
-    async confirm(options) {
+    async confirm(options: ConfirmOptions): Promise<boolean> {
         return await this.components.confirmDialog.show(options);
     }
 
     // Playlist event handlers
-    handlePlaylistTrackSelected(track, _index) {
+    handlePlaylistTrackSelected(track: Track, _index: number): void {
         this.playlistController.handlePlaylistTrackSelected(track, _index);
     }
 
-    async handlePlaylistTrackPlayed(track, index) {
+    async handlePlaylistTrackPlayed(track: Track, index: number): Promise<void> {
         await this.playlistController.handlePlaylistTrackPlayed(track, index);
     }
 
-    async handlePlaylistTrackRemoved(track, index) {
+    async handlePlaylistTrackRemoved(track: Track, index: number): Promise<void> {
         await this.playlistController.handlePlaylistTrackRemoved(track, index);
     }
 
-    async handlePlaylistCleared() {
+    async handlePlaylistCleared(): Promise<void> {
         await this.playlistController.handlePlaylistCleared();
     }
 
     // 播放播放列表中的歌曲
-    async playTrackFromPlaylist(track, index) {
+    async playTrackFromPlaylist(track: Track, index: number): Promise<void> {
         await this.playbackController.playTrackFromPlaylist(track, index);
     }
 
     // 处理歌曲索引更改（用于 prev/next 按钮）
-    handleTrackIndexChanged(index) {
+    handleTrackIndexChanged(index: number): void {
         this.playbackController.handleTrackIndexChanged(index);
     }
 
-    updateLibraryTrackDuration(filePath, duration) {
+    updateLibraryTrackDuration(filePath: string, duration: number): void {
         this.libraryController.updateLibraryTrackDuration(filePath, duration);
     }
 
     // 右击菜单事件处理方法
     // 删除音乐
-    async handleDeleteTrack(track, index) {
+    async handleDeleteTrack(track: Track, index: number): Promise<void> {
         await this.libraryController.handleDeleteTrack(track, index);
     }
 
-    addToPlaylist(track) {
+    addToPlaylist(track: Track): void {
         this.playlistController.addToPlaylist(track);
     }
 
-    async handleBatchDelete(selectedTracks, track, index) {
+    async handleBatchDelete(selectedTracks: Set<number> | null | undefined, track: Track, index: number): Promise<void> {
         await this.libraryController.handleBatchDelete(selectedTracks, track, index);
     }
 
     // 处理编辑歌曲信息
-    async handleEditTrackInfo(track, _index) {
+    async handleEditTrackInfo(track: Track, _index: number): Promise<void> {
         await this.components.editTrackInfoDialog.show(track);
     }
 
     // 处理歌曲信息更新
-    async handleTrackInfoUpdated(data) {
-        await this.libraryController.handleTrackInfoUpdated(data);
+    async handleTrackInfoUpdated(data: unknown): Promise<void> {
+        await this.libraryController.handleTrackInfoUpdated(data as any);
     }
 
     // 恢复播放状态
-    async restorePlaybackState() {
+    async restorePlaybackState(): Promise<void> {
         await this.playbackController.restorePlaybackState();
     }
 
     // 自动播放第一首歌曲
-    async autoplayFirstTrack() {
+    async autoplayFirstTrack(): Promise<void> {
         await this.playbackController.autoplayFirstTrack();
     }
 
     // 保存播放状态
-    async savePlaybackState() {
+    async savePlaybackState(): Promise<void> {
         await this.playbackController.savePlaybackState();
     }
 }
