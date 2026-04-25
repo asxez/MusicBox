@@ -52,12 +52,12 @@ export class FileImportController {
     }
 
     setupFileLoading() {
-        document.addEventListener('dragover', (e) => {
+        this.app.addManagedEventListener(document, 'dragover', (e) => {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'copy';
         });
 
-        document.addEventListener('drop', async (e) => {
+        this.app.addManagedEventListener(document, 'drop', async (e) => {
             e.preventDefault();
             await this.handleFileDrop(e);
         });

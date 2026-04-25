@@ -10,6 +10,17 @@ export class APIEventBinder {
         this.apiEventListeners.push({event, handler});
     }
 
+    dispose() {
+        this.apiEventListeners.forEach(({event, handler}) => {
+            try {
+                api.off(event, handler);
+            } catch (error) {
+                console.warn('Failed to remove API event listener:', error);
+            }
+        });
+        this.apiEventListeners.length = 0;
+    }
+
     bindAppEvents(app) {
         this.addManagedAPIEventListener('libraryUpdated', async (_data) => {
             await app.refreshLibrary();

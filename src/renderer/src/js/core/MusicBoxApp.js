@@ -450,25 +450,8 @@ export class MusicBoxApp extends EventEmitter {
             await cacheManager.setLocalCache('volume', this.components.player.volume);
         }
 
-        // 清理DOM事件监听器
-        this.eventListeners.forEach(({element, event, handler}) => {
-            try {
-                element.removeEventListener(event, handler);
-            } catch (error) {
-                console.warn('Failed to remove event listener:', error);
-            }
-        });
-        this.eventListeners = [];
-
-        // 清理API事件监听器
-        this.apiEventListeners.forEach(({event, handler}) => {
-            try {
-                api.off(event, handler);
-            } catch (error) {
-                console.warn('Failed to remove API event listener:', error);
-            }
-        });
-        this.apiEventListeners = [];
+        this.domEventBinder.dispose();
+        this.apiEventBinder.dispose();
 
         // 销毁组件
         Object.values(this.components).forEach(component => {
@@ -481,8 +464,10 @@ export class MusicBoxApp extends EventEmitter {
             }
         });
 
-        // 清理组件引用
-        this.components = {};
+        // 清理组件引用，保持 registry/binder 持有同一个 components 对象
+        Object.keys(this.components).forEach((key) => {
+            delete this.components[key];
+        });
 
         // 清理数据
         this.library = [];
@@ -614,4 +599,3 @@ export class MusicBoxApp extends EventEmitter {
         await this.playbackController.savePlaybackState();
     }
 }
-

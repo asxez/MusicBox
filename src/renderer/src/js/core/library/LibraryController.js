@@ -74,7 +74,7 @@ export class LibraryController {
         const app = this.app;
 
         try {
-            api.on('cacheValidationCompleted', (result) => {
+            app.addManagedAPIEventListener('cacheValidationCompleted', (result) => {
                 if (result.invalid > 0) {
                     app.showInfo(`已清理 ${result.invalid} 个无效的音乐文件`);
 
@@ -86,7 +86,7 @@ export class LibraryController {
                 }
             });
 
-            api.on('cacheValidationError', (error) => {
+            app.addManagedAPIEventListener('cacheValidationError', (error) => {
                 console.warn('⚠️ 后台缓存验证失败:', error);
             });
 

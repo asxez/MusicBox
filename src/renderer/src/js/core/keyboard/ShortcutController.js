@@ -11,7 +11,7 @@ export class ShortcutController {
         let lastKeyTime = 0;
         const debounceDelay = 200;
 
-        document.addEventListener('keydown', async (e) => {
+        this.app.addManagedEventListener(document, 'keydown', async (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
                 return;
             }
@@ -206,7 +206,7 @@ export class ShortcutController {
     async initGlobalShortcuts() {
         await shortcutConfig.initializeGlobalShortcuts();
 
-        window.addEventListener('globalShortcutTriggered', (event) => {
+        this.app.addManagedEventListener(window, 'globalShortcutTriggered', (event) => {
             const {shortcutId} = event.detail;
             this.executeShortcutAction(shortcutId);
         });
