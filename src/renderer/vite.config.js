@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, normalizePath } from 'vite';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import path from 'path';
 
@@ -115,7 +115,7 @@ export default defineConfig({
         // 复制内置插件
         {
           src: 'js/extensions/builtin',
-          dest: 'js/extensions'
+          dest: '.'
         },
         // 复制 favicon
         {
@@ -124,7 +124,7 @@ export default defineConfig({
         },
         {
           src: 'assets/images/favicon.ico',
-          dest: './assets/images'
+          dest: '.'
         }
       ]
     })

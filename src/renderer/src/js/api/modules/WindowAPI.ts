@@ -18,7 +18,7 @@ interface WindowSizeData extends WindowSize {
  * 窗口 API 类
  */
 export class WindowAPI extends BaseAPI {
-    private resizeTimeout: NodeJS.Timeout | null = null;
+    private resizeTimeout: ReturnType<typeof setTimeout> | null = null;
     private readonly MIN_WIDTH = 440;
     private readonly MIN_HEIGHT = 120;
     private readonly MAX_WIDTH = 3840;

@@ -8,6 +8,8 @@ import '@extensions/core/types';
 import {ExtensionContext} from "@extensions/core";
 import {SystemAPI} from "@extensions/api/types/system";
 
+declare const process: {env?: Record<string, string | undefined>} | undefined;
+
 
 /**
  * 创建系统 API

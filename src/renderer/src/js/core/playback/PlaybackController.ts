@@ -1,14 +1,25 @@
 import {cacheManager} from "@services/CacheManager";
 import {api} from "@api/api";
 import {libraryAPI} from "@js/api";
+import type {PlaybackStateSnapshot, PlayMode} from '@api/types/playback';
+import type {MusicBoxSettings} from '@api/types/settings';
+import type {Track} from '@api/types/track';
+import type {RendererAppContext} from '@core/types/app';
+
+interface PlaybackControllerOptions {
+    app: RendererAppContext;
+}
 
 export class PlaybackController {
-    constructor({app}) {
+    private readonly app: RendererAppContext;
+    private playTrackLock: boolean;
+
+    constructor({app}: PlaybackControllerOptions) {
         this.app = app;
         this.playTrackLock = false;
     }
 
-    async handlePlayAllTracks(tracks) {
+    async handlePlayAllTracks(tracks: Track[]): Promise<void> {
         const app = this.app;
 
         if (!tracks || tracks.length === 0) return;
@@ -24,7 +35,7 @@ export class PlaybackController {
         }
     }
 
-    async handleTrackPlayed(track, _index) {
+    async handleTrackPlayed(track: Track, _index: number): Promise<void> {
         const app = this.app;
 
         console.log('🎵 从音乐库播放歌曲:', track.title, '当前视图:', app.currentView);
@@ -53,7 +64,7 @@ export class PlaybackController {
                     console.log('🔍 setTracks 完成，当前视图:', app.currentView);
                     await this.playTrackFromPlaylist(track, 0);
                 } else {
-                    const existingIndex = app.components.playlist.tracks.findIndex(t =>
+                    const existingIndex = app.components.playlist.tracks.findIndex((t: Track) =>
                         t.filePath === track.filePath
                     );
                     if (existingIndex === -1) {
@@ -70,7 +81,7 @@ export class PlaybackController {
         }
     }
 
-    async playTrackFromPlaylist(track, index) {
+    async playTrackFromPlaylist(track: Track, index: number): Promise<void> {
         const app = this.app;
 
         if (this.playTrackLock) {
@@ -110,7 +121,7 @@ export class PlaybackController {
         }
     }
 
-    handleTrackIndexChanged(index) {
+    handleTrackIndexChanged(index: number): void {
         const playlist = this.app.components.playlist;
 
         if (playlist) {
@@ -122,22 +133,22 @@ export class PlaybackController {
         }
     }
 
-    async restorePlaybackState() {
+    async restorePlaybackState(): Promise<void> {
         const app = this.app;
 
         try {
-            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
-            const playbackState = cacheManager.getLocalCache('playback-state');
+            const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as MusicBoxSettings;
+            const playbackState = cacheManager.getLocalCache('playback-state') as PlaybackStateSnapshot | null;
 
             if (settings.rememberPosition && playbackState) {
-                const {currentTrack, position, isPlaying, playlist, currentIndex, playMode} = playbackState;
+                const {currentTrack, position, playlist, currentIndex, playMode} = playbackState;
 
                 if (playMode) {
                     api.setPlayMode(playMode);
                 }
 
                 if (playlist && playlist.length > 0) {
-                    const validTracks = [];
+                    const validTracks: Track[] = [];
                     let validCurrentIndex = -1;
 
                     for (let i = 0; i < playlist.length; i++) {
@@ -166,7 +177,7 @@ export class PlaybackController {
                                     console.log('App: setPosition 结果:', setPositionResult);
                                 }
 
-                                if (settings.autoplay && isPlaying) {
+                                if (settings.autoplay) {
                                     setTimeout(async () => {
                                         await api.play();
                                     }, 1000);
@@ -186,7 +197,7 @@ export class PlaybackController {
                         if (position > 0) {
                             await api.setPosition(position);
                         }
-                        if (settings.autoplay && isPlaying) {
+                        if (settings.autoplay) {
                             setTimeout(async () => {
                                 await api.play();
                             }, 1000);
@@ -209,7 +220,7 @@ export class PlaybackController {
         }
     }
 
-    async autoplayFirstTrack() {
+    async autoplayFirstTrack(): Promise<void> {
         setTimeout(async () => {
             const tracks = await libraryAPI.getTracks();
             if (tracks && tracks.length > 0) {
@@ -225,17 +236,17 @@ export class PlaybackController {
         }, 1000);
     }
 
-    async savePlaybackState() {
-        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
+    async savePlaybackState(): Promise<void> {
+        const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as MusicBoxSettings;
 
         if (settings.rememberPosition) {
-            const playbackState = {
+            const playbackState: PlaybackStateSnapshot = {
                 currentTrack: api.currentTrack,
                 position: api.position,
                 isPlaying: api.isPlaying,
                 playlist: api.playlist,
                 currentIndex: api.currentIndex,
-                playMode: api.playMode,
+                playMode: api.playMode as PlayMode,
                 timestamp: Date.now()
             };
             cacheManager.setLocalCache('playback-state', playbackState);

@@ -7,10 +7,10 @@ import {APIEventBinder} from './events/APIEventBinder';
 import {ViewRouter} from './navigation/ViewRouter';
 import {ShortcutController} from './keyboard/ShortcutController';
 import {FileImportController} from './files/FileImportController';
-import {PluginBootstrap} from './plugins/PluginBootstrap.js';
+import {PluginBootstrap} from './plugins/PluginBootstrap';
 import {LibraryController} from './library/LibraryController.js';
-import {PlaybackController} from './playback/PlaybackController.js';
-import {PlaylistController} from './playlists/PlaylistController.js';
+import {PlaybackController} from './playback/PlaybackController';
+import {PlaylistController} from './playlists/PlaylistController';
 
 import {cacheManager} from "@services/CacheManager";
 import {api} from "@api/api";

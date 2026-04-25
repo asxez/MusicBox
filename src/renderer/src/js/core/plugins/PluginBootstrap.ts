@@ -1,13 +1,27 @@
 import {ExtensionService} from "@extensions/core/ExtensionService";
 import {InstantiationService, ServiceCollection} from "@extensions/core/Instantiation";
 import {ActivationEvents} from "@extensions/core/ExtensionsRegistry";
+import type {RendererAppContext} from '@core/types/app';
+
+interface PluginBootstrapOptions {
+    app: RendererAppContext;
+}
+
+declare global {
+    interface Window {
+        extensionService?: unknown;
+        instantiationService?: unknown;
+    }
+}
 
 export class PluginBootstrap {
-    constructor({app}) {
+    private readonly app: RendererAppContext;
+
+    constructor({app}: PluginBootstrapOptions) {
         this.app = app;
     }
 
-    async initializePluginSystem() {
+    async initializePluginSystem(): Promise<void> {
         const app = this.app;
 
         try {
@@ -39,7 +53,7 @@ export class PluginBootstrap {
         }
     }
 
-    schedulePluginSystemInitialization() {
+    schedulePluginSystemInitialization(): void {
         const startPluginSystem = async () => {
             await this.initializePluginSystem();
             this.notifyPluginSystemReady();
@@ -61,7 +75,7 @@ export class PluginBootstrap {
         }, 300);
     }
 
-    notifyPluginSystemReady() {
+    notifyPluginSystemReady(): void {
         const app = this.app;
 
         try {
@@ -79,3 +93,5 @@ export class PluginBootstrap {
         }
     }
 }
+
+export {};

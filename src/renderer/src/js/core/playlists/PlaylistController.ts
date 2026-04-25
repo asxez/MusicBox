@@ -1,19 +1,28 @@
 import {api} from "@api/api";
+import type {Playlist} from '@api/types/playlist';
+import type {Track} from '@api/types/track';
+import type {RendererAppContext} from '@core/types/app';
+
+interface PlaylistControllerOptions {
+    app: RendererAppContext;
+}
 
 export class PlaylistController {
-    constructor({app}) {
+    private readonly app: RendererAppContext;
+
+    constructor({app}: PlaylistControllerOptions) {
         this.app = app;
     }
 
-    handlePlaylistTrackSelected(track, _index) {
+    handlePlaylistTrackSelected(track: Track, _index: number): void {
         console.log('🎵 播放列表选择歌曲:', track.title);
     }
 
-    async handlePlaylistTrackPlayed(track, index) {
+    async handlePlaylistTrackPlayed(track: Track, index: number): Promise<void> {
         await this.app.playTrackFromPlaylist(track, index);
     }
 
-    async handlePlaylistTrackRemoved(track, index) {
+    async handlePlaylistTrackRemoved(_track: Track, index: number): Promise<void> {
         const playlist = this.app.components.playlist;
 
         if (playlist && playlist.tracks.length >= 0) {
@@ -29,12 +38,12 @@ export class PlaylistController {
         }
     }
 
-    async handlePlaylistCleared() {
+    async handlePlaylistCleared(): Promise<void> {
         await api.setPlaylist([], -1);
         await api.pause();
     }
 
-    addToPlaylist(track) {
+    addToPlaylist(track: Track): void {
         const app = this.app;
 
         if (app.components.playlist) {
@@ -43,21 +52,21 @@ export class PlaylistController {
         }
     }
 
-    async handleAddToCustomPlaylist(track, _index) {
+    async handleAddToCustomPlaylist(track: Track, _index: number): Promise<void> {
         if (this.app.components.addToPlaylistDialog) {
             await this.app.components.addToPlaylistDialog.show(track);
         }
     }
 
-    async handlePlaylistCreated() {
+    async handlePlaylistCreated(): Promise<void> {
         await this.refreshNavigationPlaylists();
     }
 
-    async handleTrackAddedToPlaylist() {
+    async handleTrackAddedToPlaylist(): Promise<void> {
         await this.refreshNavigationPlaylists();
     }
 
-    async handlePlaylistSelected(playlist) {
+    async handlePlaylistSelected(playlist: Playlist): Promise<void> {
         const app = this.app;
 
         app.hideAllPages();
@@ -68,19 +77,19 @@ export class PlaylistController {
         }
     }
 
-    async handlePlaylistUpdated() {
+    async handlePlaylistUpdated(): Promise<void> {
         await this.refreshNavigationPlaylists();
     }
 
-    async handlePlaylistRenamed() {
+    async handlePlaylistRenamed(): Promise<void> {
         await this.refreshNavigationPlaylists();
     }
 
-    async handleShowAddSongsDialog(playlist) {
+    async handleShowAddSongsDialog(playlist: Playlist): Promise<void> {
         await this.app.components.musicLibrarySelectionDialog.show(playlist);
     }
 
-    async handleTracksAddedToPlaylist() {
+    async handleTracksAddedToPlaylist(): Promise<void> {
         const app = this.app;
 
         if (app.currentView === 'playlist-detail' && app.components.playlistDetailPage) {
@@ -90,14 +99,14 @@ export class PlaylistController {
         await this.refreshNavigationPlaylists();
     }
 
-    async handlePlaylistCoverUpdated(playlist) {
+    async handlePlaylistCoverUpdated(playlist: Playlist): Promise<void> {
         const navigation = this.app.components.navigation;
         if (navigation && navigation.updatePlaylistInfo) {
             navigation.updatePlaylistInfo(playlist);
         }
     }
 
-    async refreshNavigationPlaylists() {
+    async refreshNavigationPlaylists(): Promise<void> {
         const navigation = this.app.components.navigation;
         if (navigation && navigation.refreshPlaylists) {
             await navigation.refreshPlaylists();

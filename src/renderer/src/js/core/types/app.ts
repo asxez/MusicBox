@@ -30,6 +30,11 @@ export type ComponentMap = Record<string, any>;
 export interface RendererAppContext {
     components: ComponentMap;
     currentView: AppView;
+    isInitialized: boolean;
+    library: Track[];
+    filteredLibrary: Track[];
+    extensionService?: unknown;
+    instantiationService?: unknown;
     addManagedEventListener(
         element: EventTarget,
         event: string,
@@ -51,6 +56,9 @@ export interface RendererAppContext {
     showSuccess(message: string): void;
     showError(message: string): void;
     showInfo(message: string): void;
+    hideAllPages(): void;
+    updateSidebarSelection(type: string, id?: string | null): void;
+    playTrackFromPlaylist(track: Track, index: number): Promise<void>;
 }
 
 export interface PlayerLike {
