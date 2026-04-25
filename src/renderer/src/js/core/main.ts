@@ -19,7 +19,7 @@ import '@utils/shortcuts/ShortcutRecorder';
 // ============================================
 // 3. 导入基础组件
 // ============================================
-import '@components/base/Component.js';
+import '@components/base/Component';
 
 // ============================================
 // 4. 导入插件系统核心（必须按顺序加载）
@@ -72,7 +72,7 @@ import '@components/dialogs/RenamePlaylistDialog.js';
 // ============================================
 // 8. 导入组件索引
 // ============================================
-import '@components/index.js';
+import '@components/index';
 
 // ============================================
 // 9. 导入主应用
