@@ -65,7 +65,7 @@ import '@components/component/UpdateModal.js';
 // ============================================
 import '@components/dialogs/AddToPlaylistDialog';
 import '@components/dialogs/CreatePlaylistDialog';
-import '@components/dialogs/EditTrackInfoDialog.js';
+import '@components/dialogs/EditTrackInfoDialog';
 import '@components/dialogs/MusicLibrarySelectionDialog';
 import '@components/dialogs/RenamePlaylistDialog';
 

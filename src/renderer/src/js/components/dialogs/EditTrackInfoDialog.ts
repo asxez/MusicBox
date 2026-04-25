@@ -3,11 +3,93 @@
  */
 
 import {Component} from "@components/base/Component";
-import {api} from "@api/api";
 import {app} from "@core/app";
 import {coverAPI} from "@js/api";
+import type {Track} from "@api/types/library";
+
+type EditableTrack = Omit<Track, 'cover' | 'year'> & {
+    cover?: CoverData | null;
+    year?: string | number;
+};
+
+interface OriginalTrackFormData {
+    title: string;
+    artist: string;
+    album: string;
+    year: string;
+    genre: string;
+}
+
+interface CoverObject {
+    data?: any;
+    format?: string;
+    [key: string]: unknown;
+}
+
+type CoverData = string | CoverObject;
+
+interface DialogFileResult {
+    canceled?: boolean;
+    filePaths?: string[];
+}
+
+interface MetadataUpdatePayload {
+    filePath: string;
+    title: string;
+    artist: string;
+    album: string;
+    year: string | null;
+    genre: string | null;
+    cover?: number[];
+}
+
+interface MetadataUpdateResult {
+    success: boolean;
+    error?: string;
+    updatedMetadata?: EditableTrack;
+    coverUpdated?: boolean;
+}
+
+interface ApiAvailabilityStatus {
+    electronAPI: boolean;
+    showOpenDialog: boolean;
+    stat: boolean;
+    readFile: boolean;
+}
+
+type FieldName = 'title' | 'artist' | 'album' | 'year' | 'genre';
+
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+function getErrorStack(error: unknown): string | undefined {
+    return error instanceof Error ? error.stack : undefined;
+}
 
 class EditTrackInfoDialog extends Component {
+    private isVisible: boolean;
+    private currentTrack: EditableTrack | null;
+    private selectedCoverFile: File | null;
+    private originalData: OriginalTrackFormData | null;
+    private coverObjectUrls: Set<string>;
+    private listenersSetup: boolean;
+    private dialog!: HTMLElement;
+    private closeBtn!: HTMLElement;
+    private cancelBtn!: HTMLElement;
+    private confirmBtn!: HTMLButtonElement;
+    private coverPreview!: HTMLImageElement;
+    private selectCoverBtn!: HTMLElement;
+    private removeCoverBtn!: HTMLElement;
+    private titleInput!: HTMLInputElement;
+    private artistInput!: HTMLInputElement;
+    private albumInput!: HTMLInputElement;
+    private yearInput!: HTMLInputElement;
+    private genreInput!: HTMLInputElement;
+    private titleError!: HTMLElement;
+    private artistError!: HTMLElement;
+    private albumError!: HTMLElement;
+
     constructor() {
         super(null, false);
         this.isVisible = false;
@@ -18,7 +100,7 @@ class EditTrackInfoDialog extends Component {
         this.listenersSetup = false; // 事件监听器是否已设置
     }
 
-    async show(track) {
+    async show(track: EditableTrack | null): Promise<void> {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupEventListeners();
@@ -41,7 +123,7 @@ class EditTrackInfoDialog extends Component {
             title: track.title || '',
             artist: track.artist || '',
             album: track.album || '',
-            year: track.year || '',
+            year: String(track.year || ''),
             genre: track.genre || ''
         };
 
@@ -69,7 +151,7 @@ class EditTrackInfoDialog extends Component {
         }
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
         this.dialog.style.display = 'none';
         this.clearForm();
@@ -77,38 +159,38 @@ class EditTrackInfoDialog extends Component {
         this.cleanupCoverUrls(); // 清理Object URLs
     }
 
-    destroy() {
+    destroy(): void {
         this.currentTrack = null;
         this.selectedCoverFile = null;
         this.originalData = null;
-        this.coverObjectUrls = null;
+        this.coverObjectUrls.clear();
         this.listenersSetup = false;
-        return super.destroy();
+        super.destroy();
     }
 
-    setupElements() {
-        this.dialog = document.getElementById('edit-track-info-dialog');
-        this.closeBtn = document.getElementById('edit-track-info-close');
-        this.cancelBtn = document.getElementById('edit-track-info-cancel');
-        this.confirmBtn = document.getElementById('edit-track-info-confirm');
+    setupElements(): void {
+        this.dialog = document.getElementById('edit-track-info-dialog') as HTMLElement;
+        this.closeBtn = document.getElementById('edit-track-info-close') as HTMLElement;
+        this.cancelBtn = document.getElementById('edit-track-info-cancel') as HTMLElement;
+        this.confirmBtn = document.getElementById('edit-track-info-confirm') as HTMLButtonElement;
 
         // 表单元素
-        this.coverPreview = document.getElementById('edit-track-cover');
-        this.selectCoverBtn = document.getElementById('select-cover-btn');
-        this.removeCoverBtn = document.getElementById('remove-cover-btn');
-        this.titleInput = document.getElementById('edit-track-title');
-        this.artistInput = document.getElementById('edit-track-artist');
-        this.albumInput = document.getElementById('edit-track-album');
-        this.yearInput = document.getElementById('edit-track-year');
-        this.genreInput = document.getElementById('edit-track-genre');
+        this.coverPreview = document.getElementById('edit-track-cover') as HTMLImageElement;
+        this.selectCoverBtn = document.getElementById('select-cover-btn') as HTMLElement;
+        this.removeCoverBtn = document.getElementById('remove-cover-btn') as HTMLElement;
+        this.titleInput = document.getElementById('edit-track-title') as HTMLInputElement;
+        this.artistInput = document.getElementById('edit-track-artist') as HTMLInputElement;
+        this.albumInput = document.getElementById('edit-track-album') as HTMLInputElement;
+        this.yearInput = document.getElementById('edit-track-year') as HTMLInputElement;
+        this.genreInput = document.getElementById('edit-track-genre') as HTMLInputElement;
 
         // 错误提示元素
-        this.titleError = document.getElementById('edit-track-title-error');
-        this.artistError = document.getElementById('edit-track-artist-error');
-        this.albumError = document.getElementById('edit-track-album-error');
+        this.titleError = document.getElementById('edit-track-title-error') as HTMLElement;
+        this.artistError = document.getElementById('edit-track-artist-error') as HTMLElement;
+        this.albumError = document.getElementById('edit-track-album-error') as HTMLElement;
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         // 关闭按钮
         this.addEventListenerManaged(this.closeBtn, 'click', () => this.hide());
         this.addEventListenerManaged(this.cancelBtn, 'click', () => this.hide());
@@ -126,15 +208,16 @@ class EditTrackInfoDialog extends Component {
         this.addEventListenerManaged(this.albumInput, 'input', () => this.validateForm());
 
         // 点击遮罩关闭
-        this.addEventListenerManaged(this.dialog, 'click', (e) => {
+        this.addEventListenerManaged(this.dialog, 'click', (e: Event) => {
             if (e.target === this.dialog) {
                 this.hide();
             }
         });
 
         // ESC键关闭
-        this.addEventListenerManaged(document, 'keydown', (e) => {
-            if (e.key === 'Escape' && this.isVisible) {
+        this.addEventListenerManaged(document, 'keydown', (e: Event) => {
+            const event = e as KeyboardEvent;
+            if (event.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
         });
@@ -152,7 +235,7 @@ class EditTrackInfoDialog extends Component {
     }
 
     // 使用API加载封面
-    async loadCoverFromAPI(track) {
+    async loadCoverFromAPI(track: EditableTrack): Promise<boolean> {
         try {
             const result = await coverAPI.getCover(track.title, track.artist, track.album, track.filePath);
             if (result.success && typeof result.imageUrl === 'string') {
@@ -172,12 +255,14 @@ class EditTrackInfoDialog extends Component {
         }
     }
 
-    populateForm() {
+    populateForm(): void {
+        if (!this.currentTrack) return;
+
         // 填充基本信息
         this.titleInput.value = this.currentTrack.title || '';
         this.artistInput.value = this.currentTrack.artist || '';
         this.albumInput.value = this.currentTrack.album || '';
-        this.yearInput.value = this.currentTrack.year || '';
+        this.yearInput.value = String(this.currentTrack.year || '');
         this.genreInput.value = this.currentTrack.genre || '';
 
         // 设置封面（支持异步加载的封面数据）
@@ -188,12 +273,12 @@ class EditTrackInfoDialog extends Component {
     }
 
     // 刷新封面预览（用于异步加载封面后的更新）
-    refreshCoverPreview() {
+    refreshCoverPreview(): void {
         console.log('🔄 EditTrackInfoDialog: 刷新封面预览');
         this.updateCoverPreview();
     }
 
-    updateCoverPreview() {
+    updateCoverPreview(): void {
         try {
             console.log('🔄 EditTrackInfoDialog: 更新封面预览');
 
@@ -201,8 +286,13 @@ class EditTrackInfoDialog extends Component {
                 // 如果选择了新封面，显示新封面
                 console.log('🖼️ EditTrackInfoDialog: 使用新选择的封面文件');
                 const reader = new FileReader();
-                reader.onload = (e) => {
-                    const dataUrl = e.target.result;
+                reader.onload = (e: ProgressEvent<FileReader>) => {
+                    const dataUrl = e.target?.result;
+                    if (typeof dataUrl !== 'string') {
+                        this.setDefaultCover();
+                        this.showError('封面预览加载失败');
+                        return;
+                    }
                     console.log('✅ EditTrackInfoDialog: FileReader生成Data URL成功', dataUrl.substring(0, 50) + '...');
                     console.log('🔄 EditTrackInfoDialog: 即将设置coverPreview.src =', dataUrl.substring(0, 50) + '...');
                     this.coverPreview.src = dataUrl;
@@ -215,16 +305,17 @@ class EditTrackInfoDialog extends Component {
                     this.showError('封面预览加载失败');
                 };
                 reader.readAsDataURL(this.selectedCoverFile);
-            } else if (this.currentTrack.cover) {
+            } else if (this.currentTrack?.cover) {
                 // 显示当前封面 - 需要处理不同的封面数据格式
+                const cover = this.currentTrack.cover;
                 console.log('🖼️ EditTrackInfoDialog: 使用当前歌曲封面', {
-                    type: typeof this.currentTrack.cover,
-                    constructor: this.currentTrack.cover.constructor.name,
-                    value: typeof this.currentTrack.cover === 'string' ?
-                        this.currentTrack.cover.substring(0, 100) + '...' :
-                        JSON.stringify(this.currentTrack.cover)
+                    type: typeof cover,
+                    constructor: cover.constructor.name,
+                    value: typeof cover === 'string' ?
+                        cover.substring(0, 100) + '...' :
+                        JSON.stringify(cover)
                 });
-                this.processCoverData(this.currentTrack.cover);
+                this.processCoverData(cover);
             } else {
                 // 显示默认封面
                 console.log('🖼️ EditTrackInfoDialog: 使用默认封面');
@@ -239,7 +330,7 @@ class EditTrackInfoDialog extends Component {
     }
 
     // 处理不同格式的封面数据
-    processCoverData(coverData) {
+    processCoverData(coverData: CoverData | null | undefined): void {
         try {
             console.log('🔍 EditTrackInfoDialog: 分析封面数据格式', {
                 type: typeof coverData,
@@ -296,7 +387,6 @@ class EditTrackInfoDialog extends Component {
             } else {
                 console.error('❌ EditTrackInfoDialog: 未知的封面数据格式', {
                     type: typeof coverData,
-                    constructor: coverData.constructor ? coverData.constructor.name : 'unknown',
                     value: coverData
                 });
                 this.setDefaultCover();
@@ -308,7 +398,7 @@ class EditTrackInfoDialog extends Component {
     }
 
     // 验证URL是否有效
-    isValidUrl(url) {
+    isValidUrl(url: unknown): url is string {
         if (!url || typeof url !== 'string') {
             console.log('🔍 EditTrackInfoDialog: URL验证失败 - 无效参数', {
                 url: url,
@@ -331,7 +421,7 @@ class EditTrackInfoDialog extends Component {
     }
 
     // 设置封面并添加验证
-    setCoverWithValidation(url) {
+    setCoverWithValidation(url: unknown): void {
         // 严格的类型检查
         if (typeof url !== 'string') {
             console.error('❌ EditTrackInfoDialog: setCoverWithValidation收到非字符串URL', {
@@ -383,14 +473,14 @@ class EditTrackInfoDialog extends Component {
     }
 
     // 设置默认封面
-    setDefaultCover() {
+    setDefaultCover(): void {
         this.coverPreview.src = 'assets/images/default-cover.svg';
         this.coverPreview.onload = null;
         this.coverPreview.onerror = null;
     }
 
     // 检查是否为类似Buffer的对象
-    isBufferLike(obj) {
+    isBufferLike(obj: any): boolean {
         if (!obj) return false;
 
         // 检查是否有Buffer的特征
@@ -416,7 +506,7 @@ class EditTrackInfoDialog extends Component {
     }
 
     // 检查API可用性
-    checkAPIAvailability() {
+    checkAPIAvailability(): ApiAvailabilityStatus {
         const status = {
             electronAPI: !!window.electronAPI,
             showOpenDialog: !!(window.electronAPI?.dialog?.showOpenDialog),
@@ -429,7 +519,7 @@ class EditTrackInfoDialog extends Component {
     }
 
     // 将封面对象转换为可用的URL
-    convertCoverObjectToUrl(coverObject) {
+    convertCoverObjectToUrl(coverObject: CoverObject): void {
         try {
             console.log('🔄 EditTrackInfoDialog: 转换封面对象为URL', {
                 format: coverObject.format,
@@ -538,15 +628,15 @@ class EditTrackInfoDialog extends Component {
         } catch (error) {
             console.error('❌ EditTrackInfoDialog: 转换封面对象失败', error);
             console.error('❌ 错误详情:', {
-                message: error.message,
-                stack: error.stack,
+                message: getErrorMessage(error),
+                stack: getErrorStack(error),
                 coverObject: coverObject
             });
             this.setDefaultCover();
         }
     }
 
-    async selectCover() {
+    async selectCover(): Promise<void> {
         try {
             // 检查API可用性
             const apiStatus = this.checkAPIAvailability();
@@ -558,7 +648,7 @@ class EditTrackInfoDialog extends Component {
             }
             console.log('🎵 EditTrackInfoDialog: 开始选择封面');
 
-            let result;
+            let result: DialogFileResult;
             // 优先使用通用的dialog API
             if (apiStatus.showOpenDialog) {
                 console.log('🎵 EditTrackInfoDialog: 使用通用dialog API');
@@ -572,14 +662,16 @@ class EditTrackInfoDialog extends Component {
             } else if (window.electronAPI.openImageFile) {
                 // 备用方案：使用现有的openImageFile API
                 console.log('🎵 EditTrackInfoDialog: 使用备用openImageFile API');
-                result = await window.electronAPI.openImageFile();
+                const filePath = await window.electronAPI.openImageFile();
+                result = {canceled: !filePath, filePaths: filePath ? [filePath] : []};
             } else {
                 throw new Error('没有可用的文件选择API');
             }
             console.log('🎵 EditTrackInfoDialog: 文件选择结果', result);
 
-            if (!result.canceled && result.filePaths.length > 0) {
-                const filePath = result.filePaths[0];
+            const filePaths = result.filePaths || [];
+            if (!result.canceled && filePaths.length > 0) {
+                const filePath = filePaths[0];
                 console.log('🎵 EditTrackInfoDialog: 选择的文件路径', filePath);
 
                 // 验证文件大小（限制为5MB）
@@ -604,11 +696,11 @@ class EditTrackInfoDialog extends Component {
                 if (apiStatus.readFile) {
                     try {
                         console.log('🎵 EditTrackInfoDialog: 开始读取文件数据');
-                        const fileData = await window.electronAPI.fs.readFile(filePath);
+                        const fileData = await window.electronAPI.fs.readFile(filePath, null);
                         console.log('🎵 EditTrackInfoDialog: 文件数据读取完成，大小:', fileData.length);
 
                         // 创建File对象
-                        const uint8Array = new Uint8Array(fileData);
+                        const uint8Array = new Uint8Array(fileData as ArrayLike<number>);
                         this.selectedCoverFile = new File([uint8Array], 'cover.jpg', {type: 'image/jpeg'});
 
                         this.updateCoverPreview();
@@ -634,28 +726,29 @@ class EditTrackInfoDialog extends Component {
 
             // 根据错误类型提供更具体的错误信息
             let errorMessage = '选择封面失败：';
-            if (error.message.includes('Cannot read properties of undefined')) {
+            const message = getErrorMessage(error);
+            if (message.includes('Cannot read properties of undefined')) {
                 errorMessage += 'API接口不可用，请重启应用后重试';
-            } else if (error.message.includes('dialog')) {
+            } else if (message.includes('dialog')) {
                 errorMessage += '文件选择对话框打开失败';
-            } else if (error.message.includes('fs')) {
+            } else if (message.includes('fs')) {
                 errorMessage += '文件系统访问失败';
             } else {
-                errorMessage += error.message || '未知错误';
+                errorMessage += message || '未知错误';
             }
 
             this.showError(errorMessage);
         }
     }
 
-    removeCover() {
+    removeCover(): void {
         this.selectedCoverFile = null;
         this.coverPreview.src = 'assets/images/default-cover.svg';
         this.validateForm();
         console.log('🎵 EditTrackInfoDialog: 移除封面');
     }
 
-    validateForm() {
+    validateForm(): boolean {
         this.clearErrors();
         let isValid = true;
 
@@ -688,7 +781,8 @@ class EditTrackInfoDialog extends Component {
 
         // 验证年份（可选）
         const year = this.yearInput.value.trim();
-        if (year && (isNaN(year) || year < 1900 || year > 2099)) {
+        const yearNumber = Number(year);
+        if (year && (Number.isNaN(yearNumber) || yearNumber < 1900 || yearNumber > 2099)) {
             this.showFieldError('year', '请输入有效的年份（1900-2099）');
             isValid = false;
         }
@@ -702,8 +796,12 @@ class EditTrackInfoDialog extends Component {
         return isValid;
     }
 
-    hasChanges() {
-        const currentData = {
+    hasChanges(): boolean {
+        if (!this.originalData) {
+            return this.selectedCoverFile !== null;
+        }
+
+        const currentData: OriginalTrackFormData = {
             title: this.titleInput.value.trim(),
             artist: this.artistInput.value.trim(),
             album: this.albumInput.value.trim(),
@@ -712,7 +810,7 @@ class EditTrackInfoDialog extends Component {
         };
 
         // 检查基本信息是否有变化
-        for (const key in currentData) {
+        for (const key of Object.keys(currentData) as FieldName[]) {
             if (currentData[key] !== (this.originalData[key] || '')) {
                 return true;
             }
@@ -722,26 +820,31 @@ class EditTrackInfoDialog extends Component {
         return this.selectedCoverFile !== null;
     }
 
-    showFieldError(field, message) {
-        const errorElement = this[field + 'Error'];
+    showFieldError(field: FieldName, message: string): void {
+        const errorElements: Partial<Record<FieldName, HTMLElement>> = {
+            title: this.titleError,
+            artist: this.artistError,
+            album: this.albumError
+        };
+        const errorElement = errorElements[field];
         if (errorElement) {
             errorElement.textContent = message;
             errorElement.style.display = 'block';
         }
     }
 
-    clearErrors() {
+    clearErrors(): void {
         this.titleError.style.display = 'none';
         this.artistError.style.display = 'none';
         this.albumError.style.display = 'none';
     }
 
-    showError(message) {
+    showError(message: string): void {
         console.error('❌ EditTrackInfoDialog:', message);
         app.showError(message);
     }
 
-    clearForm() {
+    clearForm(): void {
         this.titleInput.value = '';
         this.artistInput.value = '';
         this.albumInput.value = '';
@@ -752,8 +855,11 @@ class EditTrackInfoDialog extends Component {
         this.confirmBtn.disabled = true;
     }
 
-    async saveChanges() {
+    async saveChanges(): Promise<void> {
         if (!this.validateForm()) {
+            return;
+        }
+        if (!this.currentTrack) {
             return;
         }
 
@@ -761,8 +867,9 @@ class EditTrackInfoDialog extends Component {
             this.confirmBtn.disabled = true;
             this.confirmBtn.textContent = '保存中...';
 
-            const updatedData = {
-                filePath: this.currentTrack.filePath,
+            const track = this.currentTrack;
+            const updatedData: MetadataUpdatePayload = {
+                filePath: track.filePath,
                 title: this.titleInput.value.trim(),
                 artist: this.artistInput.value.trim(),
                 album: this.albumInput.value.trim(),
@@ -785,7 +892,7 @@ class EditTrackInfoDialog extends Component {
             console.log('📝 EditTrackInfoDialog: 开始保存歌曲信息', updatedData.title);
 
             // 调用主进程保存更改
-            const result = await window.electronAPI.library.updateTrackMetadata(updatedData);
+            const result = await (window.electronAPI.library.updateTrackMetadata as any)(updatedData) as MetadataUpdateResult;
 
             if (result.success) {
                 console.log('✅ EditTrackInfoDialog: 歌曲信息保存成功');
@@ -801,13 +908,13 @@ class EditTrackInfoDialog extends Component {
                         );
 
                         if (coverResult.success && typeof coverResult.imageUrl === 'string') {
-                            this.currentTrack.cover = coverResult.imageUrl;
+                            track.cover = coverResult.imageUrl;
                         } else {
-                            this.currentTrack.cover = null;
+                            track.cover = null;
                         }
                     } catch (apiError) {
                         console.error('获取封面URL失败:', apiError);
-                        this.currentTrack.cover = null;
+                        track.cover = null;
                     }
 
                     this.selectedCoverFile = null;
@@ -817,18 +924,18 @@ class EditTrackInfoDialog extends Component {
                 // 准备更新数据
                 const safeUpdatedData = {
                     ...(result.updatedMetadata || updatedData),
-                    cover: this.currentTrack.cover
-                };
+                    cover: track.cover
+                } as MetadataUpdatePayload & Partial<EditableTrack>;
 
                 // 如果封面被更新，手动触发封面刷新
                 if (result.coverUpdated && window.coverUpdateManager) {
                     console.log('🖼️ EditTrackInfoDialog: 检测到封面更新，触发刷新');
                     try {
                         await window.coverUpdateManager.refreshCover(
-                            this.currentTrack.filePath,
-                            safeUpdatedData.title || this.currentTrack.title,
-                            safeUpdatedData.artist || this.currentTrack.artist,
-                            safeUpdatedData.album || this.currentTrack.album
+                            track.filePath,
+                            safeUpdatedData.title || track.title,
+                            safeUpdatedData.artist || track.artist,
+                            safeUpdatedData.album || track.album
                         );
                     } catch (error) {
                         console.warn('⚠️ EditTrackInfoDialog: 封面刷新失败:', error);
@@ -837,7 +944,7 @@ class EditTrackInfoDialog extends Component {
 
                 // 发出更新事件
                 this.emit('trackUpdated', {
-                    track: this.currentTrack,
+                    track,
                     updatedData: safeUpdatedData
                 });
 
@@ -850,14 +957,15 @@ class EditTrackInfoDialog extends Component {
 
             // 根据错误类型提供更具体的错误信息
             let errorMessage = '保存失败：';
-            if (error.message.includes('权限')) {
+            const message = getErrorMessage(error);
+            if (message.includes('权限')) {
                 errorMessage += '文件没有写入权限，请检查文件是否被其他程序占用';
-            } else if (error.message.includes('格式')) {
+            } else if (message.includes('格式')) {
                 errorMessage += '文件格式不支持元数据编辑';
-            } else if (error.message.includes('网络')) {
+            } else if (message.includes('网络')) {
                 errorMessage += '网络文件访问失败，请检查网络连接';
             } else {
-                errorMessage += error.message;
+                errorMessage += message;
             }
 
             this.showError(errorMessage);
