@@ -2,13 +2,29 @@ import {cacheManager} from "@services/CacheManager";
 import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {api} from "@api/api";
 import {libraryAPI} from "@js/api";
+import type {MusicBoxAPIEvents} from "@api/types/events";
+import type {Track} from "@api/types/track";
+import type {RendererAppContext} from "@core/types/app";
+
+interface LibraryControllerOptions {
+    app: RendererAppContext;
+}
+
+interface TrackInfoUpdateData {
+    track: Track;
+    updatedData: Partial<Track> & {
+        cover?: unknown;
+    };
+}
 
 export class LibraryController {
-    constructor({app}) {
+    private readonly app: RendererAppContext;
+
+    constructor({app}: LibraryControllerOptions) {
         this.app = app;
     }
 
-    async loadInitialData() {
+    async loadInitialData(): Promise<void> {
         const app = this.app;
 
         try {
@@ -48,12 +64,14 @@ export class LibraryController {
         }
     }
 
-    async preloadTrackCovers() {
+    async preloadTrackCovers(): Promise<void> {
         const app = this.app;
 
         try {
-            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
-            const showTrackCovers = settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
+            const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as Record<string, unknown>;
+            const showTrackCovers = Object.prototype.hasOwnProperty.call(settings, 'showTrackCovers')
+                ? settings.showTrackCovers
+                : true;
             if (!showTrackCovers) {
                 return;
             }
@@ -70,11 +88,11 @@ export class LibraryController {
         }
     }
 
-    async validateCacheInBackground() {
+    async validateCacheInBackground(): Promise<void> {
         const app = this.app;
 
         try {
-            app.addManagedAPIEventListener('cacheValidationCompleted', (result) => {
+            app.addManagedAPIEventListener('cacheValidationCompleted', (result: MusicBoxAPIEvents['cacheValidationCompleted']) => {
                 if (result.invalid > 0) {
                     app.showInfo(`已清理 ${result.invalid} 个无效的音乐文件`);
 
@@ -86,7 +104,7 @@ export class LibraryController {
                 }
             });
 
-            app.addManagedAPIEventListener('cacheValidationError', (error) => {
+            app.addManagedAPIEventListener('cacheValidationError', (error: MusicBoxAPIEvents['cacheValidationError']) => {
                 console.warn('⚠️ 后台缓存验证失败:', error);
             });
 
@@ -96,7 +114,7 @@ export class LibraryController {
         }
     }
 
-    async refreshLibrary() {
+    async refreshLibrary(): Promise<void> {
         const app = this.app;
 
         try {
@@ -108,7 +126,7 @@ export class LibraryController {
         }
     }
 
-    updateTrackList(source = 'unknown') {
+    updateTrackList(source = 'unknown'): void {
         const app = this.app;
 
         console.log('🔄 [App] updateTrackList 被调用，来源:', source, '当前视图:', app.currentView);
@@ -123,18 +141,18 @@ export class LibraryController {
         }
     }
 
-    handleSearchResults(results) {
+    handleSearchResults(results: Track[]): void {
         this.app.filteredLibrary = results;
         this.updateTrackList('search-results');
     }
 
-    handleSearchCleared() {
+    handleSearchCleared(): void {
         const app = this.app;
         app.filteredLibrary = [...app.library];
         this.updateTrackList('search-cleared');
     }
 
-    updateLibraryTrackDuration(filePath, duration) {
+    updateLibraryTrackDuration(filePath: string, duration: number): void {
         const app = this.app;
         const libraryTrack = app.library.find(track => track.filePath === filePath);
         if (libraryTrack) {
@@ -147,7 +165,7 @@ export class LibraryController {
         }
 
         if (app.components.playlist) {
-            const playlistTrack = app.components.playlist.tracks.find(track => track.filePath === filePath);
+            const playlistTrack = app.components.playlist.tracks.find((track: Track) => track.filePath === filePath);
             if (playlistTrack) {
                 playlistTrack.duration = duration;
                 app.components.playlist.render();
@@ -157,7 +175,7 @@ export class LibraryController {
         this.updateTrackList('duration-update');
     }
 
-    async handleDeleteTrack(track, index) {
+    async handleDeleteTrack(track: Track, index: number): Promise<void> {
         const app = this.app;
 
         if (app.currentView === 'playlist-detail' && app.components.playlistDetailPage) {
@@ -182,7 +200,7 @@ export class LibraryController {
         }
 
         try {
-            const result = await window.electronAPI.library.removeTrack(track.fileId);
+            const result = await window.electronAPI.library.removeTrack(track.fileId as string);
             if (result.success) {
                 const libraryIndex = app.library.findIndex(t => t.fileId === track.fileId);
                 if (libraryIndex !== -1) {
@@ -195,7 +213,7 @@ export class LibraryController {
                 }
 
                 if (app.components.playlist) {
-                    const playlistIndex = app.components.playlist.tracks.findIndex(t => t.fileId === track.fileId);
+                    const playlistIndex = app.components.playlist.tracks.findIndex((t: Track) => t.fileId === track.fileId);
                     if (playlistIndex !== -1) {
                         app.components.playlist.removeTrack(playlistIndex);
                     }
@@ -213,7 +231,7 @@ export class LibraryController {
         }
     }
 
-    async handleBatchDelete(selectedTracks, track, index) {
+    async handleBatchDelete(selectedTracks: Set<number> | null | undefined, track: Track, index: number): Promise<void> {
         const app = this.app;
 
         if (!selectedTracks || selectedTracks.size === 0) {
@@ -243,7 +261,7 @@ export class LibraryController {
             const t = app.filteredLibrary[i];
             if (!t) continue;
             try {
-                const result = await window.electronAPI.library.removeTrack(t.fileId);
+                const result = await window.electronAPI.library.removeTrack(t.fileId as string);
                 if (result.success) {
                     successCount++;
                     const libIdx = app.library.findIndex(x => x.fileId === t.fileId);
@@ -264,7 +282,7 @@ export class LibraryController {
         app.showInfo(`已从音乐库删除 ${successCount} 首歌曲`);
     }
 
-    async handleTrackInfoUpdated(data) {
+    async handleTrackInfoUpdated(data: TrackInfoUpdateData): Promise<void> {
         const app = this.app;
         const {track, updatedData} = data;
 
@@ -298,7 +316,7 @@ export class LibraryController {
             }
 
             if (app.components.playlist) {
-                const playlistTrack = app.components.playlist.tracks.find(t => t.filePath === track.filePath);
+                const playlistTrack = app.components.playlist.tracks.find((t: Track) => t.filePath === track.filePath);
                 if (playlistTrack) {
                     Object.assign(playlistTrack, {
                         title: updatedData.title,
@@ -329,7 +347,7 @@ export class LibraryController {
             this.updateTrackList('track-info-updated');
 
             if (app.currentView === 'playlist-detail' && app.components.playlistDetailPage.isVisible) {
-                const playlistTrack = app.components.playlistDetailPage.tracks.find(t => t.filePath === track.filePath);
+                const playlistTrack = app.components.playlistDetailPage.tracks.find((t: Track) => t.filePath === track.filePath);
                 if (playlistTrack) {
                     Object.assign(playlistTrack, {
                         title: updatedData.title,

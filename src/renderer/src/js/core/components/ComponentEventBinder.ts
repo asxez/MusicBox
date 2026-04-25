@@ -1,16 +1,49 @@
 import {api} from "@api/api";
+import type {Playlist} from "@api/types/playlist";
+import type {Track} from "@api/types/track";
+import type {AppView, ComponentMap, RendererAppContext} from "@core/types/app";
+
+interface ComponentEventBinderOptions {
+    app: RendererAppContext;
+}
+
+type ComponentEventName =
+    | 'recentPage'
+    | 'artistsPage'
+    | 'albumsPage'
+    | 'statisticsPage'
+    | 'networkDiskModal'
+    | 'networkDriveDetailPage';
+
+interface TrackEventPayload {
+    track: Track;
+    index: number;
+}
+
+interface ContextMenuPayload extends TrackEventPayload {
+    selectedTracks?: Set<number>;
+    _index?: number;
+}
+
+interface PlaylistTrackAddedPayload {
+    playlist: Playlist;
+    track: Track;
+}
 
 export class ComponentEventBinder {
-    constructor({app}) {
+    private readonly app: RendererAppContext;
+    private readonly components: ComponentMap;
+
+    constructor({app}: ComponentEventBinderOptions) {
         this.app = app;
         this.components = app.components;
     }
 
-    bindInitialComponentEvents() {
+    bindInitialComponentEvents(): void {
         const app = this.app;
         const components = this.components;
 
-        components.search.on('searchResults', (results) => {
+        components.search.on('searchResults', (results: Track[]) => {
             app.handleSearchResults(results);
         });
 
@@ -18,7 +51,7 @@ export class ComponentEventBinder {
             app.handleSearchCleared();
         });
 
-        components.navigation.on('viewChanged', async (view) => {
+        components.navigation.on('viewChanged', async (view: AppView) => {
             await app.handleViewChange(view);
         });
 
@@ -26,15 +59,15 @@ export class ComponentEventBinder {
             await components.settings.toggle();
         });
 
-        components.navigation.on('playlistSelected', async (playlist) => {
+        components.navigation.on('playlistSelected', async (playlist: Playlist) => {
             await app.handlePlaylistSelected(playlist);
         });
 
-        components.navigation.on('networkDriveSelected', async (drive) => {
+        components.navigation.on('networkDriveSelected', async (drive: unknown) => {
             await app.handleNetworkDriveSelected(drive);
         });
 
-        components.navigation.on('showRenameDialog', (playlist) => {
+        components.navigation.on('showRenameDialog', (playlist: Playlist) => {
             components.renamePlaylistDialog.show(playlist);
         });
 
@@ -42,11 +75,11 @@ export class ComponentEventBinder {
             console.log('🎹 快捷键配置已更新');
         });
 
-        components.trackList.on('trackPlayed', async (track, index) => {
+        components.trackList.on('trackPlayed', async (track: Track, index: number) => {
             await app.handleTrackPlayed(track, index);
         });
 
-        components.trackList.on('trackRightClick', (track, index, x, y, selectedTracks) => {
+        components.trackList.on('trackRightClick', (track: Track, index: number, x: number, y: number, selectedTracks?: Set<number>) => {
             components.contextMenu.show(x, y, track, index, selectedTracks);
         });
 
@@ -58,19 +91,19 @@ export class ComponentEventBinder {
             await components.lyrics.toggle(api.currentTrack);
         });
 
-        components.player.on('trackIndexChanged', (index) => {
+        components.player.on('trackIndexChanged', (index: number) => {
             app.handleTrackIndexChanged(index);
         });
 
-        components.playlist.on('trackSelected', ({track, index}) => {
+        components.playlist.on('trackSelected', ({track, index}: TrackEventPayload) => {
             app.handlePlaylistTrackSelected(track, index);
         });
 
-        components.playlist.on('trackPlayed', async ({track, index}) => {
+        components.playlist.on('trackPlayed', async ({track, index}: TrackEventPayload) => {
             await app.handlePlaylistTrackPlayed(track, index);
         });
 
-        components.playlist.on('trackRemoved', async ({track, index}) => {
+        components.playlist.on('trackRemoved', async ({track, index}: TrackEventPayload) => {
             await app.handlePlaylistTrackRemoved(track, index);
         });
 
@@ -78,71 +111,71 @@ export class ComponentEventBinder {
             await app.handlePlaylistCleared();
         });
 
-        components.contextMenu.on('play', async ({track, index}) => {
+        components.contextMenu.on('play', async ({track, index}: ContextMenuPayload) => {
             await app.handleTrackPlayed(track, index);
         });
 
-        components.contextMenu.on('addToPlaylist', ({track, _index}) => {
+        components.contextMenu.on('addToPlaylist', ({track}: ContextMenuPayload) => {
             app.addToPlaylist(track);
         });
 
-        components.contextMenu.on('addToCustomPlaylist', async ({track, index}) => {
+        components.contextMenu.on('addToCustomPlaylist', async ({track, index}: ContextMenuPayload) => {
             await app.handleAddToCustomPlaylist(track, index);
         });
 
-        components.contextMenu.on('delete', async ({track, index}) => {
+        components.contextMenu.on('delete', async ({track, index}: ContextMenuPayload) => {
             await app.handleDeleteTrack(track, index);
         });
 
-        components.contextMenu.on('batchDelete', async ({selectedTracks, track, index}) => {
+        components.contextMenu.on('batchDelete', async ({selectedTracks, track, index}: ContextMenuPayload) => {
             await app.handleBatchDelete(selectedTracks, track, index);
         });
 
-        components.contextMenu.on('editInfo', async ({track, index}) => {
+        components.contextMenu.on('editInfo', async ({track, index}: ContextMenuPayload) => {
             await app.handleEditTrackInfo(track, index);
         });
 
-        components.createPlaylistDialog.on('playlistCreated', async (playlist) => {
+        components.createPlaylistDialog.on('playlistCreated', async (playlist: Playlist) => {
             await app.handlePlaylistCreated(playlist);
         });
 
-        components.addToPlaylistDialog.on('createNewPlaylist', (track) => {
+        components.addToPlaylistDialog.on('createNewPlaylist', (track: Track) => {
             components.createPlaylistDialog.show(track);
         });
 
-        components.addToPlaylistDialog.on('trackAdded', async ({playlist, track}) => {
+        components.addToPlaylistDialog.on('trackAdded', async ({playlist, track}: PlaylistTrackAddedPayload) => {
             await app.handleTrackAddedToPlaylist(playlist, track);
         });
 
-        components.renamePlaylistDialog.on('playlistRenamed', async (playlist) => {
+        components.renamePlaylistDialog.on('playlistRenamed', async (playlist: Playlist) => {
             await app.handlePlaylistRenamed(playlist);
         });
 
-        components.musicLibrarySelectionDialog.on('tracksAdded', async (data) => {
+        components.musicLibrarySelectionDialog.on('tracksAdded', async (data: unknown) => {
             await app.handleTracksAddedToPlaylist(data);
         });
 
-        components.editTrackInfoDialog.on('trackUpdated', async (data) => {
+        components.editTrackInfoDialog.on('trackUpdated', async (data: unknown) => {
             await app.handleTrackInfoUpdated(data);
         });
 
-        components.playlistDetailPage.on('trackPlayed', async (track, index) => {
+        components.playlistDetailPage.on('trackPlayed', async (track: Track, index: number) => {
             await app.handleTrackPlayed(track, index);
         });
 
-        components.playlistDetailPage.on('playAllTracks', async (tracks) => {
+        components.playlistDetailPage.on('playAllTracks', async (tracks: Track[]) => {
             await app.handlePlayAllTracks(tracks);
         });
 
-        components.playlistDetailPage.on('playlistUpdated', async (playlist) => {
+        components.playlistDetailPage.on('playlistUpdated', async (playlist: Playlist) => {
             await app.handlePlaylistUpdated(playlist);
         });
 
-        components.playlistDetailPage.on('showAddSongsDialog', async (playlist) => {
+        components.playlistDetailPage.on('showAddSongsDialog', async (playlist: Playlist) => {
             await app.handleShowAddSongsDialog(playlist);
         });
 
-        components.playlistDetailPage.on('playlistCoverUpdated', async (playlist) => {
+        components.playlistDetailPage.on('playlistCoverUpdated', async (playlist: Playlist) => {
             await app.handlePlaylistCoverUpdated(playlist);
         });
 
@@ -150,13 +183,13 @@ export class ComponentEventBinder {
             components.updateModal.show();
         });
 
-        components.settings.on('desktopLyricsEnabled', async (enabled) => {
+        components.settings.on('desktopLyricsEnabled', async (enabled: boolean) => {
             if (components.player) {
                 await components.player.updateDesktopLyricsButtonVisibility(enabled);
             }
         });
 
-        components.settings.on('networkDriveEnabled', (enabled) => {
+        components.settings.on('networkDriveEnabled', (enabled: boolean) => {
             if (enabled) {
                 app.initializeComponent('networkDiskModal');
             } else {
@@ -164,7 +197,7 @@ export class ComponentEventBinder {
             }
         });
 
-        components.settings.on('statisticsEnabled', (enabled) => {
+        components.settings.on('statisticsEnabled', (enabled: boolean) => {
             if (components.navigation) {
                 components.navigation.updateStatisticsButtonVisibility(enabled);
             }
@@ -176,7 +209,7 @@ export class ComponentEventBinder {
             }
         });
 
-        components.settings.on('recentPlayEnabled', (enabled) => {
+        components.settings.on('recentPlayEnabled', (enabled: boolean) => {
             if (components.navigation) {
                 components.navigation.updateRecentPlayButtonVisibility(enabled);
             }
@@ -188,7 +221,7 @@ export class ComponentEventBinder {
             }
         });
 
-        components.settings.on('artistsPageEnabled', (enabled) => {
+        components.settings.on('artistsPageEnabled', (enabled: boolean) => {
             if (components.navigation) {
                 components.navigation.updateArtistsPageButtonVisibility(enabled);
             }
@@ -200,7 +233,7 @@ export class ComponentEventBinder {
             }
         });
 
-        components.settings.on('albumsPageEnabled', (enabled) => {
+        components.settings.on('albumsPageEnabled', (enabled: boolean) => {
             if (components.navigation) {
                 components.navigation.updateAlbumsPageButtonVisibility(enabled);
             }
@@ -212,30 +245,30 @@ export class ComponentEventBinder {
             }
         });
 
-        components.settings.on('showTrackCoversEnabled', async (enabled) => {
+        components.settings.on('showTrackCoversEnabled', async (enabled: boolean) => {
             if (enabled && app.isInitialized) {
                 await app.preloadTrackCovers();
             }
         });
 
-        components.settings.on('gaplessPlaybackEnabled', (enabled) => {
+        components.settings.on('gaplessPlaybackEnabled', (enabled: boolean) => {
             api.setGaplessPlayback(enabled);
         });
 
         this.setupComponentEvents();
     }
 
-    setupComponentEvents(componentName = null) {
+    setupComponentEvents(componentName: ComponentEventName | null = null): void {
         if (componentName) {
             this.setupSingleComponentEvents(componentName);
             return;
         }
 
-        this.components.homePage.on('trackPlayed', async (track, index) => {
+        this.components.homePage.on('trackPlayed', async (track: Track, index: number) => {
             await this.app.handleTrackPlayed(track, index);
         });
 
-        this.components.homePage.on('viewChange', (view) => {
+        this.components.homePage.on('viewChange', (view: AppView) => {
             this.components.navigation.navigateToView(view);
         });
 
@@ -264,25 +297,25 @@ export class ComponentEventBinder {
         }
     }
 
-    setupSingleComponentEvents(componentName) {
+    setupSingleComponentEvents(componentName: ComponentEventName | string): void {
         const app = this.app;
 
         switch (componentName) {
             case 'recentPage':
                 if (this.components.recentPage) {
-                    this.components.recentPage.on('trackPlayed', async (track, index) => {
+                    this.components.recentPage.on('trackPlayed', async (track: Track, index: number) => {
                         await app.handleTrackPlayed(track, index);
                     });
 
-                    this.components.recentPage.on('playAll', async (tracks) => {
+                    this.components.recentPage.on('playAll', async (tracks: Track[]) => {
                         await app.handlePlayAllTracks(tracks);
                     });
 
-                    this.components.recentPage.on('addToPlaylist', (track) => {
+                    this.components.recentPage.on('addToPlaylist', (track: Track) => {
                         app.addToPlaylist(track);
                     });
 
-                    this.components.recentPage.on('viewChange', (view) => {
+                    this.components.recentPage.on('viewChange', (view: AppView) => {
                         this.components.navigation.navigateToView(view);
                     });
                 }
@@ -290,15 +323,15 @@ export class ComponentEventBinder {
 
             case 'artistsPage':
                 if (this.components.artistsPage) {
-                    this.components.artistsPage.on('trackPlayed', async (track, index) => {
+                    this.components.artistsPage.on('trackPlayed', async (track: Track, index: number) => {
                         await app.handleTrackPlayed(track, index);
                     });
 
-                    this.components.artistsPage.on('playAll', async (tracks) => {
+                    this.components.artistsPage.on('playAll', async (tracks: Track[]) => {
                         await app.handlePlayAllTracks(tracks);
                     });
 
-                    this.components.artistsPage.on('addToPlaylist', (track) => {
+                    this.components.artistsPage.on('addToPlaylist', (track: Track) => {
                         app.addToPlaylist(track);
                     });
                 }
@@ -306,15 +339,15 @@ export class ComponentEventBinder {
 
             case 'albumsPage':
                 if (this.components.albumsPage) {
-                    this.components.albumsPage.on('trackPlayed', async (track, index) => {
+                    this.components.albumsPage.on('trackPlayed', async (track: Track, index: number) => {
                         await app.handleTrackPlayed(track, index);
                     });
 
-                    this.components.albumsPage.on('playAll', async (tracks) => {
+                    this.components.albumsPage.on('playAll', async (tracks: Track[]) => {
                         await app.handlePlayAllTracks(tracks);
                     });
 
-                    this.components.albumsPage.on('addToPlaylist', (track) => {
+                    this.components.albumsPage.on('addToPlaylist', (track: Track) => {
                         app.addToPlaylist(track);
                     });
                 }
@@ -325,7 +358,7 @@ export class ComponentEventBinder {
 
             case 'networkDiskModal':
                 if (this.components.networkDiskModal) {
-                    this.components.networkDiskModal.on('notification', (data) => {
+                    this.components.networkDiskModal.on('notification', (data: {message: string}) => {
                         app.showSuccess(data.message);
                     });
                 }
@@ -333,15 +366,15 @@ export class ComponentEventBinder {
 
             case 'networkDriveDetailPage':
                 if (this.components.networkDriveDetailPage) {
-                    this.components.networkDriveDetailPage.on('driveRemoved', async (drive) => {
+                    this.components.networkDriveDetailPage.on('driveRemoved', async (drive: unknown) => {
                         await app.handleDriveRemoved(drive);
                     });
 
-                    this.components.networkDriveDetailPage.on('playTrack', async (track, index) => {
+                    this.components.networkDriveDetailPage.on('playTrack', async (track: Track, index: number) => {
                         await app.handleTrackPlayed(track, index);
                     });
 
-                    this.components.networkDriveDetailPage.on('playTracks', async (tracks, _startIndex) => {
+                    this.components.networkDriveDetailPage.on('playTracks', async (tracks: Track[]) => {
                         await app.handlePlayAllTracks(tracks);
                     });
                 }

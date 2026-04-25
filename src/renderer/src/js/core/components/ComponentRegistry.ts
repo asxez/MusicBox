@@ -27,14 +27,37 @@ import {MusicLibrarySelectionDialog} from "@components/dialogs/MusicLibrarySelec
 import {RenamePlaylistDialog} from "@components/dialogs/RenamePlaylistDialog";
 
 import {cacheManager} from "@services/CacheManager";
+import type {ComponentMap} from "@core/types/app";
+
+interface ComponentRegistryOptions {
+    components: ComponentMap;
+    setupComponentEvents: (componentName: string) => void;
+}
+
+type OnDemandComponentName =
+    | 'recentPage'
+    | 'artistsPage'
+    | 'albumsPage'
+    | 'statisticsPage'
+    | 'networkDiskModal';
+
+declare global {
+    interface Window {
+        settings?: unknown;
+        updateModal?: unknown;
+    }
+}
 
 export class ComponentRegistry {
-    constructor({components, setupComponentEvents}) {
+    private readonly components: ComponentMap;
+    private readonly setupComponentEvents: (componentName: string) => void;
+
+    constructor({components, setupComponentEvents}: ComponentRegistryOptions) {
         this.components = components;
         this.setupComponentEvents = setupComponentEvents;
     }
 
-    initializeComponents() {
+    initializeComponents(): void {
         this.components.player = new Player();
         this.components.search = new Search();
         this.components.navigation = new Navigation();
@@ -68,38 +91,41 @@ export class ComponentRegistry {
         this.initializePageComponentsOnDemand();
     }
 
-    initializePageComponentsOnDemand() {
-        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
+    initializePageComponentsOnDemand(): void {
+        const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as Record<string, unknown>;
+        const getSetting = (key: string, fallback: boolean): unknown => (
+            Object.prototype.hasOwnProperty.call(settings, key) ? settings[key] : fallback
+        );
 
-        const recentPlayEnabled = settings.hasOwnProperty('recentPlay') ? settings.recentPlay : true;
+        const recentPlayEnabled = getSetting('recentPlay', true);
         if (recentPlayEnabled) {
             this.components.recentPage = new RecentPage('#content-area');
         } else {
             this.components.recentPage = null;
         }
 
-        const artistsPageEnabled = settings.hasOwnProperty('artistsPage') ? settings.artistsPage : true;
+        const artistsPageEnabled = getSetting('artistsPage', true);
         if (artistsPageEnabled) {
             this.components.artistsPage = new ArtistsPage('#content-area');
         } else {
             this.components.artistsPage = null;
         }
 
-        const albumsPageEnabled = settings.hasOwnProperty('albumsPage') ? settings.albumsPage : true;
+        const albumsPageEnabled = getSetting('albumsPage', true);
         if (albumsPageEnabled) {
             this.components.albumsPage = new AlbumsPage('#content-area');
         } else {
             this.components.albumsPage = null;
         }
 
-        const statisticsEnabled = settings.hasOwnProperty('statistics') ? settings.statistics : true;
+        const statisticsEnabled = getSetting('statistics', true);
         if (statisticsEnabled) {
             this.components.statisticsPage = new StatisticsPage('#content-area');
         } else {
             this.components.statisticsPage = null;
         }
 
-        const networkDriveEnabled = settings.hasOwnProperty('networkDriveEnabled') ? settings.networkDriveEnabled : false;
+        const networkDriveEnabled = getSetting('networkDriveEnabled', false);
         if (networkDriveEnabled) {
             this.initializeComponent('networkDiskModal');
         } else {
@@ -107,7 +133,7 @@ export class ComponentRegistry {
         }
     }
 
-    initializeComponent(componentName) {
+    initializeComponent(componentName: OnDemandComponentName | string): void {
         switch (componentName) {
             case 'recentPage':
                 if (!this.components.recentPage) {
@@ -144,7 +170,7 @@ export class ComponentRegistry {
         }
     }
 
-    destroyComponent(componentName) {
+    destroyComponent(componentName: OnDemandComponentName | string): void {
         switch (componentName) {
             case 'recentPage':
                 if (this.components.recentPage) {
