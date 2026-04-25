@@ -1,13 +1,8 @@
 # Dependencies
 node_modules/
-src/renderer/node_modules/
-src/renderer/public/
 
 # Build outputs
 dist/
-src/renderer/dist/
-src/main/metadata_editor.exe
-src/main/NativeAudio.node
 build/pyinstaller/
 test-files/
 

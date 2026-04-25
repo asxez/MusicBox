@@ -1,16 +1,30 @@
+import type {Track} from '@api/types/track';
+import type {MusicBoxAPIEvents} from '@api/types/events';
+import type {PlayMode} from '@api/types/playback';
+
+type Emit = <K extends keyof MusicBoxAPIEvents>(event: K, data: MusicBoxAPIEvents[K]) => void;
+
+interface PlaybackQueueOptions {
+    emit: Emit;
+    persistPlayMode: (mode: PlayMode) => void;
+}
+
 export class PlaybackQueue {
-    constructor({emit, persistPlayMode}) {
+    private readonly emit: Emit;
+    private readonly persistPlayMode: (mode: PlayMode) => void;
+    private playHistory: number[] = [];
+    private playMode: PlayMode = 'sequence';
+
+    constructor({emit, persistPlayMode}: PlaybackQueueOptions) {
         this.emit = emit;
         this.persistPlayMode = persistPlayMode;
-        this.playHistory = [];
-        this.playMode = 'sequence';
     }
 
-    clearHistory() {
+    clearHistory(): void {
         this.playHistory = [];
     }
 
-    pushHistory(index) {
+    pushHistory(index: number): void {
         if (index === -1) return;
 
         this.playHistory.push(index);
@@ -19,37 +33,37 @@ export class PlaybackQueue {
         }
     }
 
-    removeLastHistoryIndexIfMatches(index) {
+    removeLastHistoryIndexIfMatches(index: number): void {
         if (this.playHistory.length > 0 && this.playHistory[this.playHistory.length - 1] === index) {
             this.playHistory.pop();
         }
     }
 
-    setPlayMode(mode) {
-        const validModes = ['sequence', 'shuffle', 'repeat-one'];
-        if (!validModes.includes(mode)) {
+    setPlayMode(mode: unknown): boolean {
+        const validModes: PlayMode[] = ['sequence', 'shuffle', 'repeat-one'];
+        if (!validModes.includes(mode as PlayMode)) {
             return false;
         }
 
-        this.playMode = mode;
-        this.emit('playModeChanged', mode);
-        this.persistPlayMode(mode);
+        this.playMode = mode as PlayMode;
+        this.emit('playModeChanged', this.playMode);
+        this.persistPlayMode(this.playMode);
         return true;
     }
 
-    getPlayMode() {
+    getPlayMode(): PlayMode {
         return this.playMode;
     }
 
-    togglePlayMode() {
-        const modes = ['sequence', 'shuffle', 'repeat-one'];
+    togglePlayMode(): PlayMode {
+        const modes: PlayMode[] = ['sequence', 'shuffle', 'repeat-one'];
         const currentIndex = modes.indexOf(this.playMode);
         const nextIndex = (currentIndex + 1) % modes.length;
         this.setPlayMode(modes[nextIndex]);
         return this.playMode;
     }
 
-    getNextTrackIndex(playlist, currentIndex) {
+    getNextTrackIndex(playlist: Track[], currentIndex: number): number {
         if (playlist.length === 0) return -1;
 
         switch (this.playMode) {
@@ -69,7 +83,7 @@ export class PlaybackQueue {
         }
     }
 
-    getPreviousTrackIndex(playlist, currentIndex) {
+    getPreviousTrackIndex(playlist: Track[], currentIndex: number): number {
         if (playlist.length === 0) return -1;
 
         if (this.playHistory.length > 0) {

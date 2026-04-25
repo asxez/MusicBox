@@ -1,17 +1,25 @@
 import {cacheManager} from "@services/CacheManager";
+import type {PlaybackStateSnapshot} from '@api/types/playback';
+import type {MusicBoxSettings} from '@api/types/settings';
+
+interface PlaybackPersistenceOptions {
+    getPlaybackState: () => PlaybackStateSnapshot;
+}
 
 export class PlaybackPersistence {
-    constructor({getPlaybackState}) {
+    private readonly getPlaybackState: () => PlaybackStateSnapshot;
+    private savePositionTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    constructor({getPlaybackState}: PlaybackPersistenceOptions) {
         this.getPlaybackState = getPlaybackState;
-        this.savePositionTimeout = null;
     }
 
-    isRememberPositionEnabled() {
-        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
+    isRememberPositionEnabled(): boolean {
+        const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as MusicBoxSettings;
         return !!settings.rememberPosition;
     }
 
-    createPlaybackState(position) {
+    createPlaybackState(position?: number): PlaybackStateSnapshot {
         const state = this.getPlaybackState();
         return {
             ...state,
@@ -20,7 +28,7 @@ export class PlaybackPersistence {
         };
     }
 
-    throttledSavePosition(position) {
+    throttledSavePosition(position: number): void {
         if (!this.isRememberPositionEnabled()) return;
 
         if (this.savePositionTimeout) {
@@ -36,7 +44,7 @@ export class PlaybackPersistence {
         }, 2000);
     }
 
-    saveCurrentPlaybackState() {
+    saveCurrentPlaybackState(): void {
         if (!this.isRememberPositionEnabled()) {
             return;
         }

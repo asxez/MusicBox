@@ -1,25 +1,36 @@
 import {libraryAPI} from "@api/modules";
+import type {Result} from '@api/types/common';
+import type {CacheValidationResult, MusicBoxAPIEvents, ScanProgress} from '@api/types/events';
+import type {Track} from '@api/types/track';
+
+type Emit = <K extends keyof MusicBoxAPIEvents>(event: K, data: MusicBoxAPIEvents[K]) => void;
+
+interface LibraryBridgeOptions {
+    emit: Emit;
+}
 
 export class LibraryBridge {
-    constructor({emit}) {
+    private readonly emit: Emit;
+
+    constructor({emit}: LibraryBridgeOptions) {
         this.emit = emit;
     }
 
-    bindEvents() {
+    bindEvents(): void {
         if (!window.electronAPI.library) {
             return;
         }
 
-        window.electronAPI.library.onLibraryUpdated((event, data) => {
+        window.electronAPI.library.onLibraryUpdated((_event, data) => {
             this.emit('libraryUpdated', data);
         });
 
-        window.electronAPI.library.onScanProgress((event, progress) => {
+        window.electronAPI.library.onScanProgress((_event, progress) => {
             this.emit('scanProgress', progress);
         });
     }
 
-    async scanDirectory(path) {
+    async scanDirectory(path: string): Promise<boolean> {
         try {
             const result = await window.electronAPI.library.scanDirectory(path);
             if (result) {
@@ -33,7 +44,7 @@ export class LibraryBridge {
         }
     }
 
-    async scanNetworkDrive(driveId, relativePath = '/') {
+    async scanNetworkDrive(driveId: string | number, relativePath = '/'): Promise<boolean> {
         try {
             const result = await window.electronAPI.library.scanNetworkDrive(driveId, relativePath);
             if (result) {
@@ -47,7 +58,7 @@ export class LibraryBridge {
         }
     }
 
-    async addTrackToLibrary(audioFile) {
+    async addTrackToLibrary(audioFile: Partial<Track> | unknown): Promise<{success: boolean; track?: Track; error?: string; isNew?: boolean}> {
         try {
             const result = await window.electronAPI.library.addTrackToLibrary(audioFile);
             if (result && result.success) {
@@ -57,11 +68,11 @@ export class LibraryBridge {
             return result;
         } catch (error) {
             console.error('❌ [API] 添加文件到音乐库失败:', error);
-            return {success: false, error: error.message};
+            return {success: false, error: error instanceof Error ? error.message : String(error)};
         }
     }
 
-    async loadCachedTracks() {
+    async loadCachedTracks(): Promise<Track[]> {
         try {
             const tracks = await window.electronAPI.library.loadCachedTracks();
             if (tracks && tracks.length > 0) {
@@ -74,9 +85,9 @@ export class LibraryBridge {
         }
     }
 
-    async validateCache() {
+    async validateCache(): Promise<CacheValidationResult | null> {
         try {
-            const progressListener = window.electronAPI.library.onCacheValidationProgress((progress) => {
+            const progressListener = window.electronAPI.library.onCacheValidationProgress((progress: ScanProgress) => {
                 this.emit('cacheValidationProgress', progress);
             });
 
@@ -99,12 +110,12 @@ export class LibraryBridge {
             throw new Error('缓存验证失败');
         } catch (error) {
             console.error('❌ 缓存验证失败:', error);
-            this.emit('cacheValidationError', error.message);
+            this.emit('cacheValidationError', error instanceof Error ? error.message : String(error));
             return null;
         }
     }
 
-    async clearCache() {
+    async clearCache(): Promise<boolean> {
         try {
             const success = await window.electronAPI.library.clearCache();
             if (success) {
@@ -119,7 +130,7 @@ export class LibraryBridge {
         }
     }
 
-    async updatePlaylistCover(playlistId, imagePath) {
+    async updatePlaylistCover(playlistId: string, imagePath: string): Promise<Result> {
         const result = await window.electronAPI.library.updatePlaylistCover(playlistId, imagePath);
         if (result.success) {
             this.emit('playlistCoverUpdated', {playlistId, imagePath});
@@ -129,7 +140,7 @@ export class LibraryBridge {
         return {success: false, error: '更新歌单封面失败'};
     }
 
-    async getPlaylistCover(playlistId) {
+    async getPlaylistCover(playlistId: string): Promise<{success: boolean; coverPath?: string; error?: string}> {
         const result = await window.electronAPI.library.getPlaylistCover(playlistId);
         if (result.success) {
             return {success: true, coverPath: result.coverPath};
@@ -138,7 +149,7 @@ export class LibraryBridge {
         return {success: false, error: '获取歌单封面失败'};
     }
 
-    async removePlaylistCover(playlistId) {
+    async removePlaylistCover(playlistId: string): Promise<Result> {
         const result = await window.electronAPI.library.removePlaylistCover(playlistId);
         if (result.success) {
             this.emit('playlistCoverRemoved', {playlistId});

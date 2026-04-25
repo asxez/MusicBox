@@ -1,10 +1,10 @@
 import {EventEmitter} from '@utils';
 import {cacheManager} from "@services/CacheManager";
-import {PlaybackQueue} from './playback/PlaybackQueue.js';
-import {PlaybackPersistence} from './playback/PlaybackPersistence.js';
+import {PlaybackQueue} from './playback/PlaybackQueue';
+import {PlaybackPersistence} from './playback/PlaybackPersistence';
 import {DesktopLyricsSync} from './desktopLyrics/DesktopLyricsSync.js';
 import {AudioEngineAdapter} from './audio/AudioEngineAdapter.js';
-import {LibraryBridge} from './library/LibraryBridge.js';
+import {LibraryBridge} from './library/LibraryBridge';
 
 export class MusicBoxAPI extends EventEmitter {
     constructor() {

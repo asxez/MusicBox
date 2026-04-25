@@ -93,7 +93,7 @@ export class LibraryAPI extends BaseAPI {
     /**
      * 清空音乐库缓存
      */
-    async clearCache(): Promise<void> {
+    async clearCache(): Promise<boolean> {
         return this.wrapIPC(
             () => window.electronAPI.library.clearCache(),
             'library.clearCache'

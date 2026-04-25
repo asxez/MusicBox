@@ -19,6 +19,7 @@
     "dev": "npm run build:renderer && npm run build:rs && npm run build:ts && npm run dev:main",
     "dev:main": "chcp 65001 && electron dist/main/main.js --expose-gc",
     "dev:renderer": "cd src/renderer && npm run dev",
+    "typecheck:renderer": "cd src/renderer && npm run typecheck",
     "build": "npm run build:python && npm run build:renderer && npm run build:rs && npm run build:ts && npm run build:main",
     "build:main": "electron-builder",
     "build:renderer": "cd src/renderer && npm run build",
