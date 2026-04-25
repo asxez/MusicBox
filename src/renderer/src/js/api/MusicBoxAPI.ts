@@ -1,12 +1,38 @@
-import {EventEmitter} from '@utils';
+import {EventEmitter} from '@utils/index.js';
 import {cacheManager} from "@services/CacheManager";
 import {PlaybackQueue} from './playback/PlaybackQueue';
 import {PlaybackPersistence} from './playback/PlaybackPersistence';
 import {DesktopLyricsSync} from './desktopLyrics/DesktopLyricsSync';
 import {AudioEngineAdapter} from './audio/AudioEngineAdapter';
 import {LibraryBridge} from './library/LibraryBridge';
+import type {Result} from '@api/types/common';
+import type {CacheValidationResult} from '@api/types/events';
+import type {DesktopLyricsPlaybackState, PlayMode, PlaybackStateName} from '@api/types/playback';
+import type {LyricLine} from '@api/types/lyrics';
+import type {DesktopLyricsSettings, MusicBoxSettings, WasapiShareMode} from '@api/types/settings';
+import type {Track} from '@api/types/track';
+import type {AudioEngineManagerBridge, AudioEngineType} from './audio/AudioEngineAdapter';
 
 export class MusicBoxAPI extends EventEmitter {
+    isInitialized: boolean;
+    currentTrack: Track | null;
+    isPlaying: boolean;
+    volume: number;
+    position: number;
+    duration: number;
+    playlist: Track[];
+    currentIndex: number;
+    queue: PlaybackQueue;
+    playMode: PlayMode;
+    playbackPersistence: PlaybackPersistence;
+    desktopLyricsSync: DesktopLyricsSync;
+    audioEngineAdapter: AudioEngineAdapter;
+    libraryBridge: LibraryBridge;
+    progressInterval: ReturnType<typeof setInterval> | null;
+    audioEngine: AudioEngineManagerBridge | null;
+    _trackSwitchLock: boolean;
+    _lyricsRequestLock: Set<string>;
+
     constructor() {
         super();
         this.isInitialized = false;
@@ -64,50 +90,51 @@ export class MusicBoxAPI extends EventEmitter {
         });
     }
 
-    async initializeWebAudio() {
+    async initializeWebAudio(): Promise<void> {
         this.audioEngine = await this.audioEngineAdapter.initializeWebAudio();
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         // 音频引擎事件监听
-        if (this.audioEngine) {
-            this.audioEngine.onTrackChanged = async (track) => {
-                this.currentTrack = track;
+        const audioEngine = this.audioEngine;
+        if (audioEngine) {
+            audioEngine.onTrackChanged = async (track: unknown) => {
+                this.currentTrack = track as Track | null;
 
                 // 从音频引擎获取最新的索引
                 // 只有在引擎索引与API索引不一致时才同步（说明是引擎主动切换的，如自动播放下一首）
-                if (this.audioEngine.currentIndex !== this.currentIndex) {
+                if (audioEngine.currentIndex !== this.currentIndex) {
                     const previousIndex = this.currentIndex;
-                    this.currentIndex = this.audioEngine.currentIndex;
+                    this.currentIndex = audioEngine.currentIndex;
                     console.log(`🔄 API: 音频引擎主动切换歌曲，同步索引: ${previousIndex} -> ${this.currentIndex}`);
                     this.emit('trackIndexChanged', this.currentIndex);
                 }
 
-                this.emit('trackChanged', track);
-                await this.syncToDesktopLyrics('track', track);
+                this.emit('trackChanged', this.currentTrack);
+                await this.syncToDesktopLyrics('track', this.currentTrack);
                 this.saveCurrentPlaybackState();
             };
 
-            this.audioEngine.onPlaybackStateChanged = async (isPlaying) => {
+            audioEngine.onPlaybackStateChanged = async (isPlaying: boolean) => {
                 this.isPlaying = isPlaying;
                 this.emit('playbackStateChanged', isPlaying ? 'playing' : 'paused');
                 await this.syncToDesktopLyrics('playbackState', {isPlaying, position: this.position});
                 this.saveCurrentPlaybackState();
             };
 
-            this.audioEngine.onPositionChanged = async (position) => {
+            audioEngine.onPositionChanged = async (position: number) => {
                 this.position = position;
                 this.emit('positionChanged', position);
                 await this.syncToDesktopLyrics('position', position);
                 this.throttledSavePosition(position);
             };
 
-            this.audioEngine.onVolumeChanged = (volume) => {
+            audioEngine.onVolumeChanged = (volume: number) => {
                 this.volume = volume;
                 this.emit('volumeChanged', volume);
             };
 
-            this.audioEngine.onDurationChanged = (filePath, duration) => {
+            audioEngine.onDurationChanged = (filePath: string, duration: number) => {
                 console.log('🎵 API: 音频时长更新:', filePath, duration.toFixed(2) + 's');
                 this.updateTrackDuration(filePath, duration);
                 this.emit('trackDurationUpdated', {filePath, duration});
@@ -118,21 +145,21 @@ export class MusicBoxAPI extends EventEmitter {
 
         // Electron IPC events（仅在音频引擎不可用时使用）
         if (window.electronAPI.audio) {
-            window.electronAPI.audio.onTrackChanged((event, track) => {
+            window.electronAPI.audio.onTrackChanged((_event, track) => {
                 if (!this.audioEngine) {
                     this.currentTrack = track;
                     this.emit('trackChanged', track);
                 }
             });
 
-            window.electronAPI.audio.onPlaybackStateChanged((event, state) => {
+            window.electronAPI.audio.onPlaybackStateChanged((_event, state) => {
                 if (!this.audioEngine) {
                     this.isPlaying = state === 'playing';
-                    this.emit('playbackStateChanged', state);
+                    this.emit('playbackStateChanged', state as PlaybackStateName);
                 }
             });
 
-            window.electronAPI.audio.onPositionChanged((event, position) => {
+            window.electronAPI.audio.onPositionChanged((_event, position) => {
                 if (!this.audioEngine) {
                     this.position = position;
                     this.emit('positionChanged', position);
@@ -144,7 +171,7 @@ export class MusicBoxAPI extends EventEmitter {
     }
 
     // Audio Engine Methods
-    async initializeAudio() {
+    async initializeAudio(): Promise<boolean> {
         try {
             const result = await window.electronAPI.audio.init();
             this.isInitialized = result;
@@ -155,12 +182,12 @@ export class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async loadTrack(filePath) {
+    async loadTrack(filePath: string): Promise<boolean> {
         try {
             if (this.audioEngine) {
                 const result = await this.audioEngine.loadTrack(filePath);
                 if (result) {
-                    this.currentTrack = this.audioEngine.getCurrentTrack();
+                    this.currentTrack = this.audioEngine.getCurrentTrack() as Track | null;
                     this.duration = this.audioEngine.getDuration();
                     this.position = 0;
 
@@ -171,8 +198,8 @@ export class MusicBoxAPI extends EventEmitter {
                     // 如果当前索引是-1，尝试在播放列表中查找
                     // 注意：不要从audioEngine同步索引，因为setPlaylist已经设置了正确的索引
                     if (this.currentIndex === -1 && this.playlist.length > 0) {
-                        this.currentIndex = this.playlist.findIndex(track => {
-                            const trackPath = track.filePath || track.path || track;
+                        this.currentIndex = this.playlist.findIndex((track) => {
+                            const trackPath = track.filePath || track.path;
                             return trackPath === filePath;
                         });
 
@@ -226,7 +253,7 @@ export class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async play() {
+    async play(): Promise<boolean> {
         try {
             if (this.audioEngine) {
                 const result = await this.audioEngine.play();
@@ -253,7 +280,7 @@ export class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async pause() {
+    async pause(): Promise<boolean> {
         try {
             if (this.audioEngine) {
                 const result = await this.audioEngine.pause();
@@ -280,7 +307,7 @@ export class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async stop() {
+    async stop(): Promise<boolean> {
         try {
             const result = await window.electronAPI.audio.stop();
             if (result) {
@@ -296,7 +323,7 @@ export class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async seek(position) {
+    async seek(position: number): Promise<boolean> {
         try {
             if (this.audioEngine) {
                 const result = await this.audioEngine.seek(position);
@@ -324,13 +351,13 @@ export class MusicBoxAPI extends EventEmitter {
 
     // 设置播放位置
     // seek的别名
-    async setPosition(position) {
+    async setPosition(position: number): Promise<boolean> {
         console.log('API: setPosition 被调用，位置:', position);
         return await this.seek(position);
     }
 
     // 快进
-    async seekForward(seconds = 10) {
+    async seekForward(seconds = 10): Promise<boolean> {
         try {
             const currentPosition = await this.getPosition();
             const duration = this.getDuration();
@@ -350,7 +377,7 @@ export class MusicBoxAPI extends EventEmitter {
     }
 
     // 回退
-    async seekBackward(seconds = 10) {
+    async seekBackward(seconds = 10): Promise<boolean> {
         try {
             const currentPosition = await this.getPosition();
 
@@ -363,7 +390,7 @@ export class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async setVolume(volume) {
+    async setVolume(volume: number): Promise<boolean> {
         try {
             if (this.audioEngine) {
                 const result = this.audioEngine.setVolume(volume);
@@ -386,13 +413,13 @@ export class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    getVolume() {
+    getVolume(): number {
         return this.volume;
     }
 
-    async getPosition() {
+    async getPosition(): Promise<number> {
         try {
-            this.position = await this.audioEngine.getPosition();
+            this.position = await this.audioEngine!.getPosition();
             return this.position;
         } catch (error) {
             console.error('Failed to get position:', error);
@@ -400,9 +427,9 @@ export class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    getCurrentTrack() {
+    getCurrentTrack(): Track | null {
         try {
-            this.currentTrack = this.audioEngine.getCurrentTrack();
+            this.currentTrack = this.audioEngine!.getCurrentTrack() as Track | null;
             return this.currentTrack;
         } catch (error) {
             console.error('Failed to get track:', error);
@@ -410,9 +437,9 @@ export class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    getDuration() {
+    getDuration(): number {
         try {
-            this.duration = this.audioEngine.getDuration();
+            this.duration = this.audioEngine!.getDuration();
             return this.duration;
         } catch (error) {
             console.error('Failed to get duration:', error);
@@ -421,7 +448,7 @@ export class MusicBoxAPI extends EventEmitter {
     }
 
     // Playlist Methods
-    async setPlaylist(tracks, startIndex = -1) {
+    async setPlaylist(tracks: Track[], startIndex = -1): Promise<boolean> {
         try {
             console.log(`🔄 API: 设置播放列表，${tracks.length}首歌曲，起始索引: ${startIndex}`);
 
@@ -462,7 +489,7 @@ export class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async nextTrack() {
+    async nextTrack(): Promise<boolean> {
         try {
             // 防止快速切换时的竞态条件
             if (this._trackSwitchLock) {
@@ -500,7 +527,7 @@ export class MusicBoxAPI extends EventEmitter {
                 if (result) {
                     // 更新API状态
                     this.currentIndex = this.audioEngine.currentIndex;
-                    this.currentTrack = this.audioEngine.getCurrentTrack();
+                    this.currentTrack = this.audioEngine.getCurrentTrack() as Track | null;
                     this.duration = this.audioEngine.getDuration();
                     this.position = 0;
                     this.isPlaying = this.audioEngine.isPlaying;
@@ -536,7 +563,7 @@ export class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async previousTrack() {
+    async previousTrack(): Promise<boolean> {
         try {
             // 防止快速切换时的竞态条件
             if (this._trackSwitchLock) {
@@ -574,7 +601,7 @@ export class MusicBoxAPI extends EventEmitter {
                 if (result) {
                     // 更新API状态
                     this.currentIndex = this.audioEngine.currentIndex;
-                    this.currentTrack = this.audioEngine.getCurrentTrack();
+                    this.currentTrack = this.audioEngine.getCurrentTrack() as Track | null;
                     this.duration = this.audioEngine.getDuration();
                     this.position = 0;
                     this.isPlaying = this.audioEngine.isPlaying;
@@ -607,75 +634,75 @@ export class MusicBoxAPI extends EventEmitter {
         }
     }
 
-    async scanDirectory(path) {
+    async scanDirectory(path: string): Promise<boolean> {
         return await this.libraryBridge.scanDirectory(path);
     }
 
-    async scanNetworkDrive(driveId, relativePath = '/') {
+    async scanNetworkDrive(driveId: string | number, relativePath = '/'): Promise<boolean> {
         return await this.libraryBridge.scanNetworkDrive(driveId, relativePath);
     }
 
-    async addTrackToLibrary(audioFile) {
+    async addTrackToLibrary(audioFile: Partial<Track> | unknown): Promise<{success: boolean; track?: Track; error?: string; isNew?: boolean}> {
         return await this.libraryBridge.addTrackToLibrary(audioFile);
     }
 
     // 音乐库缓存方法
-    async loadCachedTracks() {
+    async loadCachedTracks(): Promise<Track[]> {
         return await this.libraryBridge.loadCachedTracks();
     }
 
-    async validateCache() {
+    async validateCache(): Promise<CacheValidationResult | null> {
         return await this.libraryBridge.validateCache();
     }
 
-    async clearCache() {
+    async clearCache(): Promise<boolean> {
         return await this.libraryBridge.clearCache();
     }
 
     // 歌单封面管理方法
-    async updatePlaylistCover(playlistId, imagePath) {
+    async updatePlaylistCover(playlistId: string, imagePath: string): Promise<Result> {
         return await this.libraryBridge.updatePlaylistCover(playlistId, imagePath);
     }
 
-    async getPlaylistCover(playlistId) {
+    async getPlaylistCover(playlistId: string): Promise<{success: boolean; coverPath?: string; error?: string}> {
         return await this.libraryBridge.getPlaylistCover(playlistId);
     }
 
-    async removePlaylistCover(playlistId) {
+    async removePlaylistCover(playlistId: string): Promise<Result> {
         return await this.libraryBridge.removePlaylistCover(playlistId);
     }
 
-    stopProgressTracking() {
+    stopProgressTracking(): void {
         if (this.progressInterval) {
             clearInterval(this.progressInterval);
             this.progressInterval = null;
         }
     }
 
-    setPlayMode(mode) {
+    setPlayMode(mode: unknown): boolean {
         const changed = this.queue.setPlayMode(mode);
         this.playMode = this.queue.getPlayMode();
         return changed;
     }
 
-    getPlayMode() {
+    getPlayMode(): PlayMode {
         return this.queue.getPlayMode();
     }
 
-    togglePlayMode() {
+    togglePlayMode(): PlayMode {
         this.playMode = this.queue.togglePlayMode();
         return this.playMode;
     }
 
-    getNextTrackIndex() {
+    getNextTrackIndex(): number {
         return this.queue.getNextTrackIndex(this.playlist, this.currentIndex);
     }
 
-    getPreviousTrackIndex() {
+    getPreviousTrackIndex(): number {
         return this.queue.getPreviousTrackIndex(this.playlist, this.currentIndex);
     }
 
-    updateTrackDuration(filePath, duration) {
+    updateTrackDuration(filePath: string, duration: number): void {
         // 更新当前播放列表中的时长信息
         if (this.playlist && this.playlist.length > 0) {
             const track = this.playlist.find(t => t.filePath === filePath);
@@ -690,7 +717,7 @@ export class MusicBoxAPI extends EventEmitter {
     }
 
     // 获取均衡器实例
-    getEqualizer() {
+    getEqualizer(): unknown {
         if (this.audioEngine) {
             return this.audioEngine.getEqualizer();
         }
@@ -698,14 +725,14 @@ export class MusicBoxAPI extends EventEmitter {
     }
 
     // 启用/禁用均衡器
-    setEqualizerEnabled(enabled) {
+    setEqualizerEnabled(enabled: boolean): void {
         if (this.audioEngine) {
             this.audioEngine.setEqualizerEnabled(enabled);
         }
     }
 
     // 设置无间隙播放状态
-    setGaplessPlayback(enabled) {
+    setGaplessPlayback(enabled: boolean): void {
         if (this.audioEngine) {
             this.audioEngine.setGaplessPlayback(enabled);
             console.log(`🎵 API: 无间隙播放${enabled ? '启用' : '禁用'}`);
@@ -713,62 +740,65 @@ export class MusicBoxAPI extends EventEmitter {
     }
 
     // 获取无间隙播放状态
-    getGaplessPlayback() {
+    getGaplessPlayback(): boolean {
         if (this.audioEngine) {
             return this.audioEngine.getGaplessPlayback();
         }
         return false;
     }
 
-    async switchAudioEngine(engineType) {
+    async switchAudioEngine(engineType: AudioEngineType): Promise<boolean> {
         return await this.audioEngineAdapter.switchAudioEngine(engineType);
     }
 
-    async switchWasapiShareMode(mode) {
+    async switchWasapiShareMode(mode: WasapiShareMode): Promise<boolean> {
         return await this.audioEngineAdapter.switchWasapiShareMode(mode);
     }
 
-    getAudioEngineType() {
+    getAudioEngineType(): string {
         return this.audioEngineAdapter.getAudioEngineType();
     }
 
-    async syncToDesktopLyrics(type, data) {
+    async syncToDesktopLyrics(
+        type: 'track' | 'playbackState' | 'position' | 'lyrics',
+        data: Track | DesktopLyricsPlaybackState | number | LyricLine[] | string | null
+    ): Promise<void> {
         return await this.desktopLyricsSync.syncToDesktopLyrics(type, data);
     }
 
-    async loadLyricsForDesktop(track) {
+    async loadLyricsForDesktop(track: Track): Promise<void> {
         return await this.desktopLyricsSync.loadLyricsForDesktop(track);
     }
 
-    async toggleDesktopLyrics() {
+    async toggleDesktopLyrics(): Promise<{success: boolean; visible?: boolean; error?: string}> {
         return await this.desktopLyricsSync.toggleDesktopLyrics();
     }
 
-    throttledSavePosition(position) {
+    throttledSavePosition(position: number): void {
         this.playbackPersistence.throttledSavePosition(position);
     }
 
-    saveCurrentPlaybackState() {
+    saveCurrentPlaybackState(): void {
         this.playbackPersistence.saveCurrentPlaybackState();
     }
 
-    async syncCurrentStateToDesktopLyrics() {
+    async syncCurrentStateToDesktopLyrics(): Promise<void> {
         return await this.desktopLyricsSync.syncCurrentStateToDesktopLyrics();
     }
 
-    async hideDesktopLyrics() {
+    async hideDesktopLyrics(): Promise<Result> {
         return await this.desktopLyricsSync.hideDesktopLyrics();
     }
 
-    async isDesktopLyricsVisible() {
+    async isDesktopLyricsVisible(): Promise<boolean> {
         return await this.desktopLyricsSync.isDesktopLyricsVisible();
     }
 
-    async updateDesktopLyricsSettings(settings) {
+    async updateDesktopLyricsSettings(settings: DesktopLyricsSettings | MusicBoxSettings): Promise<Result> {
         return await this.desktopLyricsSync.updateDesktopLyricsSettings(settings);
     }
 
-    destroy() {
+    destroy(): void {
         this.stopProgressTracking();
         this.removeAllListeners();
     }

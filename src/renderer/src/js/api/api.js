@@ -1,1 +1,1 @@
-export {MusicBoxAPI, api} from './MusicBoxAPI.js';
+export {MusicBoxAPI, api} from './MusicBoxAPI';

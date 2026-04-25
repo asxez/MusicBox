@@ -2,7 +2,7 @@ import {cacheManager} from "@services/CacheManager";
 import AudioEngineManager from "@services/audio/AudioEngineManager";
 import type {MusicBoxSettings, WasapiShareMode} from '@api/types/settings';
 
-type AudioEngineType = 'webaudio' | 'wasapi';
+export type AudioEngineType = 'webaudio' | 'wasapi';
 
 interface NativeEngineBridge {
     getShareMode(): Promise<WasapiShareMode>;
@@ -14,15 +14,36 @@ interface CurrentEngineBridge {
     switchShareMode?(mode: WasapiShareMode): Promise<boolean>;
 }
 
-interface AudioEngineManagerBridge {
+export interface AudioEngineManagerBridge {
     currentEngine?: CurrentEngineBridge | null;
     initialize(engineType: AudioEngineType): Promise<boolean>;
+    loadTrack(filePath: string): Promise<boolean>;
+    play(): Promise<boolean>;
+    pause(): Promise<boolean>;
+    stop(): Promise<boolean>;
+    seek(position: number): Promise<boolean>;
     setVolume(volume: number): boolean;
+    getPosition(): Promise<number>;
+    getDuration(): number;
+    getCurrentTrack(): unknown;
+    setPlaylist(tracks: unknown[], startIndex?: number): boolean;
+    nextTrack(nextIndex?: number | null): Promise<boolean>;
+    previousTrack(prevIndex?: number | null): Promise<boolean>;
+    getEqualizer(): unknown;
+    setEqualizerEnabled(enabled: boolean): unknown;
     setGaplessPlayback(enabled: boolean): void;
+    getGaplessPlayback(): boolean;
     switchEngine(engineType: AudioEngineType): Promise<boolean>;
     getEngineType(): AudioEngineType | string;
+    currentIndex: number;
+    isPlaying: boolean;
     getNextTrackIndex?: () => number;
     getPreviousTrackIndex?: () => number;
+    onTrackChanged?: (track: unknown) => void | Promise<void>;
+    onPlaybackStateChanged?: (isPlaying: boolean) => void | Promise<void>;
+    onPositionChanged?: (position: number) => void | Promise<void>;
+    onVolumeChanged?: (volume: number) => void;
+    onDurationChanged?: (filePath: string, duration: number) => void;
 }
 
 interface AudioEngineAdapterOptions {
