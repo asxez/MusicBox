@@ -1,14 +1,27 @@
-const PLAY_MODES = Object.freeze(['sequence', 'shuffle', 'repeat-one']);
+import type {PlayMode} from "@api/types/playback";
+import type {Track} from "@api/types/track";
+import type {PlaybackState} from "./PlaybackStateStore";
+
+const PLAY_MODES = Object.freeze(['sequence', 'shuffle', 'repeat-one'] as const);
 const MAX_HISTORY_LENGTH = 50;
 
+interface PlaylistServiceOptions {
+    getState: () => PlaybackState;
+    setState: (partialState: Partial<PlaybackState>) => void;
+}
+
 class PlaylistService {
-    constructor({getState, setState}) {
+    private readonly getState: () => PlaybackState;
+    private readonly setState: (partialState: Partial<PlaybackState>) => void;
+    private playHistory: number[];
+
+    constructor({getState, setState}: PlaylistServiceOptions) {
         this.getState = getState;
         this.setState = setState;
         this.playHistory = [];
     }
 
-    setPlaylist(tracks, currentIndex = -1) {
+    setPlaylist(tracks: Track[], currentIndex = -1): void {
         this.clearHistory();
         this.setState({
             playlist: tracks,
@@ -16,19 +29,19 @@ class PlaylistService {
         });
     }
 
-    getPlaylist() {
+    getPlaylist(): Track[] {
         return this.getState().playlist;
     }
 
-    getCurrentIndex() {
+    getCurrentIndex(): number {
         return this.getState().currentIndex;
     }
 
-    setCurrentIndex(currentIndex) {
+    setCurrentIndex(currentIndex: number): void {
         this.setState({currentIndex});
     }
 
-    setPlayMode(mode) {
+    setPlayMode(mode: PlayMode): boolean {
         if (!PLAY_MODES.includes(mode)) {
             return false;
         }
@@ -37,11 +50,11 @@ class PlaylistService {
         return true;
     }
 
-    getPlayMode() {
+    getPlayMode(): PlayMode {
         return this.getState().playMode;
     }
 
-    togglePlayMode() {
+    togglePlayMode(): PlayMode {
         const currentMode = this.getPlayMode();
         const currentIndex = PLAY_MODES.indexOf(currentMode);
         const nextIndex = (currentIndex + 1) % PLAY_MODES.length;
@@ -51,7 +64,7 @@ class PlaylistService {
         return nextMode;
     }
 
-    pushHistory(index) {
+    pushHistory(index: number | null | undefined): void {
         if (index === -1 || index === null || index === undefined) {
             return;
         }
@@ -63,21 +76,21 @@ class PlaylistService {
         }
     }
 
-    popHistoryIfMatches(index) {
+    popHistoryIfMatches(index: number): void {
         if (this.playHistory.length > 0 && this.playHistory[this.playHistory.length - 1] === index) {
             this.playHistory.pop();
         }
     }
 
-    clearHistory() {
+    clearHistory(): void {
         this.playHistory = [];
     }
 
-    getHistory() {
+    getHistory(): number[] {
         return [...this.playHistory];
     }
 
-    getNextTrackIndex() {
+    getNextTrackIndex(): number {
         const {playlist, currentIndex, playMode} = this.getState();
 
         if (playlist.length === 0) return -1;
@@ -94,7 +107,7 @@ class PlaylistService {
         }
     }
 
-    getPreviousTrackIndex() {
+    getPreviousTrackIndex(): number {
         const {playlist, currentIndex, playMode} = this.getState();
 
         if (playlist.length === 0) return -1;
@@ -115,7 +128,7 @@ class PlaylistService {
         }
     }
 
-    getRandomDifferentIndex(length, currentIndex) {
+    getRandomDifferentIndex(length: number, currentIndex: number): number {
         if (length === 1) return 0;
 
         let randomIndex = Math.floor(Math.random() * length);

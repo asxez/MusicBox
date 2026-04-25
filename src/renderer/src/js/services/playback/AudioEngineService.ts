@@ -1,26 +1,41 @@
 import AudioEngineManager from "@services/audio/AudioEngineManager";
 import {electronAudioAdapter} from "@api/adapters";
+import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
+
+type AudioEngineType = 'webaudio' | 'wasapi';
+
+interface CacheManagerLike {
+    getLocalCache<T = unknown>(key: string): T | null;
+    setLocalCache(key: string, data: unknown): void;
+}
+
+interface AudioEngineServiceOptions {
+    cacheManager: CacheManagerLike;
+}
 
 class AudioEngineService {
-    constructor({cacheManager}) {
+    private readonly cacheManager: CacheManagerLike;
+    private audioEngine: any | null;
+
+    constructor({cacheManager}: AudioEngineServiceOptions) {
         this.cacheManager = cacheManager;
         this.audioEngine = null;
     }
 
-    get engine() {
+    get engine(): any | null {
         return this.audioEngine;
     }
 
-    set engine(audioEngine) {
+    set engine(audioEngine: any | null) {
         this.audioEngine = audioEngine;
     }
 
-    async initialize() {
+    async initialize(): Promise<any | null> {
         try {
-            const settings = this.cacheManager.getLocalCache('musicbox-settings') || {};
+            const settings = this.cacheManager.getLocalCache<MusicBoxSettings>('musicbox-settings') || {};
             const exclusiveMode = settings.exclusiveMode === true;
             const wasapiShareMode = settings.wasapiShareMode || 'exclusive';
-            const engineType = exclusiveMode ? 'wasapi' : 'webaudio';
+            const engineType: AudioEngineType = exclusiveMode ? 'wasapi' : 'webaudio';
 
             console.log(`🎵 API: 初始化音频引擎，类型: ${engineType}${exclusiveMode ? ` (${wasapiShareMode === 'exclusive' ? '独占' : '共享'}模式)` : ''}`);
 
@@ -42,7 +57,7 @@ class AudioEngineService {
         }
     }
 
-    async fallbackToWebAudio() {
+    async fallbackToWebAudio(): Promise<any | null> {
         try {
             console.log('🔧 API: 尝试回退到 WebAudioEngine...');
             this.audioEngine = new AudioEngineManager();
@@ -55,7 +70,7 @@ class AudioEngineService {
         }
     }
 
-    async applyWasapiShareMode(engineType, wasapiShareMode) {
+    async applyWasapiShareMode(engineType: AudioEngineType, wasapiShareMode: WasapiShareMode): Promise<void> {
         if (engineType !== 'wasapi' || !this.audioEngine.currentEngine?.nativeEngine) {
             return;
         }
@@ -71,7 +86,7 @@ class AudioEngineService {
         }
     }
 
-    restoreRuntimeSettings(settings) {
+    restoreRuntimeSettings(settings: MusicBoxSettings): void {
         if (!this.audioEngine) {
             return;
         }
@@ -83,27 +98,27 @@ class AudioEngineService {
         this.audioEngine.setGaplessPlayback(gaplessEnabled);
     }
 
-    async initializeMainProcessAudio() {
+    async initializeMainProcessAudio(): Promise<boolean> {
         return electronAudioAdapter.init();
     }
 
-    getEqualizer() {
+    getEqualizer(): any | null {
         return this.audioEngine?.getEqualizer() || null;
     }
 
-    setEqualizerEnabled(enabled) {
+    setEqualizerEnabled(enabled: boolean): void {
         this.audioEngine?.setEqualizerEnabled(enabled);
     }
 
-    setGaplessPlayback(enabled) {
+    setGaplessPlayback(enabled: boolean): void {
         this.audioEngine?.setGaplessPlayback(enabled);
     }
 
-    getGaplessPlayback() {
+    getGaplessPlayback(): boolean {
         return this.audioEngine?.getGaplessPlayback() || false;
     }
 
-    async switchEngine(engineType) {
+    async switchEngine(engineType: AudioEngineType): Promise<boolean> {
         if (!this.audioEngine) {
             console.error('❌ API: 音频引擎未初始化');
             return false;
@@ -114,7 +129,7 @@ class AudioEngineService {
 
         if (result) {
             console.log('✅ API: 音频引擎切换成功');
-            const settings = this.cacheManager.getLocalCache('musicbox-settings') || {};
+            const settings = this.cacheManager.getLocalCache<MusicBoxSettings>('musicbox-settings') || {};
             settings.exclusiveMode = (engineType === 'wasapi');
             this.cacheManager.setLocalCache('musicbox-settings', settings);
         } else {
@@ -124,7 +139,7 @@ class AudioEngineService {
         return result;
     }
 
-    async switchWasapiShareMode(mode) {
+    async switchWasapiShareMode(mode: WasapiShareMode): Promise<boolean> {
         if (!this.audioEngine) {
             console.error('❌ API: 音频引擎未初始化');
             return false;
@@ -140,7 +155,7 @@ class AudioEngineService {
         try {
             const result = await this.audioEngine.currentEngine?.switchShareMode(mode);
             if (result) {
-                const settings = this.cacheManager.getLocalCache('musicbox-settings') || {};
+                const settings = this.cacheManager.getLocalCache<MusicBoxSettings>('musicbox-settings') || {};
                 settings.wasapiShareMode = mode;
                 this.cacheManager.setLocalCache('musicbox-settings', settings);
                 return true;
@@ -154,7 +169,7 @@ class AudioEngineService {
         }
     }
 
-    getEngineType() {
+    getEngineType(): string {
         return this.audioEngine?.getEngineType() || 'unknown';
     }
 }

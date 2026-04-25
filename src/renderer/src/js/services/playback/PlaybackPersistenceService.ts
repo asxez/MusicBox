@@ -1,12 +1,32 @@
+import type {PlaybackStateSnapshot} from "@api/types/playback";
+import type {MusicBoxSettings} from "@api/types/settings";
+import type {PlaybackState} from "./PlaybackStateStore";
+
+interface CacheManagerLike {
+    getLocalCache<T = unknown>(key: string): T | null;
+    setLocalCache(key: string, data: unknown): void;
+}
+
+interface PlaybackPersistenceServiceOptions {
+    cacheManager: CacheManagerLike;
+    getState: () => PlaybackState;
+    delay?: number;
+}
+
 class PlaybackPersistenceService {
-    constructor({cacheManager, getState, delay = 1000}) {
+    private readonly cacheManager: CacheManagerLike;
+    private readonly getState: () => PlaybackState;
+    private readonly delay: number;
+    private savePositionTimeout: ReturnType<typeof setTimeout> | null;
+
+    constructor({cacheManager, getState, delay = 1000}: PlaybackPersistenceServiceOptions) {
         this.cacheManager = cacheManager;
         this.getState = getState;
         this.delay = delay;
         this.savePositionTimeout = null;
     }
 
-    throttledSavePosition(position) {
+    throttledSavePosition(position: number): void {
         if (this.savePositionTimeout) {
             clearTimeout(this.savePositionTimeout);
         }
@@ -16,15 +36,15 @@ class PlaybackPersistenceService {
         }, this.delay);
     }
 
-    savePosition(position) {
-        const settings = this.cacheManager.getLocalCache('musicbox-settings') || {};
+    savePosition(position: number): void {
+        const settings = this.cacheManager.getLocalCache<MusicBoxSettings>('musicbox-settings') || {};
 
         if (!settings.rememberPosition) {
             return;
         }
 
         const state = this.getState();
-        const playbackState = {
+        const playbackState: PlaybackStateSnapshot = {
             currentTrack: state.currentTrack,
             position,
             isPlaying: state.isPlaying,
@@ -37,15 +57,15 @@ class PlaybackPersistenceService {
         this.cacheManager.setLocalCache('playback-state', playbackState);
     }
 
-    saveCurrentPlaybackState() {
-        const settings = this.cacheManager.getLocalCache('musicbox-settings') || {};
+    saveCurrentPlaybackState(): void {
+        const settings = this.cacheManager.getLocalCache<MusicBoxSettings>('musicbox-settings') || {};
 
         if (!settings.rememberPosition) {
             return;
         }
 
         const state = this.getState();
-        const playbackState = {
+        const playbackState: PlaybackStateSnapshot = {
             currentTrack: state.currentTrack,
             position: state.position,
             isPlaying: state.isPlaying,
@@ -58,7 +78,7 @@ class PlaybackPersistenceService {
         this.cacheManager.setLocalCache('playback-state', playbackState);
     }
 
-    destroy() {
+    destroy(): void {
         if (this.savePositionTimeout) {
             clearTimeout(this.savePositionTimeout);
             this.savePositionTimeout = null;
