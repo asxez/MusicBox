@@ -5,7 +5,26 @@
 
 import {hex_md5} from "@utils/md5";
 
+interface MemoryCacheEntry<T = any> {
+    data: T;
+}
+
+interface LocalCacheEntry<T = any> {
+    data: T;
+}
+
+interface LyricsCacheData {
+    success?: boolean;
+    cachedAt?: number;
+    cacheSource?: string;
+    [key: string]: unknown;
+}
+
 class CacheManager {
+    private readonly memoryCache: Map<string, MemoryCacheEntry>;
+    private readonly maxMemorySize: number;
+    private readonly storagePrefix: string;
+
     constructor() {
         this.memoryCache = new Map();
         this.maxMemorySize = 5;
@@ -13,16 +32,18 @@ class CacheManager {
     }
 
     // 生成缓存键
-    generateKey(type, title, artist, album = '') {
+    generateKey(type: string, title: string, artist: string, album = ''): string {
         return hex_md5((type + title + artist + album).toString());
     }
 
     // 内存缓存操作
-    setMemoryCache(key, data) {
+    setMemoryCache<T = any>(key: string, data: T): void {
         // 如果缓存已满，删除最旧的条目
         if (this.memoryCache.size >= this.maxMemorySize) {
             const firstKey = this.memoryCache.keys().next().value;
-            this.memoryCache.delete(firstKey);
+            if (firstKey) {
+                this.memoryCache.delete(firstKey);
+            }
         }
 
         this.memoryCache.set(key, {
@@ -30,18 +51,18 @@ class CacheManager {
         });
     }
 
-    getMemoryCache(key) {
+    getMemoryCache<T = any>(key: string): T | null {
         const cached = this.memoryCache.get(key);
         if (cached) {
-            return cached.data;
+            return cached.data as T;
         }
         return null;
     }
 
     // 本地存储缓存操作
-    setLocalCache(key, data) {
+    setLocalCache<T = any>(key: string, data: T): void {
         try {
-            const cacheData = {
+            const cacheData: LocalCacheEntry<T> = {
                 data: data,
             };
             localStorage.setItem(this.storagePrefix + key, JSON.stringify(cacheData));
@@ -50,11 +71,11 @@ class CacheManager {
         }
     }
 
-    getLocalCache(key) {
+    getLocalCache<T = any>(key: string): T | null {
         try {
             const cached = localStorage.getItem(this.storagePrefix + key);
             if (!cached) return null;
-            const cacheData = JSON.parse(cached);
+            const cacheData = JSON.parse(cached) as LocalCacheEntry<T>;
             return cacheData.data;
         } catch (error) {
             console.warn('❌ CacheManager: 本地缓存读取失败:', error);
@@ -62,12 +83,12 @@ class CacheManager {
         }
     }
 
-    removeLocalCache(key) {
+    removeLocalCache(key: string): void {
         localStorage.removeItem(this.storagePrefix + key);
     }
 
     // 歌词缓存方法
-    setLyricsCache(title, artist, album, lyricsData) {
+    setLyricsCache(title: string, artist: string, album: string, lyricsData: LyricsCacheData): void {
         const key = this.generateKey('lyrics', title, artist, album);
         this.setMemoryCache(key, lyricsData);
         if (lyricsData.success) {
@@ -81,14 +102,14 @@ class CacheManager {
         }
     }
 
-    getLyricsCache(title, artist, album) {
+    getLyricsCache<T extends LyricsCacheData = LyricsCacheData>(title: string, artist: string, album: string): T | null {
         const key = this.generateKey('lyrics', title, artist, album);
-        let cached = this.getMemoryCache(key);
+        let cached = this.getMemoryCache<T>(key);
         if (cached) {
             return cached;
         }
 
-        cached = this.getLocalCache(key);
+        cached = this.getLocalCache<T>(key);
         if (cached) {
             this.setMemoryCache(key, cached);
             return cached;
@@ -97,12 +118,12 @@ class CacheManager {
     }
 
     // 清空内存缓存
-    clearMemoryCache() {
+    clearMemoryCache(): void {
         this.memoryCache.clear();
     }
 
     // 清空所有缓存
-    clearAllCache() {
+    clearAllCache(): void {
         this.memoryCache.clear();
         try {
             const keys = Object.keys(localStorage);
@@ -119,5 +140,5 @@ class CacheManager {
     }
 }
 
-let cacheManager = new CacheManager();
+const cacheManager = new CacheManager();
 export {cacheManager};

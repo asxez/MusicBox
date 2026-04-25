@@ -3,13 +3,26 @@
  * 负责解析TTML格式歌词，支持逐字时间轴
  */
 
+import type {LyricLine} from "@api/types/lyrics";
+
+interface TTMLWord {
+    text: string;
+    time: number;
+    endTime: number | null;
+}
+
+interface TTMLLyricLine extends LyricLine {
+    endTime: number | null;
+    words?: TTMLWord[];
+}
+
 class TTMLParser {
     /**
      * 解析TTML歌词内容
      * @param {string} ttmlContent - TTML XML内容
      * @returns {Array} - 解析后的歌词数组，包含逐字时间信息
      */
-    parse(ttmlContent) {
+    parse(ttmlContent: string): TTMLLyricLine[] {
         try {
             if (!ttmlContent || typeof ttmlContent !== 'string') {
                 console.error('❌ TTMLParser: 无效的TTML内容');
@@ -25,7 +38,7 @@ class TTMLParser {
                 return [];
             }
 
-            const lyrics = [];
+            const lyrics: TTMLLyricLine[] = [];
             const bodyElement = xmlDoc.querySelector('body');
             if (!bodyElement) {
                 console.error('❌ TTMLParser: 未找到body元素');
@@ -59,7 +72,7 @@ class TTMLParser {
      * @param {Element} pElement - 段落元素
      * @returns {Object|null} - 歌词行数据
      */
-    parseParagraph(pElement) {
+    parseParagraph(pElement: Element): TTMLLyricLine | null {
         try {
             const begin = pElement.getAttribute('begin');
             const end = pElement.getAttribute('end');
@@ -74,13 +87,13 @@ class TTMLParser {
             const spanElements = pElement.querySelectorAll('span');
 
             if (spanElements.length > 0) {
-                const words = [];
+                const words: TTMLWord[] = [];
                 let fullText = '';
 
                 for (const span of spanElements) {
                     const spanBegin = span.getAttribute('begin');
                     const spanEnd = span.getAttribute('end');
-                    let text = span.textContent.trim();
+                    let text = (span.textContent || '').trim();
 
                     // 过滤括号内容（通常是歌手标注或和声部分）
                     // 匹配中文括号、英文括号、全角括号
@@ -143,7 +156,7 @@ class TTMLParser {
                     type: 'word-by-word'
                 };
             } else {
-                let content = pElement.textContent.trim();
+                let content = (pElement.textContent || '').trim();
 
                 // 过滤括号内容
                 content = content.replace(/[\(（].*?[\)）]/g, '').trim();
@@ -170,7 +183,7 @@ class TTMLParser {
      * @param {string} timeStr - 时间字符串
      * @returns {number} - 秒数
      */
-    parseTime(timeStr) {
+    parseTime(timeStr: string): number {
         if (!timeStr) return 0;
 
         try {
@@ -214,7 +227,7 @@ class TTMLParser {
      * @param {string} content - 待验证内容
      * @returns {boolean} - 是否为有效的TTML格式
      */
-    isValidTTML(content) {
+    isValidTTML(content: string): boolean {
         if (!content || typeof content !== 'string') {
             return false;
         }
