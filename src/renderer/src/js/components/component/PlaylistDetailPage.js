@@ -609,6 +609,7 @@ class PlaylistDetailPage extends Component {
                 }
                 app.showSuccess(message);
                 await this.loadPlaylistTracks();
+                this.emit('playlistUpdated', this.currentPlaylist);
             } else {
                 app.showError(result.error || '添加歌曲到歌单失败');
             }
