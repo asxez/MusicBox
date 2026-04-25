@@ -133,6 +133,40 @@ export interface ElectronDesktopLyricsAPI {
     onSettingsChanged(callback: (settings: DesktopLyricsSettings) => void): Unsubscribe;
 }
 
+export interface EmbeddedLyricsData {
+    text: string;
+    type?: string;
+    format?: string;
+    language?: string;
+    description?: string;
+    synchronized?: boolean;
+    timestamps?: Array<{
+        time: number;
+        text: string;
+    }>;
+    [key: string]: unknown;
+}
+
+export interface ElectronLyricsAPI {
+    readLocalFile(filePath: string): Promise<{success: boolean; content?: string; error?: string}>;
+    searchLocalFiles(
+        lyricsDir: string,
+        title: string,
+        artist: string,
+        album: string,
+        extension: string
+    ): Promise<{success: boolean; filePath?: string; fileName?: string; error?: string}>;
+    saveToLocal(
+        lyricsDir: string,
+        title: string,
+        artist: string,
+        album: string,
+        content: string,
+        format: string
+    ): Promise<{success: boolean; filePath?: string; fileName?: string; error?: string}>;
+    getEmbedded(filePath: string): Promise<{success: boolean; lyrics?: EmbeddedLyricsData; source?: string; error?: string}>;
+}
+
 export interface ElectronWindowAPI {
     minimize(): Promise<void>;
     maximize(): Promise<void>;

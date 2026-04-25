@@ -8,6 +8,7 @@ import type {
     ElectronDesktopLyricsAPI,
     ElectronGlobalShortcutsAPI,
     ElectronLibraryAPI,
+    ElectronLyricsAPI,
     ElectronNativeAudioAPI,
     ElectronWindowAPI
 } from '@api/types/electron';
@@ -180,6 +181,7 @@ interface ElectronAPI {
 
     // 桌面歌词
     desktopLyrics: ElectronDesktopLyricsAPI;
+    lyrics: ElectronLyricsAPI;
     networkDrive: {};
 
     // 设置相关

@@ -3,7 +3,50 @@
  * 负责内嵌歌词的提取、格式转换和缓存管理
  */
 
+import type {EmbeddedLyricsData} from "@api/types/electron";
+
+interface EmbeddedLyricsResult {
+    success: boolean;
+    error?: string;
+    lrc?: string;
+    source?: 'embedded';
+    type?: string;
+    format?: string;
+    language?: string;
+    description?: string;
+    synchronized?: boolean;
+    originalData?: EmbeddedLyricsData;
+    cachedAt?: number;
+}
+
+interface ConversionResult {
+    success: boolean;
+    error?: string;
+    lrc: string;
+    type?: 'synchronized' | 'unsynchronized';
+}
+
+interface TrackMetadataLike {
+    embeddedLyrics?: {
+        text?: string;
+    };
+}
+
+interface EmbeddedLyricsDebugInfo {
+    success: boolean;
+    error?: string;
+    filePath?: string;
+    apiResponse?: unknown;
+    timestamp: string;
+    details?: Record<string, unknown>;
+    lyricsAnalysis?: Record<string, unknown>;
+    conversionResult?: Record<string, unknown>;
+}
+
 class EmbeddedLyricsManager {
+    private readonly cache: Map<string, EmbeddedLyricsResult>;
+    private readonly maxCacheSize: number;
+
     constructor() {
         this.cache = new Map();
         this.maxCacheSize = 5;
@@ -14,7 +57,7 @@ class EmbeddedLyricsManager {
      * @param {string} filePath - 音频文件路径
      * @returns {Promise<Object>} 歌词获取结果
      */
-    async getEmbeddedLyrics(filePath) {
+    async getEmbeddedLyrics(filePath: string): Promise<EmbeddedLyricsResult> {
         try {
             // 参数验证
             if (!filePath || typeof filePath !== 'string') {
@@ -32,7 +75,7 @@ class EmbeddedLyricsManager {
             const cacheKey = this.generateCacheKey(filePath);
             if (this.cache.has(cacheKey)) {
                 console.log(`✅ EmbeddedLyricsManager: 缓存命中 - ${filePath}`);
-                return this.cache.get(cacheKey);
+                return this.cache.get(cacheKey)!;
             }
 
             console.log(`🔍 EmbeddedLyricsManager: 获取内嵌歌词 - ${filePath}`);
@@ -41,20 +84,20 @@ class EmbeddedLyricsManager {
             const result = await window.electronAPI.lyrics.getEmbedded(filePath);
 
             if (!result || typeof result !== 'object') {
-                const errorResult = {success: false, error: '主进程返回无效响应'};
+                const errorResult: EmbeddedLyricsResult = {success: false, error: '主进程返回无效响应'};
                 this.setCache(cacheKey, errorResult);
                 return errorResult;
             }
 
             if (!result.success) {
-                const errorResult = {success: false, error: result.error || '未知错误'};
+                const errorResult: EmbeddedLyricsResult = {success: false, error: result.error || '未知错误'};
                 this.setCache(cacheKey, errorResult);
                 return errorResult;
             }
 
             // 验证歌词数据
             if (!result.lyrics || typeof result.lyrics !== 'object') {
-                const errorResult = {success: false, error: '内嵌歌词数据格式无效'};
+                const errorResult: EmbeddedLyricsResult = {success: false, error: '内嵌歌词数据格式无效'};
                 this.setCache(cacheKey, errorResult);
                 return errorResult;
             }
@@ -62,12 +105,12 @@ class EmbeddedLyricsManager {
             // 转换歌词格式为LRC
             const convertedLyrics = this.convertToLRC(result.lyrics);
             if (!convertedLyrics.success) {
-                const errorResult = {success: false, error: `歌词格式转换失败: ${convertedLyrics.error}`};
+                const errorResult: EmbeddedLyricsResult = {success: false, error: `歌词格式转换失败: ${convertedLyrics.error}`};
                 this.setCache(cacheKey, errorResult);
                 return errorResult;
             }
 
-            const finalResult = {
+            const finalResult: EmbeddedLyricsResult = {
                 success: true,
                 lrc: convertedLyrics.lrc,
                 source: 'embedded',
@@ -88,17 +131,18 @@ class EmbeddedLyricsManager {
             console.error('❌ EmbeddedLyricsManager: 获取内嵌歌词失败:', error);
 
             // 提供更具体的错误信息
-            let errorMessage = error.message || '未知错误';
-            if (error.name === 'TypeError') {
+            const caughtError = error instanceof Error ? error : new Error(String(error));
+            let errorMessage = caughtError.message || '未知错误';
+            if (caughtError.name === 'TypeError') {
                 errorMessage = '数据类型错误，可能是API响应格式不正确';
-            } else if (error.name === 'NetworkError') {
+            } else if (caughtError.name === 'NetworkError') {
                 errorMessage = '网络错误，无法与主进程通信';
             }
 
-            const errorResult = {success: false, error: errorMessage};
+            const errorResult: EmbeddedLyricsResult = {success: false, error: errorMessage};
 
             // 对于某些错误，不缓存结果（如网络错误）
-            if (!error.name || error.name !== 'NetworkError') {
+            if (!caughtError.name || caughtError.name !== 'NetworkError') {
                 const cacheKey = this.generateCacheKey(filePath);
                 this.setCache(cacheKey, errorResult);
             }
@@ -112,7 +156,7 @@ class EmbeddedLyricsManager {
      * @param {Object} embeddedLyrics - 内嵌歌词数据
      * @returns {Object} 转换结果
      */
-    convertToLRC(embeddedLyrics) {
+    convertToLRC(embeddedLyrics: EmbeddedLyricsData): ConversionResult {
         try {
             if (!embeddedLyrics || !embeddedLyrics.text) {
                 throw new Error('内嵌歌词数据无效');
@@ -140,7 +184,7 @@ class EmbeddedLyricsManager {
             console.error('❌ EmbeddedLyricsManager: 歌词格式转换失败:', error);
             return {
                 success: false,
-                error: error.message,
+                error: error instanceof Error ? error.message : String(error),
                 lrc: ''
             };
         }
@@ -151,8 +195,8 @@ class EmbeddedLyricsManager {
      * @param {Object} embeddedLyrics - 同步歌词数据
      * @returns {string} LRC格式歌词
      */
-    convertSynchronizedToLRC(embeddedLyrics) {
-        let lrcLines = [];
+    convertSynchronizedToLRC(embeddedLyrics: EmbeddedLyricsData): string {
+        const lrcLines: string[] = [];
 
         // 添加元数据标签
         if (embeddedLyrics.language) {
@@ -165,7 +209,7 @@ class EmbeddedLyricsManager {
         lrcLines.push('');
 
         // 转换时间戳歌词
-        for (const item of embeddedLyrics.timestamps) {
+        for (const item of embeddedLyrics.timestamps || []) {
             const timeTag = this.formatTimeTag(item.time);
             lrcLines.push(`${timeTag}${item.text}`);
         }
@@ -178,7 +222,7 @@ class EmbeddedLyricsManager {
      * @param {Object} embeddedLyrics - 非同步歌词数据
      * @returns {string} LRC格式歌词
      */
-    convertUnsynchronizedToLRC(embeddedLyrics) {
+    convertUnsynchronizedToLRC(embeddedLyrics: EmbeddedLyricsData): string {
         console.log('🔍 转换非同步歌词为LRC格式');
 
         // 检查原始歌词是否已经是LRC格式
@@ -192,7 +236,7 @@ class EmbeddedLyricsManager {
             );
 
             if (!hasMetadata) {
-                let metadataLines = [];
+                const metadataLines: string[] = [];
                 if (embeddedLyrics.language) {
                     metadataLines.push(`[la:${embeddedLyrics.language}]`);
                 }
@@ -209,7 +253,7 @@ class EmbeddedLyricsManager {
         }
 
         console.log('🔍 歌词不是LRC格式，开始转换');
-        let lrcLines = [];
+        const lrcLines: string[] = [];
 
         // 添加元数据标签
         if (embeddedLyrics.language) {
@@ -239,7 +283,7 @@ class EmbeddedLyricsManager {
      * @param {string} text - 歌词文本
      * @returns {boolean} 是否为LRC格式
      */
-    isAlreadyLRCFormat(text) {
+    isAlreadyLRCFormat(text: string): boolean {
         if (!text || typeof text !== 'string') {
             return false;
         }
@@ -279,7 +323,7 @@ class EmbeddedLyricsManager {
      * @param {number} timeInSeconds - 时间（秒）
      * @returns {string} LRC时间标签
      */
-    formatTimeTag(timeInSeconds) {
+    formatTimeTag(timeInSeconds: number): string {
         const minutes = Math.floor(timeInSeconds / 60);
         const seconds = Math.floor(timeInSeconds % 60);
         const milliseconds = Math.floor((timeInSeconds % 1) * 100);
@@ -292,7 +336,7 @@ class EmbeddedLyricsManager {
      * @param {string} filePath - 文件路径
      * @returns {string} 缓存键
      */
-    generateCacheKey(filePath) {
+    generateCacheKey(filePath: string): string {
         return `embedded_${filePath}`;
     }
 
@@ -301,10 +345,12 @@ class EmbeddedLyricsManager {
      * @param {string} key - 缓存键
      * @param {Object} data - 缓存数据
      */
-    setCache(key, data) {
+    setCache(key: string, data: EmbeddedLyricsResult): void {
         if (this.cache.size >= this.maxCacheSize) {
             const firstKey = this.cache.keys().next().value;
-            this.cache.delete(firstKey);
+            if (firstKey) {
+                this.cache.delete(firstKey);
+            }
         }
 
         this.cache.set(key, {
@@ -316,7 +362,7 @@ class EmbeddedLyricsManager {
     /**
      * 清空缓存
      */
-    clearCache() {
+    clearCache(): void {
         this.cache.clear();
         console.log('🗑️ EmbeddedLyricsManager: 缓存已清空');
     }
@@ -326,7 +372,7 @@ class EmbeddedLyricsManager {
      * @param {Object} trackMetadata - 音频文件元数据
      * @returns {boolean} 是否包含内嵌歌词
      */
-    hasEmbeddedLyrics(trackMetadata) {
+    hasEmbeddedLyrics(trackMetadata: TrackMetadataLike | null | undefined): boolean {
         return !!(trackMetadata && trackMetadata.embeddedLyrics && trackMetadata.embeddedLyrics.text);
     }
 
@@ -335,7 +381,7 @@ class EmbeddedLyricsManager {
      * @param {string} filePath - 音频文件路径
      * @returns {Promise<Object>} 详细的调试信息
      */
-    async debugEmbeddedLyrics(filePath) {
+    async debugEmbeddedLyrics(filePath: string): Promise<EmbeddedLyricsDebugInfo> {
         try {
             console.log(`🔧 开始调试内嵌歌词: ${filePath}`);
 
@@ -344,6 +390,7 @@ class EmbeddedLyricsManager {
                 return {
                     success: false,
                     error: '内嵌歌词API不可用',
+                    timestamp: new Date().toISOString(),
                     details: {
                         electronAPI: !!window.electronAPI,
                         lyricsAPI: !!(window.electronAPI && window.electronAPI.lyrics),
@@ -355,7 +402,7 @@ class EmbeddedLyricsManager {
             // 获取原始结果
             const result = await window.electronAPI.lyrics.getEmbedded(filePath);
 
-            const debugInfo = {
+            const debugInfo: EmbeddedLyricsDebugInfo = {
                 success: result.success,
                 filePath: filePath,
                 apiResponse: result,
@@ -391,7 +438,7 @@ class EmbeddedLyricsManager {
                 } catch (conversionError) {
                     debugInfo.conversionResult = {
                         success: false,
-                        error: conversionError.message
+                        error: conversionError instanceof Error ? conversionError.message : String(conversionError)
                     };
                 }
             } else {
@@ -405,7 +452,7 @@ class EmbeddedLyricsManager {
             console.error('🔧 调试过程失败:', error);
             return {
                 success: false,
-                error: error.message,
+                error: error instanceof Error ? error.message : String(error),
                 filePath: filePath,
                 timestamp: new Date().toISOString()
             };
@@ -413,5 +460,5 @@ class EmbeddedLyricsManager {
     }
 }
 
-let embeddedLyricsManager = new EmbeddedLyricsManager();
+const embeddedLyricsManager = new EmbeddedLyricsManager();
 export {embeddedLyricsManager};
