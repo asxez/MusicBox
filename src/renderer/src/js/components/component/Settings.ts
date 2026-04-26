@@ -3,6 +3,7 @@
  */
 
 import {showToast} from '@utils/index.js';
+import {audioEngineSettingsService} from "@services/settings/AudioEngineSettingsService";
 import {cacheMaintenanceService} from "@services/settings/CacheMaintenanceService";
 import {displayModeSettingsService} from "@services/settings/DisplayModeSettingsService";
 import {embeddedLyricsDiagnosticsService} from "@services/settings/EmbeddedLyricsDiagnosticsService";
@@ -19,7 +20,6 @@ import {
 } from "@services/settings/ShortcutSettingsService";
 import {traySettingsService} from "@services/settings/TraySettingsService";
 import {Component} from "@components/base/Component";
-import {api} from "@api/api";
 import {app} from "@core/app";
 import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
 
@@ -253,7 +253,7 @@ class Settings extends Component {
             // 如果禁用功能，同时隐藏已打开的桌面歌词窗口
             if (!target.checked) {
                 try {
-                    await api.hideDesktopLyrics();
+                    await displayModeSettingsService.hideDesktopLyrics();
                 } catch (error) {
                     console.error('❌ Settings: 隐藏桌面歌词失败:', error);
                 }
@@ -303,28 +303,17 @@ class Settings extends Component {
 
             console.log(`🎵 Settings: WASAPI引擎${enabled ? '启用' : '禁用'}`);
 
-            // 显示/隐藏WASAPI模式选择器
             this.toggleWasapiModeSelector(enabled);
 
-            // 切换音频引擎
-            try {
-                const engineType = enabled ? 'wasapi' : 'webaudio';
-                const result = await api.switchAudioEngine(engineType);
-                if (result) {
-                    this.showNotification(`已切换到${enabled ? 'WASAPI引擎' : 'WebAudio引擎'}，当前歌曲将重新加载`);
-                } else {
-                    console.error('❌ Settings: 音频引擎切换失败');
-                    target.checked = !enabled;
-                    this.updateSetting('exclusiveMode', !enabled);
-                    this.toggleWasapiModeSelector(!enabled);
-                    this.showNotification('音频引擎切换失败，请查看控制台日志', 'error');
-                }
-            } catch (error) {
-                console.error('❌ Settings: 音频引擎切换异常:', error);
+            const result = await audioEngineSettingsService.switchExclusiveMode(enabled);
+            if (result.success) {
+                this.showNotification(result.message || '音频引擎已切换');
+            } else {
+                console.error('❌ Settings: 音频引擎切换失败:', result.error);
                 target.checked = !enabled;
                 this.updateSetting('exclusiveMode', !enabled);
                 this.toggleWasapiModeSelector(!enabled);
-                this.showNotification('音频引擎切换失败: ' + (error instanceof Error ? error.message : String(error)), 'error');
+                this.showNotification(result.error || '音频引擎切换失败', 'error');
             }
         });
 
@@ -334,18 +323,12 @@ class Settings extends Component {
             this.updateSetting('wasapiShareMode', mode);
             console.log(`🎵 Settings: WASAPI模式切换到${mode === 'exclusive' ? '独占' : '共享'}模式`);
 
-            // 通知音频引擎切换模式
-            try {
-                const result = await api.switchWasapiShareMode(mode);
-                if (result) {
-                    this.showNotification(`已切换到${mode === 'exclusive' ? '独占' : '共享'}模式，当前歌曲将重新加载`);
-                } else {
-                    console.error('❌ Settings: WASAPI模式切换失败');
-                    this.showNotification('WASAPI模式切换失败', 'error');
-                }
-            } catch (error) {
-                console.error('❌ Settings: WASAPI模式切换异常:', error);
-                this.showNotification('WASAPI模式切换失败: ' + (error instanceof Error ? error.message : String(error)), 'error');
+            const result = await audioEngineSettingsService.switchWasapiShareMode(mode);
+            if (result.success) {
+                this.showNotification(result.message || 'WASAPI模式已切换');
+            } else {
+                console.error('❌ Settings: WASAPI模式切换失败:', result.error);
+                this.showNotification(result.error || 'WASAPI模式切换失败', 'error');
             }
         });
 
@@ -710,10 +693,9 @@ class Settings extends Component {
 
     // 初始化音频独占模式设置
     initializeExclusiveModeSettings(): void {
-        // 检查是否为Windows平台
-        const isWindows = navigator.platform.toLowerCase().includes('win');
+        const exclusiveModeSettings = audioEngineSettingsService.getExclusiveModeSettings(this.settings);
 
-        if (!isWindows) {
+        if (!exclusiveModeSettings.available) {
             // 非Windows平台，隐藏音频独占模式选项
             if (this.exclusiveModeItem) {
                 this.exclusiveModeItem.style.display = 'none';
@@ -731,11 +713,11 @@ class Settings extends Component {
         }
 
         // 初始化开关状态
-        const exclusiveModeEnabled = typeof this.settings.exclusiveMode === 'boolean' ? this.settings.exclusiveMode : false;
+        const exclusiveModeEnabled = exclusiveModeSettings.enabled;
         this.exclusiveModeToggle.checked = exclusiveModeEnabled;
 
         // 初始化WASAPI模式选择器
-        const wasapiShareMode = typeof this.settings.wasapiShareMode === 'string' ? this.settings.wasapiShareMode : 'exclusive';
+        const wasapiShareMode = exclusiveModeSettings.shareMode;
         if (this.wasapiShareModeSelect) {
             this.wasapiShareModeSelect.value = wasapiShareMode;
         }

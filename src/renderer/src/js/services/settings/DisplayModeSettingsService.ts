@@ -43,6 +43,10 @@ class DisplayModeSettingsService {
         return api.updateDesktopLyricsSettings(settings);
     }
 
+    hideDesktopLyrics(): Promise<unknown> {
+        return api.hideDesktopLyrics();
+    }
+
     getMiniModeSettings(settings: MusicBoxSettings): MiniModeDisplaySettings {
         const miniModeSettings = (settings.miniModeSettings || {}) as DisplaySettingsMap;
         return {
