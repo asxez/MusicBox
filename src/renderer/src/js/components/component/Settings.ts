@@ -22,15 +22,13 @@ import {settingsStore, type SettingValue} from "@services/settings/SettingsStore
 import {
     shortcutSettingsService,
     type ShortcutConflict,
-    type ShortcutDefinition,
     type ShortcutMap,
     type ShortcutType
 } from "@services/settings/ShortcutSettingsService";
+import {shortcutListRenderer} from "@services/settings/ShortcutListRenderer";
 import {traySettingsService} from "@services/settings/TraySettingsService";
 import {Component} from "@components/base/Component";
 import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
-
-type ShortcutEntry = ShortcutDefinition;
 
 const getInputTarget = (event: Event): HTMLInputElement => event.target as HTMLInputElement;
 const getSelectTarget = (event: Event): HTMLSelectElement => event.target as HTMLSelectElement;
@@ -998,100 +996,43 @@ class Settings extends Component {
 
     renderShortcutsList(type: ShortcutType, shortcuts: ShortcutMap): void {
         const container = type === 'local' ? this.localShortcutsList : this.globalShortcutsList;
-        if (!container) return;
-
-        container.innerHTML = '';
-
-        Object.entries(shortcuts).forEach(([id, shortcut]) => {
-            const item = this.createShortcutItem(type, id, shortcut);
-            container.appendChild(item);
+        shortcutListRenderer.render({
+            container,
+            type,
+            shortcuts,
+            onRecord: (shortcutType, id, keyElement) => this.startRecordingShortcut(shortcutType, id, keyElement),
+            onToggle: (shortcutType, id, enabled) => this.toggleShortcut(shortcutType, id, enabled)
         });
-    }
-
-    createShortcutItem(type: ShortcutType, id: string, shortcut: ShortcutEntry | any): HTMLElement {
-        const item = document.createElement('div');
-        item.className = 'shortcut-item';
-        item.innerHTML = `
-            <div class="shortcut-info">
-                <div class="shortcut-name">${shortcut.name}</div>
-                <div class="shortcut-description">${shortcut.description}</div>
-            </div>
-            <div class="shortcut-controls">
-                <div class="shortcut-key ${shortcut.enabled ? '' : 'disabled'}"
-                     data-type="${type}"
-                     data-id="${id}"
-                     title="点击修改快捷键">
-                    ${this.formatShortcutKey(shortcut.key)}
-                </div>
-                <div class="shortcut-toggle">
-                    <div class="toggle-switch">
-                        <input type="checkbox"
-                               id="shortcut-${type}-${id}"
-                               class="toggle-input"
-                               ${shortcut.enabled ? 'checked' : ''}
-                               data-type="${type}"
-                               data-id="${id}">
-                        <label for="shortcut-${type}-${id}" class="toggle-label"></label>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // 添加事件监听器
-        const keyElement = item.querySelector<HTMLElement>('.shortcut-key');
-        const toggleElement = item.querySelector<HTMLInputElement>('.toggle-input');
-
-        keyElement?.addEventListener('click', () => {
-            if (shortcut.enabled) {
-                this.startRecordingShortcut(type, id, keyElement);
-            }
-        });
-
-        toggleElement?.addEventListener('change', (e: Event) => {
-            this.toggleShortcut(type, id, getInputTarget(e).checked);
-        });
-
-        return item;
     }
 
     formatShortcutKey(key: string): string {
-        if (!key) return '未设置';
-        return key
-            .replace(/Ctrl/g, 'Ctrl')
-            .replace(/Alt/g, 'Alt')
-            .replace(/Shift/g, 'Shift')
-            .replace(/Cmd/g, '⌘')
-            .replace(/ArrowUp/g, '↑')
-            .replace(/ArrowDown/g, '↓')
-            .replace(/ArrowLeft/g, '←')
-            .replace(/ArrowRight/g, '→')
-            .replace(/Space/g, '空格');
+        return shortcutListRenderer.formatKey(key);
     }
 
     startRecordingShortcut(type: ShortcutType, id: string, element: HTMLElement): void {
         shortcutSettingsService.startRecording(element, async (shortcutString: string) => {
-            await this.handleShortcutRecorded(type, id, shortcutString, element);
+            await this.handleShortcutRecorded(type, id, shortcutString);
         });
     }
 
-    async handleShortcutRecorded(type: ShortcutType, id: string, shortcutString: string, element: HTMLElement): Promise<void> {
+    async handleShortcutRecorded(type: ShortcutType, id: string, shortcutString: string): Promise<void> {
         // 检查冲突
         const conflicts = shortcutSettingsService.checkConflicts(type, id, shortcutString);
         if (conflicts.length > 0) {
             await this.showShortcutConflict(conflicts, shortcutString, async () => {
                 // 用户确认覆盖
-                await this.updateShortcut(type, id, shortcutString, element);
+                await this.updateShortcut(type, id, shortcutString);
             });
         } else {
-            await this.updateShortcut(type, id, shortcutString, element);
+            await this.updateShortcut(type, id, shortcutString);
         }
     }
 
-    async updateShortcut(type: ShortcutType, id: string, shortcutString: string, element: HTMLElement): Promise<void> {
+    async updateShortcut(type: ShortcutType, id: string, shortcutString: string): Promise<void> {
         try {
             const success = await shortcutSettingsService.updateShortcut(type, id, shortcutString);
             if (success) {
-                element.textContent = this.formatShortcutKey(shortcutString);
+                shortcutListRenderer.updateShortcutKey(type, id, shortcutString);
                 showToast('快捷键已更新', 'success');
 
                 // 通知应用更新快捷键
@@ -1109,15 +1050,7 @@ class Settings extends Component {
         const success = shortcutSettingsService.setShortcutEnabled(type, id, enabled);
 
         if (success) {
-            // 更新UI
-            const keyElement = document.querySelector(`[data-type="${type}"][data-id="${id}"].shortcut-key`);
-            if (keyElement) {
-                if (enabled) {
-                    keyElement.classList.remove('disabled');
-                } else {
-                    keyElement.classList.add('disabled');
-                }
-            }
+            shortcutListRenderer.updateShortcutEnabled(type, id, enabled);
 
             showToast(enabled ? '快捷键已启用' : '快捷键已禁用', 'success');
             this.emit('shortcutsUpdated');
@@ -1148,13 +1081,7 @@ class Settings extends Component {
     }
 
     updateGlobalShortcutsVisibility(visible: boolean): void {
-        if (this.globalShortcutsGroup) {
-            if (visible) {
-                this.globalShortcutsGroup.classList.remove('hidden');
-            } else {
-                this.globalShortcutsGroup.classList.add('hidden');
-            }
-        }
+        shortcutListRenderer.updateGlobalShortcutsVisibility(this.globalShortcutsGroup, visible);
     }
 
     async showShortcutConflict(conflicts: ShortcutConflict[], newShortcut: string, onConfirm: () => void | Promise<void>): Promise<void> {
