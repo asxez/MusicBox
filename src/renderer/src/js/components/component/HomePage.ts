@@ -6,26 +6,38 @@ import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
 import {fileAPI, libraryAPI, userDataAPI} from "@js/api";
+import type {Track} from "@api/types/library";
 
+type BreathingPhase = 'inhale' | 'hold' | 'exhale';
 
 class HomePage extends Component {
-    constructor(container) {
+    private container: any;
+    private tracks: Track[];
+    recentTracks: Track[];
+    _lastTracksHash: string | null;
+    private visualizationAnimation: number | null;
+    private breathingInterval: ReturnType<typeof setInterval> | null;
+
+    constructor(container: string | Element | null) {
         super(container);
+        this.container = this.element;
         this.tracks = [];
         this.recentTracks = [];
         this._lastTracksHash = null; // 防重复机制
+        this.visualizationAnimation = null;
+        this.breathingInterval = null;
         this.setupElements();
     }
 
-    async show() {
+    async show(): Promise<void> {
         if (this.element) {
-            this.element.style.display = 'block';
+            (this.element as HTMLElement).style.display = 'block';
         }
 
         // 只有在没有tracks数据时才获取，避免重复调用
         if (!this.tracks || this.tracks.length === 0) {
             if (app && Array.isArray(app.library) && app.library.length > 0) {
-                this.tracks = app.library;
+                this.tracks = app.library as Track[];
             } else {
                 this.tracks = await libraryAPI.getTracks();
             }
@@ -36,28 +48,34 @@ class HomePage extends Component {
     }
 
     // 生成tracks的简单哈希值
-    _generateTracksHash(tracks) {
+    _generateTracksHash(tracks: Track[] | null | undefined): string {
         if (!tracks || tracks.length === 0) return 'empty';
         const sample = tracks.slice(0, 3).map(t => t.filePath || t.title).join('|');
         return `${tracks.length}_${sample}`;
     }
 
-    hide() {
+    hide(): void {
+        this.stopAudioVisualization();
+        this.stopBreathingGuide();
         if (this.container) {
             this.container.innerHTML = '';
         }
     }
 
-    destroy() {
-        return super.destroy();
+    destroy(): void {
+        this.stopAudioVisualization();
+        this.stopBreathingGuide();
+        super.destroy();
     }
 
-    setupElements() {
+    setupElements(): void {
         this.container = this.element;
     }
 
     // 沉浸式功能事件监听器
-    setupImmersiveEventListeners() {
+    setupImmersiveEventListeners(): void {
+        if (!this.container) return;
+
         // 可视化控制按钮
         const toggleVisualizerBtn = this.container.querySelector('#toggle-visualizer');
         if (toggleVisualizerBtn) {
@@ -90,9 +108,9 @@ class HomePage extends Component {
         }
 
         // 心情记录按钮
-        this.container.querySelectorAll('.mood-btn').forEach(btn => {
+        this.container.querySelectorAll('.mood-btn').forEach((btn: HTMLElement) => {
             btn.addEventListener('click', () => {
-                const mood = btn.dataset.mood;
+                const mood = (btn as HTMLElement).dataset.mood || '';
                 this.recordMood(mood);
                 btn.classList.add('selected');
                 setTimeout(() => btn.classList.remove('selected'), 1000);
@@ -109,10 +127,12 @@ class HomePage extends Component {
     }
 
     // 沉浸式功能实现方法
-    toggleAudioVisualizer() {
-        const visualizer = this.container.querySelector('#audio-visualizer');
-        const breathingGuide = this.container.querySelector('.breathing-guide');
-        const breathingCircle = this.container.querySelector('#breathing-circle');
+    toggleAudioVisualizer(): void {
+        if (!this.container) return;
+
+        const visualizer = this.container.querySelector('#audio-visualizer') as HTMLElement | null;
+        const breathingGuide = this.container.querySelector('.breathing-guide') as HTMLElement | null;
+        const breathingCircle = this.container.querySelector('#breathing-circle') as HTMLElement | null;
 
         if (!visualizer) return;
 
@@ -140,18 +160,21 @@ class HomePage extends Component {
         }
     }
 
-    startAudioVisualization() {
+    startAudioVisualization(): void {
+        if (!this.container) return;
+
         // todo 改高级实现
         // 简单的音频可视化实现
-        const canvas = this.container.querySelector('#audio-visualizer');
+        const canvas = this.container.querySelector('#audio-visualizer') as HTMLCanvasElement | null;
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
+        if (!ctx) return;
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
 
         // 创建简单的波形动画
-        let animationId;
+        let animationId = 0;
         const animate = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -181,17 +204,19 @@ class HomePage extends Component {
         animate();
     }
 
-    stopAudioVisualization() {
+    stopAudioVisualization(): void {
         if (this.visualizationAnimation) {
             cancelAnimationFrame(this.visualizationAnimation);
             this.visualizationAnimation = null;
         }
     }
 
-    toggleBreathingGuide() {
-        const breathingGuide = this.container.querySelector('.breathing-guide');
-        const breathingCircle = this.container.querySelector('#breathing-circle');
-        const visualizer = this.container.querySelector('#audio-visualizer');
+    toggleBreathingGuide(): void {
+        if (!this.container) return;
+
+        const breathingGuide = this.container.querySelector('.breathing-guide') as HTMLElement | null;
+        const breathingCircle = this.container.querySelector('#breathing-circle') as HTMLElement | null;
+        const visualizer = this.container.querySelector('#audio-visualizer') as HTMLElement | null;
 
         if (!breathingGuide || !breathingCircle) return;
 
@@ -219,12 +244,14 @@ class HomePage extends Component {
         }
     }
 
-    startBreathingGuide() {
-        const breathingCircle = this.container.querySelector('#breathing-circle');
-        const breathingText = breathingCircle?.querySelector('.breathing-text');
+    startBreathingGuide(): void {
+        if (!this.container) return;
+
+        const breathingCircle = this.container.querySelector('#breathing-circle') as HTMLElement | null;
+        const breathingText = breathingCircle?.querySelector('.breathing-text') as HTMLElement | null;
         if (!breathingCircle || !breathingText) return;
 
-        let phase = 'inhale'; // inhale, hold, exhale
+        let phase: BreathingPhase = 'inhale'; // inhale, hold, exhale
         let count = 0;
 
         const updateBreathing = () => {
@@ -260,22 +287,26 @@ class HomePage extends Component {
         updateBreathing();
     }
 
-    stopBreathingGuide() {
+    stopBreathingGuide(): void {
         if (this.breathingInterval) {
             clearInterval(this.breathingInterval);
             this.breathingInterval = null;
         }
 
-        const breathingCircle = this.container.querySelector('#breathing-circle');
-        const breathingText = breathingCircle?.querySelector('.breathing-text');
+        if (!this.container) return;
+
+        const breathingCircle = this.container.querySelector('#breathing-circle') as HTMLElement | null;
+        const breathingText = breathingCircle?.querySelector('.breathing-text') as HTMLElement | null;
         if (breathingCircle && breathingText) {
             breathingCircle.style.transform = 'scale(1)';
             breathingText.textContent = '深呼吸';
         }
     }
 
-    toggleAmbientMode() {
-        const ambientOverlay = this.container.querySelector('#ambient-overlay');
+    toggleAmbientMode(): void {
+        if (!this.container) return;
+
+        const ambientOverlay = this.container.querySelector('#ambient-overlay') as HTMLElement | null;
         if (!ambientOverlay) return;
 
         const isActive = ambientOverlay.classList.contains('active');
@@ -287,12 +318,14 @@ class HomePage extends Component {
         }
     }
 
-    updateAmbientMode() {
+    updateAmbientMode(): void {
         const hour = new Date().getHours();
-        const ambientOverlay = this.container.querySelector('#ambient-overlay');
+        if (!this.container) return;
+
+        const ambientOverlay = this.container.querySelector('#ambient-overlay') as HTMLElement | null;
         if (!ambientOverlay) return;
 
-        let gradient;
+        let gradient: string;
         if (hour >= 6 && hour < 12) {
             // 早晨 - 温暖的金色
             gradient = 'linear-gradient(45deg, rgba(255, 193, 7, 0.1), rgba(255, 152, 0, 0.05))';
@@ -309,7 +342,7 @@ class HomePage extends Component {
         ambientOverlay.style.background = gradient;
     }
 
-    toggleFocusMode() {
+    toggleFocusMode(): void {
         const isInFocusMode = document.body.classList.contains('focus-mode');
         if (isInFocusMode) {
             this.exitFocusMode();
@@ -318,7 +351,7 @@ class HomePage extends Component {
         }
     }
 
-    enterFocusMode() {
+    enterFocusMode(): void {
         // 进入专注模式
         document.body.classList.add('focus-mode');
 
@@ -334,7 +367,7 @@ class HomePage extends Component {
         this.showFocusModeNotification();
     }
 
-    showFocusModeNotification() {
+    showFocusModeNotification(): void {
         // 移除已存在的通知
         const existingNotification = document.querySelector('.focus-mode-notification');
         if (existingNotification) {
@@ -357,12 +390,12 @@ class HomePage extends Component {
         document.body.appendChild(notification);
 
         // 退出专注模式按钮
-        notification.querySelector('.exit-focus-btn').addEventListener('click', () => {
+        notification.querySelector('.exit-focus-btn')?.addEventListener('click', () => {
             this.exitFocusMode();
         });
 
         // 最小化通知按钮
-        notification.querySelector('.minimize-notification-btn').addEventListener('click', () => {
+        notification.querySelector('.minimize-notification-btn')?.addEventListener('click', () => {
             notification.style.opacity = '0';
             notification.style.transform = 'translate(-50%, -50%) scale(0.8)';
             setTimeout(() => notification.remove(), 300);
@@ -378,7 +411,7 @@ class HomePage extends Component {
         }, 5000);
     }
 
-    exitFocusMode() {
+    exitFocusMode(): void {
         // 退出专注模式
         document.body.classList.remove('focus-mode');
 
@@ -392,8 +425,10 @@ class HomePage extends Component {
         }
     }
 
-    updateFocusModeButton(isInFocusMode) {
-        const focusBtn = this.container.querySelector('.focus-btn');
+    updateFocusModeButton(isInFocusMode: boolean): void {
+        if (!this.container) return;
+
+        const focusBtn = this.container.querySelector('.focus-btn') as HTMLElement | null;
         if (!focusBtn) return;
 
         if (isInFocusMode) {
@@ -405,7 +440,7 @@ class HomePage extends Component {
         }
     }
 
-    async recordMood(mood) {
+    async recordMood(mood: string): Promise<void> {
         const moodData = {
             mood: mood,
             currentTrack: api.currentTrack?.title || null,
@@ -413,11 +448,13 @@ class HomePage extends Component {
             album: api.currentTrack?.album || null
         };
 
-        await userDataAPI.saveMood(moodData);
+        await userDataAPI.saveMood(moodData as any);
     }
 
-    async saveMusicDiary() {
-        const diaryInput = this.container.querySelector('.diary-input');
+    async saveMusicDiary(): Promise<void> {
+        if (!this.container) return;
+
+        const diaryInput = this.container.querySelector('.diary-input') as HTMLTextAreaElement | null;
         if (!diaryInput || !diaryInput.value.trim()) return;
 
         const diaryEntry = {
@@ -427,11 +464,12 @@ class HomePage extends Component {
             album: api.currentTrack?.album || null
         };
 
-        await userDataAPI.saveDiary(diaryEntry);
+        await userDataAPI.saveDiary(diaryEntry as any);
 
         // 清空输入框并显示保存成功提示
         diaryInput.value = '';
-        const saveBtn = this.container.querySelector('.save-diary-btn');
+        const saveBtn = this.container.querySelector('.save-diary-btn') as HTMLButtonElement | null;
+        if (!saveBtn) return;
         const originalText = saveBtn.textContent;
         saveBtn.textContent = '已保存';
         saveBtn.disabled = true;
@@ -442,7 +480,7 @@ class HomePage extends Component {
         }, 1500);
     }
 
-    render() {
+    render(): void {
         if (!this.container) return;
 
         this.container.innerHTML = `
@@ -582,16 +620,18 @@ class HomePage extends Component {
     }
 
     // 初始化专注模式状态
-    initializeFocusModeState() {
+    initializeFocusModeState(): void {
         const isInFocusMode = document.body.classList.contains('focus-mode');
         this.updateFocusModeButton(isInFocusMode);
     }
 
     // 初始化可视化状态
-    initializeVisualizationState() {
-        const visualizer = this.container.querySelector('#audio-visualizer');
-        const breathingGuide = this.container.querySelector('.breathing-guide');
-        const ambientOverlay = this.container.querySelector('#ambient-overlay');
+    initializeVisualizationState(): void {
+        if (!this.container) return;
+
+        const visualizer = this.container.querySelector('#audio-visualizer') as HTMLElement | null;
+        const breathingGuide = this.container.querySelector('.breathing-guide') as HTMLElement | null;
+        const ambientOverlay = this.container.querySelector('#ambient-overlay') as HTMLElement | null;
 
         if (visualizer) {
             visualizer.classList.add('active');
@@ -607,7 +647,9 @@ class HomePage extends Component {
         }
     }
 
-    setupPageEventListeners() {
+    setupPageEventListeners(): void {
+        if (!this.container) return;
+
         // 沉浸式首页功能事件监听器
         this.setupImmersiveEventListeners();
 

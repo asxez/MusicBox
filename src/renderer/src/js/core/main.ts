@@ -44,7 +44,7 @@ import '@components/component/ArtistsPage.js';
 import '@components/component/AlbumsPage';
 import '@components/component/ContextMenu.js';
 import '@components/component/EqualizerComponent.js';
-import '@components/component/HomePage.js';
+import '@components/component/HomePage';
 import '@components/component/Lyrics.js';
 import '@components/component/Navigation.js';
 import '@components/component/NetworkDiskModal.js';
