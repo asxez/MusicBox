@@ -492,8 +492,7 @@ class NetworkDiskModal extends Component {
         const text = this.mountedDrivesList?.querySelector<HTMLElement>(`[data-scan-text="${driveId}"]`);
 
         if (fill && text) {
-            const total = progress.totalFiles;
-            const current = progress.processedFiles;
+            const {current, total} = this.normalizeScanProgress(progress);
             const percent = total > 0 ?
                 (current / total) * 100 : 0;
             fill.style.width = `${percent}%`;
@@ -577,6 +576,13 @@ class NetworkDiskModal extends Component {
 
     getErrorMessage(error: unknown): string {
         return error instanceof Error ? error.message : String(error);
+    }
+
+    normalizeScanProgress(progress: ScanProgress): {current: number; total: number} {
+        return {
+            current: progress.processedFiles ?? progress.current ?? 0,
+            total: progress.totalFiles ?? progress.total ?? 0
+        };
     }
 }
 

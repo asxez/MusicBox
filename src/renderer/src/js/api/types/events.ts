@@ -2,8 +2,11 @@ import type {Track} from './track';
 import type {PlayMode, PlaybackStateName} from './playback';
 
 export interface ScanProgress {
-    totalFiles: number;
-    processedFiles: number;
+    totalFiles?: number;
+    processedFiles?: number;
+    current?: number;
+    total?: number;
+    tracks?: number;
     currentFile?: string;
     isComplete?: boolean;
 }

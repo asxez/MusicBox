@@ -5,9 +5,43 @@
 import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
+import type {Track} from "@api/types/track";
+import type {ScanProgress} from "@api/types/events";
+import type {
+    MountedNetworkDrive,
+    NetworkDriveDirectoryItem,
+    NetworkDriveStatus
+} from "@api/types/electron";
+import type {ConfirmOptions} from "@core/types/app";
+
+type NetworkDrive = MountedNetworkDrive & {
+    host?: string;
+    share?: string;
+    config: MountedNetworkDrive['config'] & {
+        url?: string;
+    };
+};
+
+interface SingleFileScanResult {
+    success: boolean;
+    track?: Track;
+    error?: string;
+    isNew?: boolean;
+}
 
 class NetworkDriveDetailPage extends Component {
-    constructor(container) {
+    isVisible: boolean;
+    currentDrive: NetworkDrive | null;
+    tracks: Track[];
+    driveStatus: NetworkDriveStatus | null;
+    selectedTracks: Set<string>;
+    isMultiSelectMode: boolean;
+    currentPath: string;
+    directoryStructure: NetworkDriveDirectoryItem[];
+    showCovers: boolean;
+    container: HTMLElement | null = null;
+
+    constructor(container: string | Element | null) {
         super(container);
         this.isVisible = false;
         this.currentDrive = null;
@@ -25,15 +59,16 @@ class NetworkDriveDetailPage extends Component {
         this.setupSettingsListener();
     }
 
-    async show(drive) {
+    async show(drive: NetworkDrive): Promise<void> {
         this.isVisible = true;
         this.currentDrive = drive;
         this.currentPath = '/';  // 重置到根目录
 
         if (this.element) {
-            this.element.style.display = 'block';
-            this.element.style.opacity = '0';
-            this.element.style.transform = 'translateY(10px)';
+            const element = this.element as HTMLElement;
+            element.style.display = 'block';
+            element.style.opacity = '0';
+            element.style.transform = 'translateY(10px)';
         }
 
         await this.loadDriveStatus();
@@ -42,15 +77,16 @@ class NetworkDriveDetailPage extends Component {
         this.render();
 
         if (this.element) {
+            const element = this.element as HTMLElement;
             requestAnimationFrame(() => {
-                this.element.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                this.element.style.opacity = '1';
-                this.element.style.transform = 'translateY(0)';
+                element.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                element.style.opacity = '1';
+                element.style.transform = 'translateY(0)';
             });
         }
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
         this.currentDrive = null;
         this.tracks = [];
@@ -62,19 +98,19 @@ class NetworkDriveDetailPage extends Component {
         }
     }
 
-    setupElements() {
-        this.container = this.element;
+    setupElements(): void {
+        this.container = this.element as HTMLElement | null;
     }
 
-    getShowCoversSettings() {
-        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
-        return settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
+    getShowCoversSettings(): boolean {
+        const settings = cacheManager.getLocalCache<Record<string, boolean>>('musicbox-settings') || {};
+        return Object.prototype.hasOwnProperty.call(settings, 'showTrackCovers') ? settings.showTrackCovers : true;
     }
 
-    setupSettingsListener() {
+    setupSettingsListener(): void {
         const setupListener = () => {
             if (app?.components?.settings) {
-                app.components.settings.on('showTrackCoversEnabled', (enabled) => {
+                app.components.settings.on('showTrackCoversEnabled', (enabled: boolean) => {
                     this.showCovers = enabled;
                     if (this.isVisible) {
                         this.render();
@@ -87,7 +123,11 @@ class NetworkDriveDetailPage extends Component {
         setupListener();
     }
 
-    async loadDriveStatus() {
+    async loadDriveStatus(): Promise<void> {
+        if (!this.currentDrive) {
+            return;
+        }
+
         try {
             this.driveStatus = await window.electronAPI.networkDrive.getStatus(this.currentDrive.id);
         } catch (error) {
@@ -96,7 +136,11 @@ class NetworkDriveDetailPage extends Component {
         }
     }
 
-    async loadDriveTracks() {
+    async loadDriveTracks(): Promise<void> {
+        if (!this.currentDrive) {
+            return;
+        }
+
         try {
             this.tracks = await window.electronAPI.library.getTracksByDrive(this.currentDrive.id);
             console.log(`📀 NetworkDriveDetailPage: 加载了 ${this.tracks.length} 首歌曲`);
@@ -106,11 +150,15 @@ class NetworkDriveDetailPage extends Component {
         }
     }
 
-    async loadDirectoryStructure(path = '/') {
+    async loadDirectoryStructure(path = '/'): Promise<void> {
+        if (!this.currentDrive) {
+            return;
+        }
+
         try {
             const result = await window.electronAPI.networkDrive.getDirectoryStructure(this.currentDrive.id, path);
             if (result.success) {
-                this.directoryStructure = result.structure;
+                this.directoryStructure = result.structure || [];
                 console.log(`📁 NetworkDriveDetailPage: 加载了 ${this.directoryStructure.length} 个项目`);
             } else {
                 console.error('❌ NetworkDriveDetailPage: 加载目录结构失败', result.error);
@@ -122,12 +170,12 @@ class NetworkDriveDetailPage extends Component {
         }
     }
 
-    render() {
+    render(): void {
         if (!this.currentDrive || !this.container) return;
 
         const trackCount = this.tracks.length;
         const totalDuration = this.calculateTotalDuration();
-        const isConnected = this.driveStatus && this.driveStatus.connected;
+        const isConnected = Boolean(this.driveStatus?.connected);
 
         // 根据磁盘类型选择 SVG 图标路径
         const driveIconPath = this.currentDrive.type === 'smb'
@@ -192,7 +240,11 @@ class NetworkDriveDetailPage extends Component {
         this.setupEventListeners();
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
+        if (!this.container) {
+            return;
+        }
+
         const refreshBtn = this.container.querySelector('#refresh-drive-btn');
         const scanBtn = this.container.querySelector('#scan-drive-btn');
         const removeBtn = this.container.querySelector('#remove-drive-btn');
@@ -210,7 +262,7 @@ class NetworkDriveDetailPage extends Component {
         }
 
         // 面包屑导航点击事件
-        this.container.querySelectorAll('.breadcrumb-item').forEach(item => {
+        this.container.querySelectorAll<HTMLElement>('.breadcrumb-item').forEach(item => {
             item.addEventListener('click', () => {
                 const path = item.dataset.path;
                 this.navigateToPath(path);
@@ -218,7 +270,7 @@ class NetworkDriveDetailPage extends Component {
         });
 
         // 文件夹点击事件
-        this.container.querySelectorAll('.folder-item').forEach(item => {
+        this.container.querySelectorAll<HTMLElement>('.folder-item').forEach(item => {
             item.addEventListener('click', () => {
                 const path = item.dataset.path;
                 this.navigateToPath(path);
@@ -226,7 +278,7 @@ class NetworkDriveDetailPage extends Component {
         });
 
         // 音乐文件双击播放
-        this.container.querySelectorAll('.music-file').forEach(item => {
+        this.container.querySelectorAll<HTMLElement>('.music-file').forEach(item => {
             item.addEventListener('dblclick', async () => {
                 const filePath = item.dataset.path;
                 await this.playMusicFile(filePath);
@@ -242,7 +294,11 @@ class NetworkDriveDetailPage extends Component {
         });
     }
 
-    async refreshDrive() {
+    async refreshDrive(): Promise<void> {
+        if (!this.currentDrive) {
+            return;
+        }
+
         try {
             await window.electronAPI.networkDrive.refreshConnection(this.currentDrive.id);
             await this.loadDriveStatus();
@@ -255,12 +311,16 @@ class NetworkDriveDetailPage extends Component {
         }
     }
 
-    async scanDrive() {
+    async scanDrive(): Promise<void> {
+        if (!this.currentDrive) {
+            return;
+        }
+
         // 显示扫描进度提示
         this.showScanTip();
 
         // 监听扫描进度
-        const removeListener = window.electronAPI.library.onScanProgress((event, progress) => {
+        const removeListener = window.electronAPI.library.onScanProgress((_event, progress) => {
             this.updateScanTip(progress);
         });
 
@@ -283,9 +343,13 @@ class NetworkDriveDetailPage extends Component {
         }
     }
 
-    showScanTip() {
+    showScanTip(): void {
+        if (!this.container) {
+            return;
+        }
+
         // 禁用扫描按钮防止重复点击
-        const scanBtn = this.container.querySelector('#scan-drive-btn');
+        const scanBtn = this.container.querySelector<HTMLButtonElement>('#scan-drive-btn');
         if (scanBtn) scanBtn.disabled = true;
 
         // 在操作按钮区域下方插入进度提示
@@ -301,38 +365,44 @@ class NetworkDriveDetailPage extends Component {
             </div>
             <p class="scan-tip-text" id="scan-tip-text">⏳ 正在扫描网络磁盘...</p>
         `;
-        actionsEl.parentNode.insertBefore(tip, actionsEl.nextSibling);
+        actionsEl.parentNode?.insertBefore(tip, actionsEl.nextSibling);
     }
 
-    updateScanTip(progress) {
+    updateScanTip(progress: ScanProgress): void {
         const fill = document.getElementById('scan-tip-fill');
         const text = document.getElementById('scan-tip-text');
 
         if (fill && text) {
-            const percent = progress.total > 0 ?
-                (progress.current / progress.total) * 100 : 0;
+            const {current, total} = this.normalizeScanProgress(progress);
+            const percent = total > 0 ?
+                (current / total) * 100 : 0;
             fill.style.width = `${percent}%`;
-            text.textContent = `⏳ 扫描中: ${progress.current}/${progress.total}`;
+            text.textContent = `⏳ 扫描中: ${current}/${total}`;
         }
     }
 
-    hideScanTip() {
+    hideScanTip(): void {
         const tip = document.getElementById('scan-tip');
         if (tip) tip.remove();
 
-        const scanBtn = this.container.querySelector('#scan-drive-btn');
+        const scanBtn = this.container?.querySelector<HTMLButtonElement>('#scan-drive-btn');
         if (scanBtn) scanBtn.disabled = false;
     }
 
-    async removeDrive() {
+    async removeDrive(): Promise<void> {
+        if (!this.currentDrive) {
+            return;
+        }
+
         const displayName = this.currentDrive.config?.displayName || this.currentDrive.displayName || '未命名磁盘';
 
-        const confirmed = await app.confirm({
+        const confirmOptions: ConfirmOptions = {
             title: '移除网络磁盘',
             message: `确定要移除网络磁盘 "${displayName}" 吗？\n\n这将删除该磁盘下的所有音乐缓存，但不会删除网络磁盘上的文件。`,
             confirmText: '移除',
             type: 'warning'
-        });
+        };
+        const confirmed = await app.confirm(confirmOptions);
 
         if (!confirmed) {
             return;
@@ -356,18 +426,22 @@ class NetworkDriveDetailPage extends Component {
         }
     }
 
-    playAllTracks() {
+    playAllTracks(): void {
         if (this.tracks.length === 0) return;
 
         this.emit('playTracks', this.tracks, 0);
     }
 
-    playTrack(track, index) {
+    playTrack(track: Track, index: number): void {
         this.emit('playTrack', track, index);
     }
 
     // 播放网络磁盘中的音乐文件
-    async playMusicFile(filePath) {
+    async playMusicFile(filePath?: string): Promise<void> {
+        if (!this.currentDrive || !filePath) {
+            return;
+        }
+
         try {
             // 构建完整的网络路径
             const networkPath = `network://${this.currentDrive.id}${filePath}`;
@@ -384,7 +458,7 @@ class NetworkDriveDetailPage extends Component {
                 console.log('🎵 NetworkDriveDetailPage: 文件未在缓存中，开始扫描...');
                 app.showInfo('正在加载音乐...');
 
-                const result = await window.electronAPI.library.scanSingleFile(networkPath);
+                const result = await window.electronAPI.library.scanSingleFile(networkPath) as SingleFileScanResult;
 
                 if (result.success && result.track) {
                     // 扫描成功，添加到本地 tracks 列表
@@ -410,7 +484,11 @@ class NetworkDriveDetailPage extends Component {
     }
 
     // 显示文件右键菜单
-    showFileContextMenu(x, y, filePath, fileName) {
+    showFileContextMenu(x: number, y: number, filePath?: string, fileName?: string): void {
+        if (!this.currentDrive || !filePath) {
+            return;
+        }
+
         try {
             // 构建完整的网络路径
             const networkPath = `network://${this.currentDrive.id}${filePath}`;
@@ -428,7 +506,7 @@ class NetworkDriveDetailPage extends Component {
                 // 当用户点击播放等操作时，会自动触发扫描
                 track = {
                     filePath: networkPath,
-                    title: fileName.replace(/\.[^/.]+$/, ''), // 移除文件扩展名
+                    title: (fileName || filePath.split('/').pop() || '未知歌曲').replace(/\.[^/.]+$/, ''), // 移除文件扩展名
                     artist: '未知艺术家',
                     album: '未知专辑',
                     duration: 0,
@@ -445,13 +523,13 @@ class NetworkDriveDetailPage extends Component {
         }
     }
 
-    calculateTotalDuration() {
+    calculateTotalDuration(): number {
         return this.tracks.reduce((total, track) => {
             return total + (track.duration || 0);
         }, 0);
     }
 
-    formatTotalDuration(seconds) {
+    formatTotalDuration(seconds: number): string {
         if (!seconds || seconds === 0) return '0 分钟';
 
         const hours = Math.floor(seconds / 3600);
@@ -464,23 +542,27 @@ class NetworkDriveDetailPage extends Component {
         }
     }
 
-    formatDrivePath() {
+    formatDrivePath(): string {
+        if (!this.currentDrive) {
+            return '';
+        }
+
         if (this.currentDrive.type === 'smb') {
             return `\\\\${this.currentDrive.host}\\${this.currentDrive.share}`;
         } else if (this.currentDrive.type === 'webdav') {
-            return this.currentDrive.config.url;
+            return this.currentDrive.config.url || '';
         }
         return '';
     }
 
-    escapeHtml(text) {
+    escapeHtml(text: string): string {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
 
     // 渲染面包屑导航
-    renderBreadcrumb() {
+    renderBreadcrumb(): string {
         const pathParts = this.currentPath.split('/').filter(p => p);
 
         let breadcrumbHtml = `
@@ -509,7 +591,7 @@ class NetworkDriveDetailPage extends Component {
     }
 
     // 渲染目录结构
-    renderDirectoryStructure() {
+    renderDirectoryStructure(): string {
         if (this.directoryStructure.length === 0) {
             return `
                 <div class="empty-state">
@@ -528,11 +610,11 @@ class NetworkDriveDetailPage extends Component {
         // 只显示音乐文件
         const musicExts = ['mp3', 'flac', 'wav', 'ogg', 'm4a', 'aac', 'wma', 'ape'];
         const musicFiles = files.filter(file => {
-            const ext = file.name.split('.').pop().toLowerCase();
+            const ext = file.name.split('.').pop()?.toLowerCase() || '';
             return musicExts.includes(ext);
         });
 
-        const itemsHtml = [];
+        const itemsHtml: string[] = [];
 
         // 渲染文件夹
         folders.forEach(folder => {
@@ -554,7 +636,7 @@ class NetworkDriveDetailPage extends Component {
 
         // 渲染音乐文件
         musicFiles.forEach(file => {
-            const ext = file.name.split('.').pop().toUpperCase();
+            const ext = file.name.split('.').pop()?.toUpperCase() || '';
             itemsHtml.push(`
                 <div class="directory-item file-item music-file"
                      data-path="${file.path}"
@@ -589,7 +671,7 @@ class NetworkDriveDetailPage extends Component {
         `;
     }
 
-    formatFileSize(bytes) {
+    formatFileSize(bytes?: number): string {
         if (!bytes || bytes === 0) return '0 B';
         const k = 1024;
         const sizes = ['B', 'KB', 'MB', 'GB'];
@@ -598,10 +680,21 @@ class NetworkDriveDetailPage extends Component {
     }
 
     // 导航到指定路径
-    async navigateToPath(path) {
+    async navigateToPath(path?: string): Promise<void> {
+        if (!path) {
+            return;
+        }
+
         this.currentPath = path;
         await this.loadDirectoryStructure(path);
         this.render();
+    }
+
+    normalizeScanProgress(progress: ScanProgress): {current: number; total: number} {
+        return {
+            current: progress.processedFiles ?? progress.current ?? 0,
+            total: progress.totalFiles ?? progress.total ?? 0
+        };
     }
 }
 

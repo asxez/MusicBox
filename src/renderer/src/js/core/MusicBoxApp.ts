@@ -328,13 +328,14 @@ export class MusicBoxApp extends EventEmitter {
         const statusText = document.getElementById('scan-status');
 
         if (progressFill && statusText) {
-            const percent = progress.totalFiles > 0 ?
-                (progress.processedFiles / progress.totalFiles) * 100 : 0;
+            const total = progress.totalFiles ?? progress.total ?? 0;
+            const current = progress.processedFiles ?? progress.current ?? 0;
+            const percent = total > 0 ? (current / total) * 100 : 0;
 
             progressFill.style.width = `${percent}%`;
             statusText.textContent = progress.isComplete ?
                 'Scan completed!' :
-                `Processing: ${progress.currentFile}`;
+                progress.currentFile ? `Processing: ${progress.currentFile}` : `Processing: ${current}/${total}`;
         }
     }
 
