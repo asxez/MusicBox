@@ -183,6 +183,66 @@ export interface ElectronCoversAPI {
     ): Promise<{success: boolean; filePath?: string; fileName?: string; error?: string}>;
 }
 
+export type NetworkDriveProtocol = 'smb' | 'webdav' | string;
+
+export interface NetworkDriveConfig {
+    id: string;
+    type: NetworkDriveProtocol;
+    displayName: string;
+    username: string;
+    password: string;
+    host?: string;
+    share?: string;
+    domain?: string;
+    url?: string;
+    [key: string]: unknown;
+}
+
+export interface MountedNetworkDrive {
+    id: string;
+    type: NetworkDriveProtocol;
+    connected?: boolean;
+    displayName?: string;
+    host?: string;
+    share?: string;
+    config: NetworkDriveConfig;
+    [key: string]: unknown;
+}
+
+export interface NetworkDriveDirectoryItem {
+    name: string;
+    path: string;
+    isDirectory: boolean;
+    size?: number;
+    [key: string]: unknown;
+}
+
+export interface NetworkDriveDirectoryResult {
+    success: boolean;
+    structure?: NetworkDriveDirectoryItem[];
+    error?: string;
+}
+
+export interface NetworkDriveStatus {
+    connected?: boolean;
+    [key: string]: unknown;
+}
+
+export interface ElectronNetworkDriveAPI {
+    testConnection(config: NetworkDriveConfig): Promise<boolean>;
+    mountSMB(config: NetworkDriveConfig): Promise<boolean>;
+    mountWebDAV(config: NetworkDriveConfig): Promise<boolean>;
+    getMountedDrives(): Promise<MountedNetworkDrive[]>;
+    getStatus(driveId: string): Promise<NetworkDriveStatus | null>;
+    getDirectoryStructure(driveId: string, path: string): Promise<NetworkDriveDirectoryResult>;
+    refreshConnection(driveId: string): Promise<boolean>;
+    refreshConnections(): Promise<boolean>;
+    unmount(driveId: string): Promise<boolean>;
+    onConnected(callback: (event: unknown, driveId: string, config: NetworkDriveConfig) => void | Promise<void>): Unsubscribe;
+    onDisconnected(callback: (event: unknown, driveId: string, config: NetworkDriveConfig) => void | Promise<void>): Unsubscribe;
+    onError(callback: (event: unknown, driveId: string, error: string) => void): Unsubscribe;
+}
+
 export interface ElectronWindowAPI {
     minimize(): Promise<void>;
     maximize(): Promise<void>;

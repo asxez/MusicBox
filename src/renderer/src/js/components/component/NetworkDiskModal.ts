@@ -4,8 +4,41 @@
 
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
+import type {ScanProgress} from "@api/types/events";
+import type {MountedNetworkDrive, NetworkDriveConfig} from "@api/types/electron";
+
+type NotificationType = 'info' | 'success' | 'error' | 'warning';
+type NetworkDriveProtocol = 'smb' | 'webdav' | string;
+
+interface NetworkDriveNotification {
+    message: string;
+    type: NotificationType;
+}
 
 class NetworkDiskModal extends Component {
+    isVisible: boolean;
+    listenersSetup: boolean;
+    networkDriveForm!: HTMLFormElement | null;
+    networkDriveModalClose!: HTMLElement | null;
+    networkDriveCancel!: HTMLElement | null;
+    networkDriveConfirm!: HTMLButtonElement | null;
+    testConnectionBtn!: HTMLButtonElement | null;
+    driveNameInput!: HTMLInputElement | null;
+    driveProtocolSelect!: HTMLSelectElement | null;
+    driveUsernameInput!: HTMLInputElement | null;
+    drivePasswordInput!: HTMLInputElement | null;
+    smbConfig!: HTMLElement | null;
+    smbHostInput!: HTMLInputElement | null;
+    smbShareInput!: HTMLInputElement | null;
+    smbDomainInput!: HTMLInputElement | null;
+    webdavConfig!: HTMLElement | null;
+    webdavUrlInput!: HTMLInputElement | null;
+    connectionTestResult!: HTMLElement | null;
+    testStatus!: HTMLElement | null;
+    testMessage!: HTMLElement | null;
+    mountedDrivesList!: HTMLElement | null;
+    refreshDrivesBtn!: HTMLButtonElement | null;
+
     constructor() {
         super('#network-drive-modal');
         this.isVisible = false;
@@ -15,7 +48,7 @@ class NetworkDiskModal extends Component {
         this.initializeNetworkDriveManagement();
     }
 
-    show() {
+    show(): void {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupEventListeners();
@@ -24,11 +57,12 @@ class NetworkDiskModal extends Component {
 
         this.isVisible = true;
         this.resetNetworkDriveForm();
-        this.element.style.display = 'flex';
+        const modal = this.element as HTMLElement;
+        modal.style.display = 'flex';
 
         // 动画显示
         requestAnimationFrame(() => {
-            this.element.classList.add('show');
+            modal.classList.add('show');
         });
 
         // 焦点管理
@@ -37,60 +71,63 @@ class NetworkDiskModal extends Component {
         }
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
-        this.element.classList.remove('show');
+        const modal = this.element as HTMLElement;
+        modal.classList.remove('show');
         setTimeout(() => {
             if (!this.isVisible) {
-                this.element.style.display = 'none';
+                modal.style.display = 'none';
                 this.resetNetworkDriveForm();
             }
         }, 300);
     }
 
-    destroy() {
+    destroy(): void {
         this.isVisible = false;
         this.listenersSetup = false;
         super.destroy();
     }
 
-    setupElements() {
+    setupElements(): void {
+        const modal = this.element as HTMLElement;
+
         // 模态框元素
-        this.networkDriveForm = this.element.querySelector('#network-drive-form');
-        this.networkDriveModalClose = this.element.querySelector('#network-drive-modal-close');
-        this.networkDriveCancel = this.element.querySelector('#network-drive-cancel');
-        this.networkDriveConfirm = this.element.querySelector('#network-drive-confirm');
-        this.testConnectionBtn = this.element.querySelector('#test-connection-btn');
+        this.networkDriveForm = modal.querySelector('#network-drive-form');
+        this.networkDriveModalClose = modal.querySelector('#network-drive-modal-close');
+        this.networkDriveCancel = modal.querySelector('#network-drive-cancel');
+        this.networkDriveConfirm = modal.querySelector('#network-drive-confirm');
+        this.testConnectionBtn = modal.querySelector('#test-connection-btn');
 
         // 表单元素
-        this.driveNameInput = this.element.querySelector('#drive-name');
-        this.driveProtocolSelect = this.element.querySelector('#drive-protocol');
-        this.driveUsernameInput = this.element.querySelector('#drive-username');
-        this.drivePasswordInput = this.element.querySelector('#drive-password');
+        this.driveNameInput = modal.querySelector('#drive-name');
+        this.driveProtocolSelect = modal.querySelector('#drive-protocol');
+        this.driveUsernameInput = modal.querySelector('#drive-username');
+        this.drivePasswordInput = modal.querySelector('#drive-password');
 
         // SMB配置元素
-        this.smbConfig = this.element.querySelector('#smb-config');
-        this.smbHostInput = this.element.querySelector('#smb-host');
-        this.smbShareInput = this.element.querySelector('#smb-share');
-        this.smbDomainInput = this.element.querySelector('#smb-domain');
+        this.smbConfig = modal.querySelector('#smb-config');
+        this.smbHostInput = modal.querySelector('#smb-host');
+        this.smbShareInput = modal.querySelector('#smb-share');
+        this.smbDomainInput = modal.querySelector('#smb-domain');
 
         // WebDAV配置元素
-        this.webdavConfig = this.element.querySelector('#webdav-config');
-        this.webdavUrlInput = this.element.querySelector('#webdav-url');
+        this.webdavConfig = modal.querySelector('#webdav-config');
+        this.webdavUrlInput = modal.querySelector('#webdav-url');
 
         // 连接测试结果元素
-        this.connectionTestResult = this.element.querySelector('#connection-test-result');
-        this.testStatus = this.connectionTestResult?.querySelector('.test-status');
-        this.testMessage = this.connectionTestResult?.querySelector('.test-message');
+        this.connectionTestResult = modal.querySelector('#connection-test-result');
+        this.testStatus = this.connectionTestResult?.querySelector('.test-status') ?? null;
+        this.testMessage = this.connectionTestResult?.querySelector('.test-message') ?? null;
     }
 
-    setupSettingsElements() {
+    setupSettingsElements(): void {
         // 网络磁盘管理相关元素
         this.mountedDrivesList = document.querySelector('#mounted-drives-list');
         this.refreshDrivesBtn = document.querySelector('#refresh-drives-btn');
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         // 模态框关闭事件
         if (this.networkDriveModalClose) {
             this.networkDriveModalClose.addEventListener('click', () => {
@@ -108,7 +145,8 @@ class NetworkDiskModal extends Component {
         // 协议选择变化事件
         if (this.driveProtocolSelect) {
             this.driveProtocolSelect.addEventListener('change', (e) => {
-                this.toggleProtocolConfig(e.target.value);
+                const target = e.target as HTMLSelectElement;
+                this.toggleProtocolConfig(target.value);
             });
         }
 
@@ -135,7 +173,7 @@ class NetworkDiskModal extends Component {
     }
 
     // 重置网络磁盘表单
-    resetNetworkDriveForm() {
+    resetNetworkDriveForm(): void {
         if (this.networkDriveForm) {
             this.networkDriveForm.reset();
         }
@@ -144,7 +182,7 @@ class NetworkDiskModal extends Component {
     }
 
     // 切换协议配置显示
-    toggleProtocolConfig(protocol) {
+    toggleProtocolConfig(protocol: NetworkDriveProtocol): void {
         if (this.smbConfig) {
             this.smbConfig.style.display = protocol === 'smb' ? 'block' : 'none';
         }
@@ -154,7 +192,7 @@ class NetworkDiskModal extends Component {
     }
 
     // 显示连接测试结果
-    showConnectionTestResult(success, message) {
+    showConnectionTestResult(success: boolean, message: string): void {
         if (!this.connectionTestResult || !this.testStatus || !this.testMessage) {
             return;
         }
@@ -166,19 +204,29 @@ class NetworkDiskModal extends Component {
     }
 
     // 隐藏连接测试结果
-    hideConnectionTestResult() {
+    hideConnectionTestResult(): void {
         if (this.connectionTestResult) {
             this.connectionTestResult.style.display = 'none';
         }
     }
 
     // 显示通知消息
-    showNotification(message, type = 'info') {
-        this.emit('notification', {message, type});
+    showNotification(message: string, type: NotificationType = 'info'): void {
+        const notification: NetworkDriveNotification = {message, type};
+        this.emit('notification', notification);
     }
 
     // 获取网络磁盘配置
-    getNetworkDriveConfig() {
+    getNetworkDriveConfig(): NetworkDriveConfig | null {
+        if (
+            !this.driveProtocolSelect ||
+            !this.driveNameInput ||
+            !this.driveUsernameInput ||
+            !this.drivePasswordInput
+        ) {
+            return null;
+        }
+
         const protocol = this.driveProtocolSelect.value;
         const name = this.driveNameInput.value.trim();
         const username = this.driveUsernameInput.value.trim();
@@ -188,7 +236,7 @@ class NetworkDiskModal extends Component {
             return null;
         }
 
-        const config = {
+        const config: NetworkDriveConfig = {
             id: `${protocol}_${Date.now()}`,
             type: protocol,
             displayName: name,
@@ -197,6 +245,10 @@ class NetworkDiskModal extends Component {
         };
 
         if (protocol === 'smb') {
+            if (!this.smbHostInput || !this.smbShareInput || !this.smbDomainInput) {
+                return null;
+            }
+
             const host = this.smbHostInput.value.trim();
             const share = this.smbShareInput.value.trim();
             const domain = this.smbDomainInput.value.trim();
@@ -209,6 +261,10 @@ class NetworkDiskModal extends Component {
             config.share = share;
             config.domain = domain || 'WORKGROUP';
         } else if (protocol === 'webdav') {
+            if (!this.webdavUrlInput) {
+                return null;
+            }
+
             const url = this.webdavUrlInput.value.trim();
 
             if (!url) {
@@ -222,9 +278,9 @@ class NetworkDiskModal extends Component {
     }
 
     // 测试连接
-    async testConnection() {
+    async testConnection(): Promise<void> {
         const config = this.getNetworkDriveConfig();
-        if (!config) {
+        if (!config || !this.testConnectionBtn) {
             this.showConnectionTestResult(false, '请填写完整的配置信息');
             return;
         }
@@ -240,7 +296,7 @@ class NetworkDiskModal extends Component {
                 this.showConnectionTestResult(false, '连接测试失败');
             }
         } catch (error) {
-            this.showConnectionTestResult(false, `连接测试失败: ${error.message}`);
+            this.showConnectionTestResult(false, `连接测试失败: ${this.getErrorMessage(error)}`);
         } finally {
             this.testConnectionBtn.disabled = false;
             this.testConnectionBtn.textContent = '测试连接';
@@ -248,9 +304,9 @@ class NetworkDiskModal extends Component {
     }
 
     // 添加网络磁盘
-    async addNetworkDrive() {
+    async addNetworkDrive(): Promise<void> {
         const config = this.getNetworkDriveConfig();
-        if (!config) {
+        if (!config || !this.networkDriveConfirm) {
             this.showConnectionTestResult(false, '请填写完整的配置信息');
             return;
         }
@@ -274,7 +330,7 @@ class NetworkDiskModal extends Component {
                 this.showConnectionTestResult(false, '网络磁盘添加失败');
             }
         } catch (error) {
-            this.showConnectionTestResult(false, `添加失败: ${error.message}`);
+            this.showConnectionTestResult(false, `添加失败: ${this.getErrorMessage(error)}`);
         } finally {
             this.networkDriveConfirm.disabled = false;
             this.networkDriveConfirm.textContent = '添加磁盘';
@@ -284,7 +340,7 @@ class NetworkDiskModal extends Component {
     // -------- 网络磁盘管理方法 --------
 
     // 初始化网络磁盘管理功能
-    initializeNetworkDriveManagement() {
+    initializeNetworkDriveManagement(): void {
         // 设置刷新按钮事件监听器
         if (this.refreshDrivesBtn) {
             this.refreshDrivesBtn.addEventListener('click', async () => {
@@ -293,17 +349,17 @@ class NetworkDiskModal extends Component {
         }
 
         // 监听网络磁盘事件
-        window.electronAPI.networkDrive.onConnected(async (event, driveId, config) => {
+        window.electronAPI.networkDrive.onConnected(async (_event, driveId, config) => {
             await this.refreshMountedDrivesList();
             this.emit('driveConnected', driveId, config);
         });
 
-        window.electronAPI.networkDrive.onDisconnected(async (event, driveId, config) => {
+        window.electronAPI.networkDrive.onDisconnected(async (_event, driveId, config) => {
             await this.refreshMountedDrivesList();
             this.emit('driveDisconnected', driveId, config);
         });
 
-        window.electronAPI.networkDrive.onError((event, driveId, error) => {
+        window.electronAPI.networkDrive.onError((_event, _driveId, error) => {
             this.showNotification(`网络磁盘错误: ${error}`, 'error');
         });
 
@@ -312,7 +368,7 @@ class NetworkDiskModal extends Component {
     }
 
     // 刷新已挂载的磁盘列表
-    async refreshMountedDrivesList() {
+    async refreshMountedDrivesList(): Promise<void> {
         try {
             const mountedDrives = await window.electronAPI.networkDrive.getMountedDrives();
             this.renderMountedDrivesList(mountedDrives);
@@ -322,7 +378,7 @@ class NetworkDiskModal extends Component {
     }
 
     // 渲染已挂载的磁盘列表
-    renderMountedDrivesList(drives) {
+    renderMountedDrivesList(drives: MountedNetworkDrive[] | null | undefined): void {
         if (!this.mountedDrivesList) {
             return;
         }
@@ -336,11 +392,12 @@ class NetworkDiskModal extends Component {
             const statusClass = drive.connected ? 'connected' : 'disconnected';
             const statusText = drive.connected ? '已连接' : '已断开';
             const protocolText = drive.type === 'smb' ? 'SMB' : 'WebDAV';
+            const displayName = drive.config?.displayName || drive.displayName || '未命名磁盘';
 
             return `
                 <div class="mounted-drive-item" data-drive-id="${drive.id}">
                     <div class="drive-info">
-                        <div class="drive-name">${drive.config.displayName}</div>
+                        <div class="drive-name">${this.escapeHtml(displayName)}</div>
                         <div class="drive-details">
                             <span class="drive-protocol">${protocolText}</span>
                             <span class="drive-status ${statusClass}">${statusText}</span>
@@ -359,29 +416,35 @@ class NetworkDiskModal extends Component {
         }).join('');
 
         // 添加扫描按钮事件监听器
-        this.mountedDrivesList.querySelectorAll('.scan-drive-btn').forEach(btn => {
+        this.mountedDrivesList.querySelectorAll<HTMLButtonElement>('.scan-drive-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
-                const driveId = e.target.getAttribute('data-drive-id');
+                const target = e.currentTarget as HTMLButtonElement;
+                const driveId = target.getAttribute('data-drive-id');
                 await this.scanNetworkDrive(driveId);
             });
         });
 
         // 添加卸载按钮事件监听器
-        this.mountedDrivesList.querySelectorAll('.unmount-drive-btn').forEach(btn => {
+        this.mountedDrivesList.querySelectorAll<HTMLButtonElement>('.unmount-drive-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
-                const driveId = e.target.getAttribute('data-drive-id');
+                const target = e.currentTarget as HTMLButtonElement;
+                const driveId = target.getAttribute('data-drive-id');
                 await this.unmountNetworkDrive(driveId);
             });
         });
     }
 
     // 扫描网络磁盘
-    async scanNetworkDrive(driveId) {
+    async scanNetworkDrive(driveId: string | null): Promise<void> {
+        if (!driveId) {
+            return;
+        }
+
         // 禁用扫描按钮并显示进度提示
         this.showScanTip(driveId);
 
         // 监听扫描进度
-        const removeListener = window.electronAPI.library.onScanProgress((event, progress) => {
+        const removeListener = window.electronAPI.library.onScanProgress((_event, progress) => {
             this.updateScanTip(driveId, progress);
         });
 
@@ -395,15 +458,15 @@ class NetworkDiskModal extends Component {
                 this.showNotification('网络磁盘扫描失败', 'error');
             }
         } catch (error) {
-            this.showNotification(`扫描失败: ${error.message}`, 'error');
+            this.showNotification(`扫描失败: ${this.getErrorMessage(error)}`, 'error');
         } finally {
             removeListener();
             this.hideScanTip(driveId);
         }
     }
 
-    showScanTip(driveId) {
-        const btn = this.mountedDrivesList?.querySelector(`.scan-drive-btn[data-drive-id="${driveId}"]`);
+    showScanTip(driveId: string): void {
+        const btn = this.mountedDrivesList?.querySelector<HTMLButtonElement>(`.scan-drive-btn[data-drive-id="${driveId}"]`);
         if (btn) {
             btn.disabled = true;
             btn.textContent = '扫描中...';
@@ -424,23 +487,25 @@ class NetworkDiskModal extends Component {
         driveItem.appendChild(tip);
     }
 
-    updateScanTip(driveId, progress) {
-        const fill = this.mountedDrivesList?.querySelector(`[data-scan-fill="${driveId}"]`);
-        const text = this.mountedDrivesList?.querySelector(`[data-scan-text="${driveId}"]`);
+    updateScanTip(driveId: string, progress: ScanProgress): void {
+        const fill = this.mountedDrivesList?.querySelector<HTMLElement>(`[data-scan-fill="${driveId}"]`);
+        const text = this.mountedDrivesList?.querySelector<HTMLElement>(`[data-scan-text="${driveId}"]`);
 
         if (fill && text) {
-            const percent = progress.total > 0 ?
-                (progress.current / progress.total) * 100 : 0;
+            const total = progress.totalFiles;
+            const current = progress.processedFiles;
+            const percent = total > 0 ?
+                (current / total) * 100 : 0;
             fill.style.width = `${percent}%`;
-            text.textContent = `⏳ 扫描中: ${progress.current}/${progress.total}`;
+            text.textContent = `⏳ 扫描中: ${current}/${total}`;
         }
     }
 
-    hideScanTip(driveId) {
+    hideScanTip(driveId: string): void {
         const tip = this.mountedDrivesList?.querySelector(`[data-scan-tip-drive-id="${driveId}"]`);
         if (tip) tip.remove();
 
-        const btn = this.mountedDrivesList?.querySelector(`.scan-drive-btn[data-drive-id="${driveId}"]`);
+        const btn = this.mountedDrivesList?.querySelector<HTMLButtonElement>(`.scan-drive-btn[data-drive-id="${driveId}"]`);
         if (btn) {
             btn.disabled = false;
             btn.textContent = '扫描';
@@ -448,7 +513,11 @@ class NetworkDiskModal extends Component {
     }
 
     // 卸载网络磁盘
-    async unmountNetworkDrive(driveId) {
+    async unmountNetworkDrive(driveId: string | null): Promise<void> {
+        if (!driveId) {
+            return;
+        }
+
         try {
             console.log(`🔄 NetworkDiskModal: 开始卸载网络磁盘 ${driveId}`);
 
@@ -470,12 +539,12 @@ class NetworkDiskModal extends Component {
             }
         } catch (error) {
             console.error(`❌ NetworkDiskModal: 卸载网络磁盘 ${driveId} 时发生异常:`, error);
-            this.showNotification(`卸载失败: ${error.message}`, 'error');
+            this.showNotification(`卸载失败: ${this.getErrorMessage(error)}`, 'error');
         }
     }
 
     // 刷新网络磁盘状态
-    async refreshNetworkDrivesStatus() {
+    async refreshNetworkDrivesStatus(): Promise<void> {
         if (!this.refreshDrivesBtn) {
             return;
         }
@@ -493,11 +562,21 @@ class NetworkDiskModal extends Component {
                 this.showNotification('刷新网络磁盘状态失败', 'error');
             }
         } catch (error) {
-            this.showNotification(`刷新失败: ${error.message}`, 'error');
+            this.showNotification(`刷新失败: ${this.getErrorMessage(error)}`, 'error');
         } finally {
             this.refreshDrivesBtn.disabled = false;
             this.refreshDrivesBtn.textContent = '刷新状态';
         }
+    }
+
+    escapeHtml(text: string): string {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    getErrorMessage(error: unknown): string {
+        return error instanceof Error ? error.message : String(error);
     }
 }
 

@@ -47,7 +47,7 @@ import '@components/component/EqualizerComponent.js';
 import '@components/component/HomePage';
 import '@components/component/Lyrics.js';
 import '@components/component/Navigation';
-import '@components/component/NetworkDiskModal.js';
+import '@components/component/NetworkDiskModal';
 import '@components/component/NetworkDriveDetailPage.js';
 import '@components/component/Player.js';
 import '@components/component/Playlist.js';

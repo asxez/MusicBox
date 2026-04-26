@@ -10,6 +10,7 @@ import type {
     ElectronGlobalShortcutsAPI,
     ElectronLibraryAPI,
     ElectronLyricsAPI,
+    ElectronNetworkDriveAPI,
     ElectronNativeAudioAPI,
     ElectronWindowAPI
 } from '@api/types/electron';
@@ -184,7 +185,7 @@ interface ElectronAPI {
     desktopLyrics: ElectronDesktopLyricsAPI;
     lyrics: ElectronLyricsAPI;
     covers: ElectronCoversAPI;
-    networkDrive: {};
+    networkDrive: ElectronNetworkDriveAPI;
 
     // 设置相关
     settings: {};
