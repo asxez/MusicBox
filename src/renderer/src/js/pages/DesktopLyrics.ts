@@ -2,15 +2,74 @@
  * 桌面歌词页面
  */
 
+import type {DesktopLyricsPlaybackState} from '@api/types/playback';
+import type {DesktopLyricsSettings as ApiDesktopLyricsSettings} from '@api/types/settings';
+import type {Track} from '@api/types/library';
+
+interface DesktopLyricWord {
+    time: number;
+    endTime?: number;
+    text: string;
+}
+
+interface DesktopLyricLine {
+    time: number;
+    endTime?: number;
+    content?: string;
+    type?: string;
+    words?: DesktopLyricWord[];
+}
+
+interface DesktopLyricsSettings extends ApiDesktopLyricsSettings {
+    layoutMode: 'default' | 'center';
+    themeColor: string;
+    fontColor: string;
+    opacity: number;
+    fontSize: number;
+}
+
+interface DragPosition {
+    x: number;
+    y: number;
+}
+
+declare global {
+    interface Window {
+        desktopLyrics?: DesktopLyrics;
+    }
+}
+
 class DesktopLyrics {
+    private container: HTMLElement;
+    private currentLyricEl: HTMLElement;
+    private nextLyricEl: HTMLElement;
+    private lockBtn: HTMLElement;
+    private lockIcon: HTMLElement;
+    private unlockIcon: HTMLElement;
+    private closeBtn: HTMLElement;
+    private lyrics: DesktopLyricLine[];
+    private currentLyricIndex: number;
+    isPlaying: boolean;
+    currentPosition: number;
+    private isLocked: boolean;
+    isHovering: boolean;
+    isDragging: boolean;
+    dragStartPos: DragPosition;
+    private settings: DesktopLyricsSettings;
+    private _currentPlaybackPosition: number;
+    private _lastMonotonicPosition: number;
+    private _rafId: number | null;
+    private _lastWordUpdateTime: number;
+    private _wordUpdateInterval: number;
+
     constructor() {
-        this.container = document.getElementById('desktop-lyrics');
-        this.currentLyricEl = document.querySelector('.current-lyric .lyric-text');
-        this.nextLyricEl = document.querySelector('.next-lyric .lyric-text');
-        this.lockBtn = document.getElementById('lock-btn');
-        this.lockIcon = this.lockBtn.querySelector('.lock-icon');
-        this.unlockIcon = this.lockBtn.querySelector('.unlock-icon');
-        this.closeBtn = document.getElementById('close-btn');
+        this.container = document.getElementById('desktop-lyrics') as HTMLElement;
+        this.currentLyricEl = document.querySelector('.current-lyric .lyric-text') as HTMLElement;
+        this.nextLyricEl = document.querySelector('.next-lyric .lyric-text') as HTMLElement;
+        this.lockBtn = document.getElementById('lock-btn') as HTMLElement;
+        this.lockIcon = this.lockBtn.querySelector('.lock-icon') as HTMLElement;
+        this.unlockIcon = this.lockBtn.querySelector('.unlock-icon') as HTMLElement;
+        this.closeBtn = document.getElementById('close-btn') as HTMLElement;
 
         // 歌词数据
         this.lyrics = [];
@@ -49,7 +108,7 @@ class DesktopLyrics {
         this.init();
     }
 
-    init() {
+    init(): void {
         this.setupEventListeners();
         this.setupIPCListeners();
         this.loadSettings();
@@ -57,7 +116,7 @@ class DesktopLyrics {
         this.showDefaultLyrics();
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         // 锁定/解锁按钮
         this.lockBtn.addEventListener('click', () => {
             this.toggleLock();
@@ -69,7 +128,7 @@ class DesktopLyrics {
         });
 
         // 控制栏鼠标事件（锁定状态下动态控制穿透）
-        const controlsBar = document.querySelector('.controls-bar');
+        const controlsBar = document.querySelector('.controls-bar') as HTMLElement;
         controlsBar.addEventListener('mouseenter', () => {
             if (this.isLocked) {
                 window.electronAPI.desktopLyrics.setIgnoreMouseEvents(false);
@@ -83,7 +142,7 @@ class DesktopLyrics {
         });
     }
 
-    setupIPCListeners() {
+    setupIPCListeners(): void {
         // 监听歌词更新
         window.electronAPI.desktopLyrics.onLyricsUpdated((lyricsData) => {
             this.updateLyrics(lyricsData);
@@ -95,12 +154,12 @@ class DesktopLyrics {
         });
 
         // 监听播放状态变化
-        window.electronAPI.desktopLyrics.onPlaybackStateChanged((state) => {
+        window.electronAPI.desktopLyrics.onPlaybackStateChanged((state: DesktopLyricsPlaybackState) => {
             this.isPlaying = state?.isPlaying || false;
         });
 
         // 监听歌曲变化
-        window.electronAPI.desktopLyrics.onTrackChanged((_track) => {
+        window.electronAPI.desktopLyrics.onTrackChanged((_track: Track | null) => {
             this.resetLyrics();
         });
 
@@ -110,13 +169,13 @@ class DesktopLyrics {
         });
     }
 
-    showDefaultLyrics() {
+    showDefaultLyrics(): void {
         this.currentLyricEl.textContent = '暂无歌词';
         this.nextLyricEl.textContent = '';
     }
 
     // 更新歌词数据
-    updateLyrics(lyricsData) {
+    updateLyrics(lyricsData: DesktopLyricLine[] | string): void {
         if (!lyricsData || !Array.isArray(lyricsData)) {
             this.lyrics = [];
             this.showDefaultLyrics();
@@ -129,7 +188,7 @@ class DesktopLyrics {
     }
 
     // 更新播放进度
-    updatePosition(position) {
+    updatePosition(position: number): void {
         if (typeof position !== 'number' || isNaN(position)) {
             return;
         }
@@ -160,7 +219,7 @@ class DesktopLyrics {
     }
 
     // 更新歌词高亮
-    updateLyricHighlight(currentTime) {
+    updateLyricHighlight(currentTime: number): void {
         if (!this.lyrics || this.lyrics.length === 0) {
             return;
         }
@@ -188,7 +247,7 @@ class DesktopLyrics {
     }
 
     // 渲染当前歌词
-    renderCurrentLyric() {
+    renderCurrentLyric(): void {
         if (this.currentLyricIndex < 0 || this.currentLyricIndex >= this.lyrics.length) {
             this.currentLyricEl.textContent = '暂无歌词';
             this.nextLyricEl.textContent = '';
@@ -221,11 +280,12 @@ class DesktopLyrics {
     }
 
     // 更新逐字高亮
-    updateWordHighlight(lineIndex, currentTime) {
+    updateWordHighlight(lineIndex: number, currentTime: number): void {
         const lyric = this.lyrics[lineIndex];
         if (!lyric || !lyric.words || lyric.words.length === 0) {
             return;
         }
+        const lyricWords = lyric.words;
 
         // 节流控制
         const now = performance.now();
@@ -247,10 +307,10 @@ class DesktopLyrics {
             this._rafId = null;
 
             const latestTime = this._currentPlaybackPosition !== undefined ? this._currentPlaybackPosition : currentTime;
-            const words = this.currentLyricEl.querySelectorAll('.lyric-word');
+            const words = this.currentLyricEl.querySelectorAll<HTMLElement>('.lyric-word');
 
-            for (let i = 0; i < lyric.words.length; i++) {
-                const word = lyric.words[i];
+            for (let i = 0; i < lyricWords.length; i++) {
+                const word = lyricWords[i];
                 const wordElement = words[i];
 
                 if (!wordElement) continue;
@@ -261,7 +321,7 @@ class DesktopLyrics {
                 }
 
                 const wordStartTime = word.time;
-                const wordEndTime = word.endTime || (lyric.words[i + 1] ? lyric.words[i + 1].time : lyric.endTime || wordStartTime + 0.5);
+                const wordEndTime = word.endTime || (lyricWords[i + 1] ? lyricWords[i + 1].time : lyric.endTime || wordStartTime + 0.5);
 
                 if (latestTime < wordStartTime) {
                     // 未播放
@@ -298,19 +358,19 @@ class DesktopLyrics {
     }
 
     // 重置逐字高亮状态
-    resetWordHighlightStates(seekPosition) {
+    resetWordHighlightStates(seekPosition: number): void {
         const words = this.currentLyricEl.querySelectorAll('.lyric-word');
         words.forEach(wordElement => {
-            const wordTime = parseFloat(wordElement.dataset.wordTime);
+            const wordTime = parseFloat((wordElement as HTMLElement).dataset.wordTime || '0');
             if (wordTime > seekPosition) {
                 wordElement.classList.remove('highlight', 'played');
-                wordElement.style.setProperty('--word-progress', '0');
+                (wordElement as HTMLElement).style.setProperty('--word-progress', '0');
             }
         });
     }
 
     // 重置歌词
-    resetLyrics() {
+    resetLyrics(): void {
         this.lyrics = [];
         this.currentLyricIndex = -1;
         this._lastMonotonicPosition = 0;
@@ -319,13 +379,13 @@ class DesktopLyrics {
     }
 
     // 切换锁定状态
-    toggleLock() {
+    toggleLock(): void {
         this.isLocked = !this.isLocked;
         this.applyLockState();
     }
 
     // 应用锁定状态
-    async applyLockState() {
+    async applyLockState(): Promise<void> {
         if (this.isLocked) {
             this.container.classList.add('locked');
             this.lockBtn.classList.add('locked');
@@ -348,16 +408,16 @@ class DesktopLyrics {
     }
 
     // 关闭窗口
-    async close() {
+    async close(): Promise<void> {
         await window.electronAPI.desktopLyrics.close();
     }
 
     // 加载设置
-    loadSettings() {
+    loadSettings(): void {
         try {
             const savedSettings = localStorage.getItem('desktop-lyrics-settings');
             if (savedSettings) {
-                this.settings = {...this.settings, ...JSON.parse(savedSettings)};
+                this.settings = {...this.settings, ...JSON.parse(savedSettings) as Partial<DesktopLyricsSettings>};
             }
         } catch (error) {
             console.error('❌ 桌面歌词: 加载设置失败', error);
@@ -365,7 +425,7 @@ class DesktopLyrics {
     }
 
     // 保存设置
-    saveSettings() {
+    saveSettings(): void {
         try {
             localStorage.setItem('desktop-lyrics-settings', JSON.stringify(this.settings));
         } catch (error) {
@@ -374,7 +434,7 @@ class DesktopLyrics {
     }
 
     // 更新设置
-    updateSettings(newSettings) {
+    updateSettings(newSettings?: Partial<DesktopLyricsSettings>): void {
         if (!newSettings) return;
 
         this.settings = {...this.settings, ...newSettings};
@@ -383,7 +443,7 @@ class DesktopLyrics {
     }
 
     // 应用设置
-    async applySettings() {
+    async applySettings(): Promise<void> {
         const {layoutMode, themeColor, fontColor, opacity, fontSize} = this.settings;
 
         // 应用主题颜色
