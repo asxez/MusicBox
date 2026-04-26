@@ -260,7 +260,7 @@ export class WindowManager {
 
         // 页面加载完成后显示
         this.desktopLyricsWindow.once('ready-to-show', () => {
-            // this.desktopLyricsWindow?.webContents.openDevTools({mode: 'detach'});
+            this.desktopLyricsWindow?.webContents.openDevTools({mode: 'detach'});
             this.desktopLyricsWindow?.show();
         });
 

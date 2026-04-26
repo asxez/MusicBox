@@ -4,35 +4,26 @@
 
 import {showToast} from '@utils/index.js';
 import {cacheMaintenanceService} from "@services/settings/CacheMaintenanceService";
+import {displayModeSettingsService} from "@services/settings/DisplayModeSettingsService";
 import {embeddedLyricsDiagnosticsService} from "@services/settings/EmbeddedLyricsDiagnosticsService";
 import {hardwareAccelerationSettingsService} from "@services/settings/HardwareAccelerationSettingsService";
 import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySettingsService";
 import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
 import {settingsStore, type SettingValue} from "@services/settings/SettingsStore";
+import {
+    shortcutSettingsService,
+    type ShortcutConflict,
+    type ShortcutDefinition,
+    type ShortcutMap,
+    type ShortcutType
+} from "@services/settings/ShortcutSettingsService";
 import {traySettingsService} from "@services/settings/TraySettingsService";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
-import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
-import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
 import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
 
-type ShortcutType = 'local' | 'global';
-
-interface ShortcutEntry {
-    name: string;
-    description: string;
-    key: string;
-    enabled: boolean;
-    [key: string]: unknown;
-}
-
-type ShortcutMap = Record<string, any>;
-
-interface ShortcutConflict {
-    name: string;
-    type: ShortcutType;
-}
+type ShortcutEntry = ShortcutDefinition;
 
 interface RgbColor {
     r: number;
@@ -267,13 +258,6 @@ class Settings extends Component {
                     console.error('❌ Settings: 隐藏桌面歌词失败:', error);
                 }
             }
-        });
-
-        // 艺术家页设置 - 控制侧边栏艺术家按钮显示/隐藏
-        this.statisticsToggle.addEventListener('change', (e: Event) => {
-            const target = getInputTarget(e);
-            this.updateSetting('statistics', target.checked);
-            this.emit('statisticsEnabled', target.checked);
         });
 
         // 统计信息设置 - 控制侧边栏统计按钮显示/隐藏
@@ -1067,7 +1051,7 @@ class Settings extends Component {
     }
 
     initializeShortcuts(): void {
-        const config = shortcutConfig.getConfig();
+        const config = shortcutSettingsService.getConfig();
 
         // 设置全局快捷键开关状态
         this.globalShortcutsToggle.checked = config.enableGlobalShortcuts;
@@ -1078,9 +1062,7 @@ class Settings extends Component {
         this.renderShortcutsList('global', config.globalShortcuts);
 
         // 延迟初始化折叠功能，确保DOM完全渲染
-        setTimeout(() => {
-            shortcutConfig.initializeCollapsibleShortcuts();
-        }, 100);
+        shortcutSettingsService.initializeCollapsibleShortcuts();
     }
 
     renderShortcutsList(type: ShortcutType, shortcuts: ShortcutMap): void {
@@ -1156,21 +1138,14 @@ class Settings extends Component {
     }
 
     startRecordingShortcut(type: ShortcutType, id: string, element: HTMLElement): void {
-        // 开始录制
-        shortcutRecorder.startRecording(element);
-
-        // 监听录制结果
-        const handleRecorded = async (shortcutString: string) => {
+        shortcutSettingsService.startRecording(element, async (shortcutString: string) => {
             await this.handleShortcutRecorded(type, id, shortcutString, element);
-            shortcutRecorder.off('shortcutRecorded', handleRecorded);
-        };
-
-        shortcutRecorder.on('shortcutRecorded', handleRecorded);
+        });
     }
 
     async handleShortcutRecorded(type: ShortcutType, id: string, shortcutString: string, element: HTMLElement): Promise<void> {
         // 检查冲突
-        const conflicts = shortcutConfig.checkConflicts(type, id, shortcutString);
+        const conflicts = shortcutSettingsService.checkConflicts(type, id, shortcutString);
         if (conflicts.length > 0) {
             await this.showShortcutConflict(conflicts, shortcutString, async () => {
                 // 用户确认覆盖
@@ -1183,7 +1158,7 @@ class Settings extends Component {
 
     async updateShortcut(type: ShortcutType, id: string, shortcutString: string, element: HTMLElement): Promise<void> {
         try {
-            const success = await shortcutConfig.updateShortcut(type, id, shortcutString);
+            const success = await shortcutSettingsService.updateShortcut(type, id, shortcutString);
             if (success) {
                 element.textContent = this.formatShortcutKey(shortcutString);
                 showToast('快捷键已更新', 'success');
@@ -1200,7 +1175,7 @@ class Settings extends Component {
     }
 
     toggleShortcut(type: ShortcutType, id: string, enabled: boolean): void {
-        const success = shortcutConfig.setShortcutEnabled(type, id, enabled);
+        const success = shortcutSettingsService.setShortcutEnabled(type, id, enabled);
 
         if (success) {
             // 更新UI
@@ -1222,11 +1197,11 @@ class Settings extends Component {
 
     async toggleGlobalShortcuts(enabled: boolean): Promise<void> {
         try {
-            const success = await shortcutConfig.setGlobalShortcutsEnabled(enabled);
+            const success = await shortcutSettingsService.setGlobalShortcutsEnabled(enabled);
             if (success) {
                 this.updateGlobalShortcutsVisibility(enabled);
                 // 刷新快捷键摘要
-                shortcutConfig.refreshSummary();
+                shortcutSettingsService.refreshSummary();
                 showToast(enabled ? '全局快捷键已启用' : '全局快捷键已禁用', 'success');
                 this.emit('shortcutsUpdated');
             } else {
@@ -1281,12 +1256,12 @@ class Settings extends Component {
     }
 
     resetShortcuts(): void {
-        const success = shortcutConfig.resetToDefaults();
+        const success = shortcutSettingsService.resetToDefaults();
         if (success) {
             // 重新初始化快捷键配置
             this.initializeShortcuts();
             // 刷新摘要
-            shortcutConfig.refreshSummary();
+            shortcutSettingsService.refreshSummary();
             showToast('快捷键已重置为默认设置', 'success');
             this.emit('shortcutsUpdated');
         } else {
@@ -1548,36 +1523,33 @@ class Settings extends Component {
     // 桌面歌词设置相关方法
     async updateDesktopLyricsSetting(key: string, value: string | number): Promise<void> {
         // 更新本地设置缓存
-        const desktopLyricsSettings = this.settings.desktopLyricsSettings || {};
-        desktopLyricsSettings[key] = value;
+        const desktopLyricsSettings = displayModeSettingsService.updateDesktopLyricsSetting(this.settings, key, value);
         this.updateSetting('desktopLyricsSettings', desktopLyricsSettings);
 
         // 发送设置到桌面歌词窗口
         try {
-            const settingsToSend: Record<string, string | number> = {};
-            settingsToSend[key] = value;
-            await api.updateDesktopLyricsSettings(settingsToSend);
+            await displayModeSettingsService.syncDesktopLyricsSettings({[key]: value});
         } catch (error) {
             console.error('❌ Settings: 更新桌面歌词设置失败:', error);
         }
     }
 
     initializeDesktopLyricsSettings(): void {
-        const dlSettings = this.settings.desktopLyricsSettings || {};
+        const dlSettings = displayModeSettingsService.getDesktopLyricsSettings(this.settings);
 
         // 初始化显示模式
         if (this.dlDisplayModeSelect) {
-            this.dlDisplayModeSelect.value = dlSettings.displayMode || 'default';
+            this.dlDisplayModeSelect.value = dlSettings.displayMode;
         }
 
         // 初始化布局模式
         if (this.dlLayoutModeSelect) {
-            this.dlLayoutModeSelect.value = dlSettings.layoutMode || 'default';
+            this.dlLayoutModeSelect.value = dlSettings.layoutMode;
         }
 
         // 初始化主题颜色
         if (this.dlThemeColor) {
-            const color = dlSettings.themeColor || '#64b5f6';
+            const color = dlSettings.themeColor;
             this.dlThemeColor.value = color;
             if (this.dlThemeColorValue) {
                 this.dlThemeColorValue.textContent = color;
@@ -1586,7 +1558,7 @@ class Settings extends Component {
 
         // 初始化透明度
         if (this.dlOpacitySlider) {
-            const opacity = dlSettings.opacity !== undefined ? dlSettings.opacity : 0.9;
+            const opacity = dlSettings.opacity;
             this.dlOpacitySlider.value = opacity;
             if (this.dlOpacityValue) {
                 this.dlOpacityValue.textContent = Math.round(opacity * 100) + '%';
@@ -1595,7 +1567,7 @@ class Settings extends Component {
 
         // 初始化字体大小
         if (this.dlFontSizeSlider) {
-            const fontSize = dlSettings.fontSize || 48;
+            const fontSize = dlSettings.fontSize;
             this.dlFontSizeSlider.value = fontSize;
             if (this.dlFontSizeValue) {
                 this.dlFontSizeValue.textContent = fontSize + 'px';
@@ -1604,7 +1576,7 @@ class Settings extends Component {
 
         // 初始化字体颜色
         if (this.dlFontColor) {
-            const fontColor = dlSettings.fontColor || '#000';
+            const fontColor = dlSettings.fontColor;
             this.dlFontColor.value = fontColor;
             if (this.dlFontColorValue) {
                 this.dlFontColorValue.textContent = fontColor;
@@ -1614,13 +1586,7 @@ class Settings extends Component {
         // 初始化完成后同步设置到桌面歌词窗口
         setTimeout(async () => {
             try {
-                await api.updateDesktopLyricsSettings({
-                    layoutMode: dlSettings.layoutMode || 'default',
-                    themeColor: dlSettings.themeColor || '#64b5f6',
-                    fontColor: dlSettings.fontColor || '#000',
-                    opacity: dlSettings.opacity !== undefined ? dlSettings.opacity : 0.9,
-                    fontSize: dlSettings.fontSize || 48
-                });
+                await displayModeSettingsService.syncDesktopLyricsSettings(dlSettings);
             } catch (error) {
                 console.error('❌ Settings: 初始化桌面歌词设置同步失败:', error);
             }
@@ -1630,8 +1596,7 @@ class Settings extends Component {
     // 迷你模式设置相关方法
     async updateMiniModeSetting(key: string, value: string | number): Promise<void> {
         // 更新本地设置缓存
-        const miniModeSettings = (this.settings.miniModeSettings || {}) as Record<string, string | number>;
-        miniModeSettings[key] = value;
+        const miniModeSettings = displayModeSettingsService.updateMiniModeSetting(this.settings, key, value);
         this.updateSetting('miniModeSettings', miniModeSettings);
 
         // 实时应用到迷你模式
@@ -1639,29 +1604,18 @@ class Settings extends Component {
     }
 
     applyMiniModeSetting(key: string, value: string | number): void {
-        // 应用CSS变量
-        switch (key) {
-            case 'fontColor':
-                document.documentElement.style.setProperty('--mini-mode-font-color', String(value));
-                break;
-            case 'highlightColor':
-                document.documentElement.style.setProperty('--mini-mode-highlight-color', String(value));
-                break;
-            case 'fontSize':
-                document.documentElement.style.setProperty('--mini-mode-font-size', `${value}px`);
-                break;
-        }
+        displayModeSettingsService.applyMiniModeSetting(key, value);
 
         // 通知Player组件设置已更新
         this.emit('miniModeSettingsChanged', {key, value});
     }
 
     initializeMiniModeSettings(): void {
-        const mmSettings = (this.settings.miniModeSettings || {}) as Record<string, string | number>;
+        const mmSettings = displayModeSettingsService.getMiniModeSettings(this.settings);
 
         // 初始化字体颜色
         if (this.miniModeFontColor) {
-            const fontColor = mmSettings.fontColor || '#ffffff';
+            const fontColor = mmSettings.fontColor;
             this.miniModeFontColor.value = fontColor;
             if (this.miniModeFontColorValue) {
                 this.miniModeFontColorValue.textContent = fontColor;
@@ -1671,7 +1625,7 @@ class Settings extends Component {
 
         // 初始化高亮颜色
         if (this.miniModeHighlightColor) {
-            const highlightColor = mmSettings.highlightColor || '#335eea';
+            const highlightColor = mmSettings.highlightColor;
             this.miniModeHighlightColor.value = highlightColor;
             if (this.miniModeHighlightColorValue) {
                 this.miniModeHighlightColorValue.textContent = highlightColor;
@@ -1681,7 +1635,7 @@ class Settings extends Component {
 
         // 初始化字体大小
         if (this.miniModeFontSizeSlider) {
-            const fontSize = mmSettings.fontSize || 14;
+            const fontSize = mmSettings.fontSize;
             this.miniModeFontSizeSlider.value = fontSize;
             if (this.miniModeFontSizeValue) {
                 this.miniModeFontSizeValue.textContent = fontSize + 'px';

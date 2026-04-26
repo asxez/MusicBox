@@ -1,5 +1,5 @@
 import {EventEmitter} from '@utils/index.js';
-import {audioGateway} from '@js/infrastructure/electron';
+import {audioGateway} from '@js/infrastructure/electron/AudioGateway';
 import {cacheManager} from "@services/CacheManager";
 import {PlaybackQueue} from './playback/PlaybackQueue';
 import {PlaybackPersistence} from './playback/PlaybackPersistence';
@@ -31,6 +31,7 @@ export class MusicBoxAPI extends EventEmitter {
     libraryBridge: LibraryBridge;
     progressInterval: ReturnType<typeof setInterval> | null;
     audioEngine: AudioEngineManagerBridge | null;
+    audioEngineReady: Promise<void>;
     _trackSwitchLock: boolean;
     _lyricsRequestLock: Set<string>;
 
@@ -79,6 +80,7 @@ export class MusicBoxAPI extends EventEmitter {
 
         // 音频引擎
         this.audioEngine = null;
+        this.audioEngineReady = Promise.resolve();
 
         // 音频切换锁，防止快速切换时的竞态条件
         this._trackSwitchLock = false;
@@ -86,7 +88,7 @@ export class MusicBoxAPI extends EventEmitter {
         // 歌词获取去重机制
         this._lyricsRequestLock = new Set(); // 正在请求歌词的歌曲集合
 
-        this.initializeWebAudio().then(() => {
+        this.audioEngineReady = this.initializeWebAudio().then(() => {
             this.setupEventListeners();
         });
     }
@@ -174,6 +176,7 @@ export class MusicBoxAPI extends EventEmitter {
     // Audio Engine Methods
     async initializeAudio(): Promise<boolean> {
         try {
+            await this.audioEngineReady;
             const result = await audioGateway.init();
             this.isInitialized = result;
             return result;
@@ -185,6 +188,8 @@ export class MusicBoxAPI extends EventEmitter {
 
     async loadTrack(filePath: string): Promise<boolean> {
         try {
+            await this.audioEngineReady;
+
             if (this.audioEngine) {
                 const result = await this.audioEngine.loadTrack(filePath);
                 if (result) {
@@ -256,7 +261,15 @@ export class MusicBoxAPI extends EventEmitter {
 
     async play(): Promise<boolean> {
         try {
+            await this.audioEngineReady;
+
             if (this.audioEngine) {
+                const hasLoadedTrack = await this.ensureAudioEngineTrackLoaded();
+                if (!hasLoadedTrack) {
+                    console.warn('⚠️ API: 没有可播放的已加载歌曲');
+                    return false;
+                }
+
                 const result = await this.audioEngine.play();
                 if (result) {
                     // 不在这里手动设置状态，让音频引擎的事件回调来处理
@@ -265,7 +278,7 @@ export class MusicBoxAPI extends EventEmitter {
                     await audioGateway.play();
                     return true;
                 } else {
-                    console.log('❌ API: Web Audio Engine 播放失败');
+                    console.log(`❌ API: ${this.getAudioEngineLabel()} 播放失败`);
                 }
             }
 
@@ -279,6 +292,51 @@ export class MusicBoxAPI extends EventEmitter {
             console.error('❌ 播放失败:', error);
             return false;
         }
+    }
+
+    private async ensureAudioEngineTrackLoaded(): Promise<boolean> {
+        if (!this.audioEngine) {
+            return true;
+        }
+
+        if (this.audioEngine.getCurrentTrack()) {
+            return true;
+        }
+
+        const track = this.getCurrentPlaybackTrack();
+        const filePath = this.getTrackFilePath(track);
+        if (!filePath) {
+            return false;
+        }
+
+        console.log('🔄 API: 播放前补加载当前歌曲:', track?.title || filePath);
+        const loadResult = await this.loadTrack(filePath);
+
+        if (loadResult && this.position > 0) {
+            await this.seek(this.position);
+        }
+
+        return loadResult;
+    }
+
+    private getCurrentPlaybackTrack(): Track | null {
+        if (this.currentTrack) {
+            return this.currentTrack;
+        }
+
+        if (this.currentIndex >= 0 && this.currentIndex < this.playlist.length) {
+            return this.playlist[this.currentIndex];
+        }
+
+        return null;
+    }
+
+    private getTrackFilePath(track: Track | null | undefined): string | null {
+        return track?.filePath || track?.path || null;
+    }
+
+    private getAudioEngineLabel(): string {
+        return this.audioEngine?.getEngineType() === 'wasapi' ? 'WASAPI Engine' : 'Web Audio Engine';
     }
 
     async pause(): Promise<boolean> {

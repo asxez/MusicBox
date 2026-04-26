@@ -1,4 +1,5 @@
-import {desktopLyricsGateway, windowGateway} from "@js/infrastructure/electron";
+import {desktopLyricsGateway} from "@js/infrastructure/electron/DesktopLyricsGateway";
+import {windowGateway} from "@js/infrastructure/electron/WindowGateway";
 import {lyricsAPI} from "@api/modules";
 import type {Result} from '@api/types/common';
 import type {LyricLine} from '@api/types/lyrics';
