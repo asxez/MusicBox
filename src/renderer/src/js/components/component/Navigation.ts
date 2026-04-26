@@ -6,9 +6,81 @@ import {theme} from "@js/utils";
 import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
-import {windowAPI} from "@js/api";
+import type {Playlist} from "@api/types/playlist";
+import type {AppView, ConfirmOptions} from "@core/types/app";
+import type {Result, Unsubscribe} from "@api/types/common";
+
+type SidebarView = AppView;
+
+interface SidebarPlaylist extends Playlist {
+    coverImage?: string;
+    trackIds?: string[];
+}
+
+interface NetworkDrive {
+    id: string;
+    type?: string;
+    displayName?: string;
+    config?: {
+        displayName?: string;
+    };
+    [key: string]: unknown;
+}
+
+interface NetworkDriveAPI {
+    getMountedDrives(): Promise<NetworkDrive[] | null | undefined>;
+    onConnected(callback: () => void | Promise<void>): Unsubscribe;
+    onDisconnected(callback: () => void | Promise<void>): Unsubscribe;
+    refreshConnection(driveId: string): Promise<unknown>;
+}
+
+interface DeletePlaylistResult extends Result {
+    error?: string;
+}
+
+interface NavigationWindow extends Window {
+    electronAPI: Window['electronAPI'] & {
+        networkDrive: NetworkDriveAPI;
+    };
+}
+
+interface WindowStateResult {
+    status: boolean;
+    error?: unknown;
+}
 
 class Navigation extends Component {
+    currentView: SidebarView | null;
+    sidebarCollapsed: boolean;
+    userPlaylists: SidebarPlaylist[];
+    networkDrives: NetworkDrive[];
+    removeLibraryUpdatedListener: Unsubscribe | null = null;
+    isMaximized = false;
+
+    backBtn!: HTMLElement | null;
+    forwardBtn!: HTMLElement | null;
+    settingsBtn!: HTMLElement;
+    themeToggle!: HTMLElement;
+    lightIcon!: HTMLElement;
+    darkIcon!: HTMLElement;
+    minimizeBtn!: HTMLElement;
+    maximizeBtn!: HTMLElement;
+    closeBtn!: HTMLElement;
+    maximizeIcon!: HTMLElement;
+    restoreIcon!: HTMLElement;
+    navbarContent!: HTMLElement;
+    sidebar!: HTMLElement;
+    sidebarToggleBtn!: HTMLElement;
+    app!: HTMLElement;
+    userPlaylistsSection!: HTMLElement | null;
+    userPlaylistsList!: HTMLElement | null;
+    networkDrivesSection!: HTMLElement | null;
+    networkDrivesList!: HTMLElement | null;
+    statisticsLink!: HTMLElement | null;
+    recentLink!: HTMLElement | null;
+    artistsLink!: HTMLElement | null;
+    albumsLink!: HTMLElement | null;
+
     constructor() {
         super('#navbar');
         this.currentView = 'library';
@@ -28,36 +100,42 @@ class Navigation extends Component {
         });
     }
 
-    setupLibraryUpdateListener() {
-        if (!window.electronAPI?.library?.onLibraryUpdated) {
+    get electronAPI(): NavigationWindow['electronAPI'] {
+        return (window as unknown as NavigationWindow).electronAPI;
+    }
+
+    setupLibraryUpdateListener(): void {
+        if (!this.electronAPI?.library?.onLibraryUpdated) {
             return;
         }
 
-        this.removeLibraryUpdatedListener = window.electronAPI.library.onLibraryUpdated(async () => {
+        this.removeLibraryUpdatedListener = this.electronAPI.library.onLibraryUpdated(async () => {
             await this.refreshPlaylists();
         });
     }
 
-    setupElements() {
-        this.backBtn = this.element.querySelector('#back-btn');
-        this.forwardBtn = this.element.querySelector('#forward-btn');
-        this.settingsBtn = this.element.querySelector('#settings-btn');
-        this.themeToggle = this.element.querySelector('#theme-toggle');
-        this.lightIcon = this.themeToggle.querySelector('.light-icon');
-        this.darkIcon = this.themeToggle.querySelector('.dark-icon');
+    setupElements(): void {
+        const navbar = this.element as HTMLElement;
+
+        this.backBtn = navbar.querySelector('#back-btn');
+        this.forwardBtn = navbar.querySelector('#forward-btn');
+        this.settingsBtn = navbar.querySelector('#settings-btn') as HTMLElement;
+        this.themeToggle = navbar.querySelector('#theme-toggle') as HTMLElement;
+        this.lightIcon = this.themeToggle.querySelector('.light-icon') as HTMLElement;
+        this.darkIcon = this.themeToggle.querySelector('.dark-icon') as HTMLElement;
 
         // 窗口控制按钮
-        this.minimizeBtn = this.element.querySelector('#minimize-btn');
-        this.maximizeBtn = this.element.querySelector('#maximize-btn');
-        this.closeBtn = this.element.querySelector('#close-btn');
-        this.maximizeIcon = this.maximizeBtn.querySelector('.maximize-icon');
-        this.restoreIcon = this.maximizeBtn.querySelector('.restore-icon');
-        this.navbarContent = this.element.querySelector('.navbar-content');
+        this.minimizeBtn = navbar.querySelector('#minimize-btn') as HTMLElement;
+        this.maximizeBtn = navbar.querySelector('#maximize-btn') as HTMLElement;
+        this.closeBtn = navbar.querySelector('#close-btn') as HTMLElement;
+        this.maximizeIcon = this.maximizeBtn.querySelector('.maximize-icon') as HTMLElement;
+        this.restoreIcon = this.maximizeBtn.querySelector('.restore-icon') as HTMLElement;
+        this.navbarContent = navbar.querySelector('.navbar-content') as HTMLElement;
 
         // 侧边栏相关元素
-        this.sidebar = document.getElementById('sidebar');
-        this.sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-        this.app = document.getElementById('app');
+        this.sidebar = document.getElementById('sidebar') as HTMLElement;
+        this.sidebarToggleBtn = document.getElementById('sidebar-toggle-btn') as HTMLElement;
+        this.app = document.getElementById('app') as HTMLElement;
 
         // 窗口最大化状态
         this.isMaximized = false;
@@ -77,7 +155,7 @@ class Navigation extends Component {
         this.albumsLink = document.querySelector('[data-view="albums"]');
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         this.addEventListenerManaged(this.themeToggle, 'click', () => {
             theme.toggle();
             this.updateThemeIcon();
@@ -109,7 +187,7 @@ class Navigation extends Component {
         });
 
         // 监听窗口最大化状态变化
-        window.electronAPI.window.onMaximizedChanged((isMaximized) => {
+        this.electronAPI.window.onMaximizedChanged((isMaximized) => {
             this.updateMaximizeButton(isMaximized);
         });
 
@@ -123,7 +201,7 @@ class Navigation extends Component {
         });
 
         // 侧边栏导航
-        const sidebarLinks = document.querySelectorAll('.sidebar-link');
+        const sidebarLinks = document.querySelectorAll<HTMLElement>('.sidebar-link');
         sidebarLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -135,16 +213,16 @@ class Navigation extends Component {
         });
 
         // 监听网络磁盘事件
-        window.electronAPI.networkDrive.onConnected(async () => {
+        this.electronAPI.networkDrive.onConnected(async () => {
             await this.loadNetworkDrives();
         });
 
-        window.electronAPI.networkDrive.onDisconnected(async () => {
+        this.electronAPI.networkDrive.onDisconnected(async () => {
             await this.loadNetworkDrives();
         });
     }
 
-    updateThemeIcon() {
+    updateThemeIcon(): void {
         const currentTheme = theme.current;
         if (currentTheme === 'dark') {
             this.lightIcon.style.display = 'none';
@@ -155,12 +233,12 @@ class Navigation extends Component {
         }
     }
 
-    navigateToView(view) {
+    navigateToView(view: SidebarView): void {
         // 更新为当前页面
-        document.querySelectorAll('.sidebar-link').forEach(link => {
+        document.querySelectorAll<HTMLElement>('.sidebar-link').forEach(link => {
             link.classList.remove('active');
         });
-        const activeLink = document.querySelector(`[data-view="${view}"]`);
+        const activeLink = document.querySelector<HTMLElement>(`[data-view="${view}"]`);
         if (activeLink) {
             activeLink.classList.add('active');
         }
@@ -169,7 +247,7 @@ class Navigation extends Component {
     }
 
     // 切换侧边栏收缩状态
-    toggleSidebar() {
+    toggleSidebar(): void {
         this.sidebarCollapsed = !this.sidebarCollapsed;
 
         if (this.sidebarCollapsed) {
@@ -187,33 +265,33 @@ class Navigation extends Component {
     }
 
     // 窗口控制方法
-    async minimizeWindow() {
+    async minimizeWindow(): Promise<void> {
         try {
-            await window.electronAPI.window.minimize();
+            await this.electronAPI.window.minimize();
             console.log('🎵 Navigation: 窗口最小化');
         } catch (error) {
             console.error('❌ Navigation: 窗口最小化失败', error);
         }
     }
 
-    async toggleMaximizeWindow() {
+    async toggleMaximizeWindow(): Promise<void> {
         try {
-            await window.electronAPI.window.maximize();
+            await this.electronAPI.window.maximize();
             console.log('🎵 Navigation: 窗口最大化/还原切换');
         } catch (error) {
             console.error('❌ Navigation: 窗口最大化/还原失败', error);
         }
     }
 
-    async closeWindow() {
+    async closeWindow(): Promise<void> {
         try {
-            await window.electronAPI.window.close();
+            await this.electronAPI.window.close();
         } catch (error) {
             console.error('❌ Navigation: 窗口关闭失败', error);
         }
     }
 
-    updateMaximizeButton(isMaximized) {
+    updateMaximizeButton(isMaximized: boolean): void {
         this.isMaximized = isMaximized;
         if (isMaximized) {
             this.maximizeIcon.style.display = 'none';
@@ -225,25 +303,25 @@ class Navigation extends Component {
         console.log('🎵 Navigation: 窗口状态更新', isMaximized ? '最大化' : '还原');
     }
 
-    async initializeWindowState() {
+    async initializeWindowState(): Promise<WindowStateResult> {
         try {
-            const isMaximized = await window.electronAPI.window.isMaximized();
+            const isMaximized = await this.electronAPI.window.isMaximized();
             this.updateMaximizeButton(isMaximized);
             return {
                 status: true,
-            }
+            };
         } catch (error) {
             return {
                 status: false,
                 error: error
-            }
+            };
         }
     }
 
     // 恢复侧边栏状态
-    restoreSidebarState() {
-        const savedState = cacheManager.getLocalCache('sidebarCollapsed')
-        if (savedState === 'true') {
+    restoreSidebarState(): void {
+        const savedState = cacheManager.getLocalCache<boolean | string>('sidebarCollapsed');
+        if (savedState === true || savedState === 'true') {
             this.sidebarCollapsed = true;
             this.sidebar.classList.add('collapsed');
             this.app.classList.add('sidebar-collapsed');
@@ -251,64 +329,72 @@ class Navigation extends Component {
     }
 
     // 控制统计信息按钮显示/隐藏
-    updateStatisticsButtonVisibility(enabled) {
+    updateStatisticsButtonVisibility(enabled: boolean): void {
         if (!this.statisticsLink) {
             console.warn('🎵 Navigation: 统计信息按钮元素不存在');
             return;
         }
         const listItem = this.statisticsLink.parentElement;
-        listItem.style.display = enabled ? 'block' : 'none';
+        if (listItem) {
+            listItem.style.display = enabled ? 'block' : 'none';
+        }
     }
 
     // 控制最近播放按钮显示/隐藏
-    updateRecentPlayButtonVisibility(enabled) {
+    updateRecentPlayButtonVisibility(enabled: boolean): void {
         if (!this.recentLink) {
             console.warn('🎵 Navigation: 最近播放按钮元素不存在');
             return;
         }
         const listItem = this.recentLink.parentElement;
-        listItem.style.display = enabled ? 'block' : 'none';
+        if (listItem) {
+            listItem.style.display = enabled ? 'block' : 'none';
+        }
     }
 
     // 控制艺术家页面按钮显示/隐藏
-    updateArtistsPageButtonVisibility(enabled) {
+    updateArtistsPageButtonVisibility(enabled: boolean): void {
         if (!this.artistsLink) {
             console.warn('🎵 Navigation: 艺术家页面按钮元素不存在');
             return;
         }
         const listItem = this.artistsLink.parentElement;
-        listItem.style.display = enabled ? 'block' : 'none';
+        if (listItem) {
+            listItem.style.display = enabled ? 'block' : 'none';
+        }
     }
 
     // 控制专辑页面按钮显示/隐藏
-    updateAlbumsPageButtonVisibility(enabled) {
+    updateAlbumsPageButtonVisibility(enabled: boolean): void {
         if (!this.albumsLink) {
             console.warn('🎵 Navigation: 专辑页面按钮元素不存在');
             return;
         }
         const listItem = this.albumsLink.parentElement;
-        listItem.style.display = enabled ? 'block' : 'none';
+        if (listItem) {
+            listItem.style.display = enabled ? 'block' : 'none';
+        }
     }
 
     // 初始化侧边栏按钮状态
-    initializeSidebarButtonsState() {
+    initializeSidebarButtonsState(): void {
         try {
-            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
+            const settings = cacheManager.getLocalCache<Record<string, boolean>>('musicbox-settings') || {};
 
             // 统计信息按钮状态
-            const statisticsEnabled = settings.hasOwnProperty('statistics') ? settings.statistics : true;
+            const statisticsEnabled = Object.prototype.hasOwnProperty.call(settings, 'statistics') ? settings.statistics : true;
             this.updateStatisticsButtonVisibility(statisticsEnabled);
 
             // 最近播放按钮状态
-            const recentPlayEnabled = settings.hasOwnProperty('recentPlay') ? settings.recentPlay : true;
+            const recentPlayEnabled = Object.prototype.hasOwnProperty.call(settings, 'recentPlay') ? settings.recentPlay : true;
             this.updateRecentPlayButtonVisibility(recentPlayEnabled);
 
             // 艺术家页面按钮状态
-            const artistsPageEnabled = settings.hasOwnProperty('artistsPage') ? settings.artistsPage : true;
+            const artistsPageEnabled = Object.prototype.hasOwnProperty.call(settings, 'artistsPage') ? settings.artistsPage : true;
             this.updateArtistsPageButtonVisibility(artistsPageEnabled);
 
             // 专辑页面按钮状态
-            const albumsPageEnabled = settings.hasOwnProperty('albumsPage') ? settings.albumsPage : true;
+            const albumsPageEnabled = Object.prototype.hasOwnProperty.call(settings, 'albumsPage') ? settings.albumsPage : true;
             this.updateAlbumsPageButtonVisibility(albumsPageEnabled);
             // console.log('🎵 Navigation: 侧边栏按钮状态初始化完成 - 统计信息:', statisticsEnabled, '最近播放:', recentPlayEnabled, '艺术家/专辑页面:', artistsPageEnabled);
         } catch (error) {
@@ -318,9 +404,9 @@ class Navigation extends Component {
 
     // 歌单管理方法
     // 加载用户歌单
-    async loadUserPlaylists() {
+    async loadUserPlaylists(): Promise<void> {
         try {
-            this.userPlaylists = await window.electronAPI.library.getPlaylists();
+            this.userPlaylists = await this.electronAPI.library.getPlaylists() as SidebarPlaylist[];
             this.renderUserPlaylists();
             // console.log(`🎵 Navigation: 加载了 ${this.userPlaylists.length} 个用户歌单`);
         } catch (error) {
@@ -331,7 +417,7 @@ class Navigation extends Component {
     }
 
     // 渲染用户歌单列表
-    renderUserPlaylists() {
+    renderUserPlaylists(): void {
         if (!this.userPlaylistsList || !this.userPlaylistsSection) {
             return;
         }
@@ -353,7 +439,7 @@ class Navigation extends Component {
     }
 
     // 渲染单个歌单项
-    renderPlaylistItem(playlist) {
+    renderPlaylistItem(playlist: SidebarPlaylist): string {
         if (this.sidebarCollapsed) {
             // 收缩状态：只显示封面或图标
             return `
@@ -402,19 +488,27 @@ class Navigation extends Component {
     }
 
     // 设置歌单项事件监听器
-    setupPlaylistItemEvents() {
-        this.userPlaylistsList.querySelectorAll('.playlist-sidebar-item').forEach(item => {
+    setupPlaylistItemEvents(): void {
+        if (!this.userPlaylistsList) {
+            return;
+        }
+
+        this.userPlaylistsList.querySelectorAll<HTMLElement>('.playlist-sidebar-item').forEach(item => {
             const playlistId = item.dataset.playlistId;
+            if (!playlistId) {
+                return;
+            }
 
             // 点击歌单项
             item.addEventListener('click', (e) => {
-                if (!e.target.closest('.sidebar-playlist-action-btn')) {
+                const target = e.target as HTMLElement | null;
+                if (!target?.closest('.sidebar-playlist-action-btn')) {
                     this.openPlaylist(playlistId);
                 }
             });
 
             // 操作按钮（仅在展开状态下存在）
-            item.querySelectorAll('.sidebar-playlist-action-btn').forEach(btn => {
+            item.querySelectorAll<HTMLElement>('.sidebar-playlist-action-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const action = btn.dataset.action;
@@ -425,7 +519,7 @@ class Navigation extends Component {
     }
 
     // 打开歌单详情
-    openPlaylist(playlistId) {
+    openPlaylist(playlistId: string): void {
         const playlist = this.userPlaylists.find(p => p.id === playlistId);
         if (playlist) {
             // console.log('🎵 Navigation: 打开歌单', playlist.name);
@@ -434,7 +528,7 @@ class Navigation extends Component {
     }
 
     // 处理歌单操作
-    async handlePlaylistAction(playlistId, action) {
+    async handlePlaylistAction(playlistId: string, action?: string): Promise<void> {
         const playlist = this.userPlaylists.find(p => p.id === playlistId);
         if (!playlist) return;
 
@@ -449,26 +543,27 @@ class Navigation extends Component {
     }
 
     // 重命名歌单
-    async renamePlaylist(playlist) {
+    async renamePlaylist(playlist: SidebarPlaylist): Promise<void> {
         // 触发重命名对话框显示事件
         this.emit('showRenameDialog', playlist);
     }
 
     // 删除歌单
-    async deletePlaylist(playlist) {
-        const confirmed = await app.confirm({
+    async deletePlaylist(playlist: SidebarPlaylist): Promise<void> {
+        const confirmOptions: ConfirmOptions = {
             title: '删除歌单',
             message: `确定要删除歌单 "${playlist.name}" 吗？此操作不可撤销。`,
             confirmText: '删除',
             type: 'danger'
-        });
+        };
+        const confirmed = await app.confirm(confirmOptions);
 
         if (!confirmed) {
             return;
         }
 
         try {
-            const result = await window.electronAPI.library.deletePlaylist(playlist.id);
+            const result = await this.electronAPI.library.deletePlaylist(playlist.id) as DeletePlaylistResult;
             if (result.success) {
                 await this.refreshPlaylists();
                 app.showInfo(`歌单 "${playlist.name}" 已删除`);
@@ -483,16 +578,16 @@ class Navigation extends Component {
     }
 
     // 刷新歌单列表
-    async refreshPlaylists() {
+    async refreshPlaylists(): Promise<void> {
         await this.loadUserPlaylists();
     }
 
 
     // --- 网络磁盘管理 ---
 
-    async loadNetworkDrives() {
+    async loadNetworkDrives(): Promise<void> {
         try {
-            const mountedDrives = await window.electronAPI.networkDrive.getMountedDrives();
+            const mountedDrives = await this.electronAPI.networkDrive.getMountedDrives();
             this.networkDrives = mountedDrives || [];
             this.renderNetworkDrives();
             console.log(`✅ Navigation: 加载了 ${this.networkDrives.length} 个网络磁盘`);
@@ -503,7 +598,7 @@ class Navigation extends Component {
         }
     }
 
-    renderNetworkDrives() {
+    renderNetworkDrives(): void {
         if (!this.networkDrivesList || !this.networkDrivesSection) {
             return;
         }
@@ -521,7 +616,7 @@ class Navigation extends Component {
         this.setupNetworkDriveItemEvents();
     }
 
-    renderNetworkDriveItem(drive) {
+    renderNetworkDriveItem(drive: NetworkDrive): string {
         // 根据磁盘类型选择 SVG 图标
         const iconPath = drive.type === 'smb'
             ? 'M4,1H20A1,1 0 0,1 21,2V6A1,1 0 0,1 20,7H4A1,1 0 0,1 3,6V2A1,1 0 0,1 4,1M4,9H20A1,1 0 0,1 21,10V14A1,1 0 0,1 20,15H4A1,1 0 0,1 3,14V10A1,1 0 0,1 4,9M4,17H20A1,1 0 0,1 21,18V22A1,1 0 0,1 20,23H4A1,1 0 0,1 3,22V18A1,1 0 0,1 4,17M9,5H10V3H9V5M9,13H10V11H9V13M9,21H10V19H9V21M5,3V5H7V3H5M5,11V13H7V11H5M5,19V21H7V19H5Z'
@@ -562,19 +657,24 @@ class Navigation extends Component {
         }
     }
 
-    setupNetworkDriveItemEvents() {
-        this.networkDrivesList.querySelectorAll('.network-drive-sidebar-item').forEach(item => {
+    setupNetworkDriveItemEvents(): void {
+        if (!this.networkDrivesList) {
+            return;
+        }
+
+        this.networkDrivesList.querySelectorAll<HTMLElement>('.network-drive-sidebar-item').forEach(item => {
             const driveId = item.dataset.driveId;
             const drive = this.networkDrives.find(d => d.id === driveId);
             if (!drive) return;
 
             item.addEventListener('click', (e) => {
-                if (!e.target.closest('.sidebar-drive-action-btn')) {
+                const target = e.target as HTMLElement | null;
+                if (!target?.closest('.sidebar-drive-action-btn')) {
                     this.emit('networkDriveSelected', drive);
                 }
             });
 
-            const refreshBtn = item.querySelector('[data-action="refresh"]');
+            const refreshBtn = item.querySelector<HTMLElement>('[data-action="refresh"]');
             if (refreshBtn) {
                 refreshBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
@@ -584,11 +684,11 @@ class Navigation extends Component {
         });
     }
 
-    async refreshNetworkDrive(drive) {
+    async refreshNetworkDrive(drive: NetworkDrive): Promise<void> {
         try {
-            await window.electronAPI.networkDrive.refreshConnection(drive.id);
+            await this.electronAPI.networkDrive.refreshConnection(drive.id);
             await this.loadNetworkDrives();
-            app.showInfo(`网络磁盘 "${drive.displayName}" 已刷新`);
+            app.showInfo(`网络磁盘 "${drive.displayName || drive.config?.displayName || '未命名磁盘'}" 已刷新`);
         } catch (error) {
             console.error('❌ Navigation: 刷新网络磁盘失败', error);
             app.showError('刷新失败，请重试');
@@ -596,13 +696,13 @@ class Navigation extends Component {
     }
 
     // HTML转义
-    escapeHtml(text) {
+    escapeHtml(text: string): string {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
 
-    destroy() {
+    destroy(): void {
         if (this.removeLibraryUpdatedListener) {
             this.removeLibraryUpdatedListener();
             this.removeLibraryUpdatedListener = null;
