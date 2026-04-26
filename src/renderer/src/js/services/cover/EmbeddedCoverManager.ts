@@ -3,6 +3,8 @@
  * 负责内嵌封面的提取、格式转换和缓存管理
  */
 
+import {libraryGateway} from "@js/infrastructure/electron";
+
 interface EmbeddedCoverResult {
     success: boolean;
     error?: string;
@@ -71,7 +73,7 @@ class EmbeddedCoverManager {
             }
 
             // 检查API可用性
-            if (!window.electronAPI || !window.electronAPI.library || !window.electronAPI.library.getTrackMetadata) {
+            if (!libraryGateway.isAvailable()) {
                 console.error('❌ EmbeddedCoverManager: 元数据API不可用');
                 return {success: false, error: '元数据API不可用'};
             }
@@ -111,7 +113,7 @@ class EmbeddedCoverManager {
             this.processingFiles.add(filePath);
 
             // 从主进程获取元数据（包括封面）
-            const metadata = await window.electronAPI.library.getTrackMetadata(filePath) as TrackMetadataWithCover | null;
+            const metadata = await libraryGateway.getTrackMetadata(filePath) as TrackMetadataWithCover | null;
             if (!metadata || typeof metadata !== 'object') {
                 const errorResult: EmbeddedCoverResult = {success: false, error: '主进程返回无效响应'};
                 this.setCache(cacheKey, errorResult);

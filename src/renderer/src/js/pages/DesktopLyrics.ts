@@ -2,6 +2,7 @@
  * 桌面歌词页面
  */
 
+import {desktopLyricsGateway} from '@js/infrastructure/electron';
 import type {DesktopLyricsPlaybackState} from '@api/types/playback';
 import type {DesktopLyricsSettings as ApiDesktopLyricsSettings} from '@api/types/settings';
 import type {Track} from '@api/types/library';
@@ -131,41 +132,41 @@ class DesktopLyrics {
         const controlsBar = document.querySelector('.controls-bar') as HTMLElement;
         controlsBar.addEventListener('mouseenter', () => {
             if (this.isLocked) {
-                window.electronAPI.desktopLyrics.setIgnoreMouseEvents(false);
+                desktopLyricsGateway.setIgnoreMouseEvents(false);
             }
         });
 
         controlsBar.addEventListener('mouseleave', () => {
             if (this.isLocked) {
-                window.electronAPI.desktopLyrics.setIgnoreMouseEvents(true, {forward: true});
+                desktopLyricsGateway.setIgnoreMouseEvents(true, {forward: true});
             }
         });
     }
 
     setupIPCListeners(): void {
         // 监听歌词更新
-        window.electronAPI.desktopLyrics.onLyricsUpdated((lyricsData) => {
-            this.updateLyrics(lyricsData);
+        desktopLyricsGateway.onLyricsUpdated((lyricsData) => {
+            this.updateLyrics(lyricsData as DesktopLyricLine[] | string);
         });
 
         // 监听播放进度变化
-        window.electronAPI.desktopLyrics.onPositionChanged((position) => {
+        desktopLyricsGateway.onPositionChanged((position) => {
             this.updatePosition(position);
         });
 
         // 监听播放状态变化
-        window.electronAPI.desktopLyrics.onPlaybackStateChanged((state: DesktopLyricsPlaybackState) => {
+        desktopLyricsGateway.onPlaybackStateChanged((state: DesktopLyricsPlaybackState) => {
             this.isPlaying = state?.isPlaying || false;
         });
 
         // 监听歌曲变化
-        window.electronAPI.desktopLyrics.onTrackChanged((_track: Track | null) => {
+        desktopLyricsGateway.onTrackChanged((_track: Track | null) => {
             this.resetLyrics();
         });
 
         // 监听设置变化
-        window.electronAPI.desktopLyrics.onSettingsChanged((settings) => {
-            this.updateSettings(settings);
+        desktopLyricsGateway.onSettingsChanged((settings) => {
+            this.updateSettings(settings as Partial<DesktopLyricsSettings>);
         });
     }
 
@@ -394,7 +395,7 @@ class DesktopLyrics {
             this.lockIcon.style.display = 'none';
             this.unlockIcon.style.display = 'block';
             // 锁定时启用鼠标穿透
-            await window.electronAPI.desktopLyrics.setIgnoreMouseEvents(true, {forward: true});
+            await desktopLyricsGateway.setIgnoreMouseEvents(true, {forward: true});
         } else {
             this.container.classList.remove('locked');
             this.lockBtn.classList.remove('locked');
@@ -403,13 +404,13 @@ class DesktopLyrics {
             this.lockIcon.style.display = 'block';
             this.unlockIcon.style.display = 'none';
             // 解锁时禁用鼠标穿透
-            await window.electronAPI.desktopLyrics.setIgnoreMouseEvents(false);
+            await desktopLyricsGateway.setIgnoreMouseEvents(false);
         }
     }
 
     // 关闭窗口
     async close(): Promise<void> {
-        await window.electronAPI.desktopLyrics.close();
+        await desktopLyricsGateway.close();
     }
 
     // 加载设置
@@ -459,7 +460,7 @@ class DesktopLyrics {
 
         // 应用透明度
         try {
-            await window.electronAPI.desktopLyrics.setOpacity(opacity);
+            await desktopLyricsGateway.setOpacity(opacity);
         } catch (error) {
             console.error('❌ 桌面歌词: 设置透明度失败', error);
         }
@@ -471,21 +472,21 @@ class DesktopLyrics {
 
             // 设置为不置顶（置于最下层）
             try {
-                await window.electronAPI.desktopLyrics.setAlwaysOnTop(false);
+                await desktopLyricsGateway.setAlwaysOnTop(false);
             } catch (error) {
                 console.error('❌ 桌面歌词: 设置置顶状态失败', error);
             }
 
             // 居中模式下启用真正的鼠标穿透
             try {
-                await window.electronAPI.desktopLyrics.setIgnoreMouseEvents(true, {forward: true});
+                await desktopLyricsGateway.setIgnoreMouseEvents(true, {forward: true});
             } catch (error) {
                 console.error('❌ 桌面歌词: 设置鼠标穿透失败', error);
             }
 
             // 居中窗口到屏幕底部
             try {
-                await window.electronAPI.desktopLyrics.centerOnScreen();
+                await desktopLyricsGateway.centerOnScreen();
             } catch (error) {
                 console.error('❌ 桌面歌词: 居中窗口失败', error);
             }
@@ -502,16 +503,16 @@ class DesktopLyrics {
 
             // 设置为置顶
             try {
-                await window.electronAPI.desktopLyrics.setAlwaysOnTop(true);
+                await desktopLyricsGateway.setAlwaysOnTop(true);
             } catch (error) {
                 console.error('❌ 桌面歌词: 设置置顶状态失败', error);
             }
 
             // 默认模式下根据锁定状态设置穿透
             if (this.isLocked) {
-                await window.electronAPI.desktopLyrics.setIgnoreMouseEvents(true, {forward: true});
+                await desktopLyricsGateway.setIgnoreMouseEvents(true, {forward: true});
             } else {
-                await window.electronAPI.desktopLyrics.setIgnoreMouseEvents(false);
+                await desktopLyricsGateway.setIgnoreMouseEvents(false);
             }
         }
 

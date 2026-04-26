@@ -66,9 +66,9 @@ export class APIEventBinder {
             }
         });
 
-        this.addManagedAPIEventListener('playbackStateChanged', (state) => {
+        this.addManagedAPIEventListener('playbackStateChanged', (_state) => {
             if (app.components.lyrics && app.components.lyrics.isVisible) {
-                app.components.lyrics.updatePlayButton(state === 'playing');
+                app.components.lyrics.updatePlayButton();
             }
         });
 

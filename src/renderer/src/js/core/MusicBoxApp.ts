@@ -66,7 +66,7 @@ export class MusicBoxApp extends EventEmitter {
         this.currentView = 'home-page';
         this.library = [];
         this.filteredLibrary = [];
-        this.components = {};
+        this.components = {} as ComponentMap;
         this.componentRegistry = new ComponentRegistry({
             components: this.components,
             setupComponentEvents: (componentName: string) => this.setupComponentEvents(componentName)
@@ -215,7 +215,7 @@ export class MusicBoxApp extends EventEmitter {
                     : true;
 
                 // 更新Player组件的按钮状态
-                await this.components.player.updateDesktopLyricsButtonVisibility(desktopLyricsEnabled);
+                await this.components.player.updateDesktopLyricsButtonVisibility(Boolean(desktopLyricsEnabled));
             }
         } catch (error) {
             console.error('❌ App: 同步桌面歌词按钮状态失败:', error);
@@ -457,7 +457,7 @@ export class MusicBoxApp extends EventEmitter {
         this.updateSidebarSelection('network-drive', String(networkDrive.id));
         this.currentView = 'network-drive-detail';
         if (this.components.networkDriveDetailPage) {
-            await this.components.networkDriveDetailPage.show(networkDrive);
+            await this.components.networkDriveDetailPage.show(networkDrive as any);
         }
     }
 

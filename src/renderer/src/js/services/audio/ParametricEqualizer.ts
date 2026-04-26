@@ -3,6 +3,7 @@
  * 提供对原生参量均衡器的前端接口封装
  */
 
+import {fileGateway, settingsSystemGateway} from "@js/infrastructure/electron";
 import ParametricEqualizerPresets, {
     ParametricFilterType,
     ParametricPreset,
@@ -430,17 +431,17 @@ class ParametricEqualizer {
             const jsonString = this.presets.exportPreset(preset);
 
             // 使用文件对话框保存
-            const result = await window.electronAPI.dialog.saveFile({
+            const result = await fileGateway.saveFile({
                 title: '导出参量均衡器设置',
                 defaultPath: `${name}.peq.json`,
                 filters: [
                     {name: '参量均衡器预设', extensions: ['peq.json', 'json']},
                     {name: '所有文件', extensions: ['*']}
                 ]
-            }) as unknown as {success: boolean; filePath?: string; cancelled?: boolean};
+            });
 
             if (result.success && result.filePath) {
-                await (window.electronAPI.fs.writeFile as any)(result.filePath, jsonString);
+                await fileGateway.writeFile(result.filePath, jsonString);
                 console.log('✅ 导出设置成功:', result.filePath);
                 return {success: true, filePath: result.filePath};
             }
@@ -457,7 +458,7 @@ class ParametricEqualizer {
      */
     async importSettings(): Promise<{success: boolean; preset?: ParametricPreset; cancelled?: boolean; error?: string}> {
         try {
-            const result = await window.electronAPI.dialog.openFile({
+            const result = await fileGateway.openFile({
                 title: '导入参量均衡器设置',
                 filters: [
                     {name: '参量均衡器预设', extensions: ['peq.json', 'json']},
@@ -468,7 +469,7 @@ class ParametricEqualizer {
 
             if (result.success && result.filePaths && result.filePaths.length > 0) {
                 const filePath = result.filePaths[0];
-                const jsonString = await window.electronAPI.fs.readFile(filePath, 'utf-8');
+                const jsonString = await fileGateway.readFile(filePath, 'utf-8');
                 if (typeof jsonString !== 'string') {
                     return {success: false, error: '无法读取预设文件内容'};
                 }
@@ -646,13 +647,8 @@ interface ParametricEqualizerState {
     currentPresetIsCustom?: boolean;
 }
 
-interface ElectronSettingsStore {
-    get<T = unknown>(key: string): Promise<T | null>;
-    set<T = unknown>(key: string, value: T): Promise<void>;
-}
-
-function getSettingsApi(): ElectronSettingsStore {
-    return window.electronAPI.settings as ElectronSettingsStore;
+function getSettingsApi(): typeof settingsSystemGateway.settings {
+    return settingsSystemGateway.settings;
 }
 
 function getErrorMessage(error: unknown): string {

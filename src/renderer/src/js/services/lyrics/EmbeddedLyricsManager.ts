@@ -3,6 +3,7 @@
  * 负责内嵌歌词的提取、格式转换和缓存管理
  */
 
+import {lyricsGateway} from "@js/infrastructure/electron";
 import type {EmbeddedLyricsData} from "@api/types/electron";
 
 interface EmbeddedLyricsResult {
@@ -66,7 +67,7 @@ class EmbeddedLyricsManager {
             }
 
             // 检查API可用性
-            if (!window.electronAPI || !window.electronAPI.lyrics || !window.electronAPI.lyrics.getEmbedded) {
+            if (!lyricsGateway.isAvailable()) {
                 console.error('❌ EmbeddedLyricsManager: 内嵌歌词API不可用');
                 return {success: false, error: '内嵌歌词API不可用'};
             }
@@ -81,7 +82,7 @@ class EmbeddedLyricsManager {
             console.log(`🔍 EmbeddedLyricsManager: 获取内嵌歌词 - ${filePath}`);
 
             // 从主进程获取内嵌歌词
-            const result = await window.electronAPI.lyrics.getEmbedded(filePath);
+            const result = await lyricsGateway.getEmbedded(filePath);
 
             if (!result || typeof result !== 'object') {
                 const errorResult: EmbeddedLyricsResult = {success: false, error: '主进程返回无效响应'};
@@ -386,21 +387,21 @@ class EmbeddedLyricsManager {
             console.log(`🔧 开始调试内嵌歌词: ${filePath}`);
 
             // 检查API可用性
-            if (!window.electronAPI || !window.electronAPI.lyrics || !window.electronAPI.lyrics.getEmbedded) {
+            if (!lyricsGateway.isAvailable()) {
                 return {
                     success: false,
                     error: '内嵌歌词API不可用',
                     timestamp: new Date().toISOString(),
                     details: {
-                        electronAPI: !!window.electronAPI,
-                        lyricsAPI: !!(window.electronAPI && window.electronAPI.lyrics),
-                        getEmbeddedAPI: !!(window.electronAPI && window.electronAPI.lyrics && window.electronAPI.lyrics.getEmbedded)
+                        electronAPI: lyricsGateway.isAvailable(),
+                        lyricsAPI: lyricsGateway.isAvailable(),
+                        getEmbeddedAPI: lyricsGateway.isAvailable()
                     }
                 };
             }
 
             // 获取原始结果
-            const result = await window.electronAPI.lyrics.getEmbedded(filePath);
+            const result = await lyricsGateway.getEmbedded(filePath);
 
             const debugInfo: EmbeddedLyricsDebugInfo = {
                 success: result.success,

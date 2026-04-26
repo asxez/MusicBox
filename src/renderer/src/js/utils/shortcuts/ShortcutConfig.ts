@@ -3,6 +3,7 @@
  * 负责管理局内快捷键和全局快捷键的配置
  */
 
+import {globalShortcutsGateway} from "@js/infrastructure/electron";
 import {cacheManager} from "@services/CacheManager";
 
 export interface ShortcutDefinition {
@@ -271,14 +272,14 @@ class ShortcutConfig {
 
     async initializeGlobalShortcuts(): Promise<void> {
         try {
-            await window.electronAPI.globalShortcuts.setEnabled(this.config.enableGlobalShortcuts);
+            await globalShortcutsGateway.setEnabled(this.config.enableGlobalShortcuts);
 
             if (this.config.enableGlobalShortcuts) {
                 const globalShortcuts = this.getEnabledGlobalShortcuts();
-                await window.electronAPI.globalShortcuts.register(globalShortcuts);
+                await globalShortcutsGateway.register(globalShortcuts);
             }
 
-            window.electronAPI.globalShortcuts.onTriggered((_, shortcutId) => {
+            globalShortcutsGateway.onTriggered((_, shortcutId) => {
                 if (typeof shortcutId === 'string') {
                     this.handleGlobalShortcutTriggered(shortcutId);
                 }
@@ -308,10 +309,10 @@ class ShortcutConfig {
         } else if (type === 'global' && this.config.globalShortcuts[id]) {
             this.config.globalShortcuts[id].key = key;
 
-            if (this.config.enableGlobalShortcuts && window.electronAPI && window.electronAPI.globalShortcuts) {
+            if (this.config.enableGlobalShortcuts && globalShortcutsGateway.isAvailable()) {
                 try {
                     const globalShortcuts = this.getEnabledGlobalShortcuts();
-                    await window.electronAPI.globalShortcuts.register(globalShortcuts);
+                    await globalShortcutsGateway.register(globalShortcuts);
                 } catch (error) {
                     console.error('更新全局快捷键失败:', error);
                 }
@@ -328,15 +329,15 @@ class ShortcutConfig {
 
         // 通知主进程更新全局快捷键状态
         try {
-            await window.electronAPI.globalShortcuts.setEnabled(enabled);
+            await globalShortcutsGateway.setEnabled(enabled);
 
             if (enabled) {
                 // 如果启用，注册当前的全局快捷键
                 const globalShortcuts = this.getEnabledGlobalShortcuts();
-                await window.electronAPI.globalShortcuts.register(globalShortcuts);
+                await globalShortcutsGateway.register(globalShortcuts);
             } else {
                 // 如果禁用，取消注册所有全局快捷键
-                await window.electronAPI.globalShortcuts.unregister();
+                await globalShortcutsGateway.unregister();
             }
 
         } catch (error) {

@@ -1,3 +1,4 @@
+import {desktopLyricsGateway, windowGateway} from "@js/infrastructure/electron";
 import {lyricsAPI} from "@api/modules";
 import type {Result} from '@api/types/common';
 import type {LyricLine} from '@api/types/lyrics';
@@ -32,22 +33,22 @@ export class DesktopLyricsSync {
             switch (type) {
                 case 'track': {
                     const track = data as Track | null;
-                    await window.electronAPI.desktopLyrics.updateTrack(track);
+                    await desktopLyricsGateway.updateTrack(track);
                     if (track && track.lyrics) {
-                        await window.electronAPI.desktopLyrics.updateLyrics(track.lyrics);
+                        await desktopLyricsGateway.updateLyrics(track.lyrics);
                     } else if (track && track.title && track.artist) {
                         await this.loadLyricsForDesktop(track);
                     }
                     break;
                 }
                 case 'playbackState':
-                    await window.electronAPI.desktopLyrics.updatePlaybackState(data as DesktopLyricsPlaybackState);
+                    await desktopLyricsGateway.updatePlaybackState(data as DesktopLyricsPlaybackState);
                     break;
                 case 'position':
-                    await window.electronAPI.desktopLyrics.updatePosition(data as number);
+                    await desktopLyricsGateway.updatePosition(data as number);
                     break;
                 case 'lyrics':
-                    await window.electronAPI.desktopLyrics.updateLyrics(data as LyricLine[] | string);
+                    await desktopLyricsGateway.updateLyrics(data as LyricLine[] | string);
                     break;
             }
         } catch (error) {
@@ -92,12 +93,12 @@ export class DesktopLyricsSync {
 
     async toggleDesktopLyrics(): Promise<{success: boolean; visible?: boolean; error?: string}> {
         try {
-            const result = await window.electronAPI.desktopLyrics.toggle();
+            const result = await desktopLyricsGateway.toggle();
             if (result.success && result.visible) {
                 await this.syncCurrentStateToDesktopLyrics();
-                await window.electronAPI.window.setBackgroundThrottling(true);
+                await windowGateway.setBackgroundThrottling(true);
             }
-            await window.electronAPI.window.setBackgroundThrottling(false);
+            await windowGateway.setBackgroundThrottling(false);
             return result;
         } catch (error) {
             console.error('❌ 切换桌面歌词失败:', error);
@@ -110,10 +111,10 @@ export class DesktopLyricsSync {
             const {currentTrack, isPlaying, position} = this.getCurrentState();
 
             if (currentTrack) {
-                await window.electronAPI.desktopLyrics.updateTrack(currentTrack);
+                await desktopLyricsGateway.updateTrack(currentTrack);
 
                 if (currentTrack.lyrics && currentTrack.lyrics.length > 0) {
-                    const updateLyricsResult = await window.electronAPI.desktopLyrics.updateLyrics(currentTrack.lyrics);
+                    const updateLyricsResult = await desktopLyricsGateway.updateLyrics(currentTrack.lyrics);
                     console.log('🔄 syncCurrentStateToDesktopLyrics: updateLyrics 结果', updateLyricsResult);
                 } else if (currentTrack.title && currentTrack.artist) {
                     await this.loadLyricsForDesktop(currentTrack);
@@ -135,7 +136,7 @@ export class DesktopLyricsSync {
 
     async hideDesktopLyrics(): Promise<Result> {
         try {
-            return await window.electronAPI.desktopLyrics.hide();
+            return await desktopLyricsGateway.hide();
         } catch (error) {
             console.error('❌ 隐藏桌面歌词失败:', error);
             return {success: false, error: error instanceof Error ? error.message : String(error)};
@@ -144,7 +145,7 @@ export class DesktopLyricsSync {
 
     async isDesktopLyricsVisible(): Promise<boolean> {
         try {
-            return await window.electronAPI.desktopLyrics.isVisible();
+            return await desktopLyricsGateway.isVisible();
         } catch (error) {
             console.error('❌ 检查桌面歌词状态失败:', error);
             return false;
@@ -153,7 +154,7 @@ export class DesktopLyricsSync {
 
     async updateDesktopLyricsSettings(settings: DesktopLyricsSettings | MusicBoxSettings): Promise<Result> {
         try {
-            return await window.electronAPI.desktopLyrics.updateSettings(settings);
+            return await desktopLyricsGateway.updateSettings(settings);
         } catch (error) {
             console.error('❌ 更新桌面歌词设置失败:', error);
             return {success: false, error: error instanceof Error ? error.message : String(error)};

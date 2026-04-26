@@ -2,6 +2,7 @@
  * 基于 Web Audio API 的音频引擎
  */
 
+import {fileGateway, libraryGateway} from "@js/infrastructure/electron";
 import {embeddedCoverManager} from "@services/cover/EmbeddedCoverManager";
 
 type TrackSource = any;
@@ -52,10 +53,6 @@ interface TrackMetadata {
     disc?: number;
     cover?: unknown;
     [key: string]: unknown;
-}
-
-interface ReadAudioFileBridge {
-    readAudioFile?(filePath: string): Promise<ArrayBuffer>;
 }
 
 function getTrackFilePath(track: TrackSource | null): string | null {
@@ -199,10 +196,9 @@ class WebAudioEngine {
             this.clearCurrentAudioBuffer();
 
             let arrayBuffer: ArrayBuffer | null;
-            const electronAPI = window.electronAPI as typeof window.electronAPI & ReadAudioFileBridge;
-            if (electronAPI && electronAPI.readAudioFile) {
-                arrayBuffer = await electronAPI.readAudioFile(filePath);
-            } else {
+            try {
+                arrayBuffer = await fileGateway.readAudioFile(filePath);
+            } catch {
                 const fileUrl = filePath.startsWith('file://') ? filePath : `file:///${filePath.replace(/\\/g, '/')}`;
                 const response = await fetch(fileUrl);
                 if (!response.ok) {
@@ -711,8 +707,7 @@ class WebAudioEngine {
         try {
             console.log(`🔄 预加载下一首歌曲: ${getTrackTitle(trackInfo) || filePath}`);
 
-            const electronAPI = window.electronAPI as typeof window.electronAPI & ReadAudioFileBridge;
-            let arrayBuffer: ArrayBuffer | null = await electronAPI.readAudioFile!(filePath);
+            let arrayBuffer: ArrayBuffer | null = await fileGateway.readAudioFile(filePath);
             this.nextAudioBuffer = await this.audioContext.decodeAudioData(arrayBuffer); // 解码
 
             // 清理arrayBuffer引用以释放内存
@@ -890,7 +885,7 @@ class WebAudioEngine {
 
     async getTrackMetadata(filePath: string): Promise<TrackMetadata> {
         // console.log('🔄 从主进程获取音频元数据...');
-        const metadata = await window.electronAPI.library.getTrackMetadata(filePath);
+        const metadata = await libraryGateway.getTrackMetadata(filePath);
         if (metadata) {
             // console.log(`✅ 成功获取元数据: ${metadata.title} - ${metadata.artist}`);
             return {

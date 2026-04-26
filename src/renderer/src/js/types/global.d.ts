@@ -14,6 +14,29 @@ import type {
     ElectronNativeAudioAPI,
     ElectronWindowAPI
 } from '@api/types/electron';
+import type {Unsubscribe} from '@api/types/common';
+
+interface ElectronSettingsAPI {
+    get<T = unknown>(key: string): Promise<T | null>;
+    set<T = unknown>(key: string, value: T): Promise<void>;
+    getAll(): Promise<Record<string, unknown>>;
+    reset(): Promise<unknown>;
+    getMusicFolders(): Promise<string[]>;
+    addMusicFolder(folderPath: string): Promise<unknown>;
+    removeMusicFolder(folderPath: string): Promise<unknown>;
+    getAutoScanSettings(): Promise<unknown>;
+    updateAutoScanSettings(settings: unknown): Promise<unknown>;
+    updateLastScanTime(timestamp: number): Promise<unknown>;
+}
+
+interface ElectronHardwareAccelerationAPI {
+    getSettings(): Promise<unknown>;
+    updateSettings(settings: unknown): Promise<unknown>;
+}
+
+interface ElectronAppAPI {
+    restart(): Promise<void>;
+}
 
 /**
  * Electron API 类型定义
@@ -48,6 +71,12 @@ interface ElectronAPI {
 
     // 打开指定目录
     openPath: (path: string) => Promise<{ success: boolean, error?: string }>;
+
+    // 原生音频事件
+    onNativeAudioEvent: (eventName: string, callback: (data: unknown) => void) => Unsubscribe;
+
+    // 读取音频文件
+    readAudioFile: (filePath: string) => Promise<ArrayBuffer>;
 
     // 文件对话框
     // 通用目录选择对话框（返回字符串路径，用于音乐目录扫描等）
@@ -188,11 +217,11 @@ interface ElectronAPI {
     networkDrive: ElectronNetworkDriveAPI;
 
     // 设置相关
-    settings: {};
-    hardwareAcceleration: {};
+    settings: ElectronSettingsAPI;
+    hardwareAcceleration: ElectronHardwareAccelerationAPI;
 
     // 应用控制
-    app: {};
+    app: ElectronAppAPI;
 }
 
 declare global {

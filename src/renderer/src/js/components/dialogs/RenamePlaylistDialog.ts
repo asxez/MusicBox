@@ -4,11 +4,11 @@
 
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
+import {libraryAPI} from "@js/api";
 
 interface PlaylistLike {
     id: string;
     name: string;
-    [key: string]: unknown;
 }
 
 interface RenamePlaylistResult {
@@ -141,7 +141,7 @@ class RenamePlaylistDialog extends Component {
         try {
             this.confirmBtn.disabled = true;
             this.confirmBtn.textContent = '重命名中...';
-            const result = await window.electronAPI.library.renamePlaylist(this.currentPlaylist.id, newName) as RenamePlaylistResult;
+            const result = await libraryAPI.renamePlaylist(this.currentPlaylist.id, newName) as RenamePlaylistResult;
 
             if (result.success) {
                 // 触发重命名成功事件

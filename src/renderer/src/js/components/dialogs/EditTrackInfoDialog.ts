@@ -4,7 +4,7 @@
 
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
-import {coverAPI} from "@js/api";
+import {coverAPI, fileAPI, libraryAPI} from "@js/api";
 import type {Track} from "@api/types/library";
 
 type EditableTrack = Omit<Track, 'cover' | 'year'> & {
@@ -508,10 +508,10 @@ class EditTrackInfoDialog extends Component {
     // 检查API可用性
     checkAPIAvailability(): ApiAvailabilityStatus {
         const status = {
-            electronAPI: !!window.electronAPI,
-            showOpenDialog: !!(window.electronAPI?.dialog?.showOpenDialog),
-            stat: !!(window.electronAPI?.fs?.stat),
-            readFile: !!(window.electronAPI?.fs?.readFile)
+            electronAPI: true,
+            showOpenDialog: true,
+            stat: true,
+            readFile: true
         };
 
         console.log('🔍 EditTrackInfoDialog: API可用性检查', status);
@@ -652,20 +652,19 @@ class EditTrackInfoDialog extends Component {
             // 优先使用通用的dialog API
             if (apiStatus.showOpenDialog) {
                 console.log('🎵 EditTrackInfoDialog: 使用通用dialog API');
-                result = await window.electronAPI.dialog.showOpenDialog({
+                result = await fileAPI.showOpenDialog({
                     title: '选择专辑封面',
                     filters: [
                         {name: '图片文件', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']}
                     ],
                     properties: ['openFile']
                 });
-            } else if (window.electronAPI.openImageFile) {
+            } else {
                 // 备用方案：使用现有的openImageFile API
                 console.log('🎵 EditTrackInfoDialog: 使用备用openImageFile API');
-                const filePath = await window.electronAPI.openImageFile();
+                const imageResult = await fileAPI.selectImageFile();
+                const filePath = imageResult.path || null;
                 result = {canceled: !filePath, filePaths: filePath ? [filePath] : []};
-            } else {
-                throw new Error('没有可用的文件选择API');
             }
             console.log('🎵 EditTrackInfoDialog: 文件选择结果', result);
 
@@ -677,7 +676,7 @@ class EditTrackInfoDialog extends Component {
                 // 验证文件大小（限制为5MB）
                 if (apiStatus.stat) {
                     try {
-                        const stats = await window.electronAPI.fs.stat(filePath);
+                        const stats = await fileAPI.stat(filePath);
                         console.log('🎵 EditTrackInfoDialog: 文件统计信息', stats);
 
                         if (stats.size > 5 * 1024 * 1024) {
@@ -696,7 +695,7 @@ class EditTrackInfoDialog extends Component {
                 if (apiStatus.readFile) {
                     try {
                         console.log('🎵 EditTrackInfoDialog: 开始读取文件数据');
-                        const fileData = await window.electronAPI.fs.readFile(filePath, null);
+                        const fileData = await fileAPI.readFile(filePath, null);
                         console.log('🎵 EditTrackInfoDialog: 文件数据读取完成，大小:', fileData.length);
 
                         // 创建File对象
@@ -892,7 +891,7 @@ class EditTrackInfoDialog extends Component {
             console.log('📝 EditTrackInfoDialog: 开始保存歌曲信息', updatedData.title);
 
             // 调用主进程保存更改
-            const result = await (window.electronAPI.library.updateTrackMetadata as any)(updatedData) as MetadataUpdateResult;
+            const result = await libraryAPI.updateTrackMetadata(updatedData) as MetadataUpdateResult;
 
             if (result.success) {
                 console.log('✅ EditTrackInfoDialog: 歌曲信息保存成功');

@@ -4,8 +4,10 @@
 
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
+import {libraryGateway, networkDriveGateway} from "@js/infrastructure/electron";
 import type {ScanProgress} from "@api/types/events";
 import type {MountedNetworkDrive, NetworkDriveConfig} from "@api/types/electron";
+import type {Unsubscribe} from "@api/types/common";
 
 type NotificationType = 'info' | 'success' | 'error' | 'warning';
 type NetworkDriveProtocol = 'smb' | 'webdav' | string;
@@ -38,11 +40,13 @@ class NetworkDiskModal extends Component {
     testMessage!: HTMLElement | null;
     mountedDrivesList!: HTMLElement | null;
     refreshDrivesBtn!: HTMLButtonElement | null;
+    private networkDriveUnsubscribers: Unsubscribe[];
 
     constructor() {
         super('#network-drive-modal');
         this.isVisible = false;
         this.listenersSetup = false; // 事件监听器是否已设置
+        this.networkDriveUnsubscribers = [];
 
         this.setupSettingsElements();
         this.initializeNetworkDriveManagement();
@@ -86,6 +90,8 @@ class NetworkDiskModal extends Component {
     destroy(): void {
         this.isVisible = false;
         this.listenersSetup = false;
+        this.networkDriveUnsubscribers.forEach(unsubscribe => unsubscribe());
+        this.networkDriveUnsubscribers = [];
         super.destroy();
     }
 
@@ -130,21 +136,21 @@ class NetworkDiskModal extends Component {
     setupEventListeners(): void {
         // 模态框关闭事件
         if (this.networkDriveModalClose) {
-            this.networkDriveModalClose.addEventListener('click', () => {
+            this.addEventListenerManaged(this.networkDriveModalClose, 'click', () => {
                 this.hide();
             });
         }
 
         // 取消按钮
         if (this.networkDriveCancel) {
-            this.networkDriveCancel.addEventListener('click', () => {
+            this.addEventListenerManaged(this.networkDriveCancel, 'click', () => {
                 this.hide();
             });
         }
 
         // 协议选择变化事件
         if (this.driveProtocolSelect) {
-            this.driveProtocolSelect.addEventListener('change', (e) => {
+            this.addEventListenerManaged(this.driveProtocolSelect, 'change', (e) => {
                 const target = e.target as HTMLSelectElement;
                 this.toggleProtocolConfig(target.value);
             });
@@ -152,21 +158,22 @@ class NetworkDiskModal extends Component {
 
         // 测试连接按钮
         if (this.testConnectionBtn) {
-            this.testConnectionBtn.addEventListener('click', async () => {
+            this.addEventListenerManaged(this.testConnectionBtn, 'click', async () => {
                 await this.testConnection();
             });
         }
 
         // 表单提交事件
         if (this.networkDriveForm) {
-            this.networkDriveForm.addEventListener('submit', async (e) => {
+            this.addEventListenerManaged(this.networkDriveForm, 'submit', async (e) => {
                 e.preventDefault();
                 await this.addNetworkDrive();
             });
         }
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.isVisible) {
+        this.addEventListenerManaged(document, 'keydown', (e) => {
+            const event = e as KeyboardEvent;
+            if (event.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
         });
@@ -289,7 +296,7 @@ class NetworkDiskModal extends Component {
         this.testConnectionBtn.textContent = '测试中...';
 
         try {
-            const success = await window.electronAPI.networkDrive.testConnection(config);
+            const success = await networkDriveGateway.testConnection(config);
             if (success) {
                 this.showConnectionTestResult(true, '连接测试成功');
             } else {
@@ -317,9 +324,9 @@ class NetworkDiskModal extends Component {
         try {
             let success = false;
             if (config.type === 'smb') {
-                success = await window.electronAPI.networkDrive.mountSMB(config);
+                success = await networkDriveGateway.mountSMB(config);
             } else if (config.type === 'webdav') {
-                success = await window.electronAPI.networkDrive.mountWebDAV(config);
+                success = await networkDriveGateway.mountWebDAV(config);
             }
 
             if (success) {
@@ -343,25 +350,25 @@ class NetworkDiskModal extends Component {
     initializeNetworkDriveManagement(): void {
         // 设置刷新按钮事件监听器
         if (this.refreshDrivesBtn) {
-            this.refreshDrivesBtn.addEventListener('click', async () => {
+            this.addEventListenerManaged(this.refreshDrivesBtn, 'click', async () => {
                 await this.refreshNetworkDrivesStatus();
             });
         }
 
         // 监听网络磁盘事件
-        window.electronAPI.networkDrive.onConnected(async (_event, driveId, config) => {
+        this.networkDriveUnsubscribers.push(networkDriveGateway.onConnected(async (driveId, config) => {
             await this.refreshMountedDrivesList();
             this.emit('driveConnected', driveId, config);
-        });
+        }));
 
-        window.electronAPI.networkDrive.onDisconnected(async (_event, driveId, config) => {
+        this.networkDriveUnsubscribers.push(networkDriveGateway.onDisconnected(async (driveId, config) => {
             await this.refreshMountedDrivesList();
             this.emit('driveDisconnected', driveId, config);
-        });
+        }));
 
-        window.electronAPI.networkDrive.onError((_event, _driveId, error) => {
+        this.networkDriveUnsubscribers.push(networkDriveGateway.onError((_driveId, error) => {
             this.showNotification(`网络磁盘错误: ${error}`, 'error');
-        });
+        }));
 
         // 初始加载磁盘列表
         this.refreshMountedDrivesList();
@@ -370,7 +377,7 @@ class NetworkDiskModal extends Component {
     // 刷新已挂载的磁盘列表
     async refreshMountedDrivesList(): Promise<void> {
         try {
-            const mountedDrives = await window.electronAPI.networkDrive.getMountedDrives();
+            const mountedDrives = await networkDriveGateway.getMountedDrives();
             this.renderMountedDrivesList(mountedDrives);
         } catch (error) {
             console.error('❌ 获取挂载磁盘列表失败:', error);
@@ -444,7 +451,7 @@ class NetworkDiskModal extends Component {
         this.showScanTip(driveId);
 
         // 监听扫描进度
-        const removeListener = window.electronAPI.library.onScanProgress((_event, progress) => {
+        const removeListener = libraryGateway.onScanProgress((progress) => {
             this.updateScanTip(driveId, progress);
         });
 
@@ -520,7 +527,7 @@ class NetworkDiskModal extends Component {
         try {
             console.log(`🔄 NetworkDiskModal: 开始卸载网络磁盘 ${driveId}`);
 
-            const success = await window.electronAPI.networkDrive.unmount(driveId);
+            const success = await networkDriveGateway.unmount(driveId);
             if (success) {
                 console.log(`✅ NetworkDiskModal: 网络磁盘 ${driveId} 卸载成功`);
 
@@ -552,7 +559,7 @@ class NetworkDiskModal extends Component {
             this.refreshDrivesBtn.disabled = true;
             this.refreshDrivesBtn.textContent = '刷新中...';
 
-            const success = await window.electronAPI.networkDrive.refreshConnections();
+            const success = await networkDriveGateway.refreshConnections();
             if (success) {
                 this.showNotification('网络磁盘状态刷新完成', 'success');
                 // 刷新显示列表

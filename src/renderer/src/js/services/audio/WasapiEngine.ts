@@ -2,6 +2,7 @@
  * WASAPI独占模式音频引擎（Rust实现的JS包装器）
  */
 
+import {libraryGateway, nativeAudioGateway} from "@js/infrastructure/electron";
 import ParametricEqualizer from "@services/audio/ParametricEqualizer";
 
 type WasapiShareMode = 'exclusive' | 'shared';
@@ -26,10 +27,6 @@ interface WasapiTrack {
     album: string;
     duration: number;
     cover?: unknown;
-}
-
-interface NativeAudioEventBridge {
-    onNativeAudioEvent(eventName: string, callback: (data: unknown) => void): () => void;
 }
 
 class WasapiEngine {
@@ -91,11 +88,11 @@ class WasapiEngine {
 
     async initialize(): Promise<boolean> {
         try {
-            if (!window.electronAPI?.nativeAudio) {
+            if (!nativeAudioGateway.isAvailable()) {
                 throw new Error('Native音频模块未加载');
             }
 
-            const nativeAudio = window.electronAPI.nativeAudio as any;
+            const nativeAudio = nativeAudioGateway.api;
 
             // 初始化Rust音频引擎
             const result = await nativeAudio.initialize() as NativeResult;
@@ -120,15 +117,13 @@ class WasapiEngine {
     }
 
     setupEventListeners(): void {
-        const electronAPI = window.electronAPI as typeof window.electronAPI & NativeAudioEventBridge;
-
         // 监听播放结束事件
-        electronAPI.onNativeAudioEvent('track-ended', () => {
+        nativeAudioGateway.onNativeAudioEvent('track-ended', () => {
             this.onTrackEnded();
         });
 
         // 监听错误事件
-        electronAPI.onNativeAudioEvent('error', (errorMsg: unknown) => {
+        nativeAudioGateway.onNativeAudioEvent('error', (errorMsg: unknown) => {
             console.error('❌ Native音频错误:', errorMsg);
             this.isPlaying = false;
             this.isPaused = false;
@@ -151,7 +146,7 @@ class WasapiEngine {
             }
 
             // 获取音频元数据
-            const metadata = await window.electronAPI.library.getTrackMetadata(filePath);
+            const metadata = await libraryGateway.getTrackMetadata(filePath);
             this.duration = metadata?.duration || result.duration || 0;
 
             this.currentTrack = {

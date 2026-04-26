@@ -3,6 +3,7 @@
  * 提供窗口状态管理功能
  */
 
+import {windowGateway} from '@js/infrastructure/electron';
 import {cacheManager} from '@services/CacheManager';
 import {BaseAPI, Validator} from "@api/core";
 import {WindowBounds, WindowSize} from "@api/types";
@@ -48,7 +49,7 @@ export class WindowAPI extends BaseAPI {
         });
 
         // 窗口最大化状态变化监听
-        window.electronAPI.window.onMaximizedChanged((isMaximized: boolean) => {
+        windowGateway.onMaximizedChanged((isMaximized: boolean) => {
             if (!isMaximized) {
                 setTimeout(async () => {
                     await this.restoreWindowSize();
@@ -149,7 +150,7 @@ export class WindowAPI extends BaseAPI {
      */
     async getSize(): Promise<[number, number] | null> {
         return this.wrapIPC(
-            () => window.electronAPI.window.getSize(),
+            () => windowGateway.getSize(),
             'window.getSize',
             null
         );
@@ -170,7 +171,7 @@ export class WindowAPI extends BaseAPI {
         }
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setSize(width, height),
+            () => windowGateway.setSize(width, height),
             'window.setSize'
         );
     }
@@ -181,7 +182,7 @@ export class WindowAPI extends BaseAPI {
      */
     async getBounds(): Promise<{ height: number, width: number, x: number, y: number } | null> {
         return this.wrapIPC(
-            () => window.electronAPI.window.getBounds(),
+            () => windowGateway.getBounds(),
             'window.getBounds',
             null
         );
@@ -204,7 +205,7 @@ export class WindowAPI extends BaseAPI {
         Validator.assertObject(bounds, 'bounds');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setBounds(bounds),
+            () => windowGateway.setBounds(bounds),
             'window.setBounds'
         );
     }
@@ -215,7 +216,7 @@ export class WindowAPI extends BaseAPI {
      */
     async isMaximized(): Promise<boolean> {
         return this.wrapIPC(
-            () => window.electronAPI.window.isMaximized(),
+            () => windowGateway.isMaximized(),
             'window.isMaximized',
             false
         );
@@ -226,7 +227,7 @@ export class WindowAPI extends BaseAPI {
      */
     async maximize(): Promise<void> {
         return this.wrapIPC(
-            () => window.electronAPI.window.maximize(),
+            () => windowGateway.maximize(),
             'window.maximize'
         );
     }
@@ -236,7 +237,7 @@ export class WindowAPI extends BaseAPI {
      */
     async unmaximize(): Promise<void> {
         return this.wrapIPC(
-            () => window.electronAPI.window.unmaximize(),
+            () => windowGateway.unmaximize(),
             'window.unmaximize'
         );
     }
@@ -246,7 +247,7 @@ export class WindowAPI extends BaseAPI {
      */
     async minimize(): Promise<void> {
         return this.wrapIPC(
-            () => window.electronAPI.window.minimize(),
+            () => windowGateway.minimize(),
             'window.minimize'
         );
     }
@@ -256,7 +257,7 @@ export class WindowAPI extends BaseAPI {
      */
     async close(): Promise<void> {
         return this.wrapIPC(
-            () => window.electronAPI.window.close(),
+            () => windowGateway.close(),
             'window.close'
         );
     }
@@ -269,7 +270,7 @@ export class WindowAPI extends BaseAPI {
         Validator.assertBoolean(flag, 'flag');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setAlwaysOnTop(flag),
+            () => windowGateway.setAlwaysOnTop(flag),
             'window.setAlwaysOnTop'
         );
     }
@@ -282,7 +283,7 @@ export class WindowAPI extends BaseAPI {
         Validator.assertBoolean(allowed, 'allowed');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setBackgroundThrottling(allowed),
+            () => windowGateway.setBackgroundThrottling(allowed),
             'window.setBackgroundThrottling'
         );
     }
@@ -291,7 +292,7 @@ export class WindowAPI extends BaseAPI {
         Validator.assertBoolean(resizable, 'resizable');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setResizable(resizable),
+            () => windowGateway.setResizable(resizable),
             'window.setResizable'
         );
     }
@@ -300,7 +301,7 @@ export class WindowAPI extends BaseAPI {
         Validator.assertBoolean(maximizable, 'maximizable');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setMaximizable(maximizable),
+            () => windowGateway.setMaximizable(maximizable),
             'window.setMaximizable'
         );
     }
@@ -310,7 +311,7 @@ export class WindowAPI extends BaseAPI {
         Validator.assertNumber(height, 'height');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setMaximumSize(width, height),
+            () => windowGateway.setMaximumSize(width, height),
             'window.setMaximumSize'
         );
     }
@@ -325,7 +326,7 @@ export class WindowAPI extends BaseAPI {
         Validator.assertBoolean(options.enabled, 'enabled');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setMiniModeWindowState(options),
+            () => windowGateway.setMiniModeWindowState(options),
             'window.setMiniModeWindowState'
         );
     }
@@ -334,7 +335,7 @@ export class WindowAPI extends BaseAPI {
         Validator.assertBoolean(skip, 'skip');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setSkipTaskbar(skip),
+            () => windowGateway.setSkipTaskbar(skip),
             'window.setSkipTaskbar'
         );
     }
@@ -344,7 +345,7 @@ export class WindowAPI extends BaseAPI {
         Validator.assertNumber(height, 'height');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setMinimumSize(width, height),
+            () => windowGateway.setMinimumSize(width, height),
             'window.setMinimumSize'
         );
     }

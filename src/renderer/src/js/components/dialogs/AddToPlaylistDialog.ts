@@ -4,6 +4,7 @@
 
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
+import {libraryAPI} from "@js/api";
 import type {Playlist, Track} from "@api/types/library";
 
 class AddToPlaylistDialog extends Component {
@@ -87,7 +88,7 @@ class AddToPlaylistDialog extends Component {
 
     async loadPlaylists(): Promise<void> {
         try {
-            this.playlists = await window.electronAPI.library.getPlaylists();
+            this.playlists = await libraryAPI.getPlaylists();
             this.renderPlaylistList();
         } catch (error) {
             console.error('❌ 加载歌单列表失败:', error);
@@ -130,12 +131,13 @@ class AddToPlaylistDialog extends Component {
     }
 
     async addToPlaylist(playlistId: string): Promise<void> {
-        if (!this.currentTrack) {
+        if (!this.currentTrack?.fileId) {
+            app.showError('当前歌曲缺少文件标识，无法添加到歌单');
             return;
         }
 
         try {
-            const result = await (window.electronAPI.library.addToPlaylist as any)(
+            const result = await libraryAPI.addToPlaylist(
                 playlistId,
                 this.currentTrack.fileId
             );

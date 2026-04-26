@@ -1,4 +1,5 @@
 import {EventEmitter} from '@utils/index.js';
+import {audioGateway} from '@js/infrastructure/electron';
 import {cacheManager} from "@services/CacheManager";
 import {PlaybackQueue} from './playback/PlaybackQueue';
 import {PlaybackPersistence} from './playback/PlaybackPersistence';
@@ -144,22 +145,22 @@ export class MusicBoxAPI extends EventEmitter {
         }
 
         // Electron IPC events（仅在音频引擎不可用时使用）
-        if (window.electronAPI.audio) {
-            window.electronAPI.audio.onTrackChanged((_event, track) => {
+        if (audioGateway.isAvailable()) {
+            audioGateway.onTrackChanged((track) => {
                 if (!this.audioEngine) {
                     this.currentTrack = track;
                     this.emit('trackChanged', track);
                 }
             });
 
-            window.electronAPI.audio.onPlaybackStateChanged((_event, state) => {
+            audioGateway.onPlaybackStateChanged((state) => {
                 if (!this.audioEngine) {
                     this.isPlaying = state === 'playing';
                     this.emit('playbackStateChanged', state as PlaybackStateName);
                 }
             });
 
-            window.electronAPI.audio.onPositionChanged((_event, position) => {
+            audioGateway.onPositionChanged((position) => {
                 if (!this.audioEngine) {
                     this.position = position;
                     this.emit('positionChanged', position);
@@ -173,7 +174,7 @@ export class MusicBoxAPI extends EventEmitter {
     // Audio Engine Methods
     async initializeAudio(): Promise<boolean> {
         try {
-            const result = await window.electronAPI.audio.init();
+            const result = await audioGateway.init();
             this.isInitialized = result;
             return result;
         } catch (error) {
@@ -227,15 +228,15 @@ export class MusicBoxAPI extends EventEmitter {
 
                     // 更新播放列表中的时长信息
                     this.updateTrackDuration(filePath, this.duration);
-                    await window.electronAPI.audio.loadTrack(filePath);
+                    await audioGateway.loadTrack(filePath);
                     return true;
                 }
             }
 
-            const result = await window.electronAPI.audio.loadTrack(filePath);
+            const result = await audioGateway.loadTrack(filePath);
             if (result) {
-                this.currentTrack = await window.electronAPI.audio.getCurrentTrack();
-                this.duration = await window.electronAPI.audio.getDuration();
+                this.currentTrack = await audioGateway.getCurrentTrack();
+                this.duration = await audioGateway.getDuration();
                 this.position = 0;
 
                 this.emit('trackChanged', this.currentTrack);
@@ -261,14 +262,14 @@ export class MusicBoxAPI extends EventEmitter {
                     // 不在这里手动设置状态，让音频引擎的事件回调来处理
 
                     // 同步到主进程
-                    await window.electronAPI.audio.play();
+                    await audioGateway.play();
                     return true;
                 } else {
                     console.log('❌ API: Web Audio Engine 播放失败');
                 }
             }
 
-            const result = await window.electronAPI.audio.play();
+            const result = await audioGateway.play();
             if (result) {
                 this.isPlaying = true;
                 this.emit('playbackStateChanged', 'playing');
@@ -288,14 +289,14 @@ export class MusicBoxAPI extends EventEmitter {
                     // 不在这里手动设置状态，让音频引擎的事件回调来处理
 
                     // 同步到主进程
-                    await window.electronAPI.audio.pause();
+                    await audioGateway.pause();
                     return true;
                 } else {
                     console.log('❌ API: Web Audio Engine 暂停失败');
                 }
             }
 
-            const result = await window.electronAPI.audio.pause();
+            const result = await audioGateway.pause();
             if (result) {
                 this.isPlaying = false;
                 this.emit('playbackStateChanged', 'paused');
@@ -309,7 +310,7 @@ export class MusicBoxAPI extends EventEmitter {
 
     async stop(): Promise<boolean> {
         try {
-            const result = await window.electronAPI.audio.stop();
+            const result = await audioGateway.stop();
             if (result) {
                 this.isPlaying = false;
                 this.position = 0;
@@ -332,12 +333,12 @@ export class MusicBoxAPI extends EventEmitter {
                     this.emit('positionChanged', position);
 
                     // 同步到主进程
-                    await window.electronAPI.audio.seek(position);
+                    await audioGateway.seek(position);
                     return true;
                 }
             }
 
-            const result = await window.electronAPI.audio.seek(position);
+            const result = await audioGateway.seek(position);
             if (result) {
                 this.position = position;
                 this.emit('positionChanged', position);
@@ -398,12 +399,12 @@ export class MusicBoxAPI extends EventEmitter {
                     this.volume = volume;
                     this.emit('volumeChanged', volume);
                     // 同步到主进程
-                    await window.electronAPI.audio.setVolume(volume);
+                    await audioGateway.setVolume(volume);
                     return true;
                 }
             }
 
-            await window.electronAPI.audio.setVolume(volume);
+            await audioGateway.setVolume(volume);
             this.volume = volume;
             this.emit('volumeChanged', volume);
             return true;
@@ -469,12 +470,12 @@ export class MusicBoxAPI extends EventEmitter {
                     this.saveCurrentPlaybackState();
 
                     // 同步到主进程
-                    await window.electronAPI.audio.setPlaylist(tracks);
+                    await audioGateway.setPlaylist(tracks);
                     return true;
                 }
             }
 
-            await window.electronAPI.audio.setPlaylist(tracks);
+            await audioGateway.setPlaylist(tracks);
             this.playlist = tracks;
             this.currentIndex = startIndex;
             this.emit('playlistChanged', tracks);

@@ -2,6 +2,32 @@ import type {MusicBoxAPIEvents, ScanProgress} from '@api/types/events';
 import type {PlayMode} from '@api/types/playback';
 import type {Playlist} from '@api/types/playlist';
 import type {Track} from '@api/types/track';
+import type {AlbumsPage} from '@components/component/AlbumsPage';
+import type {ArtistsPage} from '@components/component/ArtistsPage';
+import type {ContextMenu} from '@components/component/ContextMenu';
+import type {EqualizerComponent} from '@components/component/EqualizerComponent';
+import type ParametricEqualizerComponent from '@components/component/ParametricEqualizerComponent';
+import type {HomePage} from '@components/component/HomePage';
+import type {Lyrics} from '@components/component/Lyrics';
+import type {Navigation} from '@components/component/Navigation';
+import type {NetworkDiskModal} from '@components/component/NetworkDiskModal';
+import type {NetworkDriveDetailPage} from '@components/component/NetworkDriveDetailPage';
+import type {Player} from '@components/component/Player';
+import type {Playlist as QueuePlaylist} from '@components/component/Playlist';
+import type {PlaylistDetailPage} from '@components/component/PlaylistDetailPage';
+import type {PluginManagerModal} from '@components/component/PluginManagerModal';
+import type {RecentPage} from '@components/component/RecentPage';
+import type {Search} from '@components/component/Search';
+import type {Settings} from '@components/component/Settings';
+import type {StatisticsPage} from '@components/component/StatisticsPage';
+import type {TrackList} from '@components/component/TrackList';
+import type {UpdateModal} from '@components/component/UpdateModal';
+import type {AddToPlaylistDialog} from '@components/dialogs/AddToPlaylistDialog';
+import type {ConfirmDialog} from '@components/dialogs/ConfirmDialog';
+import type {CreatePlaylistDialog} from '@components/dialogs/CreatePlaylistDialog';
+import type {EditTrackInfoDialog} from '@components/dialogs/EditTrackInfoDialog';
+import type {MusicLibrarySelectionDialog} from '@components/dialogs/MusicLibrarySelectionDialog';
+import type {RenamePlaylistDialog} from '@components/dialogs/RenamePlaylistDialog';
 
 export type AppView =
     | 'home-page'
@@ -26,12 +52,41 @@ export interface ManagedAPIListener<K extends keyof MusicBoxAPIEvents = keyof Mu
     handler: (payload: MusicBoxAPIEvents[K]) => void | Promise<void>;
 }
 
-export type ComponentMap = Record<string, any>;
+export interface ComponentRegistryMap {
+    player: Player;
+    search: Search;
+    navigation: Navigation & Record<string, any>;
+    trackList: TrackList;
+    playlist: QueuePlaylist;
+    contextMenu: ContextMenu;
+    settings: Settings;
+    lyrics: Lyrics;
+    equalizer: EqualizerComponent;
+    parametricEqualizer: ParametricEqualizerComponent;
+    confirmDialog: ConfirmDialog;
+    createPlaylistDialog: CreatePlaylistDialog;
+    addToPlaylistDialog: AddToPlaylistDialog;
+    renamePlaylistDialog: RenamePlaylistDialog;
+    musicLibrarySelectionDialog: MusicLibrarySelectionDialog;
+    editTrackInfoDialog: EditTrackInfoDialog;
+    playlistDetailPage: PlaylistDetailPage;
+    networkDriveDetailPage: NetworkDriveDetailPage;
+    updateModal: UpdateModal;
+    pluginManagerModal: PluginManagerModal;
+    homePage: HomePage;
+    recentPage: RecentPage | null;
+    artistsPage: ArtistsPage | null;
+    albumsPage: AlbumsPage | null;
+    statisticsPage: StatisticsPage | null;
+    networkDiskModal: NetworkDiskModal | null;
+}
+
+export type ComponentMap = ComponentRegistryMap & Record<string, any>;
 
 export interface ConfirmOptions {
     title: string;
     message: string;
-    type?: 'danger' | 'warning' | 'info' | string;
+    type?: 'default' | 'danger' | 'warning';
     confirmText?: string;
     cancelText?: string;
 }

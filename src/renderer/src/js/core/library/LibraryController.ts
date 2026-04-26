@@ -200,7 +200,7 @@ export class LibraryController {
         }
 
         try {
-            const result = await window.electronAPI.library.removeTrack(track.fileId as string);
+            const result = await libraryAPI.removeTrack(track.fileId as string);
             if (result.success) {
                 const libraryIndex = app.library.findIndex(t => t.fileId === track.fileId);
                 if (libraryIndex !== -1) {
@@ -261,7 +261,7 @@ export class LibraryController {
             const t = app.filteredLibrary[i];
             if (!t) continue;
             try {
-                const result = await window.electronAPI.library.removeTrack(t.fileId as string);
+                const result = await libraryAPI.removeTrack(t.fileId as string);
                 if (result.success) {
                     successCount++;
                     const libIdx = app.library.findIndex(x => x.fileId === t.fileId);

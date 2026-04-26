@@ -6,7 +6,7 @@ import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
-import {coverAPI, fileAPI} from "@js/api";
+import {coverAPI, fileAPI, libraryAPI} from "@js/api";
 import type {Playlist, Track} from "@api/types/library";
 
 type PlaylistDetailTrack = Track & {
@@ -374,7 +374,7 @@ class PlaylistDetailPage extends Component {
     async loadPlaylistTracks(): Promise<void> {
         if (!this.currentPlaylist) return;
         try {
-            const result = await window.electronAPI.library.getPlaylistDetail(this.currentPlaylist.id);
+            const result = await libraryAPI.getPlaylistDetail(this.currentPlaylist.id);
             if (result.success) {
                 this.tracks = (result.tracks || result.playlist?.tracks || []) as PlaylistDetailTrack[];
 
@@ -628,7 +628,7 @@ class PlaylistDetailPage extends Component {
             app.showInfo('正在选择文件夹...');
 
             // 打开文件夹选择对话框
-            const folderPath = await window.electronAPI.openDirectory();
+            const folderPath = await fileAPI.openDirectory();
             if (!folderPath) {
                 return;
             }
@@ -689,7 +689,7 @@ class PlaylistDetailPage extends Component {
         try {
             // 批量移除所有歌曲
             const trackIds = this.tracks.map((track) => track.fileId).filter((fileId): fileId is string => Boolean(fileId));
-            const result = await window.electronAPI.library.removeFromPlaylist(
+            const result = await libraryAPI.removeFromPlaylist(
                 this.currentPlaylist.id,
                 trackIds
             );
@@ -810,7 +810,7 @@ class PlaylistDetailPage extends Component {
                 const track = this.tracks[index];
                 if (track) {
                     try {
-                        const result = await window.electronAPI.library.removeFromPlaylist(
+                        const result = await libraryAPI.removeFromPlaylist(
                             this.currentPlaylist!.id,
                             track.fileId ? [track.fileId] : []
                         );
@@ -859,7 +859,7 @@ class PlaylistDetailPage extends Component {
         }
 
         try {
-            const result = await window.electronAPI.library.removeFromPlaylist(
+            const result = await libraryAPI.removeFromPlaylist(
                 this.currentPlaylist!.id,
                 track.fileId ? [track.fileId] : []
             );
@@ -1196,7 +1196,7 @@ class PlaylistDetailPage extends Component {
     // 扫描文件夹中的音频文件
     async scanFolderForAudioFiles(folderPath: string): Promise<any[]> {
         try {
-            const result = await window.electronAPI.library.scanDirectoryForFiles(folderPath);
+            const result = await libraryAPI.scanDirectoryForFiles(folderPath);
             if (result && result.success && result.files) {
                 return result.files;
             } else {
@@ -1224,10 +1224,10 @@ class PlaylistDetailPage extends Component {
             for (const audioFile of audioFiles) {
                 try {
                     // 首先确保文件在音乐库中
-                    const addToLibraryResult = await window.electronAPI.library.addTrackToLibrary(audioFile);
+                    const addToLibraryResult = await libraryAPI.addTrackToLibrary(audioFile);
                     if (addToLibraryResult && addToLibraryResult.success && addToLibraryResult.track) {
                         // 添加到歌单
-                        const addToPlaylistResult = await window.electronAPI.library.addToPlaylist(
+                        const addToPlaylistResult = await libraryAPI.addToPlaylist(
                             this.currentPlaylist.id,
                             addToLibraryResult.track.fileId ? [addToLibraryResult.track.fileId] : []
                         );

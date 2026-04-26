@@ -4,9 +4,10 @@
 
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
+import {libraryAPI} from "@js/api";
 
 interface TrackToAdd {
-    fileId: string;
+    fileId?: string;
     [key: string]: unknown;
 }
 
@@ -146,12 +147,12 @@ class CreatePlaylistDialog extends Component {
             // 显示加载状态
             this.confirmBtn.disabled = true;
             this.confirmBtn.textContent = '创建中...';
-            const result = await window.electronAPI.library.createPlaylist(name, description) as PlaylistResult;
+            const result = await libraryAPI.createPlaylist(name, description) as PlaylistResult;
             if (result.success && result.playlist) {
                 // 如果有要添加的歌曲，立即添加
-                if (this.currentTrackToAdd) {
+                if (this.currentTrackToAdd?.fileId) {
                     try {
-                        await (window.electronAPI.library.addToPlaylist as any)(
+                        await libraryAPI.addToPlaylist(
                             result.playlist.id,
                             this.currentTrackToAdd.fileId
                         );

@@ -1,3 +1,4 @@
+import {libraryGateway} from "@js/infrastructure/electron";
 import {libraryAPI} from "@api/modules";
 import type {Result} from '@api/types/common';
 import type {CacheValidationResult, MusicBoxAPIEvents, ScanProgress} from '@api/types/events';
@@ -17,22 +18,22 @@ export class LibraryBridge {
     }
 
     bindEvents(): void {
-        if (!window.electronAPI.library) {
+        if (!libraryGateway.isAvailable()) {
             return;
         }
 
-        window.electronAPI.library.onLibraryUpdated((_event, data) => {
+        libraryGateway.onLibraryUpdated((data) => {
             this.emit('libraryUpdated', data);
         });
 
-        window.electronAPI.library.onScanProgress((_event, progress) => {
+        libraryGateway.onScanProgress((progress) => {
             this.emit('scanProgress', progress);
         });
     }
 
     async scanDirectory(path: string): Promise<boolean> {
         try {
-            const result = await window.electronAPI.library.scanDirectory(path);
+            const result = await libraryGateway.scanDirectory(path);
             if (result) {
                 const tracks = await libraryAPI.getTracks();
                 this.emit('libraryUpdated', tracks);
@@ -46,7 +47,7 @@ export class LibraryBridge {
 
     async scanNetworkDrive(driveId: string | number, relativePath = '/'): Promise<boolean> {
         try {
-            const result = await window.electronAPI.library.scanNetworkDrive(driveId, relativePath);
+            const result = await libraryGateway.scanNetworkDrive(driveId, relativePath);
             if (result) {
                 const tracks = await libraryAPI.getTracks();
                 this.emit('libraryUpdated', tracks);
@@ -60,7 +61,7 @@ export class LibraryBridge {
 
     async addTrackToLibrary(audioFile: Partial<Track> | unknown): Promise<{success: boolean; track?: Track; error?: string; isNew?: boolean}> {
         try {
-            const result = await window.electronAPI.library.addTrackToLibrary(audioFile);
+            const result = await libraryGateway.addTrackToLibrary(audioFile);
             if (result && result.success) {
                 const tracks = await libraryAPI.getTracks();
                 this.emit('libraryUpdated', tracks);
@@ -74,7 +75,7 @@ export class LibraryBridge {
 
     async loadCachedTracks(): Promise<Track[]> {
         try {
-            const tracks = await window.electronAPI.library.loadCachedTracks();
+            const tracks = await libraryGateway.loadCachedTracks();
             if (tracks && tracks.length > 0) {
                 return tracks;
             }
@@ -87,11 +88,11 @@ export class LibraryBridge {
 
     async validateCache(): Promise<CacheValidationResult | null> {
         try {
-            const progressListener = window.electronAPI.library.onCacheValidationProgress((progress: ScanProgress) => {
+            const progressListener = libraryGateway.onCacheValidationProgress((progress: ScanProgress) => {
                 this.emit('cacheValidationProgress', progress);
             });
 
-            const result = await window.electronAPI.library.validateCache();
+            const result = await libraryGateway.validateCache();
 
             if (progressListener) {
                 progressListener();
@@ -117,7 +118,7 @@ export class LibraryBridge {
 
     async clearCache(): Promise<boolean> {
         try {
-            const success = await window.electronAPI.library.clearCache();
+            const success = await libraryGateway.clearCache();
             if (success) {
                 this.emit('libraryUpdated', []);
                 return true;
@@ -131,7 +132,7 @@ export class LibraryBridge {
     }
 
     async updatePlaylistCover(playlistId: string, imagePath: string): Promise<Result> {
-        const result = await window.electronAPI.library.updatePlaylistCover(playlistId, imagePath);
+        const result = await libraryGateway.updatePlaylistCover(playlistId, imagePath);
         if (result.success) {
             this.emit('playlistCoverUpdated', {playlistId, imagePath});
             return {success: true};
@@ -141,7 +142,7 @@ export class LibraryBridge {
     }
 
     async getPlaylistCover(playlistId: string): Promise<{success: boolean; coverPath?: string; error?: string}> {
-        const result = await window.electronAPI.library.getPlaylistCover(playlistId);
+        const result = await libraryGateway.getPlaylistCover(playlistId);
         if (result.success) {
             return {success: true, coverPath: result.coverPath};
         }
@@ -150,7 +151,7 @@ export class LibraryBridge {
     }
 
     async removePlaylistCover(playlistId: string): Promise<Result> {
-        const result = await window.electronAPI.library.removePlaylistCover(playlistId);
+        const result = await libraryGateway.removePlaylistCover(playlistId);
         if (result.success) {
             this.emit('playlistCoverRemoved', {playlistId});
             return {success: true};

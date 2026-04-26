@@ -3,6 +3,8 @@
  * 负责本地歌词文件的搜索、匹配和读取逻辑
  */
 
+import {lyricsGateway} from "@js/infrastructure/electron";
+
 type LyricsFormat = 'lrc' | 'ttml';
 
 interface LocalLyricsResult {
@@ -64,12 +66,12 @@ class LocalLyricsManager {
             console.log(`🔍 LocalLyricsManager: 搜索本地歌词 - ${title} by ${artist}`);
 
             // 优先搜索TTML格式歌词
-            const ttmlResult = await window.electronAPI.lyrics.searchLocalFiles(
+            const ttmlResult = await lyricsGateway.searchLocalFiles(
                 this.lyricsDirectory, title, artist, album, '.ttml'
             );
 
             if (ttmlResult.success) {
-                const readResult = await window.electronAPI.lyrics.readLocalFile(ttmlResult.filePath!);
+                const readResult = await lyricsGateway.readLocalFile(ttmlResult.filePath!);
                 if (readResult.success) {
                     const ttmlContent = this.validateAndCleanLyrics(readResult.content);
                     const result: LocalLyricsResult = {
@@ -87,7 +89,7 @@ class LocalLyricsManager {
             }
 
             // 回退到LRC格式
-            const lrcResult = await window.electronAPI.lyrics.searchLocalFiles(
+            const lrcResult = await lyricsGateway.searchLocalFiles(
                 this.lyricsDirectory, title, artist, album, '.lrc'
             );
 
@@ -98,7 +100,7 @@ class LocalLyricsManager {
             }
 
             // 读取歌词文件内容
-            const readResult = await window.electronAPI.lyrics.readLocalFile(lrcResult.filePath!);
+            const readResult = await lyricsGateway.readLocalFile(lrcResult.filePath!);
             if (!readResult.success) {
                 const result: LocalLyricsResult = {success: false, error: readResult.error};
                 this.setCache(cacheKey, result);
@@ -200,7 +202,7 @@ class LocalLyricsManager {
 
             console.log(`💾 LocalLyricsManager: 保存歌词到本地 - ${title} by ${artist} (格式: ${format})`);
 
-            const result = await window.electronAPI.lyrics.saveToLocal(
+            const result = await lyricsGateway.saveToLocal(
                 this.lyricsDirectory,
                 title,
                 artist,

@@ -5,7 +5,7 @@
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
-import {coverAPI, lyricsAPI} from "@js/api";
+import {coverAPI, fileAPI, lyricsAPI} from "@js/api";
 import type {LyricLine} from "@api/types/lyrics";
 import type {Track} from "@api/types/track";
 
@@ -753,7 +753,7 @@ class Lyrics extends Component {
     async convertLocalPathToBlobUrl(filePath: string): Promise<string | null> {
         try {
             // 读取文件数据
-            const fileData = await (window.electronAPI.fs.readFile as any)(filePath);
+            const fileData = await fileAPI.readFile(filePath);
             if (!fileData || fileData.length === 0) {
                 console.error('❌ Lyrics: 文件数据为空');
                 return null;

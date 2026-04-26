@@ -3,6 +3,7 @@
  * 提供系统信息和环境变量访问功能
  */
 
+import {systemGateway} from '@js/infrastructure/electron';
 import {ErrorUtils} from '@extensions/api/common/errors';
 import '@extensions/core/types';
 import {ExtensionContext} from "@extensions/core";
@@ -18,13 +19,13 @@ export function createSystemAPI(_context: ExtensionContext): SystemAPI {
     return {
         async getVersion(): Promise<string> {
             return ErrorUtils.wrapAsync(async () => {
-                return await window.electronAPI.getVersion();
+                return await systemGateway.getVersion();
             }, 'system.getVersion');
         },
 
         async getPlatform(): Promise<string> {
             return ErrorUtils.wrapAsync(async () => {
-                return await window.electronAPI.getPlatform();
+                return await systemGateway.getPlatform();
             }, 'system.getPlatform');
         },
 
@@ -41,19 +42,19 @@ export function createSystemAPI(_context: ExtensionContext): SystemAPI {
 
         async getAppPath(): Promise<string> {
             return ErrorUtils.wrapAsync(async () => {
-                return await window.electronAPI.getAppPath();
+                return await systemGateway.getAppPath();
             }, 'system.getAppPath');
         },
 
         async getUserDataPath(): Promise<string> {
             return ErrorUtils.wrapAsync(async () => {
-                return await window.electronAPI.getUserDataPath();
+                return await systemGateway.getUserDataPath();
             }, 'system.getUserDataPath');
         },
 
         async getTempPath(): Promise<string> {
             return ErrorUtils.wrapAsync(async () => {
-                return await window.electronAPI.getTempPath();
+                return await systemGateway.getTempPath();
             }, 'system.getTempPath');
         },
 
@@ -71,7 +72,7 @@ export function createSystemAPI(_context: ExtensionContext): SystemAPI {
 
         async showItemInFolder(filePath: string): Promise<void> {
             return ErrorUtils.wrapAsync(async () => {
-                await window.electronAPI.openPath(filePath);
+                await systemGateway.openPath(filePath);
             }, 'system.showItemInFolder');
         },
 

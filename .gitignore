@@ -6,14 +6,7 @@ dist/
 build/pyinstaller/
 test-files/
 
-# dotenv environment variables file
-.env
-
 # IDE files
 .vscode/
 .idea/
 .vs/
-
-# Electron
-out/
-app/

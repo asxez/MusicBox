@@ -5,6 +5,8 @@
 import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
+import {libraryAPI} from "@js/api";
+import {libraryGateway, networkDriveGateway} from "@js/infrastructure/electron";
 import type {Track} from "@api/types/track";
 import type {ScanProgress} from "@api/types/events";
 import type {
@@ -129,7 +131,7 @@ class NetworkDriveDetailPage extends Component {
         }
 
         try {
-            this.driveStatus = await window.electronAPI.networkDrive.getStatus(this.currentDrive.id);
+            this.driveStatus = await networkDriveGateway.getStatus(this.currentDrive.id);
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 加载磁盘状态失败', error);
             this.driveStatus = null;
@@ -142,7 +144,7 @@ class NetworkDriveDetailPage extends Component {
         }
 
         try {
-            this.tracks = await window.electronAPI.library.getTracksByDrive(this.currentDrive.id);
+            this.tracks = await libraryAPI.getTracksByDrive(this.currentDrive.id);
             console.log(`📀 NetworkDriveDetailPage: 加载了 ${this.tracks.length} 首歌曲`);
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 加载歌曲失败', error);
@@ -156,7 +158,7 @@ class NetworkDriveDetailPage extends Component {
         }
 
         try {
-            const result = await window.electronAPI.networkDrive.getDirectoryStructure(this.currentDrive.id, path);
+            const result = await networkDriveGateway.getDirectoryStructure(this.currentDrive.id, path);
             if (result.success) {
                 this.directoryStructure = result.structure || [];
                 console.log(`📁 NetworkDriveDetailPage: 加载了 ${this.directoryStructure.length} 个项目`);
@@ -300,7 +302,7 @@ class NetworkDriveDetailPage extends Component {
         }
 
         try {
-            await window.electronAPI.networkDrive.refreshConnection(this.currentDrive.id);
+            await networkDriveGateway.refreshConnection(this.currentDrive.id);
             await this.loadDriveStatus();
             this.render();
             const displayName = this.currentDrive.config?.displayName || this.currentDrive.displayName || '未命名磁盘';
@@ -320,12 +322,12 @@ class NetworkDriveDetailPage extends Component {
         this.showScanTip();
 
         // 监听扫描进度
-        const removeListener = window.electronAPI.library.onScanProgress((_event, progress) => {
+        const removeListener = libraryGateway.onScanProgress((progress) => {
             this.updateScanTip(progress);
         });
 
         try {
-            const result = await window.electronAPI.library.scanNetworkDrive(this.currentDrive.id, '/');
+            const result = await libraryAPI.scanNetworkDrive(this.currentDrive.id, '/');
 
             if (result) {
                 await this.loadDriveTracks();
@@ -409,9 +411,9 @@ class NetworkDriveDetailPage extends Component {
         }
 
         try {
-            const result = await window.electronAPI.library.removeTracksByDrive(this.currentDrive.id);
+            const result = await libraryAPI.removeTracksByDrive(this.currentDrive.id);
             if (result.success) {
-                await window.electronAPI.networkDrive.unmount(this.currentDrive.id);
+                await networkDriveGateway.unmount(this.currentDrive.id);
 
                 this.emit('driveRemoved', this.currentDrive);
 
@@ -458,7 +460,7 @@ class NetworkDriveDetailPage extends Component {
                 console.log('🎵 NetworkDriveDetailPage: 文件未在缓存中，开始扫描...');
                 app.showInfo('正在加载音乐...');
 
-                const result = await window.electronAPI.library.scanSingleFile(networkPath) as SingleFileScanResult;
+                const result = await libraryAPI.scanSingleFile(networkPath) as SingleFileScanResult;
 
                 if (result.success && result.track) {
                     // 扫描成功，添加到本地 tracks 列表

@@ -5,6 +5,7 @@
 import {showToast} from "@utils/index.js";
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
+import {extensionsGateway} from "@js/infrastructure/electron";
 import type {ConfirmOptions} from "@core/types/app";
 import type {ExtensionDescriptor} from "@extensions/core/ExtensionsRegistry";
 
@@ -275,7 +276,7 @@ class PluginManagerModal extends Component {
             }
 
             // 选择扩展包文件
-            const filePath = await window.electronAPI.extensions.selectPackage();
+            const filePath = await extensionsGateway.selectPackage();
             if (!filePath) {
                 return;
             }

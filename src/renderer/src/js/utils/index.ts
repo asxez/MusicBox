@@ -128,12 +128,20 @@ class EventEmitter {
     }
 
     removeAllListeners(eventName?: string): void {
-        if (!eventName) return;
+        if (!eventName) {
+            Object.keys(this.events).forEach((event) => {
+                delete this.events[event];
+            });
+            return;
+        }
+
         if (this.events[eventName]) {
             delete this.events[eventName];
         }
     }
 }
+
+const themeEvents = new EventEmitter();
 
 interface ThemeController {
     readonly current: string;
@@ -167,9 +175,9 @@ const theme: ThemeController = {
         console.log("☁️ 主题初始化：", savedTheme);
     },
 
-    on: EventEmitter.prototype.on.bind(new EventEmitter()),
-    off: EventEmitter.prototype.off.bind(new EventEmitter()),
-    emit: EventEmitter.prototype.emit.bind(new EventEmitter())
+    on: themeEvents.on.bind(themeEvents),
+    off: themeEvents.off.bind(themeEvents),
+    emit: themeEvents.emit.bind(themeEvents)
 };
 
 document.addEventListener('DOMContentLoaded', () => {

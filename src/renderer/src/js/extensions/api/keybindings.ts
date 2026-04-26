@@ -3,6 +3,7 @@
  * 提供快捷键注册、管理、执行等功能
  */
 
+import {globalShortcutsGateway} from '@js/infrastructure/electron';
 import {Validator} from '@extensions/api/common/validation';
 import {ErrorUtils, NotFoundError} from '@extensions/api/common/errors';
 import {ExtensionContext, IDisposable, toDisposable} from '@extensions/core';
@@ -128,7 +129,7 @@ export function createKeybindingsAPI(context: ExtensionContext): KeybindingsAPI 
 
                     // 如果是全局快捷键，通知主进程注销
                     if (scope === KeybindingScope.GLOBAL) {
-                        await window.electronAPI.globalShortcuts.unregister();
+                        await globalShortcutsGateway.unregister();
                     }
                 }
             }, 'keybindings.unregisterKeybinding');
@@ -370,7 +371,7 @@ async function syncGlobalShortcuts(): Promise<void> {
         });
 
         // 注册所有快捷键
-        await window.electronAPI.globalShortcuts.register(allShortcuts);
+        await globalShortcutsGateway.register(allShortcuts);
     } catch (error) {
         console.error('❌ 同步全局快捷键失败:', error);
     }

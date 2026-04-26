@@ -3,6 +3,7 @@
  * 处理封面更新事件和缓存刷新
  */
 
+import {libraryGateway} from "@js/infrastructure/electron";
 import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {embeddedCoverManager} from "@services/cover/EmbeddedCoverManager";
 
@@ -21,18 +22,20 @@ class CoverUpdateManager {
     private readonly updateCallbacks: Set<CoverUpdateCallback>;
     private initialized: boolean;
     private readonly pendingUpdates: Map<string, boolean>;
+    private unsubscribeCoverUpdated: (() => void) | null;
 
     constructor() {
         this.updateCallbacks = new Set();
         this.initialized = false;
         this.pendingUpdates = new Map();
+        this.unsubscribeCoverUpdated = null;
     }
 
     initialize(): void {
         if (this.initialized) return;
 
         // 监听主进程的封面更新事件
-        window.electronAPI.library.onCoverUpdated(async (data) => {
+        this.unsubscribeCoverUpdated = libraryGateway.onCoverUpdated(async (data) => {
             await this.handleCoverUpdate(data as CoverUpdateData);
         });
         this.initialized = true;
@@ -111,6 +114,8 @@ class CoverUpdateManager {
     }
 
     destroy(): void {
+        this.unsubscribeCoverUpdated?.();
+        this.unsubscribeCoverUpdated = null;
         this.updateCallbacks.clear();
         this.pendingUpdates.clear();
         this.initialized = false;

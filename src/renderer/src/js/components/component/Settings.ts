@@ -3,19 +3,20 @@
  */
 
 import {showToast} from '@utils/index.js';
-import {cacheManager} from "@services/CacheManager";
 import {localLyricsManager} from "@services/lyrics/LocalLyricsManager";
 import {localCoverManager} from "@services/cover/LocalCoverManager";
-import {embeddedLyricsManager} from "@services/lyrics/EmbeddedLyricsManager";
+import {cacheMaintenanceService} from "@services/settings/CacheMaintenanceService";
+import {embeddedLyricsDiagnosticsService} from "@services/settings/EmbeddedLyricsDiagnosticsService";
+import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
+import {settingsStore, type SettingValue} from "@services/settings/SettingsStore";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
-import {libraryAPI} from "@js/api";
+import {settingsSystemGateway} from "@js/infrastructure/electron";
 import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
 
-type SettingValue = string | number | boolean | object | null | undefined;
 type ShortcutType = 'local' | 'global';
 
 interface ShortcutEntry {
@@ -39,37 +40,9 @@ interface RgbColor {
     b: number;
 }
 
-interface CacheStatisticsView {
-    totalTracks: number;
-    totalSize: number;
-    scannedDirectories?: number;
-    cacheAge?: number;
-}
-
-interface DebugEmbeddedLyricsResult {
-    success: boolean;
-    error?: string;
-    lyricsAnalysis?: {
-        type?: string;
-        format?: string;
-        language?: string;
-        description?: string;
-        synchronized?: boolean;
-        textLength?: number;
-        timestampCount?: number;
-        textSample?: string;
-    };
-    conversionResult?: {
-        success: boolean;
-        lrcLength?: number;
-        error?: string;
-        lrcSample?: string;
-    };
-}
-
 const getInputTarget = (event: Event): HTMLInputElement => event.target as HTMLInputElement;
 const getSelectTarget = (event: Event): HTMLSelectElement => event.target as HTMLSelectElement;
-const electronAPI = window.electronAPI as any;
+const electronAPI = settingsSystemGateway as any;
 
 class Settings extends Component {
     [key: string]: any;
@@ -733,21 +706,17 @@ class Settings extends Component {
 
     // 加载设置
     loadSettings(): MusicBoxSettings {
-        let settings = cacheManager.getLocalCache<MusicBoxSettings>('musicbox-settings');
-        if (settings === null)
-            settings = {};
-        return settings;
+        return settingsStore.load();
     }
 
     // 更新设置
     updateSetting(key: string, value: SettingValue): void {
-        this.settings[key] = value;
-        cacheManager.setLocalCache('musicbox-settings', this.settings);
+        this.settings = settingsStore.update(this.settings, key, value);
     }
 
     // 获取设置值
     getSetting<T = unknown>(key: string, defaultValue: T | null = null): T | null {
-        return (this.settings[key] !== undefined ? this.settings[key] : defaultValue) as T | null;
+        return settingsStore.get(this.settings, key, defaultValue);
     }
 
     // 切换托盘设置显示
@@ -978,7 +947,7 @@ class Settings extends Component {
             this.viewCacheStatsBtn.disabled = true;
             this.viewCacheStatsBtn.textContent = '获取中...';
 
-            const stats = await libraryAPI.getCacheStatistics() as CacheStatisticsView | null;
+            const stats = await cacheMaintenanceService.getStatistics();
             if (stats) {
                 const totalSizeMB = (stats.totalSize / (1024 * 1024)).toFixed(2);
                 const cacheAgeDays = Math.floor((stats.cacheAge || 0) / (1000 * 60 * 60 * 24));
@@ -1005,7 +974,7 @@ class Settings extends Component {
             this.validateCacheBtn.textContent = '验证中...';
             showToast('开始验证缓存，请稍候...', 'info');
 
-            const result = await api.validateCache();
+            const result = await cacheMaintenanceService.validate();
             if (result) {
                 const message = `缓存验证完成 - 有效: ${result.valid}, 无效: ${result.invalid}, 已修改: ${result.modified}`;
                 showToast(message, 'success');
@@ -1037,7 +1006,7 @@ class Settings extends Component {
             this.clearCacheBtn.disabled = true;
             this.clearCacheBtn.textContent = '清空中...';
 
-            const success = await api.clearCache();
+            const success = await cacheMaintenanceService.clear();
             if (success) {
                 showToast('缓存已清空', 'success');
                 this.cacheStatsDescription.textContent = '缓存已清空';
@@ -1059,67 +1028,23 @@ class Settings extends Component {
             this.testEmbeddedLyricsBtn.disabled = true;
             this.testEmbeddedLyricsBtn.textContent = '选择文件...';
 
-            const filePaths = await electronAPI.openFiles();
-            if (!filePaths || filePaths.length === 0) {
+            const diagnostics = await embeddedLyricsDiagnosticsService.chooseFileAndBuildReport();
+            if (!diagnostics.selected) {
                 showToast('未选择文件', 'info');
                 return;
             }
 
-            const filePath = filePaths[0];
             this.testEmbeddedLyricsBtn.textContent = '检测中...';
-            console.log(`🎵 测试内嵌歌词: ${filePath}`);
+            console.log(`🎵 测试内嵌歌词: ${diagnostics.filePath}`);
 
-            const debugResult = await embeddedLyricsManager.debugEmbeddedLyrics(filePath) as DebugEmbeddedLyricsResult;
-            let reportLines: string[] = [
-                `文件: ${filePath}`,
-                `时间: ${new Date().toLocaleString()}`,
-                ``,
-                `=== 检测结果 ===`,
-                `成功: ${debugResult.success ? '是' : '否'}`
-            ];
-
-            if (debugResult.success && debugResult.lyricsAnalysis) {
-                const analysis = debugResult.lyricsAnalysis;
-                reportLines.push(
-                    ``,
-                    `=== 歌词信息 ===`,
-                    `类型: ${analysis.type}`,
-                    `格式: ${analysis.format}`,
-                    `语言: ${analysis.language || '未知'}`,
-                    `描述: ${analysis.description || '无'}`,
-                    `同步歌词: ${analysis.synchronized ? '是' : '否'}`,
-                    `文本长度: ${analysis.textLength} 字符`,
-                    `时间戳数量: ${analysis.timestampCount}`,
-                    ``
-                );
-
-                if (analysis.textSample) {
-                    reportLines.push(`=== 歌词预览 ===`, analysis.textSample, ``);
-                }
-
-                if (debugResult.conversionResult) {
-                    const conv = debugResult.conversionResult;
-                    reportLines.push(
-                        `=== LRC转换 ===`,
-                        `转换成功: ${conv.success ? '是' : '否'}`,
-                        `LRC长度: ${conv.lrcLength} 字符`
-                    );
-
-                    if (conv.error) {
-                        reportLines.push(`转换错误: ${conv.error}`);
-                    }
-                    if (conv.lrcSample) {
-                        reportLines.push(``, `=== LRC预览 ===`, conv.lrcSample);
-                    }
-                }
+            if (diagnostics.foundLyrics) {
                 showToast('检测到内嵌歌词！', 'success');
             } else {
-                reportLines.push(`错误: ${debugResult.error || '未知错误'}`);
                 showToast('未检测到内嵌歌词', 'info');
             }
 
             // 显示详细报告
-            const report = reportLines.join('\n');
+            const report = diagnostics.report || diagnostics.error || '没有诊断报告';
             console.log('🔧 内嵌歌词测试报告:\n', report);
             const dialog = document.createElement('div');
             dialog.style.cssText = `
@@ -1485,11 +1410,11 @@ class Settings extends Component {
     async initializeMusicFoldersAndAutoScan(): Promise<void> {
         try {
             // 加载音乐文件夹列表
-            const folders = await electronAPI.settings.getMusicFolders();
+            const folders = await musicFolderSettingsService.getMusicFolders();
             this.renderMusicFolders(folders);
 
             // 加载自动扫描设置
-            const autoScanSettings = await electronAPI.settings.getAutoScanSettings();
+            const autoScanSettings = await musicFolderSettingsService.getAutoScanSettings();
             this.autoScanToggle.checked = autoScanSettings.enabled || false;
             this.scanFrequencySelect.value = autoScanSettings.frequency || 'on_startup';
 
@@ -1506,7 +1431,7 @@ class Settings extends Component {
             if (result && result.filePaths && result.filePaths.length > 0) {
                 const selectedPath = result.filePaths[0];
 
-                const addResult = await electronAPI.settings.addMusicFolder(selectedPath);
+                const addResult = await musicFolderSettingsService.addMusicFolder(selectedPath);
                 if (addResult.success) {
                     this.renderMusicFolders(addResult.folders);
                     showToast('文件夹已添加', 'success');
@@ -1520,7 +1445,7 @@ class Settings extends Component {
 
                     if (shouldScan) {
                         showToast('正在扫描...', 'info');
-                        await electronAPI.library.scanDirectory(selectedPath);
+                        await musicFolderSettingsService.scanDirectory(selectedPath);
                         showToast('扫描完成', 'success');
                     }
                 } else {
@@ -1546,7 +1471,7 @@ class Settings extends Component {
         }
 
         try {
-            const result = await electronAPI.settings.removeMusicFolder(folderPath);
+            const result = await musicFolderSettingsService.removeMusicFolder(folderPath);
             if (result.success) {
                 this.renderMusicFolders(result.folders);
                 showToast('文件夹已移除', 'success');
@@ -1590,7 +1515,7 @@ class Settings extends Component {
 
     async handleAutoScanToggle(enabled: boolean): Promise<void> {
         try {
-            const result = await electronAPI.settings.updateAutoScanSettings({enabled});
+            const result = await musicFolderSettingsService.updateAutoScanEnabled(enabled);
             if (result.success) {
                 this.toggleScanFrequencyVisibility(enabled);
                 showToast(enabled ? '自动扫描已启用' : '自动扫描已禁用', 'success');
@@ -1607,7 +1532,7 @@ class Settings extends Component {
 
     async handleScanFrequencyChange(frequency: string): Promise<void> {
         try {
-            const result = await electronAPI.settings.updateAutoScanSettings({frequency});
+            const result = await musicFolderSettingsService.updateScanFrequency(frequency);
             if (result.success) {
                 showToast('扫描频率已更新', 'success');
             } else {
@@ -1636,7 +1561,7 @@ class Settings extends Component {
         }
 
         try {
-            const result = await electronAPI.library.clearIgnoreList();
+            const result = await cacheMaintenanceService.clearIgnoreList();
             if (result.success) {
                 showToast('忽略列表已清空', 'success');
             } else {

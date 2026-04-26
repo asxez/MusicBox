@@ -10,6 +10,7 @@ interface ManagedDOMListener {
     element: ManagedEventTarget;
     event: string;
     handler: EventListenerOrEventListenerObject;
+    options?: AddEventListenerOptions | boolean;
 }
 
 interface ManagedAPIListener {
@@ -48,7 +49,7 @@ class Component extends EventEmitter {
         options?: AddEventListenerOptions | boolean
     ): () => void {
         element.addEventListener(event, handler, options);
-        // this.eventListeners.push({ element, event, handler, options });
+        this.eventListeners.push({element, event, handler, options});
         return () => this.removeEventListenerManaged(element, event, handler);
     }
 
@@ -67,7 +68,7 @@ class Component extends EventEmitter {
     // 添加API事件监听器
     addAPIEventListenerManaged(event: string, handler: (...args: any[]) => void): () => void {
         api.on(event, handler);
-        // this.apiEventListeners.push({ event, handler });
+        this.apiEventListeners.push({event, handler});
         return () => this.removeAPIEventListenerManaged(event, handler);
     }
 

@@ -3,6 +3,7 @@
  * 负责本地封面文件的缓存、检索和管理逻辑
  */
 
+import {coversGateway} from "@js/infrastructure/electron";
 import type {Track} from "@api/types/track";
 
 export interface LocalCoverResult {
@@ -126,7 +127,7 @@ class LocalCoverManager {
 
             // 搜索匹配的封面文件
             const isAlbum = !title;
-            const searchResult = await window.electronAPI.covers.checkLocalCover(
+            const searchResult = await coversGateway.checkLocalCover(
                 this.coverDirectory, title, artist, album, isAlbum
             );
 
@@ -219,7 +220,7 @@ class LocalCoverManager {
             }
 
             // 调用主进程保存文件
-            const saveResult = await window.electronAPI.covers.saveCoverFile(
+            const saveResult = await coversGateway.saveCoverFile(
                 this.coverDirectory, fullFileName, processedImageData, dataType
             );
 

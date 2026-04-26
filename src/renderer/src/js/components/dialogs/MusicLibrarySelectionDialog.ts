@@ -4,6 +4,7 @@
 
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
+import {libraryAPI} from "@js/api";
 import type {Playlist, Track} from "@api/types/library";
 
 type PlaylistWithTrackIds = Playlist & {trackIds?: string[]};
@@ -116,7 +117,7 @@ class MusicLibrarySelectionDialog extends Component {
             `;
 
             // 获取所有音乐
-            const tracks = await window.electronAPI.library.getTracks();
+            const tracks = await libraryAPI.getTracks();
             this.allTracks = tracks || [];
 
             // 过滤掉已在歌单中的歌曲
@@ -308,7 +309,7 @@ class MusicLibrarySelectionDialog extends Component {
             // 批量添加歌曲
             for (const trackId of selectedTrackIds) {
                 try {
-                    const result = await (window.electronAPI.library.addToPlaylist as any)(
+                    const result = await libraryAPI.addToPlaylist(
                         this.currentPlaylist.id,
                         trackId
                     );
