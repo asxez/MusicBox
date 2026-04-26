@@ -10,6 +10,7 @@ import {embeddedLyricsDiagnosticsService} from "@services/settings/EmbeddedLyric
 import {hardwareAccelerationSettingsService} from "@services/settings/HardwareAccelerationSettingsService";
 import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySettingsService";
 import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
+import {settingsInteractionService} from "@services/settings/SettingsInteractionService";
 import {settingsStore, type SettingValue} from "@services/settings/SettingsStore";
 import {
     shortcutSettingsService,
@@ -20,7 +21,6 @@ import {
 } from "@services/settings/ShortcutSettingsService";
 import {traySettingsService} from "@services/settings/TraySettingsService";
 import {Component} from "@components/base/Component";
-import {app} from "@core/app";
 import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
 
 type ShortcutEntry = ShortcutDefinition;
@@ -804,7 +804,7 @@ class Settings extends Component {
     // 显示硬件加速确认对话框
     async showHardwareAccelerationConfirmDialog(): Promise<boolean> {
         const message = '关闭硬件加速可能会降低应用性能，但可以解决某些显卡兼容性问题。\n\n更改此设置需要重启应用才能生效。\n\n是否要关闭硬件加速并立即重启应用？';
-        return await app.confirm({
+        return await settingsInteractionService.confirm({
             title: '硬件加速设置',
             message: message,
             confirmText: '重启应用',
@@ -931,7 +931,7 @@ class Settings extends Component {
     }
 
     async clearCache(): Promise<void> {
-        const confirmed = await app.confirm({
+        const confirmed = await settingsInteractionService.confirm({
             title: '清空缓存',
             message: '确定要清空所有缓存吗？这将删除所有已缓存的音乐文件信息，下次启动时需要重新扫描。',
             type: 'warning',
@@ -1211,7 +1211,7 @@ class Settings extends Component {
     async showShortcutConflict(conflicts: ShortcutConflict[], newShortcut: string, onConfirm: () => void | Promise<void>): Promise<void> {
         const conflictNames = conflicts.map(c => `${c.name} (${c.type === 'local' ? '应用内' : '全局'})`).join('、');
         const message = `快捷键 "${this.formatShortcutKey(newShortcut)}" 与以下快捷键冲突：\n${conflictNames}\n\n是否要覆盖现有快捷键？`;
-        const confirmed = await app.confirm({
+        const confirmed = await settingsInteractionService.confirm({
             title: '快捷键冲突',
             message: message,
             confirmText: '覆盖',
@@ -1225,7 +1225,7 @@ class Settings extends Component {
 
     async showResetShortcutsDialog(): Promise<void> {
         const message = '确定要将所有快捷键重置为默认设置吗？\n\n此操作将清除您的所有自定义快捷键配置。';
-        const confirmed = await app.confirm({
+        const confirmed = await settingsInteractionService.confirm({
             title: '重置快捷键',
             message: message,
             confirmText: '重置',
@@ -1264,9 +1264,7 @@ class Settings extends Component {
 
     // 显示网络磁盘配置模态框
     showNetworkDriveModal(): void {
-        if (app.components.networkDiskModal) {
-            app.components.networkDiskModal.show();
-        } else {
+        if (!settingsInteractionService.showNetworkDriveModal()) {
             this.showNotification('网络磁盘功能不可用', 'error');
         }
     }
@@ -1330,9 +1328,8 @@ class Settings extends Component {
     }
 
     async openPluginManager(): Promise<void> {
-        if (app.components.pluginManagerModal) {
-            await app.components.pluginManagerModal.show();
-        } else {
+        const opened = await settingsInteractionService.showPluginManager();
+        if (!opened) {
             this.showNotification('插件管理器不可用', 'error');
         }
     }
@@ -1366,7 +1363,7 @@ class Settings extends Component {
                     showToast('文件夹已添加', 'success');
 
                     // 询问是否立即扫描
-                    const shouldScan = await app.confirm({
+                    const shouldScan = await settingsInteractionService.confirm({
                         title: '扫描文件夹',
                         message: '是否立即扫描该文件夹？',
                         confirmText: '扫描'
@@ -1388,7 +1385,7 @@ class Settings extends Component {
     }
 
     async handleRemoveMusicFolder(folderPath: string): Promise<void> {
-        const confirmed = await app.confirm({
+        const confirmed = await settingsInteractionService.confirm({
             title: '移除文件夹',
             message: `确定要移除文件夹吗？\n\n${folderPath}\n\n移除后该文件夹中的音乐将不会被自动扫描。`,
             confirmText: '移除',
@@ -1478,7 +1475,7 @@ class Settings extends Component {
     }
 
     async handleClearIgnoreList(): Promise<void> {
-        const confirmed = await app.confirm({
+        const confirmed = await settingsInteractionService.confirm({
             title: '清空忽略列表',
             message: '确定要清空忽略列表吗？\n\n清空后,之前手动删除的歌曲在下次自动扫描时会被重新添加到音乐库。',
             confirmText: '清空',
