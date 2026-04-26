@@ -2,18 +2,42 @@
  * 插件管理模态框组件
  */
 
-import {showToast} from "@utils";
+import {showToast} from "@utils/index.js";
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
+import type {ConfirmOptions} from "@core/types/app";
+import type {ExtensionDescriptor} from "@extensions/core/ExtensionsRegistry";
+
+type ToastType = 'info' | 'success' | 'error' | 'warning';
+
+type PluginExtension = ExtensionDescriptor & {
+    isActive?: boolean;
+};
+
+interface PluginExtensionService {
+    getExtensions(): PluginExtension[];
+    installExtensionFromFile(filePath: string): Promise<unknown>;
+    enableExtension(extensionId: string): Promise<void>;
+    disableExtension(extensionId: string): Promise<void>;
+    uninstallExtensionFromDisk(extensionId: string): Promise<void>;
+}
 
 class PluginManagerModal extends Component {
+    isVisible: boolean;
+    listenersSetup: boolean;
+    closeBtn!: HTMLElement | null;
+    installBtn!: HTMLElement | null;
+    pluginListLoading!: HTMLElement | null;
+    pluginList!: HTMLElement | null;
+    pluginListEmpty!: HTMLElement | null;
+
     constructor() {
         super('#plugin-manager-modal');
         this.isVisible = false;
         this.listenersSetup = false;
     }
 
-    async show() {
+    async show(): Promise<void> {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupEventListeners();
@@ -21,45 +45,49 @@ class PluginManagerModal extends Component {
         }
 
         this.isVisible = true;
-        this.element.style.display = 'flex';
+        const modal = this.element as HTMLElement;
+        modal.style.display = 'flex';
 
         // 动画显示
         requestAnimationFrame(() => {
-            this.element.classList.add('show');
+            modal.classList.add('show');
         });
 
         // 加载插件列表
         await this.loadPluginList();
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
-        this.element.classList.remove('show');
+        const modal = this.element as HTMLElement;
+        modal.classList.remove('show');
         setTimeout(() => {
             if (!this.isVisible) {
-                this.element.style.display = 'none';
+                modal.style.display = 'none';
             }
         }, 300);
     }
 
-    destroy() {
+    destroy(): void {
         this.isVisible = false;
         this.listenersSetup = false;
         super.destroy();
     }
 
-    setupElements() {
+    setupElements(): void {
+        const modal = this.element as HTMLElement;
+
         // 模态框元素
-        this.closeBtn = this.element.querySelector('#plugin-manager-modal-close');
-        this.installBtn = this.element.querySelector('#install-extension-modal-btn');
+        this.closeBtn = modal.querySelector('#plugin-manager-modal-close');
+        this.installBtn = modal.querySelector('#install-extension-modal-btn');
 
         // 插件列表元素
-        this.pluginListLoading = this.element.querySelector('#plugin-list-loading');
-        this.pluginList = this.element.querySelector('#plugin-list');
-        this.pluginListEmpty = this.element.querySelector('#plugin-list-empty');
+        this.pluginListLoading = modal.querySelector('#plugin-list-loading');
+        this.pluginList = modal.querySelector('#plugin-list');
+        this.pluginListEmpty = modal.querySelector('#plugin-list-empty');
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         // 关闭按钮
         if (this.closeBtn) {
             this.closeBtn.addEventListener('click', () => {
@@ -85,10 +113,15 @@ class PluginManagerModal extends Component {
     /**
      * 加载插件列表
      */
-    async loadPluginList() {
+    async loadPluginList(): Promise<void> {
         try {
-            if (!window.extensionService) {
+            const extensionService = this.getExtensionService();
+            if (!extensionService) {
                 console.warn('⚠️ PluginManagerModal: 扩展服务未初始化');
+                return;
+            }
+
+            if (!this.pluginListLoading || !this.pluginList || !this.pluginListEmpty) {
                 return;
             }
 
@@ -98,7 +131,7 @@ class PluginManagerModal extends Component {
             this.pluginListEmpty.style.display = 'none';
 
             // 获取所有扩展
-            const extensions = window.extensionService.getExtensions();
+            const extensions = extensionService.getExtensions();
 
             if (extensions.length === 0) {
                 this.pluginListLoading.style.display = 'none';
@@ -114,27 +147,36 @@ class PluginManagerModal extends Component {
 
         } catch (error) {
             console.error('❌ PluginManagerModal: 加载插件列表失败:', error);
-            this.pluginListLoading.style.display = 'none';
-            this.pluginListEmpty.style.display = 'block';
+            if (this.pluginListLoading) {
+                this.pluginListLoading.style.display = 'none';
+            }
+            if (this.pluginListEmpty) {
+                this.pluginListEmpty.style.display = 'block';
+            }
         }
     }
 
     /**
      * 渲染插件列表
      */
-    renderPluginList(extensions) {
-        this.pluginList.innerHTML = '';
+    renderPluginList(extensions: PluginExtension[]): void {
+        if (!this.pluginList) {
+            return;
+        }
+
+        const pluginList = this.pluginList;
+        pluginList.innerHTML = '';
 
         extensions.forEach(ext => {
             const pluginCard = this.createPluginCard(ext);
-            this.pluginList.appendChild(pluginCard);
+            pluginList.appendChild(pluginCard);
         });
     }
 
     /**
      * 创建插件卡片
      */
-    createPluginCard(extension) {
+    createPluginCard(extension: PluginExtension): HTMLElement {
         const card = document.createElement('div');
         card.className = 'plugin-card';
 
@@ -224,8 +266,14 @@ class PluginManagerModal extends Component {
     /**
      * 处理安装扩展
      */
-    async handleInstallExtension() {
+    async handleInstallExtension(): Promise<void> {
         try {
+            const extensionService = this.getExtensionService();
+            if (!extensionService) {
+                this.showNotification('扩展服务未初始化', 'error');
+                return;
+            }
+
             // 选择扩展包文件
             const filePath = await window.electronAPI.extensions.selectPackage();
             if (!filePath) {
@@ -233,80 +281,107 @@ class PluginManagerModal extends Component {
             }
 
             console.log('📦 PluginManagerModal: 调用 ExtensionService.installExtensionFromFile');
-            const extensionInfo = await window.extensionService.installExtensionFromFile(filePath);
+            await extensionService.installExtensionFromFile(filePath);
 
             // 刷新插件列表
             await this.loadPluginList();
         } catch (error) {
             console.error('❌ PluginManagerModal: 安装扩展失败:', error);
-            this.showNotification(`安装失败: ${error.message}`, 'error');
+            this.showNotification(`安装失败: ${this.getErrorMessage(error)}`, 'error');
         }
     }
 
     /**
      * 处理启用扩展
      */
-    async handleEnableExtension(extensionId, _extensionName) {
+    async handleEnableExtension(extensionId: string, _extensionName: string): Promise<void> {
         try {
-            await window.extensionService.enableExtension(extensionId);
+            const extensionService = this.getExtensionService();
+            if (!extensionService) {
+                this.showNotification('扩展服务未初始化', 'error');
+                return;
+            }
+
+            await extensionService.enableExtension(extensionId);
             await this.loadPluginList();
         } catch (error) {
             console.error('❌ PluginManagerModal: 启用扩展失败:', error);
-            this.showNotification(`启用失败: ${error.message}`, 'error');
+            this.showNotification(`启用失败: ${this.getErrorMessage(error)}`, 'error');
         }
     }
 
     /**
      * 处理禁用扩展
      */
-    async handleDisableExtension(extensionId, _extensionName) {
+    async handleDisableExtension(extensionId: string, _extensionName: string): Promise<void> {
         try {
-            await window.extensionService.disableExtension(extensionId);
+            const extensionService = this.getExtensionService();
+            if (!extensionService) {
+                this.showNotification('扩展服务未初始化', 'error');
+                return;
+            }
+
+            await extensionService.disableExtension(extensionId);
             await this.loadPluginList();
         } catch (error) {
             console.error('❌ PluginManagerModal: 禁用扩展失败:', error);
-            this.showNotification(`禁用失败: ${error.message}`, 'error');
+            this.showNotification(`禁用失败: ${this.getErrorMessage(error)}`, 'error');
         }
     }
 
     /**
      * 处理卸载扩展
      */
-    async handleUninstallExtension(extensionId, extensionName) {
+    async handleUninstallExtension(extensionId: string, extensionName: string): Promise<void> {
         try {
-            const confirmed = await app.confirm({
+            const extensionService = this.getExtensionService();
+            if (!extensionService) {
+                this.showNotification('扩展服务未初始化', 'error');
+                return;
+            }
+
+            const confirmOptions: ConfirmOptions = {
                 title: '卸载扩展',
                 message: `确定要卸载扩展 "${extensionName}" 吗？\n\n卸载后需要重启应用才能完全移除。`,
                 confirmText: '卸载',
                 type: 'warning'
-            });
+            };
+            const confirmed = await app.confirm(confirmOptions);
 
             if (!confirmed) {
                 return;
             }
 
-            await window.extensionService.uninstallExtensionFromDisk(extensionId);
+            await extensionService.uninstallExtensionFromDisk(extensionId);
             await this.loadPluginList();
         } catch (error) {
             console.error('❌ PluginManagerModal: 卸载扩展失败:', error);
-            this.showNotification(`卸载失败: ${error.message}`, 'error');
+            this.showNotification(`卸载失败: ${this.getErrorMessage(error)}`, 'error');
         }
     }
 
     /**
      * 显示通知消息
      */
-    showNotification(message, type = 'info') {
+    showNotification(message: string, type: ToastType = 'info'): void {
         showToast(message, type);
     }
 
     /**
      * HTML转义
      */
-    escapeHtml(text) {
+    escapeHtml(text: string): string {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    getExtensionService(): PluginExtensionService | null {
+        return window.extensionService as PluginExtensionService | null | undefined || null;
+    }
+
+    getErrorMessage(error: unknown): string {
+        return error instanceof Error ? error.message : String(error);
     }
 }
 

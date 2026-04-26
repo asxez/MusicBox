@@ -77,12 +77,12 @@ export class ExtensionsController extends BaseController {
     }
 
     @IpcHandle('extensions:getInstalled')
-    getInstalled(): any[] {
+    getInstalled(): { success: boolean; extensions: any[]; error?: string } {
         try {
-            return this.extensionInstaller.getInstalledExtensions();
-        } catch (error) {
+            return {success: true, extensions: this.extensionInstaller.getInstalledExtensions()};
+        } catch (error: any) {
             console.error('❌ extensions:getInstalled 错误:', error);
-            return [];
+            return {success: false, extensions: [], error: error.message};
         }
     }
 

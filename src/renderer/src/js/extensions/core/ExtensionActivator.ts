@@ -272,7 +272,8 @@ export class ExtensionActivator extends Disposable {
 
     private async _loadExternalExtensionModule(descriptor: ExtensionDescriptor, _moduleVarName: string): Promise<void> {
         try {
-            const result = await window.electronAPI.extensions.readExtensionFile(descriptor.id, descriptor.main || '');
+            const filePath = this._normalizeExternalExtensionMainPath(descriptor);
+            const result = await window.electronAPI.extensions.readExtensionFile(descriptor.id, filePath);
 
             if (!result.success) {
                 throw new Error(result.error || '读取扩展文件失败');
@@ -295,6 +296,19 @@ export class ExtensionActivator extends Disposable {
             console.error(`❌ ExtensionActivator: 加载外部插件失败 ${descriptor.id}:`, error);
             throw error;
         }
+    }
+
+    private _normalizeExternalExtensionMainPath(descriptor: ExtensionDescriptor): string {
+        const main = (descriptor.main || '').replace(/\\/g, '/').replace(/^\/+/, '');
+        const idPrefix = `${descriptor.id}/`;
+
+        if (main.startsWith(idPrefix)) {
+            const normalized = main.slice(idPrefix.length);
+            console.log(`🔧 ExtensionActivator: 归一化外部插件入口 ${main} -> ${normalized}`);
+            return normalized;
+        }
+
+        return main;
     }
 
     private _resolveExtensionPath(descriptor: ExtensionDescriptor): string | null {
