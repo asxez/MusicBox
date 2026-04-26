@@ -42,7 +42,7 @@ import '@extensions/api/index.js';
 // ============================================
 import '@components/component/ArtistsPage.js';
 import '@components/component/AlbumsPage';
-import '@components/component/ContextMenu.js';
+import '@components/component/ContextMenu';
 import '@components/component/EqualizerComponent.js';
 import '@components/component/HomePage';
 import '@components/component/Lyrics.js';

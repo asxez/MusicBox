@@ -3,11 +3,27 @@
  */
 
 import {Component} from "@components/base/Component";
+import type {Track} from "@api/types/library";
 
 class ContextMenu extends Component {
-    constructor(element) {
+    declare element: HTMLElement;
+    private isVisible: boolean;
+    private currentTrack: Track | null;
+    private currentIndex: number;
+    private selectedTracks: Set<number> | null;
+    private listenersSetup: boolean;
+    private menu!: HTMLElement;
+    private playItem!: HTMLElement;
+    private addToPlaylistItem!: HTMLElement;
+    private addToCustomPlaylistItem!: HTMLElement;
+    private editInfoItem!: HTMLElement;
+    private deleteItem!: HTMLElement;
+    private batchDeleteItem!: HTMLElement;
+    private batchDeleteLabel!: HTMLElement;
+
+    constructor(element: HTMLElement | null) {
         super(element);
-        this.element = element;
+        this.element = element as HTMLElement;
         this.isVisible = false;
         this.currentTrack = null;
         this.currentIndex = -1;
@@ -15,7 +31,7 @@ class ContextMenu extends Component {
         this.listenersSetup = false;
     }
 
-    show(x, y, track, index, selectedTracks = null) {
+    show(x: number, y: number, track: Track, index: number, selectedTracks: Set<number> | null = null): void {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupEventListeners();
@@ -57,7 +73,7 @@ class ContextMenu extends Component {
         }
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
         this.menu.style.display = 'none';
         this.currentTrack = null;
@@ -65,23 +81,23 @@ class ContextMenu extends Component {
         this.selectedTracks = null;
     }
 
-    destroy() {
+    destroy(): void {
         this.listenersSetup = false;
-        return super.destroy();
+        super.destroy();
     }
 
-    setupElements() {
+    setupElements(): void {
         this.menu = this.element;
-        this.playItem = this.element.querySelector('#context-play');
-        this.addToPlaylistItem = this.element.querySelector('#context-add-to-playlist');
-        this.addToCustomPlaylistItem = this.element.querySelector('#context-add-to-custom-playlist');
-        this.editInfoItem = this.element.querySelector('#context-edit-info');
-        this.deleteItem = this.element.querySelector('#context-delete');
-        this.batchDeleteItem = this.element.querySelector('#context-batch-delete');
-        this.batchDeleteLabel = this.element.querySelector('#context-batch-delete-label');
+        this.playItem = this.element.querySelector('#context-play') as HTMLElement;
+        this.addToPlaylistItem = this.element.querySelector('#context-add-to-playlist') as HTMLElement;
+        this.addToCustomPlaylistItem = this.element.querySelector('#context-add-to-custom-playlist') as HTMLElement;
+        this.editInfoItem = this.element.querySelector('#context-edit-info') as HTMLElement;
+        this.deleteItem = this.element.querySelector('#context-delete') as HTMLElement;
+        this.batchDeleteItem = this.element.querySelector('#context-batch-delete') as HTMLElement;
+        this.batchDeleteLabel = this.element.querySelector('#context-batch-delete-label') as HTMLElement;
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         this.addEventListenerManaged(this.playItem, 'click', () => {
             this.emit('play', {track: this.currentTrack, index: this.currentIndex});
             this.hide();
@@ -113,15 +129,16 @@ class ContextMenu extends Component {
         });
 
         // 点击其他区域
-        this.addEventListenerManaged(document, 'click', (e) => {
-            if (this.isVisible && !this.menu.contains(e.target)) {
+        this.addEventListenerManaged(document, 'click', (e: Event) => {
+            if (this.isVisible && e.target instanceof Node && !this.menu.contains(e.target)) {
                 this.hide();
             }
         });
 
         // ESC
-        this.addEventListenerManaged(document, 'keydown', (e) => {
-            if (e.key === 'Escape' && this.isVisible) {
+        this.addEventListenerManaged(document, 'keydown', (e: Event) => {
+            const event = e as KeyboardEvent;
+            if (event.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
         });
