@@ -5,78 +5,142 @@
 import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
 import {libraryAPI, userDataAPI} from "@js/api";
+import type {Track} from "@api/types/library";
+import type {DiaryData, MoodData} from "@api/types/userdata";
+
+interface RecentTrack extends Track {
+    playTime?: number;
+}
+
+type PlayCountStats = Record<string, number>;
+
+interface MostPlayedTrack {
+    title: string;
+    artist: string;
+    album: string;
+    playCount: number;
+}
+
+interface PlayStats {
+    totalTracks: number;
+    totalDuration: number;
+    favoriteArtist: string;
+    uniqueArtists: number;
+    uniqueAlbums: number;
+    totalPlayedSongs: number;
+    totalPlayedDuration: number;
+    mostPlayedTracks: MostPlayedTrack[];
+    totalPlayCount: number;
+}
+
+type MoodKey = 'happy' | 'calm' | 'sad' | 'excited' | 'relaxed' | 'nostalgic';
+
+interface MoodStat {
+    mood: string;
+    emoji: string;
+    name: string;
+    count: number;
+    percentage: string;
+}
+
+interface DiaryEntry extends DiaryData {
+    currentTrack?: string;
+}
+
+const EMPTY_PLAY_STATS: PlayStats = {
+    totalTracks: 0,
+    totalDuration: 0,
+    favoriteArtist: '暂无',
+    uniqueArtists: 0,
+    uniqueAlbums: 0,
+    totalPlayedSongs: 0,
+    totalPlayedDuration: 0,
+    mostPlayedTracks: [],
+    totalPlayCount: 0
+};
 
 class StatisticsPage extends Component {
-    constructor(container) {
+    private container: Element | null;
+    private tracks: Track[];
+    private recentTracks: RecentTrack[];
+    private playStats: PlayStats;
+    private moodHistory: MoodData[];
+    private diaryHistory: DiaryEntry[];
+    private listenersSetup: boolean;
+
+    constructor(container: string | Element | null) {
         super(container);
+        this.container = this.element;
         this.tracks = [];
         this.recentTracks = [];
-        this.playStats = {};
+        this.playStats = {...EMPTY_PLAY_STATS};
         this.moodHistory = [];
         this.diaryHistory = [];
         this.listenersSetup = false;
     }
 
-    async show() {
+    async show(): Promise<void> {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupAPIListeners();
             this.listenersSetup = true;
         }
         if (this.element) {
-            this.element.style.display = 'block';
+            (this.element as HTMLElement).style.display = 'block';
         }
         this.tracks = await libraryAPI.getTracks();
         this.loadPlayHistory();
         this.moodHistory = await userDataAPI.getMoodHistory();
-        this.diaryHistory = await userDataAPI.getDiaryHistory();
+        this.diaryHistory = await userDataAPI.getDiaryHistory() as DiaryEntry[];
         this.calculatePlayStats();
         this.render();
     }
 
-    hide() {
+    hide(): void {
         if (this.container) {
             this.container.innerHTML = '';
         }
     }
 
-    destroy() {
+    destroy(): void {
         this.tracks.length = 0;
         this.recentTracks.length = 0;
-        this.playStats = {};
+        this.playStats = {...EMPTY_PLAY_STATS};
         this.listenersSetup = false;
-        return super.destroy();
+        super.destroy();
     }
 
-    setupElements() {
+    setupElements(): void {
         this.container = this.element;
     }
 
-    setupAPIListeners() {
+    setupAPIListeners(): void {
         // 监听音乐库更新
-        this.addAPIEventListenerManaged('libraryUpdated', (tracks) => {
-            this.tracks = tracks;
+        this.addAPIEventListenerManaged('libraryUpdated', (tracks: Track[]) => {
+            this.tracks = tracks || [];
         });
 
         // 监听播放历史更新
-        this.addAPIEventListenerManaged('trackChanged', (track) => {
-            this.updatePlayHistory(track);
+        this.addAPIEventListenerManaged('trackChanged', (track: Track | null) => {
+            this.updatePlayHistory(track as RecentTrack | null);
         });
     }
 
-    loadPlayHistory() {
-        const history = cacheManager.getLocalCache('musicbox-play-history')
-        if (history) {
-            try {
+    loadPlayHistory(): void {
+        try {
+            const history = cacheManager.getLocalCache<RecentTrack[]>('musicbox-play-history');
+            if (Array.isArray(history)) {
                 this.recentTracks = history.slice(0, 50);
-            } catch (error) {
-                console.error('加载播放历史失败:', error);
+            } else {
                 this.recentTracks = [];
             }
+        } catch (error) {
+            console.error('加载播放历史失败:', error);
+            this.recentTracks = [];
         }
     }
 
-    updatePlayHistory(track) {
+    updatePlayHistory(track: RecentTrack | null): void {
         if (!track || !track.filePath) return;
         this.loadPlayHistory();
         this.updatePlayCount(track);
@@ -84,7 +148,7 @@ class StatisticsPage extends Component {
     }
 
     // 更新播放次数统计
-    updatePlayCount(track) {
+    updatePlayCount(track: Track | null): void {
         if (!track || !track.filePath) return;
 
         try {
@@ -103,9 +167,9 @@ class StatisticsPage extends Component {
     }
 
     // 加载播放次数统计
-    loadPlayCountStats() {
+    loadPlayCountStats(): PlayCountStats {
         try {
-            return cacheManager.getLocalCache('musicbox-play-count-stats') || {};
+            return cacheManager.getLocalCache<PlayCountStats>('musicbox-play-count-stats') || {};
         } catch (error) {
             console.error('❌ StatisticsPage: 加载播放次数统计失败:', error);
             return {};
@@ -113,12 +177,12 @@ class StatisticsPage extends Component {
     }
 
     // 生成歌曲唯一标识
-    getTrackKey(track) {
+    getTrackKey(track: Track): string {
         return `${track.title || 'Unknown'}_${track.artist || 'Unknown'}_${track.album || 'Unknown'}`;
     }
 
     // 获取最常播放的歌曲
-    getMostPlayedTracks(playCountStats, limit = 10) {
+    getMostPlayedTracks(playCountStats: PlayCountStats, limit = 10): MostPlayedTrack[] {
         return Object.entries(playCountStats)
             .sort(([, a], [, b]) => b - a)
             .slice(0, limit)
@@ -133,7 +197,7 @@ class StatisticsPage extends Component {
             });
     }
 
-    calculatePlayStats() {
+    calculatePlayStats(): void {
         const playCountStats = this.loadPlayCountStats();
         const totalPlayedSongs = this.recentTracks.length;
         const totalPlayedDuration = this.recentTracks.reduce((sum, track) => sum + (track.duration || 0), 0);
@@ -153,8 +217,8 @@ class StatisticsPage extends Component {
         };
     }
 
-    getMostPlayedArtist() {
-        const artistCounts = {};
+    getMostPlayedArtist(): string {
+        const artistCounts: Record<string, number> = {};
         this.recentTracks.forEach(track => {
             if (track.artist) {
                 artistCounts[track.artist] = (artistCounts[track.artist] || 0) + 1;
@@ -172,8 +236,8 @@ class StatisticsPage extends Component {
         return favoriteArtist;
     }
 
-    getUniqueArtists() {
-        const artists = new Set();
+    getUniqueArtists(): string[] {
+        const artists = new Set<string>();
         this.tracks.forEach(track => {
             if (track.artist) {
                 artists.add(track.artist);
@@ -182,8 +246,8 @@ class StatisticsPage extends Component {
         return Array.from(artists);
     }
 
-    getUniqueAlbums() {
-        const albums = new Set();
+    getUniqueAlbums(): string[] {
+        const albums = new Set<string>();
         this.tracks.forEach(track => {
             if (track.album) {
                 albums.add(track.album);
@@ -192,7 +256,7 @@ class StatisticsPage extends Component {
         return Array.from(albums);
     }
 
-    formatDuration(seconds) {
+    formatDuration(seconds: number): string {
         if (seconds < 3600) {
             const minutes = Math.floor(seconds / 60);
             return `${minutes}分钟`;
@@ -203,9 +267,9 @@ class StatisticsPage extends Component {
         }
     }
 
-    getMoodStats() {
-        const moodCounts = {};
-        const moodEmojis = {
+    getMoodStats(): MoodStat[] {
+        const moodCounts: Record<string, number> = {};
+        const moodEmojis: Record<MoodKey, string> = {
             happy: '😊',
             calm: '😌',
             sad: '😢',
@@ -213,7 +277,7 @@ class StatisticsPage extends Component {
             relaxed: '😎',
             nostalgic: '🥺'
         };
-        const moodNames = {
+        const moodNames: Record<MoodKey, string> = {
             happy: '开心',
             calm: '平静',
             sad: '忧伤',
@@ -230,17 +294,17 @@ class StatisticsPage extends Component {
             .sort(([, a], [, b]) => b - a)
             .map(([mood, count]) => ({
                 mood,
-                emoji: moodEmojis[mood] || '😊',
-                name: moodNames[mood] || mood,
+                emoji: moodEmojis[mood as MoodKey] || '😊',
+                name: moodNames[mood as MoodKey] || mood,
                 count,
                 percentage: ((count / this.moodHistory.length) * 100).toFixed(1)
             }));
     }
 
-    formatDate(timestamp) {
+    formatDate(timestamp: number): string {
         const date = new Date(timestamp);
         const now = new Date();
-        const diff = now - date;
+        const diff = now.getTime() - date.getTime();
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
         if (days === 0) return '今天';
@@ -251,7 +315,7 @@ class StatisticsPage extends Component {
         return `${Math.floor(days / 365)}年前`;
     }
 
-    render() {
+    render(): void {
         if (!this.container) return;
 
         const moodStats = this.getMoodStats();

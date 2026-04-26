@@ -56,7 +56,7 @@ import '@components/component/PluginManagerModal.js';
 import '@components/component/RecentPage';
 import '@components/component/Search.js';
 import '@components/component/Settings.js';
-import '@components/component/StatisticsPage.js';
+import '@components/component/StatisticsPage';
 import '@components/component/TrackList.js';
 import '@components/component/UpdateModal';
 
