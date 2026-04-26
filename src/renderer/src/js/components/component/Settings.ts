@@ -6,6 +6,7 @@ import {showToast} from '@utils/index.js';
 import {appInfoSettingsService} from "@services/settings/AppInfoSettingsService";
 import {audioEngineSettingsService} from "@services/settings/AudioEngineSettingsService";
 import {cacheMaintenanceService} from "@services/settings/CacheMaintenanceService";
+import {cacheSettingsService} from "@services/settings/CacheSettingsService";
 import {displayModeSettingsService} from "@services/settings/DisplayModeSettingsService";
 import {embeddedLyricsDiagnosticsService} from "@services/settings/EmbeddedLyricsDiagnosticsService";
 import {hardwareAccelerationSettingsService} from "@services/settings/HardwareAccelerationSettingsService";
@@ -860,17 +861,12 @@ class Settings extends Component {
             this.viewCacheStatsBtn.disabled = true;
             this.viewCacheStatsBtn.textContent = '获取中...';
 
-            const stats = await cacheMaintenanceService.getStatistics();
-            if (stats) {
-                const totalSizeMB = (stats.totalSize / (1024 * 1024)).toFixed(2);
-                const cacheAgeDays = Math.floor((stats.cacheAge || 0) / (1000 * 60 * 60 * 24));
-
-                this.cacheStatsDescription.textContent =
-                    `缓存了 ${stats.totalTracks} 个音乐文件，总大小 ${totalSizeMB} MB，已扫描 ${stats.scannedDirectories || 0} 个目录，缓存时间 ${cacheAgeDays} 天`;
-
-                showToast(`缓存统计: ${stats.totalTracks} 个文件，${totalSizeMB} MB`, 'info');
+            const display = await cacheSettingsService.getStatisticsDisplay();
+            if (display.success) {
+                this.cacheStatsDescription.textContent = display.description || '';
+                showToast(display.toastMessage || '缓存统计已更新', 'info');
             } else {
-                showToast('获取缓存统计失败', 'error');
+                showToast(display.error || '获取缓存统计失败', 'error');
             }
         } catch (error) {
             console.error('❌ 获取缓存统计失败:', error);
@@ -887,12 +883,11 @@ class Settings extends Component {
             this.validateCacheBtn.textContent = '验证中...';
             showToast('开始验证缓存，请稍候...', 'info');
 
-            const result = await cacheMaintenanceService.validate();
-            if (result) {
-                const message = `缓存验证完成 - 有效: ${result.valid}, 无效: ${result.invalid}, 已修改: ${result.modified}`;
-                showToast(message, 'success');
+            const result = await cacheSettingsService.validateCache();
+            if (result.success) {
+                showToast(result.message, 'success');
             } else {
-                showToast('缓存验证失败', 'error');
+                showToast(result.message, 'error');
             }
         } catch (error) {
             console.error('缓存验证失败:', error);
@@ -919,12 +914,12 @@ class Settings extends Component {
             this.clearCacheBtn.disabled = true;
             this.clearCacheBtn.textContent = '清空中...';
 
-            const success = await cacheMaintenanceService.clear();
-            if (success) {
-                showToast('缓存已清空', 'success');
-                this.cacheStatsDescription.textContent = '缓存已清空';
+            const result = await cacheSettingsService.clearCache();
+            if (result.success) {
+                showToast(result.message, 'success');
+                this.cacheStatsDescription.textContent = result.description || '';
             } else {
-                showToast('清空缓存失败', 'error');
+                showToast(result.message, 'error');
             }
         } catch (error) {
             console.error('清空缓存失败:', error);
