@@ -7,9 +7,52 @@ import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
 import {coverAPI, fileAPI} from "@js/api";
+import type {Playlist, Track} from "@api/types/library";
+
+type PlaylistDetailTrack = Track & {
+    fileId?: string;
+    fileName?: string;
+};
+
+type PlaylistDetail = Partial<Playlist> & {
+    id: string;
+    name: string;
+    description?: string;
+    createdAt?: number | string | Date;
+    trackIds?: string[];
+    trackCount?: number;
+    coverImage?: string | null;
+};
+
+interface CoverResult {
+    success?: boolean;
+    imageUrl?: string;
+    type?: string;
+    filePath?: string;
+    error?: string;
+}
+
+interface AddTracksResult {
+    success: boolean;
+    error?: string;
+    successCount?: number;
+    failCount?: number;
+    errors?: string[];
+    totalCount?: number;
+}
 
 class PlaylistDetailPage extends Component {
-    constructor(container) {
+    public isVisible: boolean;
+    public currentPlaylist: PlaylistDetail | null;
+    public tracks: PlaylistDetailTrack[];
+    public selectedTracks: Set<number>;
+    private container: HTMLElement | null;
+    private isMultiSelectMode: boolean;
+    private lastSelectedIndex: number;
+    private showCovers: boolean;
+    private documentClickHandler: ((event: MouseEvent) => void) | null;
+
+    constructor(container: string | Element | null) {
         super(container);
         this.isVisible = false;
         this.currentPlaylist = null;
@@ -17,6 +60,8 @@ class PlaylistDetailPage extends Component {
         this.selectedTracks = new Set();
         this.isMultiSelectMode = false;
         this.lastSelectedIndex = -1;
+        this.container = this.element instanceof HTMLElement ? this.element : null;
+        this.documentClickHandler = null;
 
         // 获取封面显示设置
         this.showCovers = this.getShowCoversSettings();
@@ -25,11 +70,11 @@ class PlaylistDetailPage extends Component {
         this.setupSettingsListener();
     }
 
-    async show(playlist) {
+    async show(playlist: PlaylistDetail): Promise<void> {
         this.isVisible = true;
         this.currentPlaylist = playlist;
 
-        if (this.element) {
+        if (this.element instanceof HTMLElement) {
             // 预设样式，减少可见的样式变换
             this.element.style.display = 'block';
             this.element.style.opacity = '0';
@@ -42,16 +87,17 @@ class PlaylistDetailPage extends Component {
         this.render();
 
         // 平滑显示页面
-        if (this.element) {
+        if (this.element instanceof HTMLElement) {
+            const element = this.element;
             requestAnimationFrame(() => {
-                this.element.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                this.element.style.opacity = '1';
-                this.element.style.transform = 'translateY(0)';
+                element.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                element.style.opacity = '1';
+                element.style.transform = 'translateY(0)';
             });
         }
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
         this.currentPlaylist = null;
         this.tracks = [];
@@ -67,20 +113,20 @@ class PlaylistDetailPage extends Component {
         }
     }
 
-    setupElements() {
-        this.container = this.element;
+    setupElements(): void {
+        this.container = this.element instanceof HTMLElement ? this.element : null;
     }
 
-    getShowCoversSettings() {
-        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
-        return settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
+    getShowCoversSettings(): boolean {
+        const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as Record<string, boolean>;
+        return Object.prototype.hasOwnProperty.call(settings, 'showTrackCovers') ? settings.showTrackCovers : true;
     }
 
-    setupSettingsListener() {
+    setupSettingsListener(): void {
         // 延迟设置监听器，确保app.components.settings已初始化
         const setupListener = () => {
             if (app && app.components && app.components.settings) {
-                app.components.settings.on('showTrackCoversEnabled', (enabled) => {
+                app.components.settings.on('showTrackCoversEnabled', (enabled: boolean) => {
                     this.showCovers = enabled;
                     if (this.isVisible) {
                         this.render(); // 重新渲染列表
@@ -94,10 +140,10 @@ class PlaylistDetailPage extends Component {
         setupListener();
     }
 
-    render() {
+    render(): void {
         if (!this.currentPlaylist || !this.container) return;
 
-        const createdDate = new Date(this.currentPlaylist.createdAt);
+        const createdDate = new Date(this.currentPlaylist.createdAt || Date.now());
         // 使用实际加载的tracks数量，确保UI状态与数据一致
         const trackCount = this.tracks ? this.tracks.length : (this.currentPlaylist.trackIds ? this.currentPlaylist.trackIds.length : 0);
         const totalDuration = this.calculateTotalDuration();
@@ -241,7 +287,8 @@ class PlaylistDetailPage extends Component {
         this.setupTrackListEvents();
     }
 
-    setupDynamicEventListeners() {
+    setupDynamicEventListeners(): void {
+        if (!this.container) return;
         // 播放全部按钮
         const playAllBtn = this.container.querySelector('#playlist-play-all');
         if (playAllBtn) playAllBtn.addEventListener('click', () => this.playAllTracks());
@@ -270,7 +317,7 @@ class PlaylistDetailPage extends Component {
         const menuBtn = this.container.querySelector('#playlist-menu');
         const menuDropdown = this.container.querySelector('#playlist-menu-dropdown');
         if (menuBtn && menuDropdown) {
-            menuBtn.addEventListener('click', (e) => {
+            menuBtn.addEventListener('click', (e: Event) => {
                 e.stopPropagation();
                 menuDropdown.classList.toggle('show');
             });
@@ -294,7 +341,7 @@ class PlaylistDetailPage extends Component {
     }
 
     // 设置document点击监听器，避免重复绑定
-    setupDocumentClickHandler(menuDropdown) {
+    setupDocumentClickHandler(menuDropdown: Element): void {
         // 先移除旧的监听器
         if (this.documentClickHandler) {
             document.removeEventListener('click', this.documentClickHandler);
@@ -309,7 +356,8 @@ class PlaylistDetailPage extends Component {
         document.addEventListener('click', this.documentClickHandler);
     }
 
-    async loadPlaylistCover() {
+    async loadPlaylistCover(): Promise<void> {
+        if (!this.currentPlaylist) return;
         try {
             const result = await api.getPlaylistCover(this.currentPlaylist.id);
             if (result.success && result.coverPath) {
@@ -323,19 +371,21 @@ class PlaylistDetailPage extends Component {
         }
     }
 
-    async loadPlaylistTracks() {
+    async loadPlaylistTracks(): Promise<void> {
+        if (!this.currentPlaylist) return;
         try {
             const result = await window.electronAPI.library.getPlaylistDetail(this.currentPlaylist.id);
             if (result.success) {
-                this.tracks = result.tracks || result.playlist?.tracks || [];
+                this.tracks = (result.tracks || result.playlist?.tracks || []) as PlaylistDetailTrack[];
 
                 // 同步更新currentPlaylist对象，确保UI状态正确
                 if (result.playlist) {
-                    this.currentPlaylist.trackIds = result.playlist.trackIds || [];
+                    const playlistDetail = result.playlist as PlaylistDetail;
+                    this.currentPlaylist.trackIds = playlistDetail.trackIds || [];
                     this.currentPlaylist.trackCount = this.tracks.length;
                     // 如果有其他需要同步的属性，也在这里更新
-                    if (result.playlist.name) this.currentPlaylist.name = result.playlist.name;
-                    if (result.playlist.description !== undefined) this.currentPlaylist.description = result.playlist.description;
+                    if (playlistDetail.name) this.currentPlaylist.name = playlistDetail.name;
+                    if (playlistDetail.description !== undefined) this.currentPlaylist.description = playlistDetail.description;
                 }
 
                 this.render();
@@ -357,7 +407,7 @@ class PlaylistDetailPage extends Component {
         }
     }
 
-    renderTrackList() {
+    renderTrackList(): string {
         if (this.tracks.length === 0) {
             return `
                 <div class="playlist-empty-state">
@@ -450,7 +500,8 @@ class PlaylistDetailPage extends Component {
         `;
     }
 
-    setupTrackListEvents() {
+    setupTrackListEvents(): void {
+        if (!this.container) return;
         const trackListContainer = this.container.querySelector('#playlist-track-list');
         if (!trackListContainer) {
             console.warn('⚠️ PlaylistDetailPage: 未找到歌曲列表容器');
@@ -469,14 +520,15 @@ class PlaylistDetailPage extends Component {
         }
 
         // 添加事件监听
-        trackRows.forEach(item => {
-            const index = parseInt(item.dataset.trackIndex);
+        trackRows.forEach((item) => {
+            const row = item as HTMLElement;
+            const index = parseInt(row.dataset.trackIndex || '0');
             const track = this.tracks[index];
 
             // 主要点击事件
-            item.addEventListener('click', async (e) => {
+            row.addEventListener('click', async (e: MouseEvent) => {
                 // 如果点击的是操作按钮，不处理
-                if (e.target.closest('.track-action-btn')) {
+                if ((e.target as HTMLElement | null)?.closest('.track-action-btn')) {
                     return;
                 }
 
@@ -491,14 +543,14 @@ class PlaylistDetailPage extends Component {
             });
 
             // 双击播放
-            item.addEventListener('dblclick', async (e) => {
-                if (!e.target.closest('.track-action-btn')) {
+            row.addEventListener('dblclick', async (e: MouseEvent) => {
+                if (!(e.target as HTMLElement | null)?.closest('.track-action-btn')) {
                     await this.playTrack(track, index);
                 }
             });
 
             // 右键菜单
-            item.addEventListener('contextmenu', (e) => {
+            row.addEventListener('contextmenu', (e: MouseEvent) => {
                 e.preventDefault();
                 // 右键点击的条目若不在选中集合中，则先选中它
                 if (!this.selectedTracks.has(index)) {
@@ -512,7 +564,7 @@ class PlaylistDetailPage extends Component {
             });
 
             // 操作按钮
-            const likeBtn = item.querySelector('[data-action="like"]');
+            const likeBtn = row.querySelector('[data-action="like"]');
             if (likeBtn) {
                 likeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -520,7 +572,7 @@ class PlaylistDetailPage extends Component {
                 });
             }
 
-            const removeBtn = item.querySelector('[data-action="remove"]');
+            const removeBtn = row.querySelector('[data-action="remove"]');
             if (removeBtn) {
                 removeBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
@@ -533,11 +585,11 @@ class PlaylistDetailPage extends Component {
             }
 
             // 标记该行已绑定事件，防止重复绑定
-            item.setAttribute('data-events-bound', 'true');
+            row.setAttribute('data-events-bound', 'true');
         });
     }
 
-    async playTrack(track, index) {
+    async playTrack(track: PlaylistDetailTrack, index: number): Promise<void> {
         try {
             app.components.playlist.setTracks(this.tracks, index);
             await app.playTrackFromPlaylist(track, index);
@@ -546,7 +598,7 @@ class PlaylistDetailPage extends Component {
         }
     }
 
-    async playAllTracks() {
+    async playAllTracks(): Promise<void> {
         if (this.tracks.length === 0) {
             app.showInfo('歌单为空，无法播放');
             return;
@@ -554,7 +606,7 @@ class PlaylistDetailPage extends Component {
         this.emit('playAllTracks', this.tracks);
     }
 
-    async shufflePlayTracks() {
+    async shufflePlayTracks(): Promise<void> {
         if (this.tracks.length === 0) {
             app.showInfo('歌单为空，无法播放');
             return;
@@ -565,12 +617,12 @@ class PlaylistDetailPage extends Component {
         this.emit('playAllTracks', shuffledTracks);
     }
 
-    showAddSongsDialog() {
+    showAddSongsDialog(): void {
         this.emit('showAddSongsDialog', this.currentPlaylist);
     }
 
     // 从文件夹添加音乐
-    async addFromFolder() {
+    async addFromFolder(): Promise<void> {
         try {
             // 显示进度提示
             app.showInfo('正在选择文件夹...');
@@ -619,7 +671,7 @@ class PlaylistDetailPage extends Component {
         }
     }
 
-    async clearPlaylist() {
+    async clearPlaylist(): Promise<void> {
         if (!this.currentPlaylist || !this.tracks.length) return;
 
         const confirmMessage = `确定要清空歌单"${this.currentPlaylist.name}"吗？\n这将移除歌单中的所有 ${this.tracks.length} 首歌曲，此操作无法撤销。`;
@@ -636,7 +688,7 @@ class PlaylistDetailPage extends Component {
 
         try {
             // 批量移除所有歌曲
-            const trackIds = this.tracks.map(track => track.fileId);
+            const trackIds = this.tracks.map((track) => track.fileId).filter((fileId): fileId is string => Boolean(fileId));
             const result = await window.electronAPI.library.removeFromPlaylist(
                 this.currentPlaylist.id,
                 trackIds
@@ -659,7 +711,7 @@ class PlaylistDetailPage extends Component {
     }
 
     // 多选功能方法
-    toggleTrackSelection(index) {
+    toggleTrackSelection(index: number): void {
         if (this.selectedTracks.has(index)) {
             this.selectedTracks.delete(index);
         } else {
@@ -670,7 +722,7 @@ class PlaylistDetailPage extends Component {
         this.updateTrackSelectionUI();
     }
 
-    selectTrackRange(endIndex) {
+    selectTrackRange(endIndex: number): void {
         const startIndex = this.lastSelectedIndex >= 0 ? this.lastSelectedIndex : endIndex;
         const min = Math.min(startIndex, endIndex);
         const max = Math.max(startIndex, endIndex);
@@ -681,7 +733,7 @@ class PlaylistDetailPage extends Component {
         this.updateTrackSelectionUI();
     }
 
-    selectAllTracks() {
+    selectAllTracks(): void {
         this.selectedTracks.clear();
         for (let i = 0; i < this.tracks.length; i++) {
             this.selectedTracks.add(i);
@@ -690,20 +742,21 @@ class PlaylistDetailPage extends Component {
         this.updateTrackSelectionUI();
     }
 
-    clearSelection() {
+    clearSelection(): void {
         this.selectedTracks.clear();
         this.lastSelectedIndex = -1;
         this.updateMultiSelectMode();
         this.updateTrackSelectionUI();
     }
 
-    updateMultiSelectMode() {
+    updateMultiSelectMode(): void {
+        if (!this.container) return;
         this.isMultiSelectMode = this.selectedTracks.size > 0;
 
         // 更新清除选择按钮的显示状态
         const clearSelectionBtn = this.container.querySelector('#clear-selection');
         if (clearSelectionBtn) {
-            clearSelectionBtn.style.display = this.isMultiSelectMode ? 'block' : 'none';
+            (clearSelectionBtn as HTMLElement).style.display = this.isMultiSelectMode ? 'block' : 'none';
         }
 
         // 更新全选按钮文本
@@ -711,27 +764,29 @@ class PlaylistDetailPage extends Component {
         if (selectAllBtn) {
             if (this.selectedTracks.size === this.tracks.length && this.tracks.length > 0) {
                 selectAllBtn.textContent = '取消全选';
-                selectAllBtn.onclick = () => this.clearSelection();
+                (selectAllBtn as HTMLElement).onclick = () => this.clearSelection();
             } else {
                 selectAllBtn.textContent = '全选';
-                selectAllBtn.onclick = () => this.selectAllTracks();
+                (selectAllBtn as HTMLElement).onclick = () => this.selectAllTracks();
             }
         }
     }
 
-    updateTrackSelectionUI() {
+    updateTrackSelectionUI(): void {
+        if (!this.container) return;
         const trackItems = this.container.querySelectorAll('.track-row');
         trackItems.forEach((item) => {
-            const index = parseInt(item.dataset.trackIndex);
+            const row = item as HTMLElement;
+            const index = parseInt(row.dataset.trackIndex || '0');
             if (this.selectedTracks.has(index)) {
-                item.classList.add('selected');
+                row.classList.add('selected');
             } else {
-                item.classList.remove('selected');
+                row.classList.remove('selected');
             }
         });
     }
 
-    async removeSelectedTracks() {
+    async removeSelectedTracks(): Promise<void> {
         if (this.selectedTracks.size === 0) return;
 
         const selectedCount = this.selectedTracks.size;
@@ -756,8 +811,8 @@ class PlaylistDetailPage extends Component {
                 if (track) {
                     try {
                         const result = await window.electronAPI.library.removeFromPlaylist(
-                            this.currentPlaylist.id,
-                            track.fileId
+                            this.currentPlaylist!.id,
+                            track.fileId ? [track.fileId] : []
                         );
 
                         if (result.success) {
@@ -792,21 +847,21 @@ class PlaylistDetailPage extends Component {
         }
     }
 
-    toggleTrackLike(track, _index) {
+    toggleTrackLike(track: PlaylistDetailTrack, _index: number): void {
         // 可以实现喜欢/取消喜欢功能
         console.log('🎵 切换歌曲喜欢状态:', track.title);
         // TODO: 实现喜欢功能
     }
 
-    async removeTrackFromPlaylist(track, _index) {
+    async removeTrackFromPlaylist(track: PlaylistDetailTrack, _index: number): Promise<void> {
         if (!confirm(`确定要从歌单中移除 "${track.title}" 吗？`)) {
             return;
         }
 
         try {
             const result = await window.electronAPI.library.removeFromPlaylist(
-                this.currentPlaylist.id,
-                track.fileId
+                this.currentPlaylist!.id,
+                track.fileId ? [track.fileId] : []
             );
 
             if (result.success) {
@@ -824,7 +879,7 @@ class PlaylistDetailPage extends Component {
         }
     }
 
-    calculateTotalDuration() {
+    calculateTotalDuration(): number {
         if (!this.tracks || this.tracks.length === 0) return 0;
 
         return this.tracks.reduce((total, track) => {
@@ -832,7 +887,7 @@ class PlaylistDetailPage extends Component {
         }, 0);
     }
 
-    formatTotalDuration(totalSeconds) {
+    formatTotalDuration(totalSeconds: number): string {
         if (!totalSeconds || totalSeconds <= 0) return '0 分钟';
 
         const hours = Math.floor(totalSeconds / 3600);
@@ -845,7 +900,7 @@ class PlaylistDetailPage extends Component {
         }
     }
 
-    formatDuration(duration) {
+    formatDuration(duration?: number): string {
         if (!duration || duration <= 0) return '--:--';
 
         const minutes = Math.floor(duration / 60);
@@ -853,13 +908,13 @@ class PlaylistDetailPage extends Component {
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
 
-    escapeHtml(text) {
+    escapeHtml(text: unknown): string {
         const div = document.createElement('div');
-        div.textContent = text;
+        div.textContent = String(text ?? '');
         return div.innerHTML;
     }
 
-    getTrackCover(track) {
+    getTrackCover(track: PlaylistDetailTrack): string {
         // 优先使用已缓存的封面
         if (track.cover && typeof track.cover === 'string') {
             return track.cover;
@@ -870,13 +925,13 @@ class PlaylistDetailPage extends Component {
         return 'assets/images/default-cover.svg';
     }
 
-    async loadTrackCoverAsync(track) {
+    async loadTrackCoverAsync(track: PlaylistDetailTrack): Promise<void> {
         try {
             // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
             const loadCover = async () => {
                 const coverResult = await coverAPI.getCover(
                     track.title, track.artist, track.album, track.filePath
-                );
+                ) as CoverResult;
 
                 if (coverResult.success && coverResult.imageUrl && typeof coverResult.imageUrl === 'string') {
                     // // 确保路径格式正确，处理路径
@@ -898,12 +953,14 @@ class PlaylistDetailPage extends Component {
 
                     // 使用requestAnimationFrame确保DOM更新在下一帧进行
                     requestAnimationFrame(() => {
+                        if (!this.container) return;
                         const trackRows = this.container.querySelectorAll('.track-row');
                         trackRows.forEach((row, index) => {
-                            if (parseInt(row.dataset.trackIndex) === index && this.tracks[index] === track) {
-                                const coverImg = row.querySelector('.track-cover');
+                            const trackRow = row as HTMLElement;
+                            if (parseInt(trackRow.dataset.trackIndex || '0') === index && this.tracks[index] === track) {
+                                const coverImg = trackRow.querySelector<HTMLImageElement>('.track-cover');
                                 if (coverImg) {
-                                    coverImg.src = track.cover;
+                                    coverImg.src = track.cover || 'assets/images/default-cover.svg';
                                 }
                             }
                         });
@@ -925,7 +982,7 @@ class PlaylistDetailPage extends Component {
     }
 
     // 渲染歌单封面
-    renderPlaylistCover() {
+    renderPlaylistCover(): string {
         if (this.currentPlaylist && this.currentPlaylist.coverImage) {
             // 如果有自定义封面，显示自定义封面
             return `
@@ -944,22 +1001,25 @@ class PlaylistDetailPage extends Component {
     }
 
     // 设置封面右键菜单事件监听器
-    setupCoverContextMenu() {
+    setupCoverContextMenu(): void {
+        if (!this.container) return;
         const coverElement = this.container.querySelector('#playlist-cover');
         if (!coverElement) return;
 
         coverElement.addEventListener('contextmenu', (e) => {
+            const mouseEvent = e as MouseEvent;
             e.preventDefault();
-            this.showCoverContextMenu(e.clientX, e.clientY);
+            this.showCoverContextMenu(mouseEvent.clientX, mouseEvent.clientY);
         });
 
         coverElement.addEventListener('dblclick', (e) => {
-            this.showCoverContextMenu(e.clientX, e.clientY);
+            const mouseEvent = e as MouseEvent;
+            this.showCoverContextMenu(mouseEvent.clientX, mouseEvent.clientY);
         });
     }
 
     // 显示封面右键菜单
-    showCoverContextMenu(x, y) {
+    showCoverContextMenu(x: number, y: number): void {
         // 移除现有的菜单
         this.hideCoverContextMenu();
 
@@ -1020,8 +1080,8 @@ class PlaylistDetailPage extends Component {
         }
 
         // 点击外部关闭菜单
-        const closeMenu = (e) => {
-            if (!menu.contains(e.target)) {
+        const closeMenu = (e: MouseEvent) => {
+            if (!menu.contains(e.target as Node)) {
                 this.hideCoverContextMenu();
                 document.removeEventListener('click', closeMenu);
             }
@@ -1032,7 +1092,7 @@ class PlaylistDetailPage extends Component {
     }
 
     // 隐藏封面右键菜单
-    hideCoverContextMenu() {
+    hideCoverContextMenu(): void {
         const existingMenu = document.querySelector('.cover-context-menu');
         if (existingMenu) {
             existingMenu.remove();
@@ -1040,7 +1100,7 @@ class PlaylistDetailPage extends Component {
     }
 
     // 选择并设置封面
-    async selectAndSetCover() {
+    async selectAndSetCover(): Promise<void> {
         try {
             const result = await fileAPI.selectImageFile();
             if (result.success && result.path) {
@@ -1053,7 +1113,8 @@ class PlaylistDetailPage extends Component {
     }
 
     // 设置歌单封面
-    async setCover(imagePath) {
+    async setCover(imagePath: string): Promise<void> {
+        if (!this.currentPlaylist) return;
         try {
             if (!this.isValidImageFile(imagePath)) {
                 throw new Error('不支持的图片格式，请选择 JPG、PNG、GIF、WebP 或 BMP 格式的图片');
@@ -1075,12 +1136,13 @@ class PlaylistDetailPage extends Component {
                 throw new Error(result.error || '设置封面失败');
             }
         } catch (error) {
-            app.showError(error.message || '设置封面失败，请重试');
+            app.showError(getErrorMessage(error) || '设置封面失败，请重试');
         }
     }
 
     // 移除歌单封面
-    async removeCover() {
+    async removeCover(): Promise<void> {
+        if (!this.currentPlaylist) return;
         try {
             if (!confirm('确定要移除歌单封面吗？')) {
                 return;
@@ -1102,12 +1164,13 @@ class PlaylistDetailPage extends Component {
                 throw new Error(result.error || '移除封面失败');
             }
         } catch (error) {
-            app.showError(error.message || '移除封面失败，请重试');
+            app.showError(getErrorMessage(error) || '移除封面失败，请重试');
         }
     }
 
     // 更新封面显示
-    updateCoverDisplay() {
+    updateCoverDisplay(): void {
+        if (!this.container) return;
         const coverElement = this.container.querySelector('#playlist-cover');
         if (coverElement) {
             coverElement.innerHTML = this.renderPlaylistCover() + '<div class="cover-shadow"></div>';
@@ -1115,7 +1178,7 @@ class PlaylistDetailPage extends Component {
     }
 
     // 验证图片文件
-    isValidImageFile(filePath) {
+    isValidImageFile(filePath: unknown): filePath is string {
         if (!filePath || typeof filePath !== 'string') {
             return false;
         }
@@ -1125,13 +1188,13 @@ class PlaylistDetailPage extends Component {
         return validExtensions.includes(extension);
     }
 
-    showTrackContextMenu(x, y, track, index) {
+    showTrackContextMenu(x: number, y: number, track: PlaylistDetailTrack, index: number): void {
         const contextMenu = app.components.contextMenu;
         contextMenu.show(x, y, track, index, this.selectedTracks);
     }
 
     // 扫描文件夹中的音频文件
-    async scanFolderForAudioFiles(folderPath) {
+    async scanFolderForAudioFiles(folderPath: string): Promise<any[]> {
         try {
             const result = await window.electronAPI.library.scanDirectoryForFiles(folderPath);
             if (result && result.success && result.files) {
@@ -1147,7 +1210,7 @@ class PlaylistDetailPage extends Component {
     }
 
     // 批量添加音频文件到歌单
-    async addTracksToPlaylist(audioFiles) {
+    async addTracksToPlaylist(audioFiles: any[]): Promise<AddTracksResult> {
         try {
             if (!this.currentPlaylist || !audioFiles || audioFiles.length === 0) {
                 return {success: false, error: '无效的参数'};
@@ -1155,7 +1218,7 @@ class PlaylistDetailPage extends Component {
 
             let successCount = 0;
             let failCount = 0;
-            const errors = [];
+            const errors: string[] = [];
 
             // 批量处理音频文件
             for (const audioFile of audioFiles) {
@@ -1166,7 +1229,7 @@ class PlaylistDetailPage extends Component {
                         // 添加到歌单
                         const addToPlaylistResult = await window.electronAPI.library.addToPlaylist(
                             this.currentPlaylist.id,
-                            addToLibraryResult.track.fileId
+                            addToLibraryResult.track.fileId ? [addToLibraryResult.track.fileId] : []
                         );
 
                         if (addToPlaylistResult && addToPlaylistResult.success) {
@@ -1185,7 +1248,7 @@ class PlaylistDetailPage extends Component {
                     }
                 } catch (error) {
                     failCount++;
-                    const errorMsg = `处理文件失败: ${audioFile.fileName || audioFile.filePath} - ${error.message}`;
+                    const errorMsg = `处理文件失败: ${audioFile.fileName || audioFile.filePath} - ${getErrorMessage(error)}`;
                     errors.push(errorMsg);
                     console.error(`❌ ${errorMsg}`);
                 }
@@ -1202,12 +1265,16 @@ class PlaylistDetailPage extends Component {
             console.error('❌ 批量添加音频文件到歌单失败:', error);
             return {
                 success: false,
-                error: error.message || '批量添加失败',
+                error: getErrorMessage(error) || '批量添加失败',
                 successCount: 0,
                 failCount: audioFiles ? audioFiles.length : 0
             };
         }
     }
+}
+
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
 }
 
 export { PlaylistDetailPage };
