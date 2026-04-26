@@ -21,6 +21,8 @@ export class WindowAPI extends BaseAPI {
     private resizeTimeout: ReturnType<typeof setTimeout> | null = null;
     private readonly MIN_WIDTH = 440;
     private readonly MIN_HEIGHT = 120;
+    private readonly NORMAL_MIN_WIDTH = 1080;
+    private readonly NORMAL_MIN_HEIGHT = 720;
     private readonly MAX_WIDTH = 3840;
     private readonly MAX_HEIGHT = 2160;
 
@@ -62,6 +64,10 @@ export class WindowAPI extends BaseAPI {
      */
     async saveWindowSize(): Promise<void> {
         try {
+            if (document.body.classList.contains('mini-mode')) {
+                return;
+            }
+
             const isMaximized = await this.isMaximized();
             if (isMaximized) {
                 return;
@@ -70,7 +76,7 @@ export class WindowAPI extends BaseAPI {
             const size = await this.getSize();
             if (size && Array.isArray(size) && size.length === 2) {
                 const [width, height] = size;
-                if (this.isValidWindowSize(width, height)) {
+                if (this.isValidNormalWindowSize(width, height)) {
                     const sizeData: WindowSizeData = {
                         width,
                         height,
@@ -96,7 +102,7 @@ export class WindowAPI extends BaseAPI {
             }
 
             const {width, height} = savedSize;
-            if (this.isValidWindowSize(width, height)) {
+            if (this.isValidNormalWindowSize(width, height)) {
                 const result = await this.setSize(width, height);
                 if (!result || !result.success) {
                     cacheManager.removeLocalCache('mainWindow-size');
@@ -124,6 +130,15 @@ export class WindowAPI extends BaseAPI {
             width >= this.MIN_WIDTH &&
             width <= this.MAX_WIDTH &&
             height >= this.MIN_HEIGHT &&
+            height <= this.MAX_HEIGHT
+        );
+    }
+
+    isValidNormalWindowSize(width: number, height: number): boolean {
+        return (
+            width >= this.NORMAL_MIN_WIDTH &&
+            width <= this.MAX_WIDTH &&
+            height >= this.NORMAL_MIN_HEIGHT &&
             height <= this.MAX_HEIGHT
         );
     }
@@ -278,6 +293,40 @@ export class WindowAPI extends BaseAPI {
         return this.wrapIPC(
             () => window.electronAPI.window.setResizable(resizable),
             'window.setResizable'
+        );
+    }
+
+    async setMaximizable(maximizable: boolean): Promise<boolean> {
+        Validator.assertBoolean(maximizable, 'maximizable');
+
+        return this.wrapIPC(
+            () => window.electronAPI.window.setMaximizable(maximizable),
+            'window.setMaximizable'
+        );
+    }
+
+    async setMaximumSize(width: number, height: number): Promise<boolean> {
+        Validator.assertNumber(width, 'width');
+        Validator.assertNumber(height, 'height');
+
+        return this.wrapIPC(
+            () => window.electronAPI.window.setMaximumSize(width, height),
+            'window.setMaximumSize'
+        );
+    }
+
+    async setMiniModeWindowState(options: {
+        enabled: boolean;
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+    }): Promise<{success: boolean; data?: {size?: number[]; minimumSize?: number[]; maximumSize?: number[]}; error?: string}> {
+        Validator.assertBoolean(options.enabled, 'enabled');
+
+        return this.wrapIPC(
+            () => window.electronAPI.window.setMiniModeWindowState(options),
+            'window.setMiniModeWindowState'
         );
     }
 

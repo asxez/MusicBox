@@ -49,7 +49,7 @@ import '@components/component/Lyrics';
 import '@components/component/Navigation';
 import '@components/component/NetworkDiskModal';
 import '@components/component/NetworkDriveDetailPage';
-import '@components/component/Player.js';
+import '@components/component/Player';
 import '@components/component/Playlist';
 import '@components/component/PlaylistDetailPage';
 import '@components/component/PluginManagerModal';

@@ -6,8 +6,106 @@ import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {coverAPI, windowAPI, lyricsAPI} from "@js/api";
+import type {PlayMode} from "@api/types/playback";
+import type {Track} from "@api/types/track";
+import type {LyricLine} from "@api/types/lyrics";
+
+interface MiniModeLyricWord {
+    text: string;
+    time: number;
+    endTime?: number | null;
+}
+
+interface MiniModeLyricLine extends LyricLine {
+    endTime?: number | null;
+    words?: MiniModeLyricWord[];
+}
+
+interface CoverUpdatePayload {
+    filePath?: string;
+    title?: string;
+    artist?: string;
+    type?: string;
+}
+
+interface PlayerUpdateResult {
+    status: boolean;
+    error?: unknown;
+}
+
+interface MusicBoxSettingsCache {
+    desktopLyrics?: boolean;
+}
+
+interface WindowSizeCache {
+    width?: number;
+    height?: number;
+}
 
 class Player extends Component {
+    isPlaying: boolean;
+    currentTime: number;
+    duration: number;
+    volume: number;
+    previousVolume: number;
+    isDraggingProgress: boolean;
+    isDraggingVolume: boolean;
+    isMiniMode: boolean;
+    currentTrack: Track | null;
+
+    private playPauseBtn!: HTMLButtonElement;
+    private prevBtn!: HTMLButtonElement;
+    private nextBtn!: HTMLButtonElement;
+    private playModeBtn!: HTMLButtonElement;
+    private lyricsBtn!: HTMLButtonElement;
+    private playlistBtn!: HTMLButtonElement;
+    likeBtn!: HTMLButtonElement;
+    private desktopLyricsBtn: HTMLButtonElement | null;
+    private miniModeButton: HTMLButtonElement | null;
+    private trackCover!: HTMLImageElement;
+    private trackCoverContainer!: HTMLElement;
+    private trackTitle!: HTMLElement;
+    private trackArtist!: HTMLElement;
+    private progressBarContainer!: HTMLElement;
+    private progressTrack!: HTMLElement;
+    private progressFill!: HTMLElement;
+    private progressHandle!: HTMLElement;
+    private progressTooltip!: HTMLElement;
+    private volumeBtn!: HTMLButtonElement;
+    private volumeSlider!: HTMLElement;
+    private volumeSliderContainer!: HTMLElement;
+    private volumeFill!: HTMLElement;
+    private volumeHandle!: HTMLElement;
+    private playIcon!: HTMLElement;
+    private pauseIcon!: HTMLElement;
+    private modeSequenceIcon: HTMLElement | null = null;
+    private modeShuffleIcon: HTMLElement | null = null;
+    private modeRepeatOneIcon: HTMLElement | null = null;
+    private volumeHighIcon: HTMLElement | null = null;
+    private volumeHalfIcon: HTMLElement | null = null;
+    private volumeMuteIcon: HTMLElement | null = null;
+
+    private coverClickHandler!: EventListener;
+    private coverDblClickHandler!: EventListener;
+    private coverMouseEnterHandler!: EventListener;
+    private coverMouseLeaveHandler!: EventListener;
+    private coverUpdateUnsubscribe: (() => void) | null = null;
+    private miniModeMouseEnterHandler: EventListener | null = null;
+    private miniModeMouseLeaveHandler: EventListener | null = null;
+    private miniModeAppContainer: Element | null = null;
+    private miniModePositionChangeHandler: ((position: number) => void) | null;
+    private miniModeResizeHandler: (() => void) | null = null;
+    private miniModeResizeGuardTimer: ReturnType<typeof setTimeout> | null = null;
+
+    private _miniModeLyricsRafId: number | null;
+    private _miniModeLyricsLastUpdateTime: number;
+    private _miniModeLyricsUpdateInterval: number;
+    private _miniModeCurrentLyricIndex: number;
+    private _miniModeLyrics: MiniModeLyricLine[];
+    private _updateLock: boolean;
+    private _pendingTrack: Track | null;
+    private _toggleInProgress: boolean;
+
     constructor() {
         super('#player');
         this.isPlaying = false;
@@ -18,7 +116,9 @@ class Player extends Component {
         this.isDraggingProgress = false;
         this.isDraggingVolume = false;
         this.isMiniMode = false;
+        this.currentTrack = null;
         this.miniModeButton = null;
+        this.desktopLyricsBtn = null;
 
         // 迷你模式歌词相关
         this._miniModeLyricsRafId = null;
@@ -27,6 +127,9 @@ class Player extends Component {
         this.miniModePositionChangeHandler = null;
         this._miniModeCurrentLyricIndex = -1;
         this._miniModeLyrics = []; // 迷你模式的独立歌词数据
+        this._updateLock = false;
+        this._pendingTrack = null;
+        this._toggleInProgress = false;
 
         this.setupElements();
         this.setupEventListeners();
@@ -36,49 +139,58 @@ class Player extends Component {
         });
     }
 
-    setupElements() {
-        this.playPauseBtn = this.element.querySelector('#play-pause-btn');
-        this.prevBtn = this.element.querySelector('#prev-btn');
-        this.nextBtn = this.element.querySelector('#next-btn');
-        this.playModeBtn = this.element.querySelector('#play-mode-btn');
-        this.lyricsBtn = this.element.querySelector('#lyrics-btn');
-        this.playlistBtn = this.element.querySelector('#playlist-btn');
-        this.likeBtn = this.element.querySelector('#like-btn');
-        this.desktopLyricsBtn = this.element.querySelector('#desktop-lyrics-btn');
-        this.miniModeButton = this.element.querySelector('#mini-mode-btn');
+    private queryElement<T extends Element>(selector: string): T {
+        const element = this.element?.querySelector(selector);
+        if (!element) {
+            throw new Error(`Player element not found: ${selector}`);
+        }
 
-        this.trackCover = this.element.querySelector('#track-cover');
-        this.trackCoverContainer = this.element.querySelector('.track-cover-container');
-        this.trackTitle = this.element.querySelector('#track-title');
-        this.trackArtist = this.element.querySelector('#track-artist');
-
-        this.progressBarContainer = this.element.querySelector('.progress-bar-container');
-        this.progressTrack = this.element.querySelector('.progress-track');
-        this.progressFill = this.element.querySelector('#progress-fill');
-        this.progressHandle = this.element.querySelector('#progress-handle');
-        this.progressTooltip = this.element.querySelector('#progress-tooltip');
-
-        this.volumeBtn = this.element.querySelector('#volume-btn');
-        this.volumeSlider = this.element.querySelector('.volume-slider');
-        this.volumeSliderContainer = this.element.querySelector('.volume-slider-container');
-        this.volumeFill = this.element.querySelector('#volume-fill');
-        this.volumeHandle = this.element.querySelector('#volume-handle');
-
-        this.playIcon = this.playPauseBtn.querySelector('.play-icon');
-        this.pauseIcon = this.playPauseBtn.querySelector('.pause-icon');
-
-        // Play mode icons
-        this.modeSequenceIcon = this.playModeBtn ? this.playModeBtn.querySelector('.mode-sequence') : null;
-        this.modeShuffleIcon = this.playModeBtn ? this.playModeBtn.querySelector('.mode-shuffle') : null;
-        this.modeRepeatOneIcon = this.playModeBtn ? this.playModeBtn.querySelector('.mode-repeat-one') : null;
-
-        // Volume icons
-        this.volumeHighIcon = this.volumeBtn.querySelector('.volume-high');
-        this.volumeHalfIcon = this.volumeBtn.querySelector('.volume-half');
-        this.volumeMuteIcon = this.volumeBtn.querySelector('.volume-mute');
+        return element as T;
     }
 
-    setupEventListeners() {
+    setupElements(): void {
+        this.playPauseBtn = this.queryElement<HTMLButtonElement>('#play-pause-btn');
+        this.prevBtn = this.queryElement<HTMLButtonElement>('#prev-btn');
+        this.nextBtn = this.queryElement<HTMLButtonElement>('#next-btn');
+        this.playModeBtn = this.queryElement<HTMLButtonElement>('#play-mode-btn');
+        this.lyricsBtn = this.queryElement<HTMLButtonElement>('#lyrics-btn');
+        this.playlistBtn = this.queryElement<HTMLButtonElement>('#playlist-btn');
+        this.likeBtn = this.queryElement<HTMLButtonElement>('#like-btn');
+        this.desktopLyricsBtn = this.element?.querySelector<HTMLButtonElement>('#desktop-lyrics-btn') ?? null;
+        this.miniModeButton = this.element?.querySelector<HTMLButtonElement>('#mini-mode-btn') ?? null;
+
+        this.trackCover = this.queryElement<HTMLImageElement>('#track-cover');
+        this.trackCoverContainer = this.queryElement<HTMLElement>('.track-cover-container');
+        this.trackTitle = this.queryElement<HTMLElement>('#track-title');
+        this.trackArtist = this.queryElement<HTMLElement>('#track-artist');
+
+        this.progressBarContainer = this.queryElement<HTMLElement>('.progress-bar-container');
+        this.progressTrack = this.queryElement<HTMLElement>('.progress-track');
+        this.progressFill = this.queryElement<HTMLElement>('#progress-fill');
+        this.progressHandle = this.queryElement<HTMLElement>('#progress-handle');
+        this.progressTooltip = this.queryElement<HTMLElement>('#progress-tooltip');
+
+        this.volumeBtn = this.queryElement<HTMLButtonElement>('#volume-btn');
+        this.volumeSlider = this.queryElement<HTMLElement>('.volume-slider');
+        this.volumeSliderContainer = this.queryElement<HTMLElement>('.volume-slider-container');
+        this.volumeFill = this.queryElement<HTMLElement>('#volume-fill');
+        this.volumeHandle = this.queryElement<HTMLElement>('#volume-handle');
+
+        this.playIcon = this.queryElement<HTMLElement>('.play-icon');
+        this.pauseIcon = this.queryElement<HTMLElement>('.pause-icon');
+
+        // Play mode icons
+        this.modeSequenceIcon = this.playModeBtn.querySelector<HTMLElement>('.mode-sequence');
+        this.modeShuffleIcon = this.playModeBtn.querySelector<HTMLElement>('.mode-shuffle');
+        this.modeRepeatOneIcon = this.playModeBtn.querySelector<HTMLElement>('.mode-repeat-one');
+
+        // Volume icons
+        this.volumeHighIcon = this.volumeBtn.querySelector<HTMLElement>('.volume-high');
+        this.volumeHalfIcon = this.volumeBtn.querySelector<HTMLElement>('.volume-half');
+        this.volumeMuteIcon = this.volumeBtn.querySelector<HTMLElement>('.volume-mute');
+    }
+
+    setupEventListeners(): void {
         // Play/pause button
         this.playPauseBtn.addEventListener('click', async () => {
             await this.togglePlayPause();
@@ -129,7 +241,7 @@ class Player extends Component {
                 await api.seek(this.duration * progress);
 
                 // 拖动结束后，强制同步当前播放状态
-                const currentTrack = api.getCurrentTrack();
+                const currentTrack = api.getCurrentTrack?.() ?? null;
                 if (currentTrack && currentTrack !== this.currentTrack) {
                     await this.updateTrackInfo(currentTrack);
                 }
@@ -145,13 +257,14 @@ class Player extends Component {
         });
 
         this.volumeSlider.addEventListener('input', async (e) => {
-            this.updateVolume(e.target.value);
+            this.updateVolume((e.target as HTMLInputElement).value);
             const volume = parseFloat(this.volumeFill.style.width) / 100;
             await api.setVolume(volume);
         });
 
         this.volumeSliderContainer.addEventListener('mousewheel', async (e) => {
-            if (e.wheelDelta < 0) await api.setVolume(Math.min(1, this.volume + 0.01));
+            const wheelEvent = e as WheelEvent & {wheelDelta?: number};
+            if ((wheelEvent.wheelDelta ?? -wheelEvent.deltaY) < 0) await api.setVolume(Math.min(1, this.volume + 0.01));
             else await api.setVolume(Math.max(0, this.volume - 0.01));
         });
 
@@ -226,13 +339,13 @@ class Player extends Component {
 
         // 监听封面更新事件
         if (window.coverUpdateManager) {
-            this.coverUpdateUnsubscribe = window.coverUpdateManager.onCoverUpdate((data) => {
-                this.handleCoverUpdate(data);
+            this.coverUpdateUnsubscribe = window.coverUpdateManager.onCoverUpdate((data: unknown) => {
+                void this.handleCoverUpdate(data as CoverUpdatePayload);
             });
         }
     }
 
-    setupAPIListeners() {
+    setupAPIListeners(): void {
         // 0.2.5版本 改进更新机制
         // 记录待更新的track，避免丢失更新
         this._updateLock = false;
@@ -287,7 +400,7 @@ class Player extends Component {
         });
     }
 
-    updateProgress(e) {
+    updateProgress(e: MouseEvent): void {
         const rect = this.progressTrack.getBoundingClientRect();
         const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
         this.progressFill.style.width = `${progress * 100}%`;
@@ -300,7 +413,7 @@ class Player extends Component {
         this.progressTooltip.style.opacity = '1';
     }
 
-    updateProgressTooltip(e) {
+    updateProgressTooltip(e: MouseEvent): void {
         const rect = this.progressTrack.getBoundingClientRect();
         const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
         const time = this.duration * progress;
@@ -310,14 +423,19 @@ class Player extends Component {
         this.progressTooltip.style.opacity = '1';
     }
 
-    updateVolume(e) {
-        const rect = this.volumeSlider.getBoundingClientRect();
-        const volume = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    updateVolume(e: MouseEvent | string | number): void {
+        let volume: number;
+        if (typeof e === 'string' || typeof e === 'number') {
+            volume = Math.max(0, Math.min(1, Number(e)));
+        } else {
+            const rect = this.volumeSlider.getBoundingClientRect();
+            volume = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        }
         this.volumeFill.style.width = `${volume * 100}%`;
         this.volumeHandle.style.left = `${volume * 100}%`;
     }
 
-    async updateTrackInfo(track) {
+    async updateTrackInfo(track: Track | null): Promise<void> {
         if (track) {
             this.trackTitle.textContent = track.title || '未知歌曲';
             this.trackArtist.textContent = track.artist || '未知艺术家';
@@ -342,7 +460,7 @@ class Player extends Component {
         }
     }
 
-    async updateCoverArt(track) {
+    async updateCoverArt(track: Track): Promise<void> {
         // 首先设置默认封面
         this.trackCover.src = 'assets/images/default-cover.svg';
         this.trackCover.classList.add('loading');
@@ -386,7 +504,7 @@ class Player extends Component {
         }
     }
 
-    async handleCoverUpdate(data) {
+    async handleCoverUpdate(data: CoverUpdatePayload): Promise<void> {
         const {filePath, title, artist, type} = data;
 
         // 只处理封面更新事件
@@ -394,7 +512,7 @@ class Player extends Component {
             return;
         }
 
-        const currentTrack = api.getCurrentTrack();
+        const currentTrack = api.getCurrentTrack?.() ?? null;
         if (!currentTrack) {
             return;
         }
@@ -419,7 +537,7 @@ class Player extends Component {
         }
     }
 
-    updatePlayButton() {
+    updatePlayButton(): void {
         if (this.isPlaying) {
             this.playIcon.style.display = 'none';
             this.pauseIcon.style.display = 'block';
@@ -429,7 +547,7 @@ class Player extends Component {
         }
     }
 
-    updateProgressDisplay() {
+    updateProgressDisplay(): void {
         if (!this.isDraggingProgress) {
             const progress = this.duration > 0 ? (this.currentTime / this.duration) * 100 : 0;
             this.progressFill.style.width = `${progress}%`;
@@ -437,14 +555,14 @@ class Player extends Component {
         }
     }
 
-    updateVolumeDisplay() {
+    updateVolumeDisplay(): void {
         const volumePercent = this.volume * 100;
         this.volumeFill.style.width = `${volumePercent}%`;
         this.volumeHandle.style.left = `${volumePercent}%`;
         this.updateVolumeIcon();
     }
 
-    updateVolumeIcon() {
+    updateVolumeIcon(): void {
         if (this.volumeHighIcon) this.volumeHighIcon.style.display = 'none';
         if (this.volumeHalfIcon) this.volumeHalfIcon.style.display = 'none';
         if (this.volumeMuteIcon) this.volumeMuteIcon.style.display = 'none';
@@ -458,32 +576,32 @@ class Player extends Component {
         }
     }
 
-    updatePlayModeDisplay(mode) {
-        this.modeSequenceIcon.style.display = 'none';
-        this.modeShuffleIcon.style.display = 'none';
-        this.modeRepeatOneIcon.style.display = 'none';
+    updatePlayModeDisplay(mode: PlayMode): void {
+        if (this.modeSequenceIcon) this.modeSequenceIcon.style.display = 'none';
+        if (this.modeShuffleIcon) this.modeShuffleIcon.style.display = 'none';
+        if (this.modeRepeatOneIcon) this.modeRepeatOneIcon.style.display = 'none';
         switch (mode) {
             case 'sequence':
-                this.modeSequenceIcon.style.display = 'block';
+                if (this.modeSequenceIcon) this.modeSequenceIcon.style.display = 'block';
                 if (this.playModeBtn) this.playModeBtn.title = '顺序播放';
                 break;
             case 'shuffle':
-                this.modeShuffleIcon.style.display = 'block';
+                if (this.modeShuffleIcon) this.modeShuffleIcon.style.display = 'block';
                 if (this.playModeBtn) this.playModeBtn.title = '随机播放';
                 break;
             case 'repeat-one':
-                this.modeRepeatOneIcon.style.display = 'block';
+                if (this.modeRepeatOneIcon) this.modeRepeatOneIcon.style.display = 'block';
                 if (this.playModeBtn) this.playModeBtn.title = '单曲循环';
                 break;
             default:
                 // 默认显示顺序播放
-                this.modeSequenceIcon.style.display = 'block';
+                if (this.modeSequenceIcon) this.modeSequenceIcon.style.display = 'block';
                 if (this.playModeBtn) this.playModeBtn.title = '顺序播放';
                 break;
         }
     }
 
-    async updateUI() {
+    async updateUI(): Promise<PlayerUpdateResult> {
         try {
             this.updatePlayButton();
             this.updateProgressDisplay();
@@ -502,7 +620,7 @@ class Player extends Component {
         }
     }
 
-    async toggleMiniMode() {
+    async toggleMiniMode(): Promise<void> {
         try {
             this.isMiniMode = !this.isMiniMode;
             if (this.isMiniMode) {
@@ -518,30 +636,21 @@ class Player extends Component {
         }
     }
 
-    async enterMiniMode() {
-        await windowAPI.setSkipTaskbar(true);
-        await windowAPI.setMinimumSize(400, 145);
+    async enterMiniMode(): Promise<void> {
+        // 调整窗口大小
+        const currentBounds = await windowAPI.getBounds();
+        const result = await windowAPI.setMiniModeWindowState({
+            enabled: true,
+            x: currentBounds?.x ?? 0,
+            y: currentBounds?.y ?? 0
+        });
+        if (!result.success) {
+            throw new Error(result.error || '设置迷你模式窗口状态失败');
+        }
 
         // 添加迷你模式类
         document.body.classList.add('mini-mode');
-
-        // 设置始终置顶
-        await windowAPI.setAlwaysOnTop(true);
-
-        // 禁止窗口缩放
-        await windowAPI.setResizable(false);
-
-        // 调整窗口大小
-        const miniWidth = 400;
-        const miniHeight = 145;
-        const currentBounds = await windowAPI.getBounds();
-
-        await windowAPI.setBounds({
-            x: currentBounds.x,
-            y: currentBounds.y,
-            width: miniWidth,
-            height: miniHeight
-        });
+        this.startMiniModeResizeGuard();
 
         // 更新按钮状态
         if (this.miniModeButton) {
@@ -577,7 +686,7 @@ class Player extends Component {
         await this.updateMiniModeBackground();
 
         // 加载当前歌曲的歌词
-        const currentTrack = api.getCurrentTrack();
+        const currentTrack = api.getCurrentTrack?.() ?? null;
         if (currentTrack) {
             await this.loadMiniModeLyrics(currentTrack);
         }
@@ -595,21 +704,23 @@ class Player extends Component {
         this.updateMiniModeLyrics();
     }
 
-    async exitMiniMode() {
-        await windowAPI.setSkipTaskbar(false);
-        await windowAPI.setMinimumSize(1080, 720);
+    async exitMiniMode(): Promise<void> {
+        this.removeMiniModeLyricsElement();
+        this.stopMiniModeResizeGuard();
+
         // 移除迷你模式类
         document.body.classList.remove('mini-mode');
 
-        // 取消始终置顶
-        await windowAPI.setAlwaysOnTop(false);
-
-        // 恢复窗口缩放
-        await windowAPI.setResizable(true);
-
         // 恢复窗口
-        const {width, height} = cacheManager.getLocalCache('mainWindow-size') || [1440, 900];
-        await windowAPI.setSize(width, height);
+        const {width, height} = this.getRestoredMainWindowSize();
+        const restoreResult = await windowAPI.setMiniModeWindowState({
+            enabled: false,
+            width,
+            height
+        });
+        if (!restoreResult.success) {
+            throw new Error(restoreResult.error || '恢复主窗口状态失败');
+        }
 
         // 更新按钮状态
         if (this.miniModeButton) {
@@ -648,10 +759,7 @@ class Player extends Component {
         this._miniModeLyrics = []; // 清空歌词数据
 
         // 移除迷你模式歌词元素
-        const miniLyricsElement = document.querySelector('.mini-mode-lyrics');
-        if (miniLyricsElement) {
-            miniLyricsElement.remove();
-        }
+        this.removeMiniModeLyricsElement();
 
         // 移除collapsed类
         document.body.classList.remove('mini-mode-collapsed');
@@ -660,7 +768,7 @@ class Player extends Component {
         this.clearMiniModeBackground();
     }
 
-    async restoreMiniModeState() {
+    async restoreMiniModeState(): Promise<void> {
         const savedState = cacheManager.getLocalCache('miniModeEnabled');
         if (savedState === true) {
             this.isMiniMode = false;
@@ -668,7 +776,7 @@ class Player extends Component {
         }
     }
 
-    async togglePlayPause() {
+    async togglePlayPause(): Promise<void> {
         // 防止重复调用的锁定机制
         if (this._toggleInProgress) {
             console.log('🚫 Player: 播放状态切换正在进行中，忽略重复调用');
@@ -702,7 +810,7 @@ class Player extends Component {
         }
     }
 
-    async toggleMute() {
+    async toggleMute(): Promise<void> {
         if (this.volume > 0) {
             this.previousVolume = this.volume;
             await api.setVolume(0);
@@ -712,7 +820,7 @@ class Player extends Component {
     }
 
     // 桌面歌词控制方法
-    async toggleDesktopLyrics() {
+    async toggleDesktopLyrics(): Promise<void> {
         try {
             const result = await api.toggleDesktopLyrics();
 
@@ -732,7 +840,7 @@ class Player extends Component {
         }
     }
 
-    updateDesktopLyricsButton(isVisible) {
+    updateDesktopLyricsButton(isVisible: boolean | undefined): void {
         if (!this.desktopLyricsBtn) return;
         if (isVisible) {
             this.desktopLyricsBtn.classList.add('active');
@@ -741,7 +849,7 @@ class Player extends Component {
         }
     }
 
-    async updateDesktopLyricsButtonVisibility(enabled) {
+    async updateDesktopLyricsButtonVisibility(enabled: boolean): Promise<void> {
         if (!this.desktopLyricsBtn) {
             return;
         }
@@ -762,7 +870,7 @@ class Player extends Component {
     }
 
     // 检查桌面歌词窗口状态的独立方法
-    async checkDesktopLyricsWindowState() {
+    async checkDesktopLyricsWindowState(): Promise<void> {
         try {
             const isVisible = await api.isDesktopLyricsVisible();
             this.updateDesktopLyricsButton(isVisible);
@@ -772,14 +880,14 @@ class Player extends Component {
     }
 
     // 初始化桌面歌词按钮状态
-    async initDesktopLyricsButton() {
+    async initDesktopLyricsButton(): Promise<void> {
         if (!this.desktopLyricsBtn) return;
 
         try {
             // 检查设置中是否启用了桌面歌词功能
-            const settings = cacheManager.getLocalCache('musicbox-settings') || {};
+            const settings = cacheManager.getLocalCache<MusicBoxSettingsCache>('musicbox-settings') || {};
             // 如果设置中没有明确的值，默认启用；如果有明确的值，使用该值
-            const desktopLyricsEnabled = settings.hasOwnProperty('desktopLyrics') ? settings.desktopLyrics : true;
+            const desktopLyricsEnabled = Object.prototype.hasOwnProperty.call(settings, 'desktopLyrics') ? settings.desktopLyrics === true : true;
 
             console.log('🎵 Player: 初始化桌面歌词按钮，设置状态:', desktopLyricsEnabled, '(来源: CacheManager)');
 
@@ -797,11 +905,15 @@ class Player extends Component {
     }
 
     // 迷你模式：提取封面主色
-    async extractDominantColor(imgElement) {
+    async extractDominantColor(imgElement: HTMLImageElement): Promise<string> {
         return new Promise((resolve) => {
             try {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    resolve('60, 80, 120');
+                    return;
+                }
 
                 canvas.width = imgElement.naturalWidth || imgElement.width;
                 canvas.height = imgElement.naturalHeight || imgElement.height;
@@ -850,7 +962,7 @@ class Player extends Component {
     }
 
     // 迷你模式：更新背景
-    async updateMiniModeBackground() {
+    async updateMiniModeBackground(): Promise<void> {
         if (!this.isMiniMode) return;
 
         const coverImg = this.trackCover;
@@ -870,18 +982,93 @@ class Player extends Component {
     }
 
     // 迷你模式：设置默认背景色
-    setDefaultMiniModeBackground() {
+    setDefaultMiniModeBackground(): void {
         const defaultColor = '60, 80, 120'; // 默认蓝色调
         document.documentElement.style.setProperty('--mini-mode-bg-color', defaultColor);
     }
 
     // 迷你模式：清除背景
-    clearMiniModeBackground() {
+    clearMiniModeBackground(): void {
         document.documentElement.style.removeProperty('--mini-mode-bg-color');
     }
 
+    removeMiniModeLyricsElement(): void {
+        document.querySelectorAll('.mini-mode-lyrics').forEach((element) => {
+            element.remove();
+        });
+    }
+
+    getRestoredMainWindowSize(): {width: number; height: number} {
+        const savedSize = cacheManager.getLocalCache<WindowSizeCache | [number, number]>('mainWindow-size');
+        const width = Array.isArray(savedSize) ? savedSize[0] : savedSize?.width;
+        const height = Array.isArray(savedSize) ? savedSize[1] : savedSize?.height;
+
+        if (typeof width === 'number' && typeof height === 'number' && width >= 1080 && height >= 720) {
+            return {width, height};
+        }
+
+        if (savedSize) {
+            cacheManager.removeLocalCache('mainWindow-size');
+        }
+
+        return {width: 1440, height: 900};
+    }
+
+    startMiniModeResizeGuard(): void {
+        this.stopMiniModeResizeGuard();
+
+        this.miniModeResizeHandler = () => {
+            if (!this.isMiniMode) {
+                return;
+            }
+
+            if (this.miniModeResizeGuardTimer) {
+                clearTimeout(this.miniModeResizeGuardTimer);
+            }
+
+            this.miniModeResizeGuardTimer = setTimeout(() => {
+                void this.enforceMiniModeWindowBounds();
+            }, 80);
+        };
+
+        window.addEventListener('resize', this.miniModeResizeHandler);
+    }
+
+    stopMiniModeResizeGuard(): void {
+        if (this.miniModeResizeHandler) {
+            window.removeEventListener('resize', this.miniModeResizeHandler);
+            this.miniModeResizeHandler = null;
+        }
+
+        if (this.miniModeResizeGuardTimer) {
+            clearTimeout(this.miniModeResizeGuardTimer);
+            this.miniModeResizeGuardTimer = null;
+        }
+    }
+
+    async enforceMiniModeWindowBounds(): Promise<void> {
+        if (!this.isMiniMode) {
+            return;
+        }
+
+        try {
+            if (await windowAPI.isMaximized()) {
+                await windowAPI.unmaximize();
+            }
+
+            const bounds = await windowAPI.getBounds();
+            const x = bounds?.x ?? 0;
+            const y = bounds?.y ?? 0;
+            if (!bounds || bounds.width !== 400 || bounds.height !== 145) {
+                await windowAPI.setBounds({x, y, width: 400, height: 145});
+            }
+        } catch (error) {
+            console.warn('⚠️ Player: 迷你模式窗口尺寸守卫失败:', error);
+        }
+    }
+
     // 迷你模式：更新歌词显示
-    updateMiniModeLyrics() {
+    updateMiniModeLyrics(): void {
         if (!this.isMiniMode) return;
 
         // 使用迷你模式自己的歌词数据
@@ -898,11 +1085,11 @@ class Player extends Component {
 
         const currentLyric = this._miniModeLyrics[currentIndex];
 
-        let miniLyricsElement = document.querySelector('.mini-mode-lyrics');
+        let miniLyricsElement = document.querySelector<HTMLElement>('.mini-mode-lyrics');
         if (!miniLyricsElement) {
             miniLyricsElement = document.createElement('div');
             miniLyricsElement.className = 'mini-mode-lyrics';
-            const playerControls = this.element.querySelector('.controls');
+            const playerControls = this.element?.querySelector('.controls');
             if (playerControls) {
                 playerControls.appendChild(miniLyricsElement);
             }
@@ -912,15 +1099,16 @@ class Player extends Component {
         const isWordByWord = currentLyric.type === 'word-by-word' && currentLyric.words && currentLyric.words.length > 0;
 
         if (isWordByWord) {
+            const words = currentLyric.words ?? [];
             miniLyricsElement.classList.add('lyrics-word-by-word');
             miniLyricsElement.innerHTML = '';
 
             // 根据歌词数据创建逐字元素
-            currentLyric.words.forEach((word, index) => {
+            words.forEach((word, index) => {
                 const wordSpan = document.createElement('span');
                 wordSpan.className = 'lyric-word';
-                wordSpan.setAttribute('data-word-index', index);
-                wordSpan.setAttribute('data-word-time', word.time);
+                wordSpan.setAttribute('data-word-index', String(index));
+                wordSpan.setAttribute('data-word-time', String(word.time));
                 wordSpan.setAttribute('data-word-text', word.text);
                 wordSpan.textContent = word.text;
                 wordSpan.style.setProperty('--word-progress', '0');
@@ -934,12 +1122,12 @@ class Player extends Component {
     }
 
     // 迷你模式：显示无歌词状态
-    showNoMiniModeLyrics() {
-        let miniLyricsElement = document.querySelector('.mini-mode-lyrics');
+    showNoMiniModeLyrics(): void {
+        let miniLyricsElement = document.querySelector<HTMLElement>('.mini-mode-lyrics');
         if (!miniLyricsElement) {
             miniLyricsElement = document.createElement('div');
             miniLyricsElement.className = 'mini-mode-lyrics';
-            const playerControls = this.element.querySelector('.controls');
+            const playerControls = this.element?.querySelector('.controls');
             if (playerControls) {
                 playerControls.appendChild(miniLyricsElement);
             }
@@ -949,7 +1137,7 @@ class Player extends Component {
     }
 
     // 迷你模式：加载歌词数据
-    async loadMiniModeLyrics(track) {
+    async loadMiniModeLyrics(track: Track | null): Promise<void> {
         if (!track || !track.title || !track.artist) {
             this._miniModeLyrics = [];
             this._miniModeCurrentLyricIndex = -1;
@@ -958,11 +1146,11 @@ class Player extends Component {
         }
 
         try {
-            let parsedLyrics = null;
+            let parsedLyrics: MiniModeLyricLine[] | null = null;
 
             // 检查是否已有内嵌的歌词
             if (track.lyrics) {
-                parsedLyrics = track.lyrics;
+                parsedLyrics = Array.isArray(track.lyrics) ? track.lyrics as MiniModeLyricLine[] : null;
             } else {
                 // 从API获取歌词
                 const lyricsResult = await lyricsAPI.getLyrics(track.title, track.artist, track.album, track.filePath);
@@ -1012,7 +1200,7 @@ class Player extends Component {
     }
 
     // 迷你模式：更新歌词索引
-    updateMiniModeLyricIndex(currentTime) {
+    updateMiniModeLyricIndex(currentTime: number): void {
         if (!this._miniModeLyrics || this._miniModeLyrics.length === 0) {
             return;
         }
@@ -1040,10 +1228,10 @@ class Player extends Component {
     }
 
     // 迷你模式：更新逐字歌词高亮
-    updateMiniModeLyricsWordHighlight(currentTime) {
+    updateMiniModeLyricsWordHighlight(currentTime: number): void {
         if (!this.isMiniMode) return;
 
-        const miniLyricsElement = document.querySelector('.mini-mode-lyrics');
+        const miniLyricsElement = document.querySelector<HTMLElement>('.mini-mode-lyrics');
         if (!miniLyricsElement || !miniLyricsElement.classList.contains('lyrics-word-by-word')) {
             return;
         }
@@ -1055,7 +1243,7 @@ class Player extends Component {
         }
         this._miniModeLyricsLastUpdateTime = now;
 
-        const words = miniLyricsElement.querySelectorAll('.lyric-word');
+        const words = miniLyricsElement.querySelectorAll<HTMLElement>('.lyric-word');
         if (words.length === 0) return;
 
         // 取消之前的RAF请求
@@ -1069,12 +1257,12 @@ class Player extends Component {
 
             for (let i = 0; i < words.length; i++) {
                 const wordElement = words[i];
-                const wordStartTime = parseFloat(wordElement.getAttribute('data-word-time'));
+                const wordStartTime = parseFloat(wordElement.getAttribute('data-word-time') || '0');
 
                 // 计算词的结束时间
                 let wordEndTime;
                 if (i < words.length - 1) {
-                    wordEndTime = parseFloat(words[i + 1].getAttribute('data-word-time'));
+                    wordEndTime = parseFloat(words[i + 1].getAttribute('data-word-time') || '0');
                 } else {
                     // 最后一个词，假设持续0.5秒
                     wordEndTime = wordStartTime + 0.5;
@@ -1103,7 +1291,7 @@ class Player extends Component {
         });
     }
 
-    destroy() {
+    destroy(): void {
         // 清理封面更新订阅
         if (this.coverUpdateUnsubscribe) {
             this.coverUpdateUnsubscribe();

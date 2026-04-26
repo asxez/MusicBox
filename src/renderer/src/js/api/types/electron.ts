@@ -260,6 +260,19 @@ export interface ElectronWindowAPI {
     setAlwaysOnTop(flag: boolean): Promise<boolean>;
     isAlwaysOnTop(): Promise<boolean>;
     setResizable(resizable: boolean): Promise<boolean>;
+    setMaximizable(maximizable: boolean): Promise<boolean>;
+    setMaximumSize(width: number, height: number): Promise<boolean>;
+    setMiniModeWindowState(options: {
+        enabled: boolean;
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+    }): Promise<Result<{
+        size?: number[];
+        minimumSize?: number[];
+        maximumSize?: number[];
+    }>>;
     setSkipTaskbar(skip: boolean): Promise<boolean>;
     setMinimumSize(width: number, height: number): Promise<boolean>;
 }
