@@ -5,9 +5,55 @@
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@components/base/Component";
 import {coverAPI, libraryAPI} from "@js/api";
+import type {Track} from "@api/types/track";
+
+type ArtistViewMode = 'constellation' | 'galaxy';
+
+interface ArtistInfo {
+    name: string;
+    tracks: Track[];
+    albums: Set<string>;
+    totalDuration: number;
+    cover: string | null;
+}
+
+interface StarParticle {
+    x: number;
+    y: number;
+    radius: number;
+    opacity: number;
+    speed: number;
+}
+
+interface SourceRectSnapshot {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    radius: string;
+    scrollTop: number;
+}
+
+interface CoverResult {
+    success?: boolean;
+    imageUrl?: string;
+    error?: string;
+}
 
 class ArtistsPage extends Component {
-    constructor(container) {
+    private container: any;
+    private tracks: Track[];
+    private artists: ArtistInfo[];
+    private filteredArtists: ArtistInfo[];
+    private selectedArtist: ArtistInfo | null;
+    private viewMode: ArtistViewMode;
+    private listenersSetup: boolean;
+    private heroAnimationId: number | null;
+    private _coverFailures: Set<string>;
+    private _coverLoading: Set<string>;
+    private _coverFetchingInProgress: boolean;
+
+    constructor(container: string | Element | null) {
         super(container);
         this.tracks = [];
         this.artists = [];
@@ -15,27 +61,25 @@ class ArtistsPage extends Component {
         this.selectedArtist = null;
         this.viewMode = 'constellation'; // constellation or galaxy
         this.listenersSetup = false; // 事件监听器是否已设置
-        this._lastTracksHash = null; // 防重复机制
+        this.heroAnimationId = null;
         this._coverFailures = new Set(); // 记录封面获取失败的艺术家
         this._coverLoading = new Set(); // 记录正在加载封面的艺术家
         this._coverFetchingInProgress = false; // 防止重复启动封面获取
     }
 
-    async show() {
+    async show(): Promise<void> {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupAPIListeners();
             this.listenersSetup = true;
         }
-        if (this.element) {
+        if (this.element instanceof HTMLElement) {
             this.element.style.display = 'block';
         }
-        this.isVisible = true;
 
         // 只有在没有tracks数据时才获取，避免重复调用
         if (!this.tracks || this.tracks.length === 0) {
-            this.tracks = await libraryAPI.getTracks();
-            this._lastTracksHash = this._generateTracksHash(this.tracks);
+            this.tracks = await libraryAPI.getTracks() as Track[];
             this.processArtists();
         }
 
@@ -43,21 +87,20 @@ class ArtistsPage extends Component {
     }
 
     // 生成tracks的简单哈希值
-    _generateTracksHash(tracks) {
+    _generateTracksHash(tracks: Track[]): string {
         if (!tracks || tracks.length === 0) return 'empty';
         const sample = tracks.slice(0, 3).map(t => t.filePath || t.title).join('|');
         return `${tracks.length}_${sample}`;
     }
 
-    hide() {
-        this.isVisible = false;
+    hide(): void {
         this.selectedArtist = null;
         if (this.container) {
             this.container.innerHTML = '';
         }
     }
 
-    destroy() {
+    destroy(): void {
         // 清理动画资源
         if (this.heroAnimationId) {
             cancelAnimationFrame(this.heroAnimationId);
@@ -68,7 +111,6 @@ class ArtistsPage extends Component {
         this.artists.length = 0;
         this.filteredArtists.length = 0;
         this.selectedArtist = null;
-        this._lastTracksHash = null;
         this.listenersSetup = false;
 
         // 清理封面获取相关状态
@@ -80,24 +122,24 @@ class ArtistsPage extends Component {
         }
         this._coverFetchingInProgress = false;
 
-        return super.destroy();
+        super.destroy();
     }
 
-    setupElements() {
+    setupElements(): void {
         this.container = this.element;
     }
 
-    setupAPIListeners() {
+    setupAPIListeners(): void {
         // 监听音乐库更新
-        this.addAPIEventListenerManaged('libraryUpdated', (tracks) => {
+        this.addAPIEventListenerManaged('libraryUpdated', (tracks: Track[]) => {
             this.tracks = tracks;
             this.processArtists();
         });
     }
 
-    processArtists() {
-        const artistMap = new Map();
-        this.tracks.forEach(track => {
+    processArtists(): void {
+        const artistMap = new Map<string, ArtistInfo>();
+        this.tracks.forEach((track) => {
             const artistName = track.artist || '未知艺术家';
 
             if (!artistMap.has(artistName)) {
@@ -110,7 +152,7 @@ class ArtistsPage extends Component {
                 });
             }
 
-            const artist = artistMap.get(artistName);
+            const artist = artistMap.get(artistName)!;
             artist.tracks.push(track);
             artist.totalDuration += track.duration || 0;
 
@@ -131,7 +173,7 @@ class ArtistsPage extends Component {
         this.filteredArtists = [...this.artists];
     }
 
-    render() {
+    render(): void {
         if (!this.container) return;
 
         if (this.selectedArtist) {
@@ -141,7 +183,7 @@ class ArtistsPage extends Component {
         }
     }
 
-    renderArtistsList() {
+    renderArtistsList(): void {
         this.container.innerHTML = `
             <div class="page-content artists-page modern-artists">
                 <!-- hero区域 -->
@@ -234,20 +276,20 @@ class ArtistsPage extends Component {
     }
 
     // 设置事件监听器
-    setupEventListeners() {
+    setupEventListeners(): void {
         // 搜索功能
         const searchInput = this.container.querySelector('#artist-search');
         if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                this.filterArtists(e.target.value);
+            searchInput.addEventListener('input', (e: Event) => {
+                this.filterArtists((e.target as HTMLInputElement).value);
             });
         }
 
         // 视图模式切换
-        this.container.querySelectorAll('.mode-btn').forEach(btn => {
+        this.container.querySelectorAll('.mode-btn').forEach((btn: HTMLElement) => {
             btn.addEventListener('click', () => {
                 const newMode = btn.dataset.view;
-                if (newMode !== this.viewMode) {
+                if (isArtistViewMode(newMode) && newMode !== this.viewMode) {
                     this.switchViewMode(newMode);
                 }
             });
@@ -258,11 +300,12 @@ class ArtistsPage extends Component {
     }
 
     // 初始化hero区域可视化
-    initializeHeroVisualization() {
+    initializeHeroVisualization(): void {
         const canvas = this.container.querySelector('#artists-visualizer');
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
+        if (!ctx) return;
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
 
@@ -271,8 +314,8 @@ class ArtistsPage extends Component {
     }
 
     // 创建星空背景动画
-    createStarfieldAnimation(ctx, canvas) {
-        const stars = [];
+    createStarfieldAnimation(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {
+        const stars: StarParticle[] = [];
         const numStars = 50;
 
         // 初始化星星
@@ -290,7 +333,7 @@ class ArtistsPage extends Component {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // 绘制星星
-            stars.forEach(star => {
+            stars.forEach((star) => {
                 ctx.beginPath();
                 ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
                 ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
@@ -314,7 +357,7 @@ class ArtistsPage extends Component {
     }
 
     // 播放艺术家音乐并显示动画
-    playArtistWithAnimation(star, artist) {
+    playArtistWithAnimation(star: HTMLElement, artist: ArtistInfo): void {
         // 创建波纹效果
         const ripple = document.createElement('div');
         ripple.className = 'play-ripple';
@@ -332,7 +375,7 @@ class ArtistsPage extends Component {
     }
 
     // 艺术家详情显示
-    showArtistDetailWithTransition(artist, element) {
+    showArtistDetailWithTransition(artist: ArtistInfo, element: HTMLElement): void {
         // 获取点击的封面元素
         const avatarImg = element.querySelector('.artist-avatar img') ||
             element.querySelector('.star-constellation-core .artist-avatar img') ||
@@ -344,11 +387,12 @@ class ArtistsPage extends Component {
         }
 
         // 执行封面飞入动画
-        this.animateToArtistDetail(element, artist, avatarImg);
+        this.animateToArtistDetail(element, artist, avatarImg as HTMLImageElement);
     }
 
     // 封面飞入过渡动画：共享元素转场
-    animateToArtistDetail(sourceElement, artist, sourceImg) {
+    animateToArtistDetail(sourceElement: HTMLElement, artist: ArtistInfo, sourceImg: HTMLImageElement): void {
+        void sourceElement;
         if (!sourceImg) return this.showArtistDetail(artist);
 
         const srcRect = sourceImg.getBoundingClientRect();
@@ -359,7 +403,7 @@ class ArtistsPage extends Component {
         // 记录源位置信息用于可能的返回动画
         const scrollEl = this.getScrollContainer();
         const srcRadius = srcContainer ? getComputedStyle(srcContainer).borderRadius : '50%';
-        this._lastSourceRect = {
+        const sourceSnapshot: SourceRectSnapshot = {
             left: srcRect.left,
             top: srcRect.top,
             width: srcRect.width,
@@ -367,7 +411,7 @@ class ArtistsPage extends Component {
             radius: srcRadius,
             scrollTop: scrollEl ? scrollEl.scrollTop : (window.scrollY || 0)
         };
-        this._lastSourceKey = artist.name;
+        void sourceSnapshot;
 
         // 渲染艺术家详情页面
         this.selectedArtist = artist;
@@ -389,7 +433,7 @@ class ArtistsPage extends Component {
 
         // 创建飞入动画的幽灵元素
         const ghostWrap = document.createElement('div');
-        const ghost = sourceImg.cloneNode(true);
+        const ghost = sourceImg.cloneNode(true) as HTMLImageElement;
 
         Object.assign(ghostWrap.style, {
             position: 'fixed',
@@ -475,14 +519,14 @@ class ArtistsPage extends Component {
     }
 
     // 获取滚动容器
-    getScrollContainer() {
+    getScrollContainer(): any {
         return this.container.closest('.scrollable') ||
             this.container.closest('.page-content') ||
             document.documentElement;
     }
 
     // 获取艺术家封面
-    async _fetchArtistCover(artist) {
+    async _fetchArtistCover(artist: ArtistInfo): Promise<void> {
         try {
             const artistName = this._sanitize(artist.name);
             if (!artistName) {
@@ -501,7 +545,7 @@ class ArtistsPage extends Component {
 
             // 调用API获取艺术家封面
             // 只传艺术家名称，不传专辑名
-            const result = await coverAPI.getCover('', artistName, '', null, false);
+            const result = await coverAPI.getCover('', artistName, '', null, false) as CoverResult;
             if (result && result.success && result.imageUrl) {
                 // 更新艺术家数据
                 artist.cover = result.imageUrl;
@@ -512,7 +556,7 @@ class ArtistsPage extends Component {
                 console.log('❌ 艺术家封面获取失败:', artistName, result?.error);
             }
         } catch (e) {
-            console.warn('获取艺术家封面失败:', artist?.name, e?.message);
+            console.warn('获取艺术家封面失败:', artist?.name, getErrorMessage(e));
             this._coverFailures.add(artist.name);
         } finally {
             this._setArtistCardLoading(artist.name, false);
@@ -521,15 +565,15 @@ class ArtistsPage extends Component {
     }
 
     // 字符串清理方法
-    _sanitize(val) {
+    _sanitize(val: unknown): string {
         if (val == null) return '';
         return String(val).trim();
     }
 
     // 设置艺术家卡片加载状态
-    _setArtistCardLoading(artistName, isLoading) {
+    _setArtistCardLoading(artistName: string, isLoading: boolean): void {
         const artistCards = this.container.querySelectorAll(`[data-artist="${artistName}"]`);
-        artistCards.forEach(card => {
+        artistCards.forEach((card: HTMLElement) => {
             const img = card.querySelector('img');
             if (img) {
                 if (isLoading) {
@@ -544,14 +588,14 @@ class ArtistsPage extends Component {
     }
 
     // 更新艺术家卡片封面
-    _updateArtistCardCover(artistName, imageUrl) {
+    _updateArtistCardCover(artistName: string, imageUrl: string): void {
         const artistCards = this.container.querySelectorAll(`[data-artist="${artistName}"]`);
-        artistCards.forEach(card => {
+        artistCards.forEach((card: HTMLElement) => {
             const img = card.querySelector('img');
             if (img && imageUrl) {
                 // 使用安全的图片设置方法
                 if (urlValidator) {
-                    urlValidator.safeSetImageSrc(img, imageUrl).then(success => {
+                    urlValidator.safeSetImageSrc(img, imageUrl).then((success: boolean) => {
                         if (success) {
                             img.style.opacity = '';
                             img.style.filter = '';
@@ -567,14 +611,14 @@ class ArtistsPage extends Component {
     }
 
     // 启动封面获取流程
-    _startCoverFetching() {
+    _startCoverFetching(): void {
         // 防止重复启动封面获取
         if (this._coverFetchingInProgress) {
             return;
         }
 
         // 检查是否有需要获取封面的艺术家
-        const artistsNeedingCovers = this.filteredArtists.filter(artist =>
+        const artistsNeedingCovers = this.filteredArtists.filter((artist) =>
             !artist.cover &&
             !this._coverFailures.has(artist.name) &&
             !this._coverLoading.has(artist.name)
@@ -604,9 +648,9 @@ class ArtistsPage extends Component {
     }
 
     // 为可见的艺术家获取封面
-    async _fetchCoversForVisibleArtists() {
+    async _fetchCoversForVisibleArtists(): Promise<void> {
         // 只为没有封面的艺术家获取封面
-        const artistsNeedingCovers = this.filteredArtists.filter(artist =>
+        const artistsNeedingCovers = this.filteredArtists.filter((artist) =>
             !artist.cover &&
             !this._coverFailures.has(artist.name) &&
             !this._coverLoading.has(artist.name)
@@ -619,28 +663,28 @@ class ArtistsPage extends Component {
 
             // 并发获取这一批的封面
             await Promise.allSettled(
-                batch.map(artist => this._fetchArtistCover(artist))
+                batch.map((artist) => this._fetchArtistCover(artist))
             );
 
             // 在批次之间添加小延迟，避免请求过于频繁
             if (i + batchSize < artistsNeedingCovers.length) {
-                await new Promise(resolve => setTimeout(resolve, 200));
+                await new Promise<void>((resolve) => setTimeout(resolve, 200));
             }
         }
     }
 
     // 准备艺术家详情页面内容的分层进入动画
-    prepareArtistDetailSequence() {
+    prepareArtistDetailSequence(): void {
         const title = this.container.querySelector('.artist-title');
         const stats = this.container.querySelector('.artist-stats-modern');
         const actions = this.container.querySelector('.artist-actions-modern');
         const tracksTitle = this.container.querySelector('.tracks-title');
         const albums = this.container.querySelectorAll('.album-orbit');
 
-        const setInitialState = (elements) => {
+        const setInitialState = (elements: any) => {
             if (!elements) return;
             const els = elements instanceof NodeList ? Array.from(elements) : [elements];
-            els.forEach(el => {
+            els.forEach((el: HTMLElement) => {
                 if (el) {
                     el.style.opacity = '0';
                     el.style.transform = 'translateY(20px)';
@@ -656,17 +700,17 @@ class ArtistsPage extends Component {
     }
 
     // 执行艺术家详情页面内容的分层进入动画
-    runArtistDetailSequence() {
+    runArtistDetailSequence(): void {
         const title = this.container.querySelector('.artist-title');
         const stats = this.container.querySelector('.artist-stats-modern');
         const actions = this.container.querySelector('.artist-actions-modern');
         const tracksTitle = this.container.querySelector('.tracks-title');
         const albums = this.container.querySelectorAll('.album-orbit');
 
-        const animatePhase = (elements, delayBase) => {
+        const animatePhase = (elements: any, delayBase: number) => {
             if (!elements) return;
             const els = elements instanceof NodeList ? Array.from(elements) : [elements];
-            els.forEach((el, i) => {
+            els.forEach((el: HTMLElement, i: number) => {
                 if (el) {
                     el.animate([
                         {opacity: 0, transform: 'translateY(20px)'},
@@ -690,12 +734,12 @@ class ArtistsPage extends Component {
     }
 
     // 过滤艺术家
-    filterArtists(searchTerm) {
+    filterArtists(searchTerm: string): void {
         if (!searchTerm.trim()) {
             this.filteredArtists = [...this.artists];
         } else {
             const term = searchTerm.toLowerCase();
-            this.filteredArtists = this.artists.filter(artist =>
+            this.filteredArtists = this.artists.filter((artist) =>
                 artist.name.toLowerCase().includes(term)
             );
         }
@@ -704,7 +748,7 @@ class ArtistsPage extends Component {
     }
 
     // 更新艺术家显示区域
-    updateArtistsDisplay() {
+    updateArtistsDisplay(): void {
         const galaxyContainer = this.container.querySelector('.artists-galaxy');
         if (galaxyContainer) {
             // 根据当前视图模式重新渲染
@@ -720,17 +764,17 @@ class ArtistsPage extends Component {
     }
 
     // 获取总歌曲数
-    getTotalTracks() {
+    getTotalTracks(): number {
         return this.artists.reduce((total, artist) => total + artist.tracks.length, 0);
     }
 
     // 获取总专辑数
-    getTotalAlbums() {
+    getTotalAlbums(): number {
         return this.artists.reduce((total, artist) => total + artist.albums.size, 0);
     }
 
     // 计算艺术家受欢迎程度
-    calculateArtistPopularity(artist) {
+    calculateArtistPopularity(artist: ArtistInfo): number {
         const trackCount = artist.tracks.length;
         const albumCount = artist.albums.size;
         const totalDuration = artist.totalDuration || 0;
@@ -739,7 +783,7 @@ class ArtistsPage extends Component {
         const score = (trackCount * 2) + (albumCount * 5) + (totalDuration / 60000); // 转换为分钟
 
         // 归一化到0-100
-        const maxScore = Math.max(...this.artists.map(a =>
+        const maxScore = Math.max(...this.artists.map((a) =>
             (a.tracks.length * 2) + (a.albums.size * 5) + ((a.totalDuration || 0) / 60000)
         ));
 
@@ -748,7 +792,7 @@ class ArtistsPage extends Component {
 
     // 渲染星座视图
     // 网格布局 + 连线效果
-    renderConstellationView() {
+    renderConstellationView(): string {
         const sortedArtists = this.getSortedArtistsByPopularity();
         const constellations = this.groupArtistsIntoConstellations(sortedArtists);
 
@@ -764,7 +808,7 @@ class ArtistsPage extends Component {
 
     // 渲染星系视图
     // 环形布局
-    renderGalaxyView() {
+    renderGalaxyView(): string {
         const sortedArtists = this.getSortedArtistsByPopularity();
         const orbits = this.distributeArtistsInOrbits(sortedArtists);
 
@@ -784,7 +828,7 @@ class ArtistsPage extends Component {
     }
 
     // 按受欢迎程度排序艺术家
-    getSortedArtistsByPopularity() {
+    getSortedArtistsByPopularity(): ArtistInfo[] {
         return [...this.filteredArtists].sort((a, b) => {
             const popularityA = this.calculateArtistPopularity(a);
             const popularityB = this.calculateArtistPopularity(b);
@@ -793,8 +837,8 @@ class ArtistsPage extends Component {
     }
 
     // 将艺术家分组为星座
-    groupArtistsIntoConstellations(artists) {
-        const constellations = [];
+    groupArtistsIntoConstellations(artists: ArtistInfo[]): ArtistInfo[][] {
+        const constellations: ArtistInfo[][] = [];
         const constellationSize = 4; // 每个星座4-6个艺术家
 
         for (let i = 0; i < artists.length; i += constellationSize) {
@@ -805,10 +849,10 @@ class ArtistsPage extends Component {
     }
 
     // 将艺术家分布到不同轨道
-    distributeArtistsInOrbits(artists) {
-        const orbits = [[], [], [], []]; // 4个轨道
+    distributeArtistsInOrbits(artists: ArtistInfo[]): ArtistInfo[][] {
+        const orbits: ArtistInfo[][] = [[], [], [], []]; // 4个轨道
 
-        artists.forEach((artist, _index) => {
+        artists.forEach((artist) => {
             const popularity = this.calculateArtistPopularity(artist);
             let orbitIndex;
 
@@ -824,7 +868,7 @@ class ArtistsPage extends Component {
     }
 
     // 渲染星座连线
-    renderConstellationLines(constellations) {
+    renderConstellationLines(constellations: ArtistInfo[][]): string {
         let lines = '';
 
         constellations.forEach((constellation, constellationIndex) => {
@@ -859,7 +903,7 @@ class ArtistsPage extends Component {
     }
 
     // 渲染星座中的星星
-    renderConstellationStar(artist, index) {
+    renderConstellationStar(artist: ArtistInfo, index: number): string {
         const popularity = this.calculateArtistPopularity(artist);
         const starSize = this.getConstellationStarSize(popularity);
         const trackCount = artist.tracks.length;
@@ -896,7 +940,7 @@ class ArtistsPage extends Component {
     }
 
     // 渲染星系中的行星
-    renderGalaxyPlanet(artist, orbitIndex, artistIndex, totalInOrbit) {
+    renderGalaxyPlanet(artist: ArtistInfo, orbitIndex: number, artistIndex: number, totalInOrbit: number): string {
         const popularity = this.calculateArtistPopularity(artist);
         const planetSize = this.getGalaxyPlanetSize(popularity, orbitIndex);
         const trackCount = artist.tracks.length;
@@ -934,7 +978,7 @@ class ArtistsPage extends Component {
     }
 
     // 获取星座星星大小
-    getConstellationStarSize(popularity) {
+    getConstellationStarSize(popularity: number): string {
         if (popularity >= 80) return 'constellation-large';
         if (popularity >= 60) return 'constellation-medium';
         if (popularity >= 40) return 'constellation-small';
@@ -942,13 +986,13 @@ class ArtistsPage extends Component {
     }
 
     // 获取星系行星大小
-    getGalaxyPlanetSize(popularity, orbitIndex) {
+    getGalaxyPlanetSize(_popularity: number, orbitIndex: number): string {
         const baseSize = orbitIndex === 0 ? 'large' : orbitIndex === 1 ? 'medium' : orbitIndex === 2 ? 'small' : 'tiny';
         return `planet-${baseSize}`;
     }
 
     // 绑定视图特定的事件
-    bindViewSpecificEvents() {
+    bindViewSpecificEvents(): void {
         if (this.viewMode === 'constellation') {
             this.bindConstellationEvents();
         } else {
@@ -957,8 +1001,8 @@ class ArtistsPage extends Component {
     }
 
     // 绑定星座视图事件
-    bindConstellationEvents() {
-        this.container.querySelectorAll('.constellation-star').forEach(star => {
+    bindConstellationEvents(): void {
+        this.container.querySelectorAll('.constellation-star').forEach((star: HTMLElement) => {
             const artistName = star.dataset.artist;
             const artist = this.artists.find(a => a.name === artistName);
 
@@ -967,7 +1011,7 @@ class ArtistsPage extends Component {
             // 播放按钮
             const playBtn = star.querySelector('.constellation-play-btn');
             if (playBtn) {
-                playBtn.addEventListener('click', (e) => {
+                playBtn.addEventListener('click', (e: Event) => {
                     e.stopPropagation();
                     this.playArtistWithAnimation(star, artist);
                     this.triggerConstellationEffect(star);
@@ -975,9 +1019,9 @@ class ArtistsPage extends Component {
             }
 
             // 点击星星查看详情
-            star.addEventListener('click', (e) => {
+            star.addEventListener('click', (e: Event) => {
                 // 检查是否点击了播放按钮
-                if (e.target.closest('.constellation-play-btn')) {
+                if ((e.target as HTMLElement | null)?.closest('.constellation-play-btn')) {
                     return;
                 }
                 this.showArtistDetailWithTransition(artist, star);
@@ -995,8 +1039,8 @@ class ArtistsPage extends Component {
     }
 
     // 绑定星系视图事件
-    bindGalaxyEvents() {
-        this.container.querySelectorAll('.galaxy-planet').forEach(planet => {
+    bindGalaxyEvents(): void {
+        this.container.querySelectorAll('.galaxy-planet').forEach((planet: HTMLElement) => {
             const artistName = planet.dataset.artist;
             const artist = this.artists.find(a => a.name === artistName);
 
@@ -1005,7 +1049,7 @@ class ArtistsPage extends Component {
             // 播放按钮
             const playBtn = planet.querySelector('.planet-play-btn');
             if (playBtn) {
-                playBtn.addEventListener('click', (e) => {
+                playBtn.addEventListener('click', (e: Event) => {
                     e.stopPropagation();
                     this.playArtistWithAnimation(planet, artist);
                     this.triggerGalaxyEffect(planet);
@@ -1013,9 +1057,9 @@ class ArtistsPage extends Component {
             }
 
             // 点击行星查看详情（避免播放按钮区域）
-            planet.addEventListener('click', (e) => {
+            planet.addEventListener('click', (e: Event) => {
                 // 检查是否点击了播放按钮
-                if (e.target.closest('.planet-play-btn')) {
+                if ((e.target as HTMLElement | null)?.closest('.planet-play-btn')) {
                     return;
                 }
                 this.showArtistDetailWithTransition(artist, planet);
@@ -1033,10 +1077,11 @@ class ArtistsPage extends Component {
     }
 
     // 星座悬停动画
-    animateConstellationHover(star, isHover) {
-        const core = star.querySelector('.star-constellation-core');
-        const glow = star.querySelector('.star-constellation-glow');
-        const twinkle = star.querySelector('.constellation-twinkle');
+    animateConstellationHover(star: HTMLElement, isHover: boolean): void {
+        const core = star.querySelector<HTMLElement>('.star-constellation-core');
+        const glow = star.querySelector<HTMLElement>('.star-constellation-glow');
+        const twinkle = star.querySelector<HTMLElement>('.constellation-twinkle');
+        if (!core || !glow || !twinkle) return;
 
         if (isHover) {
             core.style.transform = 'scale(1.1)';
@@ -1052,10 +1097,11 @@ class ArtistsPage extends Component {
     }
 
     // 星系悬停动画
-    animateGalaxyHover(planet, isHover) {
-        const core = planet.querySelector('.planet-core');
-        const glow = planet.querySelector('.planet-glow');
-        const ring = planet.querySelector('.planet-ring');
+    animateGalaxyHover(planet: HTMLElement, isHover: boolean): void {
+        const core = planet.querySelector<HTMLElement>('.planet-core');
+        const glow = planet.querySelector<HTMLElement>('.planet-glow');
+        const ring = planet.querySelector<HTMLElement>('.planet-ring');
+        if (!core || !glow || !ring) return;
 
         if (isHover) {
             core.style.transform = 'scale(1.15)';
@@ -1071,7 +1117,7 @@ class ArtistsPage extends Component {
     }
 
     // 触发星座效果
-    triggerConstellationEffect(star) {
+    triggerConstellationEffect(star: HTMLElement): void {
         const effect = document.createElement('div');
         effect.className = 'constellation-burst';
         star.appendChild(effect);
@@ -1084,7 +1130,7 @@ class ArtistsPage extends Component {
     }
 
     // 触发星系效果
-    triggerGalaxyEffect(planet) {
+    triggerGalaxyEffect(planet: HTMLElement): void {
         const effect = document.createElement('div');
         effect.className = 'galaxy-pulse';
         planet.appendChild(effect);
@@ -1097,11 +1143,11 @@ class ArtistsPage extends Component {
     }
 
     // 高亮星座连线
-    highlightConstellationConnections(star) {
-        const index = parseInt(star.dataset.index);
+    highlightConstellationConnections(star: HTMLElement): void {
+        const index = parseInt(star.dataset.index || '0');
         const lines = this.container.querySelectorAll('.constellation-line');
 
-        lines.forEach((line, lineIndex) => {
+        lines.forEach((line: SVGLineElement, lineIndex: number) => {
             if (Math.abs(lineIndex - index) <= 1) {
                 line.style.stroke = 'var(--color-primary)';
                 line.style.strokeWidth = '3';
@@ -1111,9 +1157,9 @@ class ArtistsPage extends Component {
     }
 
     // 移除星座高亮
-    removeConstellationHighlight() {
+    removeConstellationHighlight(): void {
         const lines = this.container.querySelectorAll('.constellation-line');
-        lines.forEach(line => {
+        lines.forEach((line: SVGLineElement) => {
             line.style.stroke = '';
             line.style.strokeWidth = '';
             line.style.opacity = '';
@@ -1121,24 +1167,24 @@ class ArtistsPage extends Component {
     }
 
     // 高亮轨道轨迹
-    highlightOrbitTrail(planet) {
-        const orbit = planet.closest('.galaxy-orbit');
+    highlightOrbitTrail(planet: HTMLElement): void {
+        const orbit = planet.closest<HTMLElement>('.galaxy-orbit');
         if (orbit) {
             orbit.style.boxShadow = '0 0 20px rgba(var(--color-primary-rgb), 0.5)';
         }
     }
 
     // 移除轨道高亮
-    removeOrbitHighlight() {
+    removeOrbitHighlight(): void {
         const orbits = this.container.querySelectorAll('.galaxy-orbit');
-        orbits.forEach(orbit => {
+        orbits.forEach((orbit: HTMLElement) => {
             orbit.style.boxShadow = '';
         });
     }
 
     // 切换视图模式
-    switchViewMode(newMode) {
-        const galaxyContainer = this.container.querySelector('.artists-galaxy');
+    switchViewMode(newMode: ArtistViewMode): void {
+        const galaxyContainer = this.container.querySelector('.artists-galaxy') as HTMLElement | null;
         if (!galaxyContainer) return;
 
         // 添加淡出效果
@@ -1149,7 +1195,7 @@ class ArtistsPage extends Component {
             this.viewMode = newMode;
 
             // 更新按钮状态
-            this.container.querySelectorAll('.mode-btn').forEach(btn => {
+            this.container.querySelectorAll('.mode-btn').forEach((btn: HTMLElement) => {
                 btn.classList.toggle('active', btn.dataset.view === newMode);
             });
 
@@ -1173,7 +1219,9 @@ class ArtistsPage extends Component {
         }, 300);
     }
 
-    renderArtistDetail() {
+    renderArtistDetail(): void {
+        if (!this.selectedArtist) return;
+
         const artist = this.selectedArtist;
         const albums = this.groupTracksByAlbum(artist.tracks);
         const popularity = this.calculateArtistPopularity(artist);
@@ -1287,7 +1335,7 @@ class ArtistsPage extends Component {
     }
 
     // 渲染歌曲行
-    renderTrackRow(track, index) {
+    renderTrackRow(track: Track, index: number): string {
         return `
             <div class="track-satellite" data-track-id="${track.id || index}">
                 <div class="satellite-number">
@@ -1308,9 +1356,9 @@ class ArtistsPage extends Component {
         `;
     }
 
-    groupTracksByAlbum(tracks) {
-        const albums = {};
-        tracks.forEach(track => {
+    groupTracksByAlbum(tracks: Track[]): Record<string, Track[]> {
+        const albums: Record<string, Track[]> = {};
+        tracks.forEach((track) => {
             const albumName = track.album || '未知专辑';
             if (!albums[albumName]) {
                 albums[albumName] = [];
@@ -1319,15 +1367,15 @@ class ArtistsPage extends Component {
         });
 
         // 按专辑内的歌曲编号排序
-        Object.values(albums).forEach(albumTracks => {
-            albumTracks.sort((a, b) => (a.track || 0) - (b.track || 0));
+        Object.values(albums).forEach((albumTracks) => {
+            albumTracks.sort((a, b) => ((a.track as number | undefined) || 0) - ((b.track as number | undefined) || 0));
         });
 
         return albums;
     }
 
     // 为专辑准备封面信息
-    prepareAlbumCovers(albums, artistName) {
+    prepareAlbumCovers(albums: Record<string, Track[]>, artistName: string): void {
         Object.entries(albums).forEach(([albumName, tracks]) => {
             // 为每个专辑异步获取封面
             this.fetchAlbumCoverAsync(albumName, artistName, tracks);
@@ -1335,20 +1383,20 @@ class ArtistsPage extends Component {
     }
 
     // 获取专辑封面
-    getAlbumCover(albumName, tracks) {
+    getAlbumCover(_albumName: string, tracks: Track[]): string {
         // 首先检查是否有已缓存的专辑封面
         if (tracks && tracks.length > 0) {
             // 查找是否有歌曲已经有封面
-            const trackWithCover = tracks.find(track => track.cover);
+            const trackWithCover = tracks.find((track) => track.cover);
             if (trackWithCover) {
-                return trackWithCover.cover;
+                return trackWithCover.cover || 'assets/images/default-cover.svg';
             }
         }
         return 'assets/images/default-cover.svg';
     }
 
     // 异步获取专辑封面
-    async fetchAlbumCoverAsync(albumName, artistName, _tracks) {
+    async fetchAlbumCoverAsync(albumName: string, artistName: string, _tracks: Track[]): Promise<void> {
         try {
             // 检查是否已经在获取中
             const albumKey = `${artistName}_${albumName}`;
@@ -1359,7 +1407,7 @@ class ArtistsPage extends Component {
             this._coverLoading.add(albumKey);
 
             // 调用API获取专辑封面
-            const result = await coverAPI.getCover('', artistName, albumName, null, false);
+            const result = await coverAPI.getCover('', artistName, albumName, null, false) as CoverResult;
             if (result && result.success && result.imageUrl) {
                 // 更新专辑封面显示
                 this.updateAlbumCoverDisplay(albumName, result.imageUrl);
@@ -1368,7 +1416,7 @@ class ArtistsPage extends Component {
                 console.log('❌ 专辑封面获取失败:', albumName, result?.error);
             }
         } catch (e) {
-            console.warn('获取专辑封面失败:', albumName, e?.message);
+            console.warn('获取专辑封面失败:', albumName, getErrorMessage(e));
             this._coverFailures.add(`${artistName}_${albumName}`);
         } finally {
             this._coverLoading.delete(`${artistName}_${albumName}`);
@@ -1376,9 +1424,9 @@ class ArtistsPage extends Component {
     }
 
     // 更新专辑封面显示
-    updateAlbumCoverDisplay(albumName, imageUrl) {
+    updateAlbumCoverDisplay(albumName: string, imageUrl: string): void {
         const albumImgs = this.container.querySelectorAll(`img[data-album="${albumName}"]`);
-        albumImgs.forEach(img => {
+        albumImgs.forEach((img: HTMLImageElement) => {
             if (urlValidator) {
                 urlValidator.safeSetImageSrc(img, imageUrl);
             } else {
@@ -1387,7 +1435,10 @@ class ArtistsPage extends Component {
         });
     }
 
-    setupDetailEventListeners() {
+    setupDetailEventListeners(): void {
+        if (!this.selectedArtist) return;
+        const selectedArtist = this.selectedArtist;
+
         // 返回按钮
         const backBtn = this.container.querySelector('#back-to-artists');
         if (backBtn) {
@@ -1401,7 +1452,7 @@ class ArtistsPage extends Component {
         const playAllBtn = this.container.querySelector('#play-artist');
         if (playAllBtn) {
             playAllBtn.addEventListener('click', () => {
-                this.emit('playAll', this.selectedArtist.tracks);
+                this.emit('playAll', selectedArtist.tracks);
             });
         }
 
@@ -1409,31 +1460,31 @@ class ArtistsPage extends Component {
         const shuffleBtn = this.container.querySelector('#shuffle-artist');
         if (shuffleBtn) {
             shuffleBtn.addEventListener('click', () => {
-                const shuffledTracks = [...this.selectedArtist.tracks].sort(() => Math.random() - 0.5);
+                const shuffledTracks = [...selectedArtist.tracks].sort(() => Math.random() - 0.5);
                 this.emit('playAll', shuffledTracks);
             });
         }
 
         // 专辑播放按钮
-        this.container.querySelectorAll('.album-play-btn').forEach(btn => {
+        this.container.querySelectorAll('.album-play-btn').forEach((btn: HTMLElement) => {
             const albumName = btn.dataset.album;
             btn.addEventListener('click', () => {
-                const albumTracks = this.selectedArtist.tracks.filter(t => (t.album || '未知专辑') === albumName);
+                const albumTracks = selectedArtist.tracks.filter((t) => (t.album || '未知专辑') === albumName);
                 this.emit('playAll', albumTracks);
             });
         });
 
         // 歌曲行事件
-        this.container.querySelectorAll('.track-row').forEach(row => {
+        this.container.querySelectorAll('.track-row').forEach((row: HTMLElement) => {
             const trackPath = row.dataset.trackPath;
-            const track = this.selectedArtist.tracks.find(t => t.filePath === trackPath);
+            const track = selectedArtist.tracks.find((t) => t.filePath === trackPath);
 
             if (!track) return;
 
             // 播放按钮
             const playBtn = row.querySelector('.track-actions .action-btn:first-child');
             if (playBtn) {
-                playBtn.addEventListener('click', (e) => {
+                playBtn.addEventListener('click', (e: Event) => {
                     e.stopPropagation();
                     this.emit('trackPlayed', track, 0);
                 });
@@ -1442,7 +1493,7 @@ class ArtistsPage extends Component {
             // 添加到播放列表按钮
             const addBtn = row.querySelector('.track-actions .action-btn:last-child');
             if (addBtn) {
-                addBtn.addEventListener('click', (e) => {
+                addBtn.addEventListener('click', (e: Event) => {
                     e.stopPropagation();
                     this.emit('addToPlaylist', track);
                 });
@@ -1455,12 +1506,12 @@ class ArtistsPage extends Component {
         });
     }
 
-    showArtistDetail(artist) {
+    showArtistDetail(artist: ArtistInfo): void {
         this.selectedArtist = artist;
         this.render();
     }
 
-    formatDuration(seconds) {
+    formatDuration(seconds: number = 0): string {
         if (seconds < 3600) {
             const minutes = Math.floor(seconds / 60);
             return `${minutes} 分钟`;
@@ -1472,11 +1523,19 @@ class ArtistsPage extends Component {
     }
 
     // HTML转义
-    escapeHtml(text) {
+    escapeHtml(text: unknown): string {
         const div = document.createElement('div');
-        div.textContent = text;
+        div.textContent = String(text ?? '');
         return div.innerHTML;
     }
+}
+
+function isArtistViewMode(value: unknown): value is ArtistViewMode {
+    return value === 'constellation' || value === 'galaxy';
+}
+
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
 }
 
 export { ArtistsPage };
