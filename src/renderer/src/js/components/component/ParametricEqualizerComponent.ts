@@ -3,14 +3,58 @@
  */
 
 import {api} from "@api/api";
+import type {AudioEngineManagerBridge} from "@api/audio/AudioEngineAdapter";
 import {Component} from "@components/base/Component";
-import {showInputDialog} from "@js/utils/InputDialog";
 import {app} from "@core/app";
+import {showInputDialog} from "@js/utils/InputDialog";
+import type ParametricEqualizer from "@services/audio/ParametricEqualizer";
+import type {ParametricFilterType} from "@services/audio/ParametricEqualizerPresets";
+
+type ParametricBand = ReturnType<ParametricEqualizer["getBands"]>[number];
+
+interface FilterTypeDefinition {
+    value: ParametricFilterType;
+    label: string;
+    description: string;
+}
+
+interface ParametricEngineBridge {
+    getParametricEqualizer(): ParametricEqualizer | null;
+}
+
+interface ParametricAudioEngine extends AudioEngineManagerBridge {
+    engineType?: string;
+    currentEngine?: (AudioEngineManagerBridge["currentEngine"] & Partial<ParametricEngineBridge>) | null;
+}
+
+interface AudioEngineChangedEvent {
+    engineType?: string;
+}
 
 class ParametricEqualizerComponent extends Component {
+    private equalizer: ParametricEqualizer | null;
+    private readonly filterTypes: FilterTypeDefinition[];
+    private currentEngine: unknown | null;
+    private isInitializingEqualizer: boolean;
+    private openBtn!: HTMLElement;
+    private closeBtn!: HTMLElement;
+    private enabledToggleBtn!: HTMLInputElement;
+    private preampSlider!: HTMLInputElement;
+    private preampValue!: HTMLElement;
+    private addBandBtn!: HTMLElement;
+    private resetBtn!: HTMLElement;
+    private presetSelector!: HTMLSelectElement;
+    private savePresetBtn!: HTMLElement;
+    private importBtn!: HTMLElement;
+    private exportBtn!: HTMLElement;
+    private saveStateTimeout: ReturnType<typeof setTimeout> | null;
+
     constructor() {
         super('#parametric-equalizer-modal');
         this.equalizer = null;
+        this.currentEngine = null;
+        this.isInitializingEqualizer = false;
+        this.saveStateTimeout = null;
 
         // 滤波器类型定义
         this.filterTypes = [
@@ -28,47 +72,56 @@ class ParametricEqualizerComponent extends Component {
         this.initializeEqualizer();
     }
 
-    async show() {
+    async show(): Promise<void> {
         if (!this.equalizer) {
-            return;
+            await this.initializeEqualizer({force: true});
+            if (!this.equalizer) {
+                return;
+            }
         }
 
         // 确保均衡器模式正确
         await this.equalizer.ensureCorrectMode();
         await this.refresh();
 
-        this.element.classList.add('active');
+        this.modalElement.classList.add('active');
     }
 
-    hide() {
-        this.element.classList.remove('active');
+    hide(): void {
+        this.modalElement.classList.remove('active');
     }
 
-    destroy() {
+    destroy(): void {
+        if (this.saveStateTimeout) {
+            clearTimeout(this.saveStateTimeout);
+            this.saveStateTimeout = null;
+        }
+
         if (this.element) {
             this.element.remove();
             this.element = null;
         }
         this.equalizer = null;
+        super.destroy();
     }
 
-    setupElements() {
-        this.openBtn = document.querySelector('#open-parametric-equalizer-btn');
-        this.closeBtn = this.element.querySelector('#peq-close');
-        this.enabledToggleBtn = this.element.querySelector('#peq-enabled');
-        this.preampSlider = this.element.querySelector('#peq-preamp');
-        this.preampValue = this.element.querySelector('#peq-preamp-value');
-        this.addBandBtn = this.element.querySelector('#peq-add-band');
-        this.resetBtn = this.element.querySelector('#peq-reset');
+    setupElements(): void {
+        this.openBtn = queryDocumentElement('#open-parametric-equalizer-btn');
+        this.closeBtn = this.queryElement('#peq-close');
+        this.enabledToggleBtn = this.queryElement<HTMLInputElement>('#peq-enabled');
+        this.preampSlider = this.queryElement<HTMLInputElement>('#peq-preamp');
+        this.preampValue = this.queryElement('#peq-preamp-value');
+        this.addBandBtn = this.queryElement('#peq-add-band');
+        this.resetBtn = this.queryElement('#peq-reset');
 
         // 预设相关元素
-        this.presetSelector = this.element.querySelector('#peq-preset-selector');
-        this.savePresetBtn = this.element.querySelector('#peq-save-preset');
-        this.importBtn = this.element.querySelector('#peq-import');
-        this.exportBtn = this.element.querySelector('#peq-export');
+        this.presetSelector = this.queryElement<HTMLSelectElement>('#peq-preset-selector');
+        this.savePresetBtn = this.queryElement('#peq-save-preset');
+        this.importBtn = this.queryElement('#peq-import');
+        this.exportBtn = this.queryElement('#peq-export');
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         // 开启/关闭
         this.addEventListenerManaged(this.openBtn, 'click', async () => {
             await this.show();
@@ -78,21 +131,27 @@ class ParametricEqualizerComponent extends Component {
         });
 
         // 点击遮罩关闭
-        this.element.addEventListener('click', (e) => {
-            if (e.target === this.element) {
+        this.addEventListenerManaged(this.modalElement, 'click', (event) => {
+            if (event.target === this.element) {
                 this.hide();
             }
         });
 
         // 启用开关
-        this.addEventListenerManaged(this.enabledToggleBtn, 'change', async (e) => {
-            await this.equalizer.setEnabled(e.target.checked);
+        this.addEventListenerManaged(this.enabledToggleBtn, 'change', async (event) => {
+            if (!this.equalizer) return;
+
+            const target = event.currentTarget as HTMLInputElement;
+            await this.equalizer.setEnabled(target.checked);
             await this.autoSaveState();
         });
 
         // 前置增益滑块
-        this.addEventListenerManaged(this.preampSlider, 'input', async (e) => {
-            const gain = parseFloat(e.target.value);
+        this.addEventListenerManaged(this.preampSlider, 'input', async (event) => {
+            if (!this.equalizer) return;
+
+            const target = event.currentTarget as HTMLInputElement;
+            const gain = parseFloat(target.value);
             this.preampValue.textContent = `${gain.toFixed(1)} dB`;
             await this.equalizer.setPreamp(gain);
         });
@@ -109,19 +168,40 @@ class ParametricEqualizerComponent extends Component {
 
         // 重置按钮
         this.addEventListenerManaged(this.resetBtn, 'click', async () => {
+            if (!this.equalizer) return;
+
             await this.equalizer.reset();
             await this.refresh();
             await this.autoSaveState();
         });
 
-        const WASAPIEnable = document.querySelector('#exclusive-mode-toggle');
-        this.addEventListenerManaged(WASAPIEnable, 'change', (e) => {
-            this.setParametricEqualizerEnable(e.target.checked);
+        const wasapiEnable = document.querySelector<HTMLInputElement>('#exclusive-mode-toggle');
+        if (wasapiEnable) {
+            this.addEventListenerManaged(wasapiEnable, 'change', async (event) => {
+                const target = event.currentTarget as HTMLInputElement;
+                this.setParametricEqualizerEnable(target.checked);
+                if (target.checked) {
+                    await this.initializeEqualizer({force: true});
+                } else {
+                    this.clearEqualizerBinding();
+                }
+            });
+        }
+
+        this.addAPIEventListenerManaged('audioEngineChanged', async (event: AudioEngineChangedEvent | string) => {
+            const engineType = typeof event === 'string' ? event : event?.engineType;
+            if (engineType === 'wasapi') {
+                await this.initializeEqualizer({force: true});
+                return;
+            }
+
+            this.clearEqualizerBinding();
         });
 
         // 预设选择器
-        this.addEventListenerManaged(this.presetSelector, 'change', async (e) => {
-            await this.loadPreset(e.target.value);
+        this.addEventListenerManaged(this.presetSelector, 'change', async (event) => {
+            const target = event.currentTarget as HTMLSelectElement;
+            await this.loadPreset(target.value);
         });
 
         // 保存预设按钮
@@ -141,42 +221,77 @@ class ParametricEqualizerComponent extends Component {
     }
 
     // 初始化均衡器
-    async initializeEqualizer() {
-        const audioEngine = api.audioEngine;
+    async initializeEqualizer({force = false}: {force?: boolean} = {}): Promise<boolean> {
+        if (this.isDestroyed) {
+            return false;
+        }
+
+        if (this.isInitializingEqualizer) {
+            return this.equalizer !== null;
+        }
+
+        const audioEngine = api.audioEngine as ParametricAudioEngine | null;
         if (audioEngine?.currentEngine) {
-            if (audioEngine.engineType !== 'wasapi') {
-                this.equalizer = null;
-                this.setParametricEqualizerEnable(false);
-                return;
+            const engineType = typeof audioEngine.getEngineType === 'function'
+                ? audioEngine.getEngineType()
+                : audioEngine.engineType;
+
+            if (engineType !== 'wasapi') {
+                this.clearEqualizerBinding();
+                return false;
             }
 
-            this.equalizer = audioEngine.currentEngine.getParametricEqualizer();
-            if (this.equalizer) {
+            const currentEngine = audioEngine.currentEngine;
+            if (!force && this.equalizer && this.currentEngine === currentEngine) {
                 this.setParametricEqualizerEnable(true);
+                await this.equalizer.ensureCorrectMode();
+                return true;
+            }
 
-                // 加载自定义预设
-                await this.equalizer.loadCustomPresets();
+            if (currentEngine && typeof currentEngine.getParametricEqualizer === 'function') {
+                this.isInitializingEqualizer = true;
+                try {
+                    this.equalizer = currentEngine.getParametricEqualizer();
+                    this.currentEngine = currentEngine;
 
-                // 填充预设选择器
-                await this.populatePresetSelector();
+                    if (this.equalizer) {
+                        this.setParametricEqualizerEnable(true);
 
-                // 尝试加载上次保存的状态
-                const loaded = await this.equalizer.loadSavedState();
+                        // 加载自定义预设
+                        await this.equalizer.loadCustomPresets();
 
-                // 如果成功加载了状态，刷新UI
-                if (loaded) {
-                    console.log('🎚️ 参量均衡器: 已恢复上次状态');
+                        // 填充预设选择器
+                        await this.populatePresetSelector();
+
+                        // 尝试加载上次保存的状态
+                        const loaded = await this.equalizer.loadSavedState();
+
+                        // 如果成功加载了状态，刷新UI
+                        if (loaded) {
+                            console.log('🎚️ 参量均衡器: 已恢复上次状态');
+                        }
+
+                        await this.equalizer.ensureCorrectMode();
+                        if (this.modalElement.classList.contains('active')) {
+                            await this.refresh();
+                        }
+
+                        return true;
+                    }
+                } finally {
+                    this.isInitializingEqualizer = false;
                 }
-
-                return;
             }
         }
         // 音频引擎或参量均衡器尚未就绪，稍后重试
-        setTimeout(() => this.initializeEqualizer(), 100);
+        setTimeout(() => {
+            this.initializeEqualizer();
+        }, 100);
+        return false;
     }
 
     // 开启/关闭参量均衡器
-    setParametricEqualizerEnable(enable) {
+    setParametricEqualizerEnable(enable: boolean): void {
         const parametricEqualizerSettings = document.querySelector('#parametric-equalizer-settings');
         if (parametricEqualizerSettings) {
             parametricEqualizerSettings.classList.toggle('disabled', !enable);
@@ -184,29 +299,28 @@ class ParametricEqualizerComponent extends Component {
     }
 
     // 刷新
-    async refresh() {
+    async refresh(): Promise<void> {
         if (!this.equalizer) return;
 
         // 刷新频段列表
         await this.equalizer.refreshBands();
 
         // 更新全局控制
-        const enabledToggle = this.element.querySelector('#peq-enabled');
-        enabledToggle.checked = this.equalizer.isEnabled();
+        this.enabledToggleBtn.checked = this.equalizer.isEnabled();
 
-        const preampSlider = this.element.querySelector('#peq-preamp');
-        const preampValue = this.element.querySelector('#peq-preamp-value');
         const preamp = this.equalizer.getPreamp();
-        preampSlider.value = preamp;
-        preampValue.textContent = `${preamp.toFixed(1)} dB`;
+        this.preampSlider.value = String(preamp);
+        this.preampValue.textContent = `${preamp.toFixed(1)} dB`;
 
         // 更新频段列表
         this.renderBands();
     }
 
     // 渲染频段列表
-    renderBands() {
-        const container = this.element.querySelector('#peq-bands-container');
+    renderBands(): void {
+        if (!this.equalizer) return;
+
+        const container = this.queryElement('#peq-bands-container');
         const bands = this.equalizer.getBands();
 
         if (bands.length === 0) {
@@ -219,18 +333,18 @@ class ParametricEqualizerComponent extends Component {
             return;
         }
 
-        container.innerHTML = bands.map(band => this.createBandHTML(band)).join('');
+        container.innerHTML = bands.map((band) => this.createBandHTML(band)).join('');
 
         // 绑定频段事件
-        bands.forEach(band => {
+        bands.forEach((band) => {
             this.bindBandEvents(band.id);
         });
     }
 
     // 创建频段HTML
-    createBandHTML(band) {
-        const filterTypeOptions = this.filterTypes.map(ft =>
-            `<option value="${ft.value}" ${band.filterType === ft.value ? 'selected' : ''}>${ft.label}</option>`
+    createBandHTML(band: ParametricBand): string {
+        const filterTypeOptions = this.filterTypes.map((filterType) =>
+            `<option value="${filterType.value}" ${band.filterType === filterType.value ? 'selected' : ''}>${filterType.label}</option>`
         ).join('');
 
         return `
@@ -303,142 +417,175 @@ class ParametricEqualizerComponent extends Component {
     }
 
     // 绑定频段事件
-    bindBandEvents(bandId) {
-        const bandElement = this.element.querySelector(`.peq-band[data-band-id="${bandId}"]`);
+    bindBandEvents(bandId: number): void {
+        if (!this.equalizer) return;
+
+        const bandElement = this.modalElement.querySelector<HTMLElement>(`.peq-band[data-band-id="${bandId}"]`);
         if (!bandElement) return;
 
         // 启用开关
-        const enabledToggle = bandElement.querySelector(`#band-enabled-${bandId}`);
-        enabledToggle.addEventListener('change', async (e) => {
-            await this.equalizer.updateBand(bandId, {enabled: e.target.checked});
-            bandElement.classList.toggle('band-enabled', e.target.checked);
-            bandElement.classList.toggle('band-disabled', !e.target.checked);
+        const enabledToggle = queryChildElement<HTMLInputElement>(bandElement, `#band-enabled-${bandId}`);
+        enabledToggle.addEventListener('change', async (event) => {
+            if (!this.equalizer) return;
+
+            const target = event.currentTarget as HTMLInputElement;
+            await this.equalizer.updateBand(bandId, {enabled: target.checked});
+            bandElement.classList.toggle('band-enabled', target.checked);
+            bandElement.classList.toggle('band-disabled', !target.checked);
             await this.autoSaveState();
         });
 
         // 删除按钮
-        const removeBtn = bandElement.querySelector('.peq-btn-remove');
+        const removeBtn = queryChildElement(bandElement, '.peq-btn-remove');
         removeBtn.addEventListener('click', async () => {
+            if (!this.equalizer) return;
+
             await this.equalizer.removeBand(bandId);
             this.renderBands();
             await this.autoSaveState();
         });
 
         // 滤波器类型
-        const filterType = bandElement.querySelector('.band-filter-type');
-        filterType.addEventListener('change', async (e) => {
-            await this.equalizer.updateBand(bandId, {filterType: e.target.value});
+        const filterType = queryChildElement<HTMLSelectElement>(bandElement, '.band-filter-type');
+        filterType.addEventListener('change', async (event) => {
+            if (!this.equalizer) return;
+
+            const target = event.currentTarget as HTMLSelectElement;
+            await this.equalizer.updateBand(bandId, {filterType: target.value as ParametricFilterType});
             await this.autoSaveState();
         });
 
         // 频率滑块和输入框
-        const freqSlider = bandElement.querySelector('.band-frequency');
-        const freqInput = bandElement.querySelector('.band-frequency-input');
-        const bandInfo = bandElement.querySelector('.band-info');
+        const freqSlider = queryChildElement<HTMLInputElement>(bandElement, '.band-frequency');
+        const freqInput = queryChildElement<HTMLInputElement>(bandElement, '.band-frequency-input');
 
-        freqSlider.addEventListener('input', (e) => {
-            const freq = parseFloat(e.target.value);
-            freqInput.value = Math.round(freq);
+        freqSlider.addEventListener('input', (event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            const freq = parseFloat(target.value);
+            freqInput.value = String(Math.round(freq));
             this.updateBandInfo(bandElement);
         });
 
-        freqSlider.addEventListener('change', async (e) => {
-            const freq = parseFloat(e.target.value);
+        freqSlider.addEventListener('change', async (event) => {
+            if (!this.equalizer) return;
+
+            const target = event.currentTarget as HTMLInputElement;
+            const freq = parseFloat(target.value);
             await this.equalizer.updateBand(bandId, {frequency: freq});
             await this.autoSaveState();
         });
 
-        freqInput.addEventListener('input', (e) => {
-            const freq = parseFloat(e.target.value);
+        freqInput.addEventListener('input', (event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            const freq = parseFloat(target.value);
             if (!isNaN(freq) && freq >= 20 && freq <= 20000) {
-                freqSlider.value = freq;
+                freqSlider.value = String(freq);
                 this.updateBandInfo(bandElement);
             }
         });
 
-        freqInput.addEventListener('change', async (e) => {
-            const freq = parseFloat(e.target.value);
+        freqInput.addEventListener('change', async (event) => {
+            if (!this.equalizer) return;
+
+            const target = event.currentTarget as HTMLInputElement;
+            const freq = parseFloat(target.value);
             if (!isNaN(freq) && freq >= 20 && freq <= 20000) {
                 await this.equalizer.updateBand(bandId, {frequency: freq});
                 await this.autoSaveState();
             } else {
                 // 恢复原值
-                freqInput.value = Math.round(freqSlider.value);
+                target.value = String(Math.round(parseFloat(freqSlider.value)));
             }
         });
 
         // 增益滑块和输入框
-        const gainSlider = bandElement.querySelector('.band-gain');
-        const gainInput = bandElement.querySelector('.band-gain-input');
+        const gainSlider = queryChildElement<HTMLInputElement>(bandElement, '.band-gain');
+        const gainInput = queryChildElement<HTMLInputElement>(bandElement, '.band-gain-input');
 
-        gainSlider.addEventListener('input', (e) => {
-            const gain = parseFloat(e.target.value);
+        gainSlider.addEventListener('input', (event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            const gain = parseFloat(target.value);
             gainInput.value = gain.toFixed(1);
             this.updateBandInfo(bandElement);
         });
 
-        gainSlider.addEventListener('change', async (e) => {
-            const gain = parseFloat(e.target.value);
-            await this.equalizer.updateBand(bandId, {gain: gain});
+        gainSlider.addEventListener('change', async (event) => {
+            if (!this.equalizer) return;
+
+            const target = event.currentTarget as HTMLInputElement;
+            const gain = parseFloat(target.value);
+            await this.equalizer.updateBand(bandId, {gain});
             await this.autoSaveState();
         });
 
-        gainInput.addEventListener('input', (e) => {
-            const gain = parseFloat(e.target.value);
+        gainInput.addEventListener('input', (event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            const gain = parseFloat(target.value);
             if (!isNaN(gain) && gain >= -20 && gain <= 20) {
-                gainSlider.value = gain;
+                gainSlider.value = String(gain);
                 this.updateBandInfo(bandElement);
             }
         });
 
-        gainInput.addEventListener('change', async (e) => {
-            const gain = parseFloat(e.target.value);
+        gainInput.addEventListener('change', async (event) => {
+            if (!this.equalizer) return;
+
+            const target = event.currentTarget as HTMLInputElement;
+            const gain = parseFloat(target.value);
             if (!isNaN(gain) && gain >= -20 && gain <= 20) {
-                await this.equalizer.updateBand(bandId, {gain: gain});
+                await this.equalizer.updateBand(bandId, {gain});
                 await this.autoSaveState();
             } else {
-                gainInput.value = parseFloat(gainSlider.value).toFixed(1);
+                target.value = parseFloat(gainSlider.value).toFixed(1);
             }
         });
 
         // Q值滑块和输入框
-        const qSlider = bandElement.querySelector('.band-q');
-        const qInput = bandElement.querySelector('.band-q-input');
+        const qSlider = queryChildElement<HTMLInputElement>(bandElement, '.band-q');
+        const qInput = queryChildElement<HTMLInputElement>(bandElement, '.band-q-input');
 
-        qSlider.addEventListener('input', (e) => {
-            const q = parseFloat(e.target.value);
+        qSlider.addEventListener('input', (event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            const q = parseFloat(target.value);
             qInput.value = q.toFixed(2);
         });
 
-        qSlider.addEventListener('change', async (e) => {
-            const q = parseFloat(e.target.value);
-            await this.equalizer.updateBand(bandId, {q: q});
+        qSlider.addEventListener('change', async (event) => {
+            if (!this.equalizer) return;
+
+            const target = event.currentTarget as HTMLInputElement;
+            const q = parseFloat(target.value);
+            await this.equalizer.updateBand(bandId, {q});
             await this.autoSaveState();
         });
 
-        qInput.addEventListener('input', (e) => {
-            const q = parseFloat(e.target.value);
+        qInput.addEventListener('input', (event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            const q = parseFloat(target.value);
             if (!isNaN(q) && q >= 0.1 && q <= 10) {
-                qSlider.value = q;
+                qSlider.value = String(q);
             }
         });
 
-        qInput.addEventListener('change', async (e) => {
-            const q = parseFloat(e.target.value);
+        qInput.addEventListener('change', async (event) => {
+            if (!this.equalizer) return;
+
+            const target = event.currentTarget as HTMLInputElement;
+            const q = parseFloat(target.value);
             if (!isNaN(q) && q >= 0.1 && q <= 10) {
-                await this.equalizer.updateBand(bandId, {q: q});
+                await this.equalizer.updateBand(bandId, {q});
                 await this.autoSaveState();
             } else {
-                qInput.value = parseFloat(qSlider.value).toFixed(2);
+                target.value = parseFloat(qSlider.value).toFixed(2);
             }
         });
     }
 
     // 更新频段信息显示
-    updateBandInfo(bandElement) {
-        const freqSlider = bandElement.querySelector('.band-frequency');
-        const gainSlider = bandElement.querySelector('.band-gain');
-        const bandInfo = bandElement.querySelector('.band-info');
+    updateBandInfo(bandElement: HTMLElement): void {
+        const freqSlider = queryChildElement<HTMLInputElement>(bandElement, '.band-frequency');
+        const gainSlider = queryChildElement<HTMLInputElement>(bandElement, '.band-gain');
+        const bandInfo = queryChildElement(bandElement, '.band-info');
 
         const freq = parseFloat(freqSlider.value);
         const gain = parseFloat(gainSlider.value);
@@ -447,7 +594,9 @@ class ParametricEqualizerComponent extends Component {
     }
 
     // 添加新频段
-    async addBand() {
+    async addBand(): Promise<void> {
+        if (!this.equalizer) return;
+
         // 默认参数
         const bandId = await this.equalizer.addBand(1000, 0, 1.0, 'peak');
         if (bandId !== null) {
@@ -456,7 +605,7 @@ class ParametricEqualizerComponent extends Component {
     }
 
     // 格式化频率显示
-    formatFrequency(freq) {
+    formatFrequency(freq: number): string {
         if (freq >= 1000) {
             return `${(freq / 1000).toFixed(1)} kHz`;
         }
@@ -464,7 +613,7 @@ class ParametricEqualizerComponent extends Component {
     }
 
     // 填充预设选择器
-    async populatePresetSelector() {
+    async populatePresetSelector(): Promise<void> {
         if (!this.equalizer) return;
 
         const allPresets = this.equalizer.getAllPresets();
@@ -507,10 +656,12 @@ class ParametricEqualizerComponent extends Component {
     }
 
     // 加载预设
-    async loadPreset(value) {
+    async loadPreset(value: string): Promise<void> {
         if (!this.equalizer || !value) return;
 
         const [type, id] = value.split(':');
+        if (!id) return;
+
         const isCustom = type === 'custom';
 
         const success = await this.equalizer.loadPreset(id, isCustom);
@@ -524,7 +675,7 @@ class ParametricEqualizerComponent extends Component {
     }
 
     // 显示保存预设对话框
-    async showSavePresetDialog() {
+    async showSavePresetDialog(): Promise<void> {
         if (!this.equalizer) return;
 
         const name = await showInputDialog('请输入预设名称:', '我的自定义预设', '保存预设');
@@ -549,7 +700,7 @@ class ParametricEqualizerComponent extends Component {
     }
 
     // 导入设置
-    async importSettings() {
+    async importSettings(): Promise<void> {
         if (!this.equalizer) return;
 
         const result = await this.equalizer.importSettings();
@@ -567,7 +718,7 @@ class ParametricEqualizerComponent extends Component {
     }
 
     // 导出设置
-    async exportSettings() {
+    async exportSettings(): Promise<void> {
         if (!this.equalizer) return;
 
         const name = await showInputDialog('请输入导出文件名称:', '我的参量均衡器设置', '导出设置');
@@ -585,7 +736,7 @@ class ParametricEqualizerComponent extends Component {
     }
 
     // 自动保存当前状态
-    async autoSaveState() {
+    async autoSaveState(): Promise<void> {
         if (!this.equalizer) return;
 
         // 使用防抖，避免频繁保存
@@ -594,9 +745,48 @@ class ParametricEqualizerComponent extends Component {
         }
 
         this.saveStateTimeout = setTimeout(async () => {
-            await this.equalizer.saveCurrentState();
+            if (this.equalizer) {
+                await this.equalizer.saveCurrentState();
+            }
         }, 500);
     }
+
+    private get modalElement(): HTMLElement {
+        if (this.element instanceof HTMLElement) {
+            return this.element;
+        }
+
+        throw new Error('ParametricEqualizerComponent element not found');
+    }
+
+    private queryElement<T extends HTMLElement = HTMLElement>(selector: string): T {
+        return queryChildElement<T>(this.modalElement, selector);
+    }
+
+    private clearEqualizerBinding(): void {
+        this.equalizer = null;
+        this.currentEngine = null;
+        this.setParametricEqualizerEnable(false);
+        this.enabledToggleBtn.checked = false;
+    }
+}
+
+function queryDocumentElement<T extends HTMLElement = HTMLElement>(selector: string): T {
+    const element = document.querySelector<T>(selector);
+    if (!element) {
+        throw new Error(`Element not found: ${selector}`);
+    }
+
+    return element;
+}
+
+function queryChildElement<T extends HTMLElement = HTMLElement>(root: ParentNode, selector: string): T {
+    const element = root.querySelector<T>(selector);
+    if (!element) {
+        throw new Error(`Element not found: ${selector}`);
+    }
+
+    return element;
 }
 
 export default ParametricEqualizerComponent;

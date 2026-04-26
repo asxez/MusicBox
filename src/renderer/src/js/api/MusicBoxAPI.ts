@@ -748,7 +748,14 @@ export class MusicBoxAPI extends EventEmitter {
     }
 
     async switchAudioEngine(engineType: AudioEngineType): Promise<boolean> {
-        return await this.audioEngineAdapter.switchAudioEngine(engineType);
+        const result = await this.audioEngineAdapter.switchAudioEngine(engineType);
+        if (result) {
+            this.emit('audioEngineChanged', {
+                engineType: this.audioEngineAdapter.getAudioEngineType()
+            });
+        }
+
+        return result;
     }
 
     async switchWasapiShareMode(mode: WasapiShareMode): Promise<boolean> {
