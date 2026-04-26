@@ -2,15 +2,32 @@
  * 我的音乐页组件
  */
 
-import {formatTime, sanitizeHTML} from "@utils";
+import {formatTime, sanitizeHTML} from "@utils/index.js";
 import {cacheManager} from "@services/CacheManager";
 import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
+import type {CoverUpdateData} from "@services/cover/CoverUpdateManager";
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
 import {coverAPI} from "@js/api";
+import type {Track} from "@api/types/track";
+
+type ExtendedCoverUpdateData = CoverUpdateData & {
+    type?: 'cover-updated' | 'manual-refresh';
+};
 
 class TrackList extends Component {
-    constructor(container) {
+    tracks: Track[];
+    selectedTracks: Set<number>;
+    lastSelectedIndex: number;
+    showCovers: boolean;
+    loadingCovers: Set<string>;
+    lastTracksHash: string | null;
+    coverObserver: IntersectionObserver | null;
+    coverUpdateUnsubscribe: (() => void) | null = null;
+    filteredTracks: Track[] = [];
+    currentTrackIndex = -1;
+
+    constructor(container: string | Element | null) {
         super(container);
         this.tracks = [];
         this.selectedTracks = new Set();
@@ -24,11 +41,11 @@ class TrackList extends Component {
         this.setupCoverUpdateListener();
     }
 
-    setupIntersectionObserver() {
+    setupIntersectionObserver(): void {
         this.coverObserver = new IntersectionObserver(async (entries) => {
             for (const entry of entries) {
                 if (entry.isIntersecting) {
-                    const img = entry.target;
+                    const img = entry.target as HTMLImageElement;
                     const filePath = img.dataset.filePath;
                     if (filePath && !this.loadingCovers.has(filePath)) {
                         const track = this.tracks.find(t => t.filePath === filePath);
@@ -36,7 +53,7 @@ class TrackList extends Component {
                             await this.loadTrackCoverAsync(track);
                         }
                     }
-                    this.coverObserver.unobserve(img);
+                    this.coverObserver?.unobserve(img);
                 }
             }
         }, {
@@ -46,18 +63,18 @@ class TrackList extends Component {
         });
     }
 
-    show() {
+    show(): void {
         if (this.element) {
-            this.element.style.display = 'block';
+            (this.element as HTMLElement).style.display = 'block';
         }
         if (!this.coverObserver) {
             this.setupIntersectionObserver();
         }
     }
 
-    hide() {
+    hide(): void {
         if (this.element) {
-            this.element.style.display = 'none';
+            (this.element as HTMLElement).style.display = 'none';
         }
         if (this.coverObserver) {
             this.coverObserver.disconnect();
@@ -65,12 +82,13 @@ class TrackList extends Component {
         }
     }
 
-    destroy() {
+    destroy(): void {
         if (this.coverObserver) {
             this.coverObserver.disconnect();
             this.coverObserver = null;
         }
         if (this.coverUpdateUnsubscribe) {
+            this.coverUpdateUnsubscribe();
             this.coverUpdateUnsubscribe = null;
         }
         this.tracks = [];
@@ -80,23 +98,23 @@ class TrackList extends Component {
         super.destroy();
     }
 
-    getShowCoversSettings() {
-        const settings = cacheManager.getLocalCache('musicbox-settings') || {};
-        return settings.hasOwnProperty('showTrackCovers') ? settings.showTrackCovers : true;
+    getShowCoversSettings(): boolean {
+        const settings = cacheManager.getLocalCache<Record<string, boolean>>('musicbox-settings') || {};
+        return Object.prototype.hasOwnProperty.call(settings, 'showTrackCovers') ? settings.showTrackCovers : true;
     }
 
     // 生成tracks的简单哈希值
-    generateTracksHash(tracks) {
+    generateTracksHash(tracks: Track[]): string {
         if (!tracks || tracks.length === 0) return 'empty';
         // 使用tracks数量和前几个文件路径生成简单哈希
         const sample = tracks.slice(0, 3).map(t => t.filePath || t.title).join('|');
         return `${tracks.length}_${sample}`;
     }
 
-    setupSettingsListener() {
+    setupSettingsListener(): void {
         const setupListener = () => {
             if (app && app.components && app.components.settings) {
-                app.components.settings.on('showTrackCoversEnabled', (enabled) => {
+                app.components.settings.on('showTrackCoversEnabled', (enabled: boolean) => {
                     this.showCovers = enabled;
                     this.render();
                 });
@@ -107,14 +125,14 @@ class TrackList extends Component {
         setupListener();
     }
 
-    setupCoverUpdateListener() {
+    setupCoverUpdateListener(): void {
         // 监听封面更新事件
         this.coverUpdateUnsubscribe = coverUpdateManager.onCoverUpdate(async (data) => {
-            await this.handleCoverUpdate(data);
+            await this.handleCoverUpdate(data as ExtendedCoverUpdateData);
         });
     }
 
-    setTracks(tracks) {
+    setTracks(tracks: Track[]): void {
         const newTracksHash = this.generateTracksHash(tracks);
         this.tracks = tracks;
         this.lastTracksHash = newTracksHash;
@@ -124,7 +142,7 @@ class TrackList extends Component {
         this.render();
     }
 
-    render() {
+    render(): void {
         if (!this.element) return;
 
         this.element.innerHTML = '';
@@ -145,10 +163,10 @@ class TrackList extends Component {
         this.element.appendChild(list);
     }
 
-    createTrackItem(track, index) {
+    createTrackItem(track: Track, index: number): HTMLElement {
         const item = document.createElement('div');
         item.className = this.showCovers ? 'track-item with-cover' : 'track-item';
-        item.dataset.index = index;
+        item.dataset.index = String(index);
 
         if (this.showCovers) {
             const coverSrc = track.cover || 'assets/images/default-cover.svg';
@@ -166,7 +184,7 @@ class TrackList extends Component {
             `;
 
             if (!track.cover && this.coverObserver) {
-                const img = item.querySelector('.track-cover');
+                const img = item.querySelector<HTMLImageElement>('.track-cover');
                 if (img) this.coverObserver.observe(img);
             }
         } else {
@@ -185,7 +203,7 @@ class TrackList extends Component {
             await this.playTrack(track, index);
         });
 
-        item.addEventListener('click', (e) => {
+        item.addEventListener('click', (e: MouseEvent) => {
             if (e.ctrlKey || e.metaKey) {
                 this.toggleTrackSelection(index);
             } else if (e.shiftKey && this.selectedTracks.size > 0) {
@@ -195,7 +213,7 @@ class TrackList extends Component {
             }
         });
 
-        item.addEventListener('contextmenu', (e) => {
+        item.addEventListener('contextmenu', (e: MouseEvent) => {
             e.preventDefault();
             // 右键点击的条目若不在选中集合中，则先选中它
             if (!this.selectedTracks.has(index)) {
@@ -207,7 +225,7 @@ class TrackList extends Component {
         return item;
     }
 
-    async loadTrackCoverAsync(track) {
+    async loadTrackCoverAsync(track: Track): Promise<void> {
         if (!track.filePath) return;
         if (this.loadingCovers.has(track.filePath)) return;
 
@@ -215,7 +233,7 @@ class TrackList extends Component {
 
         try {
             // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
-            const loadCover = async () => {
+            const loadCover = async (): Promise<void> => {
                 try {
                     const coverResult = await coverAPI.getCover(
                         track.title, track.artist, track.album, track.filePath
@@ -263,13 +281,17 @@ class TrackList extends Component {
     }
 
     // 更新DOM中的歌曲封面
-    updateTrackCoverInDOM(track) {
+    updateTrackCoverInDOM(track: Track): void {
         try {
-            const trackItems = this.element.querySelectorAll('.track-item');
+            if (!this.element) {
+                return;
+            }
+
+            const trackItems = this.element.querySelectorAll<HTMLElement>('.track-item');
             trackItems.forEach((item, index) => {
                 if (this.tracks[index] === track) {
                     // 查找.track-cover元素（img标签）
-                    const coverImg = item.querySelector('.track-cover');
+                    const coverImg = item.querySelector<HTMLImageElement>('.track-cover');
                     if (coverImg && track.cover) {
                         // 严格的类型检查
                         if (typeof track.cover !== 'string') {
@@ -283,11 +305,12 @@ class TrackList extends Component {
 
                         // 设置封面前先验证URL
                         // 特别是blob URL
-                        if (track.cover.startsWith('blob:')) {
+                        const coverUrl = track.cover;
+                        if (coverUrl.startsWith('blob:')) {
                             // 对于blob URL，添加额外的错误处理
                             coverImg.onerror = () => {
                                 console.warn('⚠️ TrackList: Blob封面加载失败，使用默认封面', {
-                                    blobUrl: track.cover.substring(0, 50) + '...',
+                                    blobUrl: coverUrl.substring(0, 50) + '...',
                                     trackTitle: track.title
                                 });
                                 coverImg.src = 'assets/images/default-cover.svg';
@@ -301,7 +324,7 @@ class TrackList extends Component {
                             };
                         }
 
-                        coverImg.src = track.cover;
+                        coverImg.src = coverUrl;
                     }
                 }
             });
@@ -310,7 +333,7 @@ class TrackList extends Component {
         }
     }
 
-    async playTrack(track, index) {
+    async playTrack(track: Track, index: number): Promise<void> {
         try {
             console.log(`🎵 双击播放: ${track.title || track.filePath}`);
 
@@ -322,14 +345,14 @@ class TrackList extends Component {
         }
     }
 
-    selectTrack(index) {
+    selectTrack(index: number): void {
         this.selectedTracks.clear();
         this.selectedTracks.add(index);
         this.lastSelectedIndex = index;
         this.updateSelection();
     }
 
-    toggleTrackSelection(index) {
+    toggleTrackSelection(index: number): void {
         if (this.selectedTracks.has(index)) {
             this.selectedTracks.delete(index);
         } else {
@@ -339,7 +362,7 @@ class TrackList extends Component {
         this.updateSelection();
     }
 
-    selectTrackRange(endIndex) {
+    selectTrackRange(endIndex: number): void {
         const startIndex = this.lastSelectedIndex >= 0 ? this.lastSelectedIndex : endIndex;
         const min = Math.min(startIndex, endIndex);
         const max = Math.max(startIndex, endIndex);
@@ -349,8 +372,12 @@ class TrackList extends Component {
         this.updateSelection();
     }
 
-    updateSelection() {
-        const items = this.element.querySelectorAll('.track-item');
+    updateSelection(): void {
+        if (!this.element) {
+            return;
+        }
+
+        const items = this.element.querySelectorAll<HTMLElement>('.track-item');
         items.forEach((item, index) => {
             if (this.selectedTracks.has(index)) {
                 item.classList.add('selected');
@@ -361,7 +388,7 @@ class TrackList extends Component {
     }
 
     // 处理封面更新事件
-    async handleCoverUpdate(data) {
+    async handleCoverUpdate(data: ExtendedCoverUpdateData): Promise<void> {
         const {filePath, title, artist, type} = data;
 
         // 只处理封面更新事件
@@ -389,7 +416,7 @@ class TrackList extends Component {
         }
     }
 
-    async refreshTrackCoverInDOM(track) {
+    async refreshTrackCoverInDOM(track: Track): Promise<void> {
         try {
             // 强制重新获取封面
             const coverResult = await coverAPI.getCover(track.title, track.artist, track.album, track.filePath, true);

@@ -57,7 +57,7 @@ import '@components/component/RecentPage';
 import '@components/component/Search';
 import '@components/component/Settings.js';
 import '@components/component/StatisticsPage';
-import '@components/component/TrackList.js';
+import '@components/component/TrackList';
 import '@components/component/UpdateModal';
 
 // ============================================
