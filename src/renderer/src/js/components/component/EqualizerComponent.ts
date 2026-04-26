@@ -7,21 +7,83 @@ import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
 
+interface EqualizerFrequencyPoint {
+    frequency: number;
+    gain: number;
+}
+
+interface EqualizerBridge {
+    setBandGain(bandIndex: number, gain: number): void;
+    getAllGains(): number[];
+    setAllGains(gains: number[]): void;
+    setPreamp?(gain: number): void;
+    getPreamp?(): number;
+    applyPreset(presetName: string): boolean | unknown;
+    reset(): void;
+    getFrequencyResponse?(): EqualizerFrequencyPoint[] | Promise<EqualizerFrequencyPoint[]>;
+}
+
+interface EqualizerSettings {
+    enabled?: boolean;
+    preset?: string;
+    gains?: number[];
+    lastModified?: number;
+}
+
+interface CustomEqualizerPreset {
+    name: string;
+    gains: number[];
+    createdAt: string;
+}
+
+type CustomEqualizerPresets = Record<string, CustomEqualizerPreset>;
+
+interface EqualizerWindow extends Window {
+    equalizerComponent?: EqualizerComponent;
+}
+
 class EqualizerComponent extends Component {
+    private equalizer: EqualizerBridge | null;
+    private isEnabled: boolean;
+    private currentPreset: string;
+    private modal!: HTMLElement;
+    private closeBtn!: HTMLElement;
+    private openBtn!: HTMLElement;
+    private equalizerToggle!: HTMLInputElement;
+    private equalizerSettings!: HTMLElement;
+    private curveCanvas!: HTMLCanvasElement | null;
+    private curveCtx!: CanvasRenderingContext2D | null;
+    private preampSlider!: HTMLInputElement;
+    private preampValue!: HTMLElement;
+    private presetSelect!: HTMLSelectElement;
+    private managePresetsBtn!: HTMLElement;
+    private customPresetsPanel!: HTMLElement;
+    private closePresetsPanelBtn!: HTMLElement;
+    private newPresetNameInput!: HTMLInputElement;
+    private savePresetBtn!: HTMLButtonElement;
+    private customPresetsList!: HTMLElement;
+    private bandSliders!: HTMLInputElement[];
+    private bandValues!: HTMLElement[];
+    private resetBtn!: HTMLElement;
+    private applyBtn!: HTMLElement;
+    private curveAnimationFrame: number | null;
+    private saveTimeout: ReturnType<typeof setTimeout> | null;
+
     constructor() {
         super('#equalizer-modal');
         this.equalizer = null;
         this.isEnabled = false;
         this.currentPreset = 'flat';
+        this.curveAnimationFrame = null;
+        this.saveTimeout = null;
         this.setupElements();
         this.setupEventListeners();
-        this.initializeEqualizer().then(_r => {
-        });
+        this.initializeEqualizer().then(() => {});
         // 设置全局引用，供HTML中的onclick事件使用
-        window.equalizerComponent = this;
+        (window as EqualizerWindow).equalizerComponent = this;
     }
 
-    async show() {
+    async show(): Promise<void> {
         await this.refreshEqualizerReference();
         this.modal.style.display = 'flex';
         requestAnimationFrame(() => {
@@ -30,7 +92,7 @@ class EqualizerComponent extends Component {
         this.updateUI();
     }
 
-    hide() {
+    hide(): void {
         this.modal.classList.remove('show');
         setTimeout(() => {
             this.modal.style.display = 'none';
@@ -38,58 +100,66 @@ class EqualizerComponent extends Component {
         this.saveSettings();
     }
 
-    destroy() {
+    destroy(): void {
         this.saveSettings();
+        if (this.saveTimeout) {
+            clearTimeout(this.saveTimeout);
+            this.saveTimeout = null;
+        }
+        if (this.curveAnimationFrame) {
+            cancelAnimationFrame(this.curveAnimationFrame);
+            this.curveAnimationFrame = null;
+        }
         super.destroy();
     }
 
-    setupElements() {
+    setupElements(): void {
         // 弹窗控制
-        this.modal = this.element;
-        this.closeBtn = this.element.querySelector('#equalizer-close');
-        this.openBtn = document.querySelector('#open-equalizer-btn');
+        this.modal = this.requireElement(this.element, '#equalizer-modal');
+        this.closeBtn = this.queryElement('#equalizer-close');
+        this.openBtn = queryDocumentElement('#open-equalizer-btn');
 
         // 均衡器开关
-        this.equalizerToggle = document.querySelector('#equalizer-toggle');
-        this.equalizerSettings = document.querySelector('#equalizer-settings');
+        this.equalizerToggle = queryDocumentElement<HTMLInputElement>('#equalizer-toggle');
+        this.equalizerSettings = queryDocumentElement('#equalizer-settings');
 
         // EQ曲线画布
-        this.curveCanvas = this.element.querySelector('#equalizer-curve-canvas');
+        this.curveCanvas = this.queryElement<HTMLCanvasElement>('#equalizer-curve-canvas');
         this.curveCtx = this.curveCanvas ? this.curveCanvas.getContext('2d') : null;
 
         // 前置增益控制
-        this.preampSlider = this.element.querySelector('#preamp-slider');
-        this.preampValue = this.element.querySelector('#preamp-value');
+        this.preampSlider = this.queryElement<HTMLInputElement>('#preamp-slider');
+        this.preampValue = this.queryElement('#preamp-value');
 
         // 预设选择器
-        this.presetSelect = this.element.querySelector('#equalizer-preset-select');
-        this.managePresetsBtn = this.element.querySelector('#manage-presets-btn');
+        this.presetSelect = this.queryElement<HTMLSelectElement>('#equalizer-preset-select');
+        this.managePresetsBtn = this.queryElement('#manage-presets-btn');
 
         // 自定义预设管理
-        this.customPresetsPanel = this.element.querySelector('#custom-presets-panel');
-        this.closePresetsPanelBtn = this.element.querySelector('#close-presets-panel');
-        this.newPresetNameInput = this.element.querySelector('#new-preset-name');
-        this.savePresetBtn = this.element.querySelector('#save-preset-btn');
-        this.customPresetsList = this.element.querySelector('#custom-presets-list');
+        this.customPresetsPanel = this.queryElement('#custom-presets-panel');
+        this.closePresetsPanelBtn = this.queryElement('#close-presets-panel');
+        this.newPresetNameInput = this.queryElement<HTMLInputElement>('#new-preset-name');
+        this.savePresetBtn = this.queryElement<HTMLButtonElement>('#save-preset-btn');
+        this.customPresetsList = this.queryElement('#custom-presets-list');
 
         // 频段滑块
         this.bandSliders = [];
         this.bandValues = [];
         for (let i = 0; i < 10; i++) {
-            this.bandSliders[i] = this.element.querySelector(`#band-${i}`);
-            this.bandValues[i] = this.element.querySelector(`#band-value-${i}`);
+            this.bandSliders[i] = this.queryElement<HTMLInputElement>(`#band-${i}`);
+            this.bandValues[i] = this.queryElement(`#band-value-${i}`);
             // console.log(`🎛️ 频段 ${i} - 滑块:`, this.bandSliders[i], '数值:', this.bandValues[i]);
         }
 
         // 控制按钮
-        this.resetBtn = this.element.querySelector('#equalizer-reset');
-        this.applyBtn = this.element.querySelector('#equalizer-apply');
+        this.resetBtn = this.queryElement('#equalizer-reset');
+        this.applyBtn = this.queryElement('#equalizer-apply');
 
         // 曲线绘制动画帧ID
         this.curveAnimationFrame = null;
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         this.addEventListenerManaged(this.openBtn, 'click', () => {
             this.show();
         });
@@ -101,19 +171,22 @@ class EqualizerComponent extends Component {
         });
 
         this.addEventListenerManaged(this.equalizerToggle, 'change', (e) => {
-            this.setEnabled(e.target.checked);
+            const target = e.currentTarget as HTMLInputElement;
+            this.setEnabled(target.checked);
         });
 
         // 前置增益控制
         if (this.preampSlider) {
             this.addEventListenerManaged(this.preampSlider, 'input', (e) => {
-                this.updatePreamp(parseFloat(e.target.value));
+                const target = e.currentTarget as HTMLInputElement;
+                this.updatePreamp(parseFloat(target.value));
             });
         }
 
         // 预设选择
         this.addEventListenerManaged(this.presetSelect, 'change', async (e) => {
-            await this.applyPreset(e.target.value);
+            const target = e.currentTarget as HTMLSelectElement;
+            await this.applyPreset(target.value);
         });
 
         // 自定义预设管理
@@ -134,7 +207,7 @@ class EqualizerComponent extends Component {
         });
 
         this.addEventListenerManaged(this.newPresetNameInput, 'keypress', async (e) => {
-            if (e.key === 'Enter') {
+            if ((e as KeyboardEvent).key === 'Enter') {
                 await this.saveCustomPreset();
             }
         });
@@ -143,7 +216,8 @@ class EqualizerComponent extends Component {
         this.bandSliders.forEach((slider, index) => {
             if (slider) {
                 this.addEventListenerManaged(slider, 'input', (e) => {
-                    this.updateBandGain(index, parseFloat(e.target.value));
+                    const target = e.currentTarget as HTMLInputElement;
+                    this.updateBandGain(index, parseFloat(target.value));
                 });
             }
         });
@@ -153,16 +227,16 @@ class EqualizerComponent extends Component {
         this.addEventListenerManaged(this.applyBtn, 'click', () => this.hide());
 
         this.addEventListenerManaged(document, 'keydown', (e) => {
-            if (e.key === 'Escape' && this.isVisible()) {
+            if ((e as KeyboardEvent).key === 'Escape' && this.isVisible()) {
                 this.hide();
             }
         });
     }
 
-    async initializeEqualizer() {
+    async initializeEqualizer(): Promise<void> {
         // 等待API初始化
         if (api.getEqualizer) {
-            this.equalizer = api.getEqualizer();
+            this.equalizer = api.getEqualizer() as EqualizerBridge | null;
             if (this.equalizer) {
                 if (cacheManager) {
                     this.reloadConfig();
@@ -181,12 +255,12 @@ class EqualizerComponent extends Component {
         }
     }
 
-    async refreshEqualizerReference() {
+    async refreshEqualizerReference(): Promise<boolean> {
         if (!api.getEqualizer) {
             return false;
         }
 
-        const latestEqualizer = api.getEqualizer();
+        const latestEqualizer = api.getEqualizer() as EqualizerBridge | null;
         if (!latestEqualizer) {
             return false;
         }
@@ -199,11 +273,11 @@ class EqualizerComponent extends Component {
         return true;
     }
 
-    isVisible() {
+    isVisible(): boolean {
         return this.modal.classList.contains('show');
     }
 
-    async setEnabled(enabled) {
+    async setEnabled(enabled: boolean): Promise<void> {
         await this.refreshEqualizerReference();
         // console.log(`🎛️ 设置均衡器状态: ${enabled} (当前状态: ${this.isEnabled})`);
 
@@ -227,7 +301,7 @@ class EqualizerComponent extends Component {
     }
 
     // 更新UI状态，避免触发事件
-    updateUIState(enabled) {
+    updateUIState(enabled: boolean): void {
         // 临时移除事件监听器，避免递归调用
         if (this.equalizerToggle) {
             const oldHandler = this.equalizerToggle.onchange;
@@ -242,7 +316,7 @@ class EqualizerComponent extends Component {
     }
 
     // 应用预设
-    async applyPreset(presetName) {
+    async applyPreset(presetName: string): Promise<void> {
         await this.refreshEqualizerReference();
         if (!this.equalizer) return;
 
@@ -264,7 +338,7 @@ class EqualizerComponent extends Component {
         }
     }
 
-    updateBandGain(bandIndex, gain) {
+    updateBandGain(bandIndex: number, gain: number): void {
         this.refreshEqualizerReference();
         // console.log(`🎛️ 调节频段 ${bandIndex}，增益: ${gain}dB`);
 
@@ -293,7 +367,7 @@ class EqualizerComponent extends Component {
         }, 500);
     }
 
-    updatePreamp(gain) {
+    updatePreamp(gain: number): void {
         this.refreshEqualizerReference();
         if (!this.equalizer) {
             console.error('❌ 均衡器实例不存在');
@@ -322,7 +396,7 @@ class EqualizerComponent extends Component {
         }, 500);
     }
 
-    updateBandValueDisplay(bandIndex, gain) {
+    updateBandValueDisplay(bandIndex: number, gain: number): void {
         if (this.bandValues[bandIndex]) {
             const displayValue = gain >= 0 ? `+${gain.toFixed(1)}dB` : `${gain.toFixed(1)}dB`;
             this.bandValues[bandIndex].textContent = displayValue;
@@ -331,13 +405,13 @@ class EqualizerComponent extends Component {
         }
     }
 
-    updateUI() {
+    updateUI(): void {
         if (!this.equalizer) return;
 
         // 更新前置增益
         if (this.equalizer.getPreamp && this.preampSlider) {
             const preamp = this.equalizer.getPreamp();
-            this.preampSlider.value = preamp;
+            this.preampSlider.value = String(preamp);
             if (this.preampValue) {
                 const displayValue = preamp >= 0 ? `+${preamp.toFixed(1)}dB` : `${preamp.toFixed(1)}dB`;
                 this.preampValue.textContent = displayValue;
@@ -348,7 +422,7 @@ class EqualizerComponent extends Component {
         const gains = this.equalizer.getAllGains();
         gains.forEach((gain, index) => {
             if (this.bandSliders[index]) {
-                this.bandSliders[index].value = gain;
+                this.bandSliders[index].value = String(gain);
                 this.updateBandValueDisplay(index, gain);
             }
         });
@@ -356,7 +430,7 @@ class EqualizerComponent extends Component {
         // 更新预设选择器
         if (this.presetSelect) {
             // 确保预设选择器中有对应的选项
-            const optionExists = Array.from(this.presetSelect.options).some(option => option.value === this.currentPreset);
+            const optionExists = Array.from(this.presetSelect.options).some((option) => option.value === this.currentPreset);
 
             if (optionExists) {
                 this.presetSelect.value = this.currentPreset;
@@ -373,7 +447,7 @@ class EqualizerComponent extends Component {
         this.drawEQCurve();
     }
 
-    reset() {
+    reset(): void {
         if (!this.equalizer) return;
         this.equalizer.reset();
         this.currentPreset = 'flat';
@@ -381,11 +455,11 @@ class EqualizerComponent extends Component {
         this.drawEQCurve();
     }
 
-    loadSettings() {
+    loadSettings(): void {
         try {
-            const settings = cacheManager.getLocalCache('musicbox-equalizer-settings') || {};
+            const settings = (cacheManager.getLocalCache('musicbox-equalizer-settings') || {}) as EqualizerSettings;
             console.log('📋 从缓存加载的设置:', settings);
-            const customPresets = cacheManager.getLocalCache('musicbox-equalizer-custom-presets') || {};
+            const customPresets = (cacheManager.getLocalCache('musicbox-equalizer-custom-presets') || {}) as CustomEqualizerPresets;
             console.log('📋 从缓存加载的自定义预设:', Object.keys(customPresets));
             this.isEnabled = settings.enabled === true;
 
@@ -469,7 +543,7 @@ class EqualizerComponent extends Component {
         }
     }
 
-    useDefaultSettings() {
+    useDefaultSettings(): void {
         this.isEnabled = false;
         this.currentPreset = 'flat';
 
@@ -484,7 +558,7 @@ class EqualizerComponent extends Component {
         api.setEqualizerEnabled(false);
     }
 
-    saveSettings() {
+    saveSettings(): void {
         // 保存主要设置
         const settings = {
             enabled: this.isEnabled,
@@ -496,7 +570,7 @@ class EqualizerComponent extends Component {
         cacheManager.setLocalCache('musicbox-equalizer-settings', settings);
 
         // 保存自定义预设
-        const customPresetsFromStorage = cacheManager.getLocalCache('customEqualizerPresets');
+        const customPresetsFromStorage = cacheManager.getLocalCache('customEqualizerPresets') as CustomEqualizerPresets | null;
         if (customPresetsFromStorage) {
             const customPresets = customPresetsFromStorage;
             cacheManager.setLocalCache('musicbox-equalizer-custom-presets', customPresets);
@@ -505,7 +579,7 @@ class EqualizerComponent extends Component {
     }
 
     // 自定义预设管理方法
-    toggleCustomPresetsPanel() {
+    toggleCustomPresetsPanel(): void {
         const isVisible = this.customPresetsPanel.style.display !== 'none';
         if (isVisible) {
             this.hideCustomPresetsPanel();
@@ -514,24 +588,24 @@ class EqualizerComponent extends Component {
         }
     }
 
-    showCustomPresetsPanel() {
+    showCustomPresetsPanel(): void {
         this.customPresetsPanel.style.display = 'block';
         this.loadCustomPresetsList();
         this.updateSaveButtonState();
     }
 
-    hideCustomPresetsPanel() {
+    hideCustomPresetsPanel(): void {
         this.customPresetsPanel.style.display = 'none';
         this.newPresetNameInput.value = '';
     }
 
-    updateSaveButtonState() {
+    updateSaveButtonState(): void {
         const name = this.newPresetNameInput.value.trim();
         const isValid = name.length > 0 && name.length <= 20;
         this.savePresetBtn.disabled = !isValid;
     }
 
-    async saveCustomPreset() {
+    async saveCustomPreset(): Promise<void> {
         const name = this.newPresetNameInput.value.trim();
         if (!name || name.length > 20) {
             alert('请输入有效的预设名称（1-20个字符）');
@@ -539,7 +613,7 @@ class EqualizerComponent extends Component {
         }
 
         // 获取当前的频段设置
-        const gains = [];
+        const gains: number[] = [];
         for (let i = 0; i < 10; i++) {
             gains[i] = this.bandSliders[i] ? parseFloat(this.bandSliders[i].value) : 0;
         }
@@ -584,7 +658,7 @@ class EqualizerComponent extends Component {
         }
     }
 
-    loadCustomPreset(name) {
+    loadCustomPreset(name: string): void {
         try {
             const customPresets = this.getCustomPresets();
             const preset = customPresets[name];
@@ -599,7 +673,7 @@ class EqualizerComponent extends Component {
             for (let i = 0; i < 10; i++) {
                 const gain = preset.gains[i] || 0;
                 if (this.bandSliders[i]) {
-                    this.bandSliders[i].value = gain;
+                    this.bandSliders[i].value = String(gain);
                     // 直接更新均衡器，不触发updateBandGain的保存逻辑
                     if (this.equalizer) {
                         this.equalizer.setBandGain(i, gain);
@@ -624,7 +698,7 @@ class EqualizerComponent extends Component {
         }
     }
 
-    async deleteCustomPreset(name) {
+    async deleteCustomPreset(name: string): Promise<void> {
         const shouldDelete = await app.confirm({
             title: '删除预设',
             message: `确定要删除预设"${name}"吗？此操作无法撤销。`,
@@ -653,14 +727,14 @@ class EqualizerComponent extends Component {
         }
     }
 
-    getCustomPresets() {
+    getCustomPresets(): CustomEqualizerPresets {
         try {
             if (!cacheManager) {
                 console.warn('CacheManager未加载，返回空的自定义预设');
                 return {};
             }
 
-            const stored = cacheManager.getLocalCache('musicbox-equalizer-custom-presets');
+            const stored = cacheManager.getLocalCache('musicbox-equalizer-custom-presets') as CustomEqualizerPresets | null;
             return stored || {};
         } catch (error) {
             console.error('❌ 读取自定义预设失败:', error);
@@ -668,7 +742,7 @@ class EqualizerComponent extends Component {
         }
     }
 
-    loadCustomPresetsList() {
+    loadCustomPresetsList(): void {
         const customPresets = this.getCustomPresets();
         const presetNames = Object.keys(customPresets);
 
@@ -677,7 +751,7 @@ class EqualizerComponent extends Component {
             return;
         }
 
-        this.customPresetsList.innerHTML = presetNames.map(name => {
+        this.customPresetsList.innerHTML = presetNames.map((name) => {
             const preset = customPresets[name];
             const createdDate = new Date(preset.createdAt).toLocaleDateString();
 
@@ -700,10 +774,10 @@ class EqualizerComponent extends Component {
         }).join('');
     }
 
-    updatePresetSelect() {
+    updatePresetSelect(): void {
         // 移除现有的自定义预设选项
         const options = Array.from(this.presetSelect.options);
-        options.forEach(option => {
+        options.forEach((option) => {
             if (option.dataset.custom === 'true') {
                 option.remove();
             }
@@ -713,7 +787,7 @@ class EqualizerComponent extends Component {
         const customPresets = this.getCustomPresets();
         const customOption = this.presetSelect.querySelector('option[value="custom"]');
 
-        Object.keys(customPresets).forEach(name => {
+        Object.keys(customPresets).forEach((name) => {
             const option = document.createElement('option');
             option.value = `custom:${name}`;
             option.textContent = `自定义: ${name}`;
@@ -729,25 +803,27 @@ class EqualizerComponent extends Component {
     }
 
     // 重新加载配置
-    reloadConfig() {
+    reloadConfig(): boolean {
         this.loadSettings();
         this.updatePresetSelect();
         return true;
     }
 
     // 立即保存设置
-    saveSettingsImmediate() {
+    saveSettingsImmediate(): void {
         this.saveSettings();
     }
 
     // 绘制EQ曲线
-    async drawEQCurve() {
+    async drawEQCurve(): Promise<void> {
         if (!this.curveCanvas || !this.curveCtx || !this.equalizer) {
             return;
         }
+        const canvas = this.curveCanvas;
+        const ctx = this.curveCtx;
 
         // 获取频率响应数据
-        let response = [];
+        let response: EqualizerFrequencyPoint[] = [];
         if (this.equalizer.getFrequencyResponse) {
             response = await this.equalizer.getFrequencyResponse();
         }
@@ -757,59 +833,58 @@ class EqualizerComponent extends Component {
         }
 
         // 设置canvas尺寸（使用CSS尺寸）
-        const rect = this.curveCanvas.getBoundingClientRect();
+        const rect = canvas.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        this.curveCanvas.width = rect.width * dpr;
-        this.curveCanvas.height = rect.height * dpr;
-        this.curveCtx.scale(dpr, dpr);
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
 
         const width = rect.width;
         const height = rect.height;
 
         // 清空画布
-        this.curveCtx.clearRect(0, 0, width, height);
+        ctx.clearRect(0, 0, width, height);
 
         // 计算样式变量
-        const style = getComputedStyle(this.curveCanvas);
+        const style = getComputedStyle(canvas);
         const primaryColor = style.getPropertyValue('--color-primary') || '#335eea';
         const borderColor = style.getPropertyValue('--color-border') || '#e5e5e7';
-        const textColor = style.getPropertyValue('--color-text-secondary') || '#666';
 
         // 绘制网格线
-        this.curveCtx.strokeStyle = borderColor;
-        this.curveCtx.lineWidth = 1;
-        this.curveCtx.setLineDash([2, 2]);
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
 
         // 水平网格线 (0dB, ±6dB, ±12dB)
         const dbLevels = [-12, -6, 0, 6, 12];
-        dbLevels.forEach(db => {
+        dbLevels.forEach((db) => {
             const y = height / 2 - (db / 12) * (height / 2);
-            this.curveCtx.beginPath();
-            this.curveCtx.moveTo(0, y);
-            this.curveCtx.lineTo(width, y);
-            this.curveCtx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
         });
 
         // 垂直网格线（对数频率刻度）
         const freqLines = [50, 100, 200, 500, 1000, 2000, 5000, 10000];
-        freqLines.forEach(freq => {
+        freqLines.forEach((freq) => {
             const minFreq = 20;
             const maxFreq = 20000;
             const logPos = (Math.log10(freq) - Math.log10(minFreq)) /
                           (Math.log10(maxFreq) - Math.log10(minFreq));
             const x = logPos * width;
 
-            this.curveCtx.beginPath();
-            this.curveCtx.moveTo(x, 0);
-            this.curveCtx.lineTo(x, height);
-            this.curveCtx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+            ctx.stroke();
         });
 
         // 绘制EQ曲线
-        this.curveCtx.setLineDash([]);
-        this.curveCtx.strokeStyle = primaryColor;
-        this.curveCtx.lineWidth = 2;
-        this.curveCtx.beginPath();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = primaryColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
 
         response.forEach((point, index) => {
             const {frequency, gain} = point;
@@ -826,25 +901,51 @@ class EqualizerComponent extends Component {
             const y = height / 2 - (clampedGain / 12) * (height / 2);
 
             if (index === 0) {
-                this.curveCtx.moveTo(x, y);
+                ctx.moveTo(x, y);
             } else {
-                this.curveCtx.lineTo(x, y);
+                ctx.lineTo(x, y);
             }
         });
 
-        this.curveCtx.stroke();
+        ctx.stroke();
 
         // 添加填充渐变
-        this.curveCtx.lineTo(width, height);
-        this.curveCtx.lineTo(0, height);
-        this.curveCtx.closePath();
+        ctx.lineTo(width, height);
+        ctx.lineTo(0, height);
+        ctx.closePath();
 
-        const gradient = this.curveCtx.createLinearGradient(0, 0, 0, height);
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
         gradient.addColorStop(0, primaryColor + '40');
         gradient.addColorStop(1, primaryColor + '08');
-        this.curveCtx.fillStyle = gradient;
-        this.curveCtx.fill();
+        ctx.fillStyle = gradient;
+        ctx.fill();
     }
+
+    private requireElement<T extends HTMLElement = HTMLElement>(element: Element | null, selector: string): T {
+        if (element instanceof HTMLElement) {
+            return element as T;
+        }
+
+        throw new Error(`Element not found: ${selector}`);
+    }
+
+    private queryElement<T extends HTMLElement = HTMLElement>(selector: string): T {
+        const element = this.modal?.querySelector<T>(selector);
+        if (!element) {
+            throw new Error(`Element not found: ${selector}`);
+        }
+
+        return element;
+    }
+}
+
+function queryDocumentElement<T extends HTMLElement = HTMLElement>(selector: string): T {
+    const element = document.querySelector<T>(selector);
+    if (!element) {
+        throw new Error(`Element not found: ${selector}`);
+    }
+
+    return element;
 }
 
 export {EqualizerComponent};

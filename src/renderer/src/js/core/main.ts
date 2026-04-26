@@ -43,7 +43,7 @@ import '@extensions/api/index.js';
 import '@components/component/ArtistsPage';
 import '@components/component/AlbumsPage';
 import '@components/component/ContextMenu';
-import '@components/component/EqualizerComponent.js';
+import '@components/component/EqualizerComponent';
 import '@components/component/HomePage';
 import '@components/component/Lyrics.js';
 import '@components/component/Navigation';
