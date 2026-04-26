@@ -736,8 +736,8 @@ a {
 }
 
 .sidebar-content {
-  padding: var(--spacing-lg);
-  padding-top: calc(var(--spacing-lg) + 48px); // 为切换按钮留出空间
+  padding: var(--spacing-md);
+  padding-top: calc(var(--spacing-md) + 48px); // 为切换按钮留出空间
   transition: all var(--transition-normal);
 }
 
@@ -2331,7 +2331,7 @@ a {
 .playlist-sidebar-item {
   display: flex;
   align-items: center;
-  padding: var(--spacing-xs) var(--spacing-md); // 减小垂直内边距，使歌单列表更紧凑
+  padding: var(--spacing-xs) var(--spacing-sm); // 减小垂直内边距，使歌单列表更紧凑
   color: var(--color-text-secondary);
   text-decoration: none;
   border-radius: var(--radius-md);
@@ -2341,11 +2341,11 @@ a {
   margin-bottom: 2px; // 添加小间距分隔歌单项
 
   &:hover {
-    background: var(--color-bg-hover);
+    background: var(--color-hover);
     color: var(--color-text);
 
     .sidebar-playlist-actions {
-      opacity: 1;
+      display: flex;
     }
   }
 
@@ -2367,7 +2367,7 @@ a {
   .sidebar-icon {
     width: 18px;
     height: 18px;
-    margin-right: var(--spacing-md);
+    margin-right: var(--spacing-sm);
     fill: var(--color-text-secondary);
     transition: fill var(--transition-fast);
   }
@@ -2393,17 +2393,21 @@ a {
 
   // 侧边栏歌单操作按钮区域 - 独立样式避免与歌单详情页面冲突
   .sidebar-playlist-actions {
-    opacity: 0;
-    display: flex;
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
     align-items: center;
     gap: 2px; // 减小按钮间距，使布局更紧凑
-    margin-left: var(--spacing-xs); // 减小左边距
-    flex-shrink: 0; // 防止操作按钮被压缩
-    transition: opacity var(--transition-fast);
+    padding: 2px 4px;
+    background: var(--color-hover);
+    border-radius: var(--radius-sm);
+    z-index: 1;
   }
 
   .sidebar-playlist-action-btn {
-    background: none;
+    background: var(--color-hover);
     border: none;
     cursor: pointer;
     padding: 4px; // 使用固定像素值确保一致的按钮尺寸
@@ -2416,7 +2420,7 @@ a {
     height: 24px; // 固定高度确保对齐
 
     &:hover {
-      background: rgba(var(--color-text-rgb), 0.1); // 使用主题色变量
+      background: var(--color-hover);
     }
 
     .icon {
