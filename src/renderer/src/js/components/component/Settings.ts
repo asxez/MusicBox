@@ -8,6 +8,7 @@ import {cacheMaintenanceService} from "@services/settings/CacheMaintenanceServic
 import {displayModeSettingsService} from "@services/settings/DisplayModeSettingsService";
 import {embeddedLyricsDiagnosticsService} from "@services/settings/EmbeddedLyricsDiagnosticsService";
 import {hardwareAccelerationSettingsService} from "@services/settings/HardwareAccelerationSettingsService";
+import {lyricsAppearanceSettingsService} from "@services/settings/LyricsAppearanceSettingsService";
 import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySettingsService";
 import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
 import {settingsInteractionService} from "@services/settings/SettingsInteractionService";
@@ -24,12 +25,6 @@ import {Component} from "@components/base/Component";
 import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
 
 type ShortcutEntry = ShortcutDefinition;
-
-interface RgbColor {
-    r: number;
-    g: number;
-    b: number;
-}
 
 const getInputTarget = (event: Event): HTMLInputElement => event.target as HTMLInputElement;
 const getSelectTarget = (event: Event): HTMLSelectElement => event.target as HTMLSelectElement;
@@ -630,16 +625,15 @@ class Settings extends Component {
         this.initializeHardwareAccelerationSettings();
 
         // 初始化歌词高亮透明度设置
-        const lyricsOpacity = typeof this.settings.lyricsHighlightOpacity === 'number' ? this.settings.lyricsHighlightOpacity : 1.0;
-        this.lyricsHighlightOpacitySlider.value = String(lyricsOpacity);
-        this.lyricsHighlightOpacityValue.textContent = lyricsOpacity.toFixed(1);
-        this.updateLyricsHighlightOpacity(lyricsOpacity);
+        const lyricsAppearanceSettings = lyricsAppearanceSettingsService.getSettings(this.settings);
+        this.lyricsHighlightOpacitySlider.value = String(lyricsAppearanceSettings.highlightOpacity);
+        this.lyricsHighlightOpacityValue.textContent = lyricsAppearanceSettings.highlightOpacity.toFixed(1);
+        this.updateLyricsHighlightOpacity(lyricsAppearanceSettings.highlightOpacity);
 
         // 初始化歌词高亮颜色设置
-        const lyricsColor = typeof this.settings.lyricsHighlightColor === 'string' ? this.settings.lyricsHighlightColor : '#335eea';
-        this.lyricsHighlightColor.value = lyricsColor;
-        this.lyricsHighlightColorValue.textContent = lyricsColor;
-        this.updateLyricsHighlightColor(lyricsColor);
+        this.lyricsHighlightColor.value = lyricsAppearanceSettings.highlightColor;
+        this.lyricsHighlightColorValue.textContent = lyricsAppearanceSettings.highlightColor;
+        this.updateLyricsHighlightColor(lyricsAppearanceSettings.highlightColor);
 
         // 初始化桌面歌词设置
         this.initializeDesktopLyricsSettings();
@@ -857,28 +851,13 @@ class Settings extends Component {
 
     // 更新歌词高亮透明度
     updateLyricsHighlightOpacity(opacity: number): void {
-        document.documentElement.style.setProperty('--lyrics-highlight-opacity', String(opacity));
+        lyricsAppearanceSettingsService.applyHighlightOpacity(opacity);
         this.emit('lyricsHighlightOpacityChanged', opacity);
     }
 
     // 更新歌词高亮颜色
     updateLyricsHighlightColor(color: string): void {
-        // 将hex颜色转换为RGB（用于text-shadow）
-        const rgb = this.hexToRgb(color);
-        if (rgb) {
-            document.documentElement.style.setProperty('--lyrics-highlight-color', color);
-            document.documentElement.style.setProperty('--lyrics-highlight-color-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
-        }
-    }
-
-    // 将hex颜色转换为RGB
-    hexToRgb(hex: string): RgbColor | null {
-        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        return result ? {
-            r: parseInt(result[1], 16),
-            g: parseInt(result[2], 16),
-            b: parseInt(result[3], 16)
-        } : null;
+        lyricsAppearanceSettingsService.applyHighlightColor(color);
     }
 
     // 缓存管理方法
