@@ -55,7 +55,7 @@ import '@components/component/PlaylistDetailPage';
 import '@components/component/PluginManagerModal';
 import '@components/component/RecentPage';
 import '@components/component/Search';
-import '@components/component/Settings.js';
+import '@components/component/Settings';
 import '@components/component/StatisticsPage';
 import '@components/component/TrackList';
 import '@components/component/UpdateModal';

@@ -2,7 +2,7 @@
  * 设置组件
  */
 
-import {showToast} from '@utils';
+import {showToast} from '@utils/index.js';
 import {cacheManager} from "@services/CacheManager";
 import {localLyricsManager} from "@services/lyrics/LocalLyricsManager";
 import {localCoverManager} from "@services/cover/LocalCoverManager";
@@ -13,11 +13,80 @@ import {app} from "@core/app";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
 import {libraryAPI} from "@js/api";
+import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
+
+type SettingValue = string | number | boolean | object | null | undefined;
+type ShortcutType = 'local' | 'global';
+
+interface ShortcutEntry {
+    name: string;
+    description: string;
+    key: string;
+    enabled: boolean;
+    [key: string]: unknown;
+}
+
+type ShortcutMap = Record<string, any>;
+
+interface ShortcutConflict {
+    name: string;
+    type: ShortcutType;
+}
+
+interface RgbColor {
+    r: number;
+    g: number;
+    b: number;
+}
+
+interface CacheStatisticsView {
+    totalTracks: number;
+    totalSize: number;
+    scannedDirectories?: number;
+    cacheAge?: number;
+}
+
+interface DebugEmbeddedLyricsResult {
+    success: boolean;
+    error?: string;
+    lyricsAnalysis?: {
+        type?: string;
+        format?: string;
+        language?: string;
+        description?: string;
+        synchronized?: boolean;
+        textLength?: number;
+        timestampCount?: number;
+        textSample?: string;
+    };
+    conversionResult?: {
+        success: boolean;
+        lrcLength?: number;
+        error?: string;
+        lrcSample?: string;
+    };
+}
+
+const getInputTarget = (event: Event): HTMLInputElement => event.target as HTMLInputElement;
+const getSelectTarget = (event: Event): HTMLSelectElement => event.target as HTMLSelectElement;
+const electronAPI = window.electronAPI as any;
 
 class Settings extends Component {
-    constructor(element) {
+    [key: string]: any;
+
+    declare element: HTMLElement;
+    isVisible: boolean;
+    settings: MusicBoxSettings;
+    currentSection: string = 'appearance';
+    page!: HTMLElement;
+
+    constructor(element: HTMLElement | null) {
         super(element);
-        this.element = element;
+        if (!this.element) {
+            throw new Error('Settings element not found');
+        }
+
+        this.element = this.element as HTMLElement;
         this.isVisible = false;
         this.settings = this.loadSettings();
 
@@ -28,13 +97,15 @@ class Settings extends Component {
         this.updateVersionInfo();
     }
 
-    async show() {
+    async show(): Promise<void> {
         this.isVisible = true;
         this.page.style.display = 'block';
 
         // 隐藏其他页面元素
-        document.getElementById('sidebar').style.display = 'none';
-        document.getElementById('main-content').style.display = 'none';
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
+        if (sidebar) sidebar.style.display = 'none';
+        if (mainContent) mainContent.style.display = 'none';
 
         // 使用 requestAnimationFrame 确保动画正常播放
         requestAnimationFrame(() => {
@@ -45,7 +116,7 @@ class Settings extends Component {
         await this.showCacheStatistics();
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
         this.page.classList.remove('show');
         this.page.classList.add('hiding');
@@ -57,21 +128,23 @@ class Settings extends Component {
                 this.page.classList.remove('hiding');
 
                 // 恢复其他页面元素
-                document.getElementById('sidebar').style.display = 'block';
-                document.getElementById('main-content').style.display = 'block';
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('main-content');
+                if (sidebar) sidebar.style.display = 'block';
+                if (mainContent) mainContent.style.display = 'block';
             }
         }, 300);
     }
 
-    destroy() {
+    destroy(): void {
         // 重置状态
         this.isVisible = false;
-        this.settings = null;
+        this.settings = {};
         super.destroy();
     }
 
-    setupElements() {
-        this.page = this.element;
+    setupElements(): void {
+        this.page = this.element as HTMLElement;
 
         // 关闭按钮
         this.closeBtn = this.element.querySelector('#settings-close-btn');
@@ -179,11 +252,11 @@ class Settings extends Component {
         this.openPluginManagerBtn = this.element.querySelector('#open-plugin-manager-btn');
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         // 侧边栏导航事件
-        this.navButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                const section = e.currentTarget.dataset.section;
+        this.navButtons.forEach((button: HTMLElement) => {
+            button.addEventListener('click', (e: Event) => {
+                const section = (e.currentTarget as HTMLElement).dataset.section || 'appearance';
                 this.switchToSection(section);
             });
         });
@@ -194,27 +267,29 @@ class Settings extends Component {
         });
 
         // 语言设置
-        this.languageSelect.addEventListener('change', (e) => {
-            this.updateSetting('language', e.target.value);
-            this.emit('languageChanged', e.target.value);
+        this.languageSelect.addEventListener('change', (e: Event) => {
+            const target = getSelectTarget(e);
+            this.updateSetting('language', target.value);
+            this.emit('languageChanged', target.value);
         });
 
         // 各种开关设置
-        this.autoplayToggle.addEventListener('change', (e) => {
-            this.updateSetting('autoplay', e.target.checked);
+        this.autoplayToggle.addEventListener('change', (e: Event) => {
+            this.updateSetting('autoplay', getInputTarget(e).checked);
         });
 
-        this.rememberPositionToggle.addEventListener('change', (e) => {
-            this.updateSetting('rememberPosition', e.target.checked);
+        this.rememberPositionToggle.addEventListener('change', (e: Event) => {
+            this.updateSetting('rememberPosition', getInputTarget(e).checked);
         });
 
         // 桌面歌词设置 - 控制按钮显示/隐藏
-        this.desktopLyricsToggle.addEventListener('change', async (e) => {
-            this.updateSetting('desktopLyrics', e.target.checked);
-            this.emit('desktopLyricsEnabled', e.target.checked);
+        this.desktopLyricsToggle.addEventListener('change', async (e: Event) => {
+            const target = getInputTarget(e);
+            this.updateSetting('desktopLyrics', target.checked);
+            this.emit('desktopLyricsEnabled', target.checked);
 
             // 如果禁用功能，同时隐藏已打开的桌面歌词窗口
-            if (!e.target.checked) {
+            if (!target.checked) {
                 try {
                     await api.hideDesktopLyrics();
                 } catch (error) {
@@ -224,44 +299,51 @@ class Settings extends Component {
         });
 
         // 艺术家页设置 - 控制侧边栏艺术家按钮显示/隐藏
-        this.statisticsToggle.addEventListener('change', (e) => {
-            this.updateSetting('statistics', e.target.checked);
-            this.emit('statisticsEnabled', e.target.checked);
+        this.statisticsToggle.addEventListener('change', (e: Event) => {
+            const target = getInputTarget(e);
+            this.updateSetting('statistics', target.checked);
+            this.emit('statisticsEnabled', target.checked);
         });
 
         // 统计信息设置 - 控制侧边栏统计按钮显示/隐藏
-        this.statisticsToggle.addEventListener('change', (e) => {
-            this.updateSetting('statistics', e.target.checked);
-            this.emit('statisticsEnabled', e.target.checked);
+        this.statisticsToggle.addEventListener('change', (e: Event) => {
+            const target = getInputTarget(e);
+            this.updateSetting('statistics', target.checked);
+            this.emit('statisticsEnabled', target.checked);
         });
 
         // 最近播放设置 - 控制侧边栏最近播放按钮显示/隐藏
-        this.recentPlayToggle.addEventListener('change', (e) => {
-            this.updateSetting('recentPlay', e.target.checked);
-            this.emit('recentPlayEnabled', e.target.checked);
+        this.recentPlayToggle.addEventListener('change', (e: Event) => {
+            const target = getInputTarget(e);
+            this.updateSetting('recentPlay', target.checked);
+            this.emit('recentPlayEnabled', target.checked);
         });
 
         // 艺术家页面设置 - 控制侧边栏艺术家按钮显示/隐藏
-        this.artistsPageToggle.addEventListener('change', (e) => {
-            this.updateSetting('artistsPage', e.target.checked);
-            this.emit('artistsPageEnabled', e.target.checked);
+        this.artistsPageToggle.addEventListener('change', (e: Event) => {
+            const target = getInputTarget(e);
+            this.updateSetting('artistsPage', target.checked);
+            this.emit('artistsPageEnabled', target.checked);
         });
 
         // 专辑页面设置
-        this.albumsPageToggle.addEventListener('change', (e) => {
-            this.updateSetting('albumsPage', e.target.checked);
-            this.emit('albumsPageEnabled', e.target.checked);
+        this.albumsPageToggle.addEventListener('change', (e: Event) => {
+            const target = getInputTarget(e);
+            this.updateSetting('albumsPage', target.checked);
+            this.emit('albumsPageEnabled', target.checked);
         });
 
         // 歌曲封面显示设置 - 控制歌曲列表中封面的显示/隐藏
-        this.showTrackCoversToggle.addEventListener('change', (e) => {
-            this.updateSetting('showTrackCovers', e.target.checked);
-            this.emit('showTrackCoversEnabled', e.target.checked);
+        this.showTrackCoversToggle.addEventListener('change', (e: Event) => {
+            const target = getInputTarget(e);
+            this.updateSetting('showTrackCovers', target.checked);
+            this.emit('showTrackCoversEnabled', target.checked);
         });
 
         // 音频独占模式设置
-        this.exclusiveModeToggle.addEventListener('change', async (e) => {
-            const enabled = e.target.checked;
+        this.exclusiveModeToggle.addEventListener('change', async (e: Event) => {
+            const target = getInputTarget(e);
+            const enabled = target.checked;
             this.updateSetting('exclusiveMode', enabled);
 
             console.log(`🎵 Settings: WASAPI引擎${enabled ? '启用' : '禁用'}`);
@@ -277,23 +359,23 @@ class Settings extends Component {
                     this.showNotification(`已切换到${enabled ? 'WASAPI引擎' : 'WebAudio引擎'}，当前歌曲将重新加载`);
                 } else {
                     console.error('❌ Settings: 音频引擎切换失败');
-                    e.target.checked = !enabled;
+                    target.checked = !enabled;
                     this.updateSetting('exclusiveMode', !enabled);
                     this.toggleWasapiModeSelector(!enabled);
                     this.showNotification('音频引擎切换失败，请查看控制台日志', 'error');
                 }
             } catch (error) {
                 console.error('❌ Settings: 音频引擎切换异常:', error);
-                e.target.checked = !enabled;
+                target.checked = !enabled;
                 this.updateSetting('exclusiveMode', !enabled);
                 this.toggleWasapiModeSelector(!enabled);
-                this.showNotification('音频引擎切换失败: ' + error.message, 'error');
+                this.showNotification('音频引擎切换失败: ' + (error instanceof Error ? error.message : String(error)), 'error');
             }
         });
 
         // WASAPI模式选择
-        this.wasapiShareModeSelect.addEventListener('change', async (e) => {
-            const mode = e.target.value;
+        this.wasapiShareModeSelect.addEventListener('change', async (e: Event) => {
+            const mode = getSelectTarget(e).value as WasapiShareMode;
             this.updateSetting('wasapiShareMode', mode);
             console.log(`🎵 Settings: WASAPI模式切换到${mode === 'exclusive' ? '独占' : '共享'}模式`);
 
@@ -308,18 +390,19 @@ class Settings extends Component {
                 }
             } catch (error) {
                 console.error('❌ Settings: WASAPI模式切换异常:', error);
-                this.showNotification('WASAPI模式切换失败: ' + error.message, 'error');
+                this.showNotification('WASAPI模式切换失败: ' + (error instanceof Error ? error.message : String(error)), 'error');
             }
         });
 
         // 无间隙播放设置
-        this.gaplessPlaybackToggle.addEventListener('change', (e) => {
-            this.updateSetting('gaplessPlayback', e.target.checked);
-            this.emit('gaplessPlaybackEnabled', e.target.checked);
+        this.gaplessPlaybackToggle.addEventListener('change', (e: Event) => {
+            const target = getInputTarget(e);
+            this.updateSetting('gaplessPlayback', target.checked);
+            this.emit('gaplessPlaybackEnabled', target.checked);
         });
 
-        this.autoScanToggle.addEventListener('change', async (e) => {
-            await this.handleAutoScanToggle(e.target.checked);
+        this.autoScanToggle.addEventListener('change', async (e: Event) => {
+            await this.handleAutoScanToggle(getInputTarget(e).checked);
         });
 
         // 按钮事件
@@ -328,36 +411,39 @@ class Settings extends Component {
         });
 
         // 扫描频率更改
-        this.scanFrequencySelect.addEventListener('change', async (e) => {
-            await this.handleScanFrequencyChange(e.target.value);
+        this.scanFrequencySelect.addEventListener('change', async (e: Event) => {
+            await this.handleScanFrequencyChange(getSelectTarget(e).value);
         });
 
         // 系统托盘设置
-        this.systemTrayToggle.addEventListener('change', async (e) => {
-            this.updateSetting('systemTray', e.target.checked);
-            this.toggleTraySettings(e.target.checked);
-            await window.electronAPI.tray.updateSettings({
-                enabled: e.target.checked
+        this.systemTrayToggle.addEventListener('change', async (e: Event) => {
+            const target = getInputTarget(e);
+            this.updateSetting('systemTray', target.checked);
+            this.toggleTraySettings(target.checked);
+            await electronAPI.tray.updateSettings({
+                enabled: target.checked
             });
         });
 
-        this.trayCloseBehaviorSelect.addEventListener('change', async (e) => {
-            this.updateSetting('trayCloseBehavior', e.target.value);
-            await window.electronAPI.tray.updateSettings({
-                closeToTray: e.target.value === 'minimize'
+        this.trayCloseBehaviorSelect.addEventListener('change', async (e: Event) => {
+            const target = getSelectTarget(e);
+            this.updateSetting('trayCloseBehavior', target.value);
+            await electronAPI.tray.updateSettings({
+                closeToTray: target.value === 'minimize'
             });
         });
 
-        this.trayStartMinimizedToggle.addEventListener('change', async (e) => {
-            this.updateSetting('trayStartMinimized', e.target.checked);
-            await window.electronAPI.tray.updateSettings({
-                startMinimized: e.target.checked
+        this.trayStartMinimizedToggle.addEventListener('change', async (e: Event) => {
+            const target = getInputTarget(e);
+            this.updateSetting('trayStartMinimized', target.checked);
+            await electronAPI.tray.updateSettings({
+                startMinimized: target.checked
             });
         });
 
         this.selectLyricsFolderBtn.addEventListener('click', async () => {
             try {
-                const result = await window.electronAPI.selectFolder();
+                const result = await electronAPI.selectFolder();
                 if (result && result.filePaths && result.filePaths.length > 0) {
                     const selectedPath = result.filePaths[0];
                     this.updateSetting('lyricsDirectory', selectedPath);
@@ -374,7 +460,7 @@ class Settings extends Component {
 
         this.selectCoverCacheFolderBtn.addEventListener('click', async () => {
             try {
-                const result = await window.electronAPI.selectFolder();
+                const result = await electronAPI.selectFolder();
                 if (result && result.filePaths && result.filePaths.length > 0) {
                     const selectedPath = result.filePaths[0];
                     this.updateSetting('coverCacheDirectory', selectedPath);
@@ -424,15 +510,16 @@ class Settings extends Component {
         this.setupShortcutEventListeners();
 
         // 网络磁盘功能开关
-        this.networkDriveToggle.addEventListener('change', (e) => {
-            this.updateSetting('networkDriveEnabled', e.target.checked);
-            this.toggleNetworkDriveConfig(e.target.checked);
-            this.emit('networkDriveEnabled', e.target.checked);
+        this.networkDriveToggle.addEventListener('change', (e: Event) => {
+            const target = getInputTarget(e);
+            this.updateSetting('networkDriveEnabled', target.checked);
+            this.toggleNetworkDriveConfig(target.checked);
+            this.emit('networkDriveEnabled', target.checked);
         });
 
         // 硬件加速功能开关
-        this.hardwareAccelerationToggle.addEventListener('change', async (e) => {
-            await this.handleHardwareAccelerationChange(e.target.checked);
+        this.hardwareAccelerationToggle.addEventListener('change', async (e: Event) => {
+            await this.handleHardwareAccelerationChange(getInputTarget(e).checked);
         });
 
         // 打开应用数据文件夹按钮
@@ -450,16 +537,16 @@ class Settings extends Component {
         }
 
         // 歌词高亮透明度设置
-        this.lyricsHighlightOpacitySlider.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value);
+        this.lyricsHighlightOpacitySlider.addEventListener('input', (e: Event) => {
+            const value = parseFloat(getInputTarget(e).value);
             this.lyricsHighlightOpacityValue.textContent = value.toFixed(1);
             this.updateSetting('lyricsHighlightOpacity', value);
             this.updateLyricsHighlightOpacity(value);
         });
 
         // 歌词高亮颜色设置
-        this.lyricsHighlightColor.addEventListener('input', (e) => {
-            const color = e.target.value;
+        this.lyricsHighlightColor.addEventListener('input', (e: Event) => {
+            const color = getInputTarget(e).value;
             this.lyricsHighlightColorValue.textContent = color;
             this.updateSetting('lyricsHighlightColor', color);
             this.updateLyricsHighlightColor(color);
@@ -481,44 +568,44 @@ class Settings extends Component {
 
         // 桌面歌词设置事件监听器
         if (this.dlDisplayModeSelect) {
-            this.dlDisplayModeSelect.addEventListener('change', (e) => {
-                this.updateDesktopLyricsSetting('displayMode', e.target.value);
+            this.dlDisplayModeSelect.addEventListener('change', (e: Event) => {
+                this.updateDesktopLyricsSetting('displayMode', getSelectTarget(e).value);
             });
         }
 
         if (this.dlLayoutModeSelect) {
-            this.dlLayoutModeSelect.addEventListener('change', (e) => {
-                this.updateDesktopLyricsSetting('layoutMode', e.target.value);
+            this.dlLayoutModeSelect.addEventListener('change', (e: Event) => {
+                this.updateDesktopLyricsSetting('layoutMode', getSelectTarget(e).value);
             });
         }
 
         if (this.dlThemeColor) {
-            this.dlThemeColor.addEventListener('input', (e) => {
-                const color = e.target.value;
+            this.dlThemeColor.addEventListener('input', (e: Event) => {
+                const color = getInputTarget(e).value;
                 this.dlThemeColorValue.textContent = color;
                 this.updateDesktopLyricsSetting('themeColor', color);
             });
         }
 
         if (this.dlFontColor) {
-            this.dlFontColor.addEventListener('input', (e) => {
-                const color = e.target.value;
+            this.dlFontColor.addEventListener('input', (e: Event) => {
+                const color = getInputTarget(e).value;
                 this.dlFontColorValue.textContent = color;
                 this.updateDesktopLyricsSetting('fontColor', color);
             });
         }
 
         if (this.dlOpacitySlider) {
-            this.dlOpacitySlider.addEventListener('input', (e) => {
-                const opacity = parseFloat(e.target.value);
+            this.dlOpacitySlider.addEventListener('input', (e: Event) => {
+                const opacity = parseFloat(getInputTarget(e).value);
                 this.dlOpacityValue.textContent = Math.round(opacity * 100) + '%';
                 this.updateDesktopLyricsSetting('opacity', opacity);
             });
         }
 
         if (this.dlFontSizeSlider) {
-            this.dlFontSizeSlider.addEventListener('input', (e) => {
-                const fontSize = parseInt(e.target.value);
+            this.dlFontSizeSlider.addEventListener('input', (e: Event) => {
+                const fontSize = parseInt(getInputTarget(e).value);
                 this.dlFontSizeValue.textContent = fontSize + 'px';
                 this.updateDesktopLyricsSetting('fontSize', fontSize);
             });
@@ -526,37 +613,37 @@ class Settings extends Component {
 
         // 迷你模式设置事件监听器
         if (this.miniModeFontColor) {
-            this.miniModeFontColor.addEventListener('input', (e) => {
-                const color = e.target.value;
+            this.miniModeFontColor.addEventListener('input', (e: Event) => {
+                const color = getInputTarget(e).value;
                 this.miniModeFontColorValue.textContent = color;
                 this.updateMiniModeSetting('fontColor', color);
             });
         }
 
         if (this.miniModeHighlightColor) {
-            this.miniModeHighlightColor.addEventListener('input', (e) => {
-                const color = e.target.value;
+            this.miniModeHighlightColor.addEventListener('input', (e: Event) => {
+                const color = getInputTarget(e).value;
                 this.miniModeHighlightColorValue.textContent = color;
                 this.updateMiniModeSetting('highlightColor', color);
             });
         }
 
         if (this.miniModeFontSizeSlider) {
-            this.miniModeFontSizeSlider.addEventListener('input', (e) => {
-                const fontSize = parseInt(e.target.value);
+            this.miniModeFontSizeSlider.addEventListener('input', (e: Event) => {
+                const fontSize = parseInt(getInputTarget(e).value);
                 this.miniModeFontSizeValue.textContent = fontSize + 'px';
                 this.updateMiniModeSetting('fontSize', fontSize);
             });
         }
 
-        document.addEventListener('keydown', (e) => {
+        document.addEventListener('keydown', (e: KeyboardEvent) => {
             if (e.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
         });
     }
 
-    async toggle() {
+    async toggle(): Promise<void> {
         if (this.isVisible) {
             this.hide();
         } else {
@@ -565,7 +652,7 @@ class Settings extends Component {
     }
 
     // 初始化设置值
-    initializeSettings() {
+    initializeSettings(): void {
         this.languageSelect.value = this.settings.language || 'zh-CN';
         this.autoplayToggle.checked = this.settings.autoplay || false;
         this.rememberPositionToggle.checked = this.settings.hasOwnProperty('rememberPosition') ? this.settings.rememberPosition : false;
@@ -590,7 +677,7 @@ class Settings extends Component {
         this.toggleTraySettings(this.systemTrayToggle.checked);
 
         // 初始化本地歌词目录
-        const lyricsDirectory = this.settings.lyricsDirectory;
+        const lyricsDirectory = typeof this.settings.lyricsDirectory === 'string' ? this.settings.lyricsDirectory : '';
         if (lyricsDirectory) {
             this.lyricsFolderPath.textContent = lyricsDirectory;
             this.lyricsFolderPath.classList.add('selected');
@@ -613,13 +700,13 @@ class Settings extends Component {
         this.initializeHardwareAccelerationSettings();
 
         // 初始化歌词高亮透明度设置
-        const lyricsOpacity = this.settings.hasOwnProperty('lyricsHighlightOpacity') ? this.settings.lyricsHighlightOpacity : 1.0;
-        this.lyricsHighlightOpacitySlider.value = lyricsOpacity;
+        const lyricsOpacity = typeof this.settings.lyricsHighlightOpacity === 'number' ? this.settings.lyricsHighlightOpacity : 1.0;
+        this.lyricsHighlightOpacitySlider.value = String(lyricsOpacity);
         this.lyricsHighlightOpacityValue.textContent = lyricsOpacity.toFixed(1);
         this.updateLyricsHighlightOpacity(lyricsOpacity);
 
         // 初始化歌词高亮颜色设置
-        const lyricsColor = this.settings.hasOwnProperty('lyricsHighlightColor') ? this.settings.lyricsHighlightColor : '#335eea';
+        const lyricsColor = typeof this.settings.lyricsHighlightColor === 'string' ? this.settings.lyricsHighlightColor : '#335eea';
         this.lyricsHighlightColor.value = lyricsColor;
         this.lyricsHighlightColorValue.textContent = lyricsColor;
         this.updateLyricsHighlightColor(lyricsColor);
@@ -645,26 +732,26 @@ class Settings extends Component {
     }
 
     // 加载设置
-    loadSettings() {
-        let settings = cacheManager.getLocalCache('musicbox-settings');
+    loadSettings(): MusicBoxSettings {
+        let settings = cacheManager.getLocalCache<MusicBoxSettings>('musicbox-settings');
         if (settings === null)
             settings = {};
         return settings;
     }
 
     // 更新设置
-    updateSetting(key, value) {
+    updateSetting(key: string, value: SettingValue): void {
         this.settings[key] = value;
         cacheManager.setLocalCache('musicbox-settings', this.settings);
     }
 
     // 获取设置值
-    getSetting(key, defaultValue = null) {
-        return this.settings[key] !== undefined ? this.settings[key] : defaultValue;
+    getSetting<T = unknown>(key: string, defaultValue: T | null = null): T | null {
+        return (this.settings[key] !== undefined ? this.settings[key] : defaultValue) as T | null;
     }
 
     // 切换托盘设置显示
-    toggleTraySettings(enabled) {
+    toggleTraySettings(enabled: boolean): void {
         if (this.trayCloseBehaviorItem && this.trayStartMinimizedItem) {
             this.trayCloseBehaviorItem.style.display = enabled ? 'flex' : 'none';
             this.trayStartMinimizedItem.style.display = enabled ? 'flex' : 'none';
@@ -672,14 +759,14 @@ class Settings extends Component {
     }
 
     // 切换WASAPI模式选择器显示
-    toggleWasapiModeSelector(enabled) {
+    toggleWasapiModeSelector(enabled: boolean): void {
         if (this.wasapiShareModeItem) {
             this.wasapiShareModeItem.style.display = enabled ? 'flex' : 'none';
         }
     }
 
     // 初始化音频独占模式设置
-    initializeExclusiveModeSettings() {
+    initializeExclusiveModeSettings(): void {
         // 检查是否为Windows平台
         const isWindows = navigator.platform.toLowerCase().includes('win');
 
@@ -701,11 +788,11 @@ class Settings extends Component {
         }
 
         // 初始化开关状态
-        const exclusiveModeEnabled = this.settings.hasOwnProperty('exclusiveMode') ? this.settings.exclusiveMode : false;
+        const exclusiveModeEnabled = typeof this.settings.exclusiveMode === 'boolean' ? this.settings.exclusiveMode : false;
         this.exclusiveModeToggle.checked = exclusiveModeEnabled;
 
         // 初始化WASAPI模式选择器
-        const wasapiShareMode = this.settings.hasOwnProperty('wasapiShareMode') ? this.settings.wasapiShareMode : 'exclusive';
+        const wasapiShareMode = typeof this.settings.wasapiShareMode === 'string' ? this.settings.wasapiShareMode : 'exclusive';
         if (this.wasapiShareModeSelect) {
             this.wasapiShareModeSelect.value = wasapiShareMode;
         }
@@ -717,9 +804,9 @@ class Settings extends Component {
     }
 
     // 初始化硬件加速设置
-    async initializeHardwareAccelerationSettings() {
+    async initializeHardwareAccelerationSettings(): Promise<void> {
         try {
-            const result = await window.electronAPI.hardwareAcceleration.getSettings();
+            const result = await electronAPI.hardwareAcceleration.getSettings();
             if (result.success) {
                 this.hardwareAccelerationToggle.checked = result.settings.enabled !== false;
             } else {
@@ -732,18 +819,18 @@ class Settings extends Component {
     }
 
     // 初始化封面缓存目录
-    async initializeCoverCacheDirectory() {
+    async initializeCoverCacheDirectory(): Promise<void> {
         try {
-            let coverCacheDirectory = this.settings.hasOwnProperty('coverCacheDirectory') ? this.settings.coverCacheDirectory : null;
+            let coverCacheDirectory = typeof this.settings.coverCacheDirectory === 'string' ? this.settings.coverCacheDirectory : null;
 
             // 如果用户未设置封面缓存目录，使用默认路径
             if (!coverCacheDirectory) {
-                const defaultPathResult = await window.electronAPI.getDefaultCoverCachePath();
+                const defaultPathResult = await electronAPI.getDefaultCoverCachePath();
                 if (defaultPathResult.success) {
                     coverCacheDirectory = defaultPathResult.path;
 
                     // 确保默认目录存在
-                    const ensureResult = await window.electronAPI.ensureDirectoryExists(coverCacheDirectory);
+                    const ensureResult = await electronAPI.ensureDirectoryExists(coverCacheDirectory);
                     if (ensureResult.success) {
                         // 保存默认路径到设置
                         this.updateSetting('coverCacheDirectory', coverCacheDirectory);
@@ -774,7 +861,7 @@ class Settings extends Component {
     }
 
     // 处理硬件加速设置变更
-    async handleHardwareAccelerationChange(enabled) {
+    async handleHardwareAccelerationChange(enabled: boolean): Promise<void> {
         try {
             if (!enabled) {
                 const shouldRestart = await this.showHardwareAccelerationConfirmDialog();
@@ -785,7 +872,7 @@ class Settings extends Component {
             }
 
             // 更新设置
-            const result = await window.electronAPI.hardwareAcceleration.updateSettings({
+            const result = await electronAPI.hardwareAcceleration.updateSettings({
                 enabled: enabled
             });
 
@@ -806,7 +893,7 @@ class Settings extends Component {
     }
 
     // 显示硬件加速确认对话框
-    async showHardwareAccelerationConfirmDialog() {
+    async showHardwareAccelerationConfirmDialog(): Promise<boolean> {
         const message = '关闭硬件加速可能会降低应用性能，但可以解决某些显卡兼容性问题。\n\n更改此设置需要重启应用才能生效。\n\n是否要关闭硬件加速并立即重启应用？';
         return await app.confirm({
             title: '硬件加速设置',
@@ -817,12 +904,12 @@ class Settings extends Component {
     }
 
     // 重启应用
-    async restartApplication() {
+    async restartApplication(): Promise<void> {
         try {
             showToast('正在重启应用...', 'info');
             setTimeout(async () => {
                 try {
-                    await window.electronAPI.app.restart();
+                    await electronAPI.app.restart();
                 } catch (error) {
                     showToast('重启应用失败，请手动重启', 'error');
                 }
@@ -833,13 +920,13 @@ class Settings extends Component {
     }
 
     // 显示硬件加速启用通知
-    showHardwareAccelerationEnabledNotification() {
+    showHardwareAccelerationEnabledNotification(): void {
         showToast('硬件加速已启用，建议重启应用以获得最佳性能', 'success');
     }
 
     // 打开应用数据文件夹
-    async handleOpenUserDataFolder() {
-        const result = await window.electronAPI.openUserDataFolder();
+    async handleOpenUserDataFolder(): Promise<void> {
+        const result = await electronAPI.openUserDataFolder();
         if (result.success) {
             showToast('已打开应用数据文件夹', 'success');
         } else {
@@ -849,8 +936,8 @@ class Settings extends Component {
     }
 
     // 打开开发者工具
-    async handleOpenDevTools() {
-        const result = await window.electronAPI.openDevTools();
+    async handleOpenDevTools(): Promise<void> {
+        const result = await electronAPI.openDevTools();
         if (result.success) {
             showToast('开发者工具已打开', 'success');
         } else {
@@ -860,13 +947,13 @@ class Settings extends Component {
     }
 
     // 更新歌词高亮透明度
-    updateLyricsHighlightOpacity(opacity) {
-        document.documentElement.style.setProperty('--lyrics-highlight-opacity', opacity);
+    updateLyricsHighlightOpacity(opacity: number): void {
+        document.documentElement.style.setProperty('--lyrics-highlight-opacity', String(opacity));
         this.emit('lyricsHighlightOpacityChanged', opacity);
     }
 
     // 更新歌词高亮颜色
-    updateLyricsHighlightColor(color) {
+    updateLyricsHighlightColor(color: string): void {
         // 将hex颜色转换为RGB（用于text-shadow）
         const rgb = this.hexToRgb(color);
         if (rgb) {
@@ -876,7 +963,7 @@ class Settings extends Component {
     }
 
     // 将hex颜色转换为RGB
-    hexToRgb(hex) {
+    hexToRgb(hex: string): RgbColor | null {
         const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
         return result ? {
             r: parseInt(result[1], 16),
@@ -886,18 +973,18 @@ class Settings extends Component {
     }
 
     // 缓存管理方法
-    async showCacheStatistics() {
+    async showCacheStatistics(): Promise<void> {
         try {
             this.viewCacheStatsBtn.disabled = true;
             this.viewCacheStatsBtn.textContent = '获取中...';
 
-            const stats = await libraryAPI.getCacheStatistics();
+            const stats = await libraryAPI.getCacheStatistics() as CacheStatisticsView | null;
             if (stats) {
                 const totalSizeMB = (stats.totalSize / (1024 * 1024)).toFixed(2);
-                const cacheAgeDays = Math.floor(stats.cacheAge / (1000 * 60 * 60 * 24));
+                const cacheAgeDays = Math.floor((stats.cacheAge || 0) / (1000 * 60 * 60 * 24));
 
                 this.cacheStatsDescription.textContent =
-                    `缓存了 ${stats.totalTracks} 个音乐文件，总大小 ${totalSizeMB} MB，已扫描 ${stats.scannedDirectories} 个目录，缓存时间 ${cacheAgeDays} 天`;
+                    `缓存了 ${stats.totalTracks} 个音乐文件，总大小 ${totalSizeMB} MB，已扫描 ${stats.scannedDirectories || 0} 个目录，缓存时间 ${cacheAgeDays} 天`;
 
                 showToast(`缓存统计: ${stats.totalTracks} 个文件，${totalSizeMB} MB`, 'info');
             } else {
@@ -912,7 +999,7 @@ class Settings extends Component {
         }
     }
 
-    async validateCache() {
+    async validateCache(): Promise<void> {
         try {
             this.validateCacheBtn.disabled = true;
             this.validateCacheBtn.textContent = '验证中...';
@@ -934,7 +1021,7 @@ class Settings extends Component {
         }
     }
 
-    async clearCache() {
+    async clearCache(): Promise<void> {
         const confirmed = await app.confirm({
             title: '清空缓存',
             message: '确定要清空所有缓存吗？这将删除所有已缓存的音乐文件信息，下次启动时需要重新扫描。',
@@ -967,12 +1054,12 @@ class Settings extends Component {
     }
 
     // 内嵌歌词测试方法
-    async testEmbeddedLyrics() {
+    async testEmbeddedLyrics(): Promise<void> {
         try {
             this.testEmbeddedLyricsBtn.disabled = true;
             this.testEmbeddedLyricsBtn.textContent = '选择文件...';
 
-            const filePaths = await window.electronAPI.openFiles();
+            const filePaths = await electronAPI.openFiles();
             if (!filePaths || filePaths.length === 0) {
                 showToast('未选择文件', 'info');
                 return;
@@ -982,8 +1069,8 @@ class Settings extends Component {
             this.testEmbeddedLyricsBtn.textContent = '检测中...';
             console.log(`🎵 测试内嵌歌词: ${filePath}`);
 
-            const debugResult = await embeddedLyricsManager.debugEmbeddedLyrics(filePath);
-            let reportLines = [
+            const debugResult = await embeddedLyricsManager.debugEmbeddedLyrics(filePath) as DebugEmbeddedLyricsResult;
+            let reportLines: string[] = [
                 `文件: ${filePath}`,
                 `时间: ${new Date().toLocaleString()}`,
                 ``,
@@ -1065,10 +1152,10 @@ class Settings extends Component {
     }
 
     // 快捷键配置相关方法
-    setupShortcutEventListeners() {
+    setupShortcutEventListeners(): void {
         // 全局快捷键开关
-        this.globalShortcutsToggle.addEventListener('change', async (e) => {
-            await this.toggleGlobalShortcuts(e.target.checked);
+        this.globalShortcutsToggle.addEventListener('change', async (e: Event) => {
+            await this.toggleGlobalShortcuts(getInputTarget(e).checked);
         });
 
         // 重置快捷键按钮
@@ -1080,7 +1167,7 @@ class Settings extends Component {
         this.initializeShortcuts();
     }
 
-    initializeShortcuts() {
+    initializeShortcuts(): void {
         const config = shortcutConfig.getConfig();
 
         // 设置全局快捷键开关状态
@@ -1097,7 +1184,7 @@ class Settings extends Component {
         }, 100);
     }
 
-    renderShortcutsList(type, shortcuts) {
+    renderShortcutsList(type: ShortcutType, shortcuts: ShortcutMap): void {
         const container = type === 'local' ? this.localShortcutsList : this.globalShortcutsList;
         if (!container) return;
 
@@ -1109,7 +1196,7 @@ class Settings extends Component {
         });
     }
 
-    createShortcutItem(type, id, shortcut) {
+    createShortcutItem(type: ShortcutType, id: string, shortcut: ShortcutEntry | any): HTMLElement {
         const item = document.createElement('div');
         item.className = 'shortcut-item';
         item.innerHTML = `
@@ -1139,23 +1226,23 @@ class Settings extends Component {
         `;
 
         // 添加事件监听器
-        const keyElement = item.querySelector('.shortcut-key');
-        const toggleElement = item.querySelector('.toggle-input');
+        const keyElement = item.querySelector<HTMLElement>('.shortcut-key');
+        const toggleElement = item.querySelector<HTMLInputElement>('.toggle-input');
 
-        keyElement.addEventListener('click', () => {
+        keyElement?.addEventListener('click', () => {
             if (shortcut.enabled) {
                 this.startRecordingShortcut(type, id, keyElement);
             }
         });
 
-        toggleElement.addEventListener('change', (e) => {
-            this.toggleShortcut(type, id, e.target.checked);
+        toggleElement?.addEventListener('change', (e: Event) => {
+            this.toggleShortcut(type, id, getInputTarget(e).checked);
         });
 
         return item;
     }
 
-    formatShortcutKey(key) {
+    formatShortcutKey(key: string): string {
         if (!key) return '未设置';
         return key
             .replace(/Ctrl/g, 'Ctrl')
@@ -1169,12 +1256,12 @@ class Settings extends Component {
             .replace(/Space/g, '空格');
     }
 
-    startRecordingShortcut(type, id, element) {
+    startRecordingShortcut(type: ShortcutType, id: string, element: HTMLElement): void {
         // 开始录制
         shortcutRecorder.startRecording(element);
 
         // 监听录制结果
-        const handleRecorded = async (shortcutString) => {
+        const handleRecorded = async (shortcutString: string) => {
             await this.handleShortcutRecorded(type, id, shortcutString, element);
             shortcutRecorder.off('shortcutRecorded', handleRecorded);
         };
@@ -1182,7 +1269,7 @@ class Settings extends Component {
         shortcutRecorder.on('shortcutRecorded', handleRecorded);
     }
 
-    async handleShortcutRecorded(type, id, shortcutString, element) {
+    async handleShortcutRecorded(type: ShortcutType, id: string, shortcutString: string, element: HTMLElement): Promise<void> {
         // 检查冲突
         const conflicts = shortcutConfig.checkConflicts(type, id, shortcutString);
         if (conflicts.length > 0) {
@@ -1195,7 +1282,7 @@ class Settings extends Component {
         }
     }
 
-    async updateShortcut(type, id, shortcutString, element) {
+    async updateShortcut(type: ShortcutType, id: string, shortcutString: string, element: HTMLElement): Promise<void> {
         try {
             const success = await shortcutConfig.updateShortcut(type, id, shortcutString);
             if (success) {
@@ -1213,7 +1300,7 @@ class Settings extends Component {
         }
     }
 
-    toggleShortcut(type, id, enabled) {
+    toggleShortcut(type: ShortcutType, id: string, enabled: boolean): void {
         const success = shortcutConfig.setShortcutEnabled(type, id, enabled);
 
         if (success) {
@@ -1234,7 +1321,7 @@ class Settings extends Component {
         }
     }
 
-    async toggleGlobalShortcuts(enabled) {
+    async toggleGlobalShortcuts(enabled: boolean): Promise<void> {
         try {
             const success = await shortcutConfig.setGlobalShortcutsEnabled(enabled);
             if (success) {
@@ -1255,7 +1342,7 @@ class Settings extends Component {
         }
     }
 
-    updateGlobalShortcutsVisibility(visible) {
+    updateGlobalShortcutsVisibility(visible: boolean): void {
         if (this.globalShortcutsGroup) {
             if (visible) {
                 this.globalShortcutsGroup.classList.remove('hidden');
@@ -1265,7 +1352,7 @@ class Settings extends Component {
         }
     }
 
-    async showShortcutConflict(conflicts, newShortcut, onConfirm) {
+    async showShortcutConflict(conflicts: ShortcutConflict[], newShortcut: string, onConfirm: () => void | Promise<void>): Promise<void> {
         const conflictNames = conflicts.map(c => `${c.name} (${c.type === 'local' ? '应用内' : '全局'})`).join('、');
         const message = `快捷键 "${this.formatShortcutKey(newShortcut)}" 与以下快捷键冲突：\n${conflictNames}\n\n是否要覆盖现有快捷键？`;
         const confirmed = await app.confirm({
@@ -1276,11 +1363,11 @@ class Settings extends Component {
         });
 
         if (confirmed) {
-            onConfirm();
+            await onConfirm();
         }
     }
 
-    async showResetShortcutsDialog() {
+    async showResetShortcutsDialog(): Promise<void> {
         const message = '确定要将所有快捷键重置为默认设置吗？\n\n此操作将清除您的所有自定义快捷键配置。';
         const confirmed = await app.confirm({
             title: '重置快捷键',
@@ -1294,7 +1381,7 @@ class Settings extends Component {
         }
     }
 
-    resetShortcuts() {
+    resetShortcuts(): void {
         const success = shortcutConfig.resetToDefaults();
         if (success) {
             // 重新初始化快捷键配置
@@ -1311,7 +1398,7 @@ class Settings extends Component {
     // 网络磁盘相关方法
 
     // 切换网络磁盘配置区域显示
-    toggleNetworkDriveConfig(enabled) {
+    toggleNetworkDriveConfig(enabled: boolean): void {
         if (enabled) {
             this.networkDriveConfig.style.display = 'block';
         } else {
@@ -1320,7 +1407,7 @@ class Settings extends Component {
     }
 
     // 显示网络磁盘配置模态框
-    showNetworkDriveModal() {
+    showNetworkDriveModal(): void {
         if (app.components.networkDiskModal) {
             app.components.networkDiskModal.show();
         } else {
@@ -1329,12 +1416,12 @@ class Settings extends Component {
     }
 
     // 显示通知消息
-    showNotification(message, type = 'info') {
-        showToast(message, type);
+    showNotification(message: string, type: 'success' | 'error' | 'info' | 'warning' | string = 'info'): void {
+        showToast(message, type as any);
     }
 
     // 切换到指定的设置区域
-    switchToSection(sectionName) {
+    switchToSection(sectionName: string): void {
         // 更新当前区域
         this.currentSection = sectionName;
 
@@ -1342,7 +1429,7 @@ class Settings extends Component {
 
         // 更新导航按钮状态
         // 更改为实时性的全部按钮
-        document.querySelectorAll('.settings-nav-btn').forEach(button => {
+        document.querySelectorAll<HTMLElement>('.settings-nav-btn').forEach((button: HTMLElement) => {
             if (button.dataset.section === sectionName) {
                 button.classList.add('active');
             } else {
@@ -1352,7 +1439,7 @@ class Settings extends Component {
 
         // 显示/隐藏设置区域
         // 更改为实时性的全部区域
-        document.querySelectorAll('.settings-section').forEach(section => {
+        document.querySelectorAll<HTMLElement>('.settings-section').forEach(section => {
             if (section.dataset.section === sectionName) {
                 section.classList.add('active');
             } else {
@@ -1362,13 +1449,13 @@ class Settings extends Component {
     }
 
     // 初始化设置区域显示
-    initializeSectionDisplay() {
+    initializeSectionDisplay(): void {
         // 默认显示第一个区域（外观设置）
         this.switchToSection(this.currentSection);
     }
 
     // 更新版本信息显示
-    async updateVersionInfo() {
+    async updateVersionInfo(): Promise<void> {
         try {
             const versionElement = document.getElementById('app-version-info');
             if (versionElement) {
@@ -1381,12 +1468,12 @@ class Settings extends Component {
         }
     }
 
-    openRepository() {
+    openRepository(): void {
         const repositoryUrl = 'https://github.com/asxez/MusicBox';
         window.open(repositoryUrl, '_blank');
     }
 
-    async openPluginManager() {
+    async openPluginManager(): Promise<void> {
         if (app.components.pluginManagerModal) {
             await app.components.pluginManagerModal.show();
         } else {
@@ -1395,14 +1482,14 @@ class Settings extends Component {
     }
 
     // 音乐文件夹和自动扫描相关方法
-    async initializeMusicFoldersAndAutoScan() {
+    async initializeMusicFoldersAndAutoScan(): Promise<void> {
         try {
             // 加载音乐文件夹列表
-            const folders = await window.electronAPI.settings.getMusicFolders();
+            const folders = await electronAPI.settings.getMusicFolders();
             this.renderMusicFolders(folders);
 
             // 加载自动扫描设置
-            const autoScanSettings = await window.electronAPI.settings.getAutoScanSettings();
+            const autoScanSettings = await electronAPI.settings.getAutoScanSettings();
             this.autoScanToggle.checked = autoScanSettings.enabled || false;
             this.scanFrequencySelect.value = autoScanSettings.frequency || 'on_startup';
 
@@ -1413,13 +1500,13 @@ class Settings extends Component {
         }
     }
 
-    async handleAddMusicFolder() {
+    async handleAddMusicFolder(): Promise<void> {
         try {
-            const result = await window.electronAPI.selectFolder();
+            const result = await electronAPI.selectFolder();
             if (result && result.filePaths && result.filePaths.length > 0) {
                 const selectedPath = result.filePaths[0];
 
-                const addResult = await window.electronAPI.settings.addMusicFolder(selectedPath);
+                const addResult = await electronAPI.settings.addMusicFolder(selectedPath);
                 if (addResult.success) {
                     this.renderMusicFolders(addResult.folders);
                     showToast('文件夹已添加', 'success');
@@ -1433,7 +1520,7 @@ class Settings extends Component {
 
                     if (shouldScan) {
                         showToast('正在扫描...', 'info');
-                        await window.electronAPI.library.scanDirectory(selectedPath);
+                        await electronAPI.library.scanDirectory(selectedPath);
                         showToast('扫描完成', 'success');
                     }
                 } else {
@@ -1446,7 +1533,7 @@ class Settings extends Component {
         }
     }
 
-    async handleRemoveMusicFolder(folderPath) {
+    async handleRemoveMusicFolder(folderPath: string): Promise<void> {
         const confirmed = await app.confirm({
             title: '移除文件夹',
             message: `确定要移除文件夹吗？\n\n${folderPath}\n\n移除后该文件夹中的音乐将不会被自动扫描。`,
@@ -1459,7 +1546,7 @@ class Settings extends Component {
         }
 
         try {
-            const result = await window.electronAPI.settings.removeMusicFolder(folderPath);
+            const result = await electronAPI.settings.removeMusicFolder(folderPath);
             if (result.success) {
                 this.renderMusicFolders(result.folders);
                 showToast('文件夹已移除', 'success');
@@ -1472,7 +1559,7 @@ class Settings extends Component {
         }
     }
 
-    renderMusicFolders(folders) {
+    renderMusicFolders(folders: string[] | null | undefined): void {
         if (!folders || folders.length === 0) {
             this.musicFoldersContainer.style.display = 'none';
             return;
@@ -1481,7 +1568,7 @@ class Settings extends Component {
         this.musicFoldersContainer.style.display = 'flex';
         this.musicFoldersList.innerHTML = '';
 
-        folders.forEach(folder => {
+        folders.forEach((folder: string) => {
             const li = document.createElement('li');
             li.className = 'folder-item';
 
@@ -1501,9 +1588,9 @@ class Settings extends Component {
         });
     }
 
-    async handleAutoScanToggle(enabled) {
+    async handleAutoScanToggle(enabled: boolean): Promise<void> {
         try {
-            const result = await window.electronAPI.settings.updateAutoScanSettings({enabled});
+            const result = await electronAPI.settings.updateAutoScanSettings({enabled});
             if (result.success) {
                 this.toggleScanFrequencyVisibility(enabled);
                 showToast(enabled ? '自动扫描已启用' : '自动扫描已禁用', 'success');
@@ -1518,9 +1605,9 @@ class Settings extends Component {
         }
     }
 
-    async handleScanFrequencyChange(frequency) {
+    async handleScanFrequencyChange(frequency: string): Promise<void> {
         try {
-            const result = await window.electronAPI.settings.updateAutoScanSettings({frequency});
+            const result = await electronAPI.settings.updateAutoScanSettings({frequency});
             if (result.success) {
                 showToast('扫描频率已更新', 'success');
             } else {
@@ -1532,11 +1619,11 @@ class Settings extends Component {
         }
     }
 
-    toggleScanFrequencyVisibility(visible) {
+    toggleScanFrequencyVisibility(visible: boolean): void {
         this.scanFrequencyContainer.style.display = visible ? 'flex' : 'none';
     }
 
-    async handleClearIgnoreList() {
+    async handleClearIgnoreList(): Promise<void> {
         const confirmed = await app.confirm({
             title: '清空忽略列表',
             message: '确定要清空忽略列表吗？\n\n清空后,之前手动删除的歌曲在下次自动扫描时会被重新添加到音乐库。',
@@ -1549,7 +1636,7 @@ class Settings extends Component {
         }
 
         try {
-            const result = await window.electronAPI.library.clearIgnoreList();
+            const result = await electronAPI.library.clearIgnoreList();
             if (result.success) {
                 showToast('忽略列表已清空', 'success');
             } else {
@@ -1562,7 +1649,7 @@ class Settings extends Component {
     }
 
     // 桌面歌词设置相关方法
-    async updateDesktopLyricsSetting(key, value) {
+    async updateDesktopLyricsSetting(key: string, value: string | number): Promise<void> {
         // 更新本地设置缓存
         const desktopLyricsSettings = this.settings.desktopLyricsSettings || {};
         desktopLyricsSettings[key] = value;
@@ -1570,7 +1657,7 @@ class Settings extends Component {
 
         // 发送设置到桌面歌词窗口
         try {
-            const settingsToSend = {};
+            const settingsToSend: Record<string, string | number> = {};
             settingsToSend[key] = value;
             await api.updateDesktopLyricsSettings(settingsToSend);
         } catch (error) {
@@ -1578,7 +1665,7 @@ class Settings extends Component {
         }
     }
 
-    initializeDesktopLyricsSettings() {
+    initializeDesktopLyricsSettings(): void {
         const dlSettings = this.settings.desktopLyricsSettings || {};
 
         // 初始化显示模式
@@ -1644,9 +1731,9 @@ class Settings extends Component {
     }
 
     // 迷你模式设置相关方法
-    async updateMiniModeSetting(key, value) {
+    async updateMiniModeSetting(key: string, value: string | number): Promise<void> {
         // 更新本地设置缓存
-        const miniModeSettings = this.settings.miniModeSettings || {};
+        const miniModeSettings = (this.settings.miniModeSettings || {}) as Record<string, string | number>;
         miniModeSettings[key] = value;
         this.updateSetting('miniModeSettings', miniModeSettings);
 
@@ -1654,14 +1741,14 @@ class Settings extends Component {
         this.applyMiniModeSetting(key, value);
     }
 
-    applyMiniModeSetting(key, value) {
+    applyMiniModeSetting(key: string, value: string | number): void {
         // 应用CSS变量
         switch (key) {
             case 'fontColor':
-                document.documentElement.style.setProperty('--mini-mode-font-color', value);
+                document.documentElement.style.setProperty('--mini-mode-font-color', String(value));
                 break;
             case 'highlightColor':
-                document.documentElement.style.setProperty('--mini-mode-highlight-color', value);
+                document.documentElement.style.setProperty('--mini-mode-highlight-color', String(value));
                 break;
             case 'fontSize':
                 document.documentElement.style.setProperty('--mini-mode-font-size', `${value}px`);
@@ -1672,8 +1759,8 @@ class Settings extends Component {
         this.emit('miniModeSettingsChanged', {key, value});
     }
 
-    initializeMiniModeSettings() {
-        const mmSettings = this.settings.miniModeSettings || {};
+    initializeMiniModeSettings(): void {
+        const mmSettings = (this.settings.miniModeSettings || {}) as Record<string, string | number>;
 
         // 初始化字体颜色
         if (this.miniModeFontColor) {
