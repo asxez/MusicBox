@@ -10,6 +10,7 @@ import {displayModeSettingsService} from "@services/settings/DisplayModeSettings
 import {embeddedLyricsDiagnosticsService} from "@services/settings/EmbeddedLyricsDiagnosticsService";
 import {hardwareAccelerationSettingsService} from "@services/settings/HardwareAccelerationSettingsService";
 import {lyricsAppearanceSettingsService} from "@services/settings/LyricsAppearanceSettingsService";
+import {musicFolderListRenderer} from "@services/settings/MusicFolderListRenderer";
 import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySettingsService";
 import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
 import {settingsInteractionService} from "@services/settings/SettingsInteractionService";
@@ -1354,31 +1355,11 @@ class Settings extends Component {
     }
 
     renderMusicFolders(folders: string[] | null | undefined): void {
-        if (!folders || folders.length === 0) {
-            this.musicFoldersContainer.style.display = 'none';
-            return;
-        }
-
-        this.musicFoldersContainer.style.display = 'flex';
-        this.musicFoldersList.innerHTML = '';
-
-        folders.forEach((folder: string) => {
-            const li = document.createElement('li');
-            li.className = 'folder-item';
-
-            const pathSpan = document.createElement('span');
-            pathSpan.className = 'folder-path-text';
-            pathSpan.textContent = folder;
-            pathSpan.title = folder;
-
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'folder-remove-btn';
-            removeBtn.textContent = '移除';
-            removeBtn.addEventListener('click', () => this.handleRemoveMusicFolder(folder));
-
-            li.appendChild(pathSpan);
-            li.appendChild(removeBtn);
-            this.musicFoldersList.appendChild(li);
+        musicFolderListRenderer.render({
+            container: this.musicFoldersContainer,
+            list: this.musicFoldersList,
+            folders,
+            onRemove: (folderPath) => this.handleRemoveMusicFolder(folderPath)
         });
     }
 
