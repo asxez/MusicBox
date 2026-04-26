@@ -30,6 +30,10 @@ class SystemGateway {
     openPath(path: string): Promise<{success: boolean; error?: string}> {
         return getElectronAPI().openPath(path);
     }
+
+    openExternal(url: string): Promise<{success: boolean; error?: string}> {
+        return getElectronAPI().openExternal(url);
+    }
 }
 
 export const systemGateway = new SystemGateway();

@@ -72,6 +72,9 @@ interface ElectronAPI {
     // 打开指定目录
     openPath: (path: string) => Promise<{ success: boolean, error?: string }>;
 
+    // 使用系统默认程序打开外部链接
+    openExternal: (url: string) => Promise<{ success: boolean, error?: string }>;
+
     // 原生音频事件
     onNativeAudioEvent: (eventName: string, callback: (data: unknown) => void) => Unsubscribe;
 

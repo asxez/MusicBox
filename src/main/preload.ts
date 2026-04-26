@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ensureDirectoryExists: (dirPath: string) => ipcRenderer.invoke('app:ensureDirectoryExists', dirPath),
     openDevTools: () => ipcRenderer.invoke('app:openDevTools'),
     openPath: (path: string) => ipcRenderer.invoke('app:openPath', path),
+    openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
 
     // 文件对话框
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),

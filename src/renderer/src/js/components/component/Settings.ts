@@ -3,6 +3,7 @@
  */
 
 import {showToast} from '@utils/index.js';
+import {appInfoSettingsService} from "@services/settings/AppInfoSettingsService";
 import {audioEngineSettingsService} from "@services/settings/AudioEngineSettingsService";
 import {cacheMaintenanceService} from "@services/settings/CacheMaintenanceService";
 import {displayModeSettingsService} from "@services/settings/DisplayModeSettingsService";
@@ -12,6 +13,7 @@ import {lyricsAppearanceSettingsService} from "@services/settings/LyricsAppearan
 import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySettingsService";
 import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
 import {settingsInteractionService} from "@services/settings/SettingsInteractionService";
+import {settingsSectionNavigationService} from "@services/settings/SettingsSectionNavigationService";
 import {settingsStore, type SettingValue} from "@services/settings/SettingsStore";
 import {
     shortcutSettingsService,
@@ -405,8 +407,8 @@ class Settings extends Component {
         });
 
         // 前往仓库按钮事件
-        this.goToRepositoryBtn.addEventListener('click', () => {
-            this.openRepository();
+        this.goToRepositoryBtn.addEventListener('click', async () => {
+            await this.openRepository();
         });
 
         // 缓存管理按钮事件
@@ -1255,30 +1257,8 @@ class Settings extends Component {
 
     // 切换到指定的设置区域
     switchToSection(sectionName: string): void {
-        // 更新当前区域
         this.currentSection = sectionName;
-
-        // 修改为实时性取元素，防止扩展动态添加的无法被正常监听
-
-        // 更新导航按钮状态
-        // 更改为实时性的全部按钮
-        document.querySelectorAll<HTMLElement>('.settings-nav-btn').forEach((button: HTMLElement) => {
-            if (button.dataset.section === sectionName) {
-                button.classList.add('active');
-            } else {
-                button.classList.remove('active');
-            }
-        });
-
-        // 显示/隐藏设置区域
-        // 更改为实时性的全部区域
-        document.querySelectorAll<HTMLElement>('.settings-section').forEach(section => {
-            if (section.dataset.section === sectionName) {
-                section.classList.add('active');
-            } else {
-                section.classList.remove('active');
-            }
-        });
+        settingsSectionNavigationService.switchToSection(sectionName);
     }
 
     // 初始化设置区域显示
@@ -1290,20 +1270,17 @@ class Settings extends Component {
     // 更新版本信息显示
     async updateVersionInfo(): Promise<void> {
         try {
-            const versionElement = document.getElementById('app-version-info');
-            if (versionElement) {
-                const response = await fetch('../../../package.json');
-                const packageInfo = await response.json();
-                versionElement.textContent = `MusicBox v${packageInfo.version}`;
-            }
+            await appInfoSettingsService.updateVersionInfo();
         } catch (error) {
             console.error('❌ Settings: 更新版本信息失败:', error);
         }
     }
 
-    openRepository(): void {
-        const repositoryUrl = 'https://github.com/asxez/MusicBox';
-        window.open(repositoryUrl, '_blank');
+    async openRepository(): Promise<void> {
+        const result = await appInfoSettingsService.openRepository();
+        if (!result.success) {
+            this.showNotification(result.error || '打开仓库失败', 'error');
+        }
     }
 
     async openPluginManager(): Promise<void> {
