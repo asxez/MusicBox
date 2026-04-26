@@ -50,7 +50,7 @@ import '@components/component/Navigation';
 import '@components/component/NetworkDiskModal';
 import '@components/component/NetworkDriveDetailPage';
 import '@components/component/Player.js';
-import '@components/component/Playlist.js';
+import '@components/component/Playlist';
 import '@components/component/PlaylistDetailPage.js';
 import '@components/component/PluginManagerModal';
 import '@components/component/RecentPage';
