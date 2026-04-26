@@ -3,13 +3,56 @@
  * 营造“收藏实体专辑”的沉浸式浏览体验
  */
 
-import {formatTime} from "@utils";
+import {formatTime} from "@utils/index.js";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {coverAPI, libraryAPI} from "@js/api";
+import type {Track} from "@api/types/library";
+
+type AlbumViewSize = 's' | 'm' | 'l';
+type AlbumSortKey = 'name' | 'artist' | 'tracks' | 'year';
+
+interface AlbumItem {
+    key: string;
+    name: string;
+    artist: string;
+    year: string | number | null;
+    cover: string | null;
+    tracks: Track[];
+    totalDuration: number;
+    album?: string;
+}
+
+interface SourceRect {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    radius: string;
+    scrollTop: number;
+}
 
 class AlbumsPage extends Component {
-    constructor(container) {
+    private tracks: Track[];
+    private albums: AlbumItem[];
+    private selectedAlbum: AlbumItem | null;
+    private viewSize: AlbumViewSize;
+    private sortBy: AlbumSortKey;
+    private container: any;
+    private _lastSourceRect: SourceRect | null;
+    private _lastSourceKey: string | null;
+    private _lastGridScrollTop: number;
+    private _coverRequests: Set<string>;
+    private _coverFailures: Set<string>;
+    private _coverQueue: string[];
+    private _coverConcurrency: number;
+    private _coverMaxConcurrency: number;
+    private _lastTracksHash: string | null;
+    private _coversScheduled: boolean;
+    private listenersSetup: boolean;
+    isVisible: boolean;
+
+    constructor(container: string | Element | null) {
         super(container);
         this.tracks = [];
         this.albums = [];
@@ -31,14 +74,15 @@ class AlbumsPage extends Component {
         this._lastTracksHash = null;      // 上次tracks的哈希值
         this._coversScheduled = false;    // 是否已经调度过封面获取
         this.listenersSetup = false; // 事件监听器是否已设置
+        this.isVisible = false;
     }
 
-    async show() {
+    async show(): Promise<void> {
         if (!this.listenersSetup) {
             this._bindLibraryEvents();
             this.listenersSetup = true;
         }
-        if (this.element) this.element.style.display = 'block';
+        if (this.element) (this.element as HTMLElement).style.display = 'block';
         this.isVisible = true;
 
         // 只有在没有tracks数据时才获取，避免重复调用
@@ -56,13 +100,13 @@ class AlbumsPage extends Component {
         this._lastGridScrollTop = 0;   // 返回时恢复滚动
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
         this.selectedAlbum = null;
         if (this.container) this.container.innerHTML = '';
     }
 
-    destroy() {
+    destroy(): void {
         this.tracks.length = 0;
         this.albums.length = 0;
         this.selectedAlbum = null;
@@ -73,11 +117,11 @@ class AlbumsPage extends Component {
         this._lastSourceKey = null;
         this._lastTracksHash = null;
         this.listenersSetup = false;
-        return super.destroy();
+        super.destroy();
     }
 
-    _bindLibraryEvents() {
-        api.on('libraryUpdated', (tracks) => {
+    _bindLibraryEvents(): void {
+        api.on('libraryUpdated', (tracks: Track[]) => {
             const newTracksHash = this._generateTracksHash(tracks || []);
 
             // 检查tracks是否真正发生了变化
@@ -94,7 +138,7 @@ class AlbumsPage extends Component {
     }
 
     // 生成tracks的简单哈希值
-    _generateTracksHash(tracks) {
+    _generateTracksHash(tracks: Track[] | null | undefined): string {
         if (!tracks || tracks.length === 0) return 'empty';
         // 使用tracks数量和前几个文件路径生成简单哈希
         const sample = tracks.slice(0, 3).map(t => t.filePath || t.title).join('|');
@@ -102,11 +146,11 @@ class AlbumsPage extends Component {
     }
 
     // 归并专辑
-    processAlbums() {
-        const map = new Map();
+    processAlbums(): void {
+        const map = new Map<string, AlbumItem>();
         this.tracks.forEach(track => {
             const albumName = track.album || '未知专辑';
-            const albumArtist = track.albumartist || track.artist || '未知艺术家';
+            const albumArtist = (track as any).albumartist || track.artist || '未知艺术家';
             const key = `${albumName}:::${albumArtist}`;
             if (!map.has(key)) {
                 map.set(key, {
@@ -119,7 +163,7 @@ class AlbumsPage extends Component {
                     totalDuration: 0
                 });
             }
-            const album = map.get(key);
+            const album = map.get(key)!;
             album.tracks.push(track);
             album.totalDuration += track.duration || 0;
             if (!album.cover && track.cover) album.cover = track.cover;
@@ -134,7 +178,7 @@ class AlbumsPage extends Component {
     }
 
     // 将缺失封面的专辑加入获取队列
-    scheduleCoversForMissing() {
+    scheduleCoversForMissing(): void {
         if (!this.albums || this.albums.length === 0) return;
 
         // 防重复机制：检查是否已经调度过封面获取
@@ -159,9 +203,10 @@ class AlbumsPage extends Component {
         }
     }
 
-    async _drainCoverQueue() {
+    async _drainCoverQueue(): Promise<void> {
         while (this._coverConcurrency < this._coverMaxConcurrency && this._coverQueue.length > 0) {
             const key = this._coverQueue.shift();
+            if (!key) continue;
             const album = this.albums.find(a => a.key === key);
             if (!album || album.cover) continue;
             this._coverConcurrency++;
@@ -179,7 +224,7 @@ class AlbumsPage extends Component {
     }
 
     // 获取专辑封面
-    async _fetchAlbumCover(album) {
+    async _fetchAlbumCover(album: AlbumItem): Promise<void> {
         try {
             const artist = this._sanitize(album.artist);
             const name = this._sanitize(album.name || album.album);
@@ -199,19 +244,19 @@ class AlbumsPage extends Component {
                 this._coverFailures.add(album.key);
             }
         } catch (e) {
-            console.warn('获取专辑封面失败:', album?.name, e?.message);
+            console.warn('获取专辑封面失败:', album?.name, e instanceof Error ? e.message : e);
             this._coverFailures.add(album.key);
         } finally {
             this._setAlbumCardLoading(album.key, false);
         }
     }
 
-    _sanitize(val) {
+    _sanitize(val: unknown): string {
         if (val == null) return '';
         return String(val).trim();
     }
 
-    _setAlbumCardLoading(key, loading) {
+    _setAlbumCardLoading(key: string, loading: boolean): void {
         const tile = this.container && this.container.querySelector(`.albumsx-tile[data-album-key="${CSS.escape(key)}"]`);
         if (!tile) return;
         const art = tile.querySelector('.art');
@@ -219,7 +264,7 @@ class AlbumsPage extends Component {
         if (loading) art.classList.add('loading'); else art.classList.remove('loading');
     }
 
-    _updateAlbumCardCover(key, url) {
+    _updateAlbumCardCover(key: string, url: string): void {
         const tile = this.container && this.container.querySelector(`.albumsx-tile[data-album-key="${CSS.escape(key)}"]`);
         if (!tile) return;
         const img = tile.querySelector('.art img');
@@ -236,7 +281,7 @@ class AlbumsPage extends Component {
         });
     }
 
-    sortAlbums(sortBy) {
+    sortAlbums(sortBy: AlbumSortKey): void {
         this.sortBy = sortBy;
         switch (sortBy) {
             case 'name':
@@ -249,14 +294,14 @@ class AlbumsPage extends Component {
                 this.albums.sort((a, b) => b.tracks.length - a.tracks.length);
                 break;
             case 'year':
-                this.albums.sort((a, b) => (b.year || 0) - (a.year || 0));
+                this.albums.sort((a, b) => Number(b.year || 0) - Number(a.year || 0));
                 break;
             default:
                 break;
         }
     }
 
-    render() {
+    render(): void {
         if (!this.container) return;
         if (this.selectedAlbum) {
             this.renderAlbumDetail();
@@ -266,7 +311,7 @@ class AlbumsPage extends Component {
     }
 
     // 专辑墙
-    renderAlbumsList() {
+    renderAlbumsList(): void {
         const sizes = {s: 110, m: 150, l: 200};
         const coverSize = sizes[this.viewSize] || sizes.m;
         const total = this.albums.length;
@@ -308,7 +353,7 @@ class AlbumsPage extends Component {
         this.setupListEventListeners();
     }
 
-    renderEmptyState() {
+    renderEmptyState(): string {
         return `
             <div class="albumsx-empty">
                 <div class="icon">
@@ -319,7 +364,7 @@ class AlbumsPage extends Component {
             </div>`;
     }
 
-    renderAlbumTile(album) {
+    renderAlbumTile(album: AlbumItem): string {
         const trackCount = album.tracks.length;
         const cover = album.cover || 'assets/images/default-cover.svg';
         const title = this.escapeHtml(album.name);
@@ -338,9 +383,10 @@ class AlbumsPage extends Component {
 
     // 详情页
     // 布局：左封面右信息，下方歌曲，顶部毛玻璃栏
-    renderAlbumDetail() {
+    renderAlbumDetail(): void {
+        if (!this.selectedAlbum) return;
         const album = this.selectedAlbum;
-        const tracks = [...album.tracks].sort((a, b) => (a.disc || 0) - (b.disc || 0) || (a.track || 0) - (b.track || 0));
+        const tracks = [...album.tracks].sort((a, b) => ((a as any).disc || 0) - ((b as any).disc || 0) || ((a as any).track || 0) - ((b as any).track || 0));
         const duration = this.formatDuration(album.totalDuration);
         const cover = album.cover || 'assets/images/default-cover.svg';
         this.container.innerHTML = `
@@ -385,10 +431,10 @@ class AlbumsPage extends Component {
         this.setupDetailEventListeners();
     }
 
-    renderTrackRow(track, index) {
+    renderTrackRow(track: Track, index: number): string {
         return `
             <div class="trackx" data-track-path="${this.escapeHtml(track.filePath)}" data-index="${index}">
-                <div class="idx">${track.track || index + 1}</div>
+                <div class="idx">${(track as any).track || index + 1}</div>
                 <div class="t-main">
                     <div class="t-title clamp-1">${this.escapeHtml(track.title || '未知标题')}</div>
                 </div>
@@ -404,11 +450,11 @@ class AlbumsPage extends Component {
             </div>`;
     }
 
-    setupListEventListeners() {
+    setupListEventListeners(): void {
         // 封面尺寸切换
-        this.container.querySelectorAll('.seg-btn').forEach(btn => {
+        this.container.querySelectorAll('.seg-btn').forEach((btn: any) => {
             btn.addEventListener('click', () => {
-                const size = btn.dataset.size;
+                const size = btn.dataset.size as AlbumViewSize | undefined;
                 if (size && size !== this.viewSize) {
                     this.viewSize = size;
                     this.render();
@@ -419,7 +465,7 @@ class AlbumsPage extends Component {
         const sortSelect = this.container.querySelector('#album-sort');
         if (sortSelect) {
             sortSelect.addEventListener('change', () => {
-                this.sortAlbums(sortSelect.value);
+                this.sortAlbums(sortSelect.value as AlbumSortKey);
                 this.render();
             });
         }
@@ -428,7 +474,7 @@ class AlbumsPage extends Component {
         if (q) {
             q.addEventListener('input', () => {
                 const kw = q.value.trim().toLowerCase();
-                this.container.querySelectorAll('.albumsx-tile').forEach(tile => {
+                this.container.querySelectorAll('.albumsx-tile').forEach((tile: any) => {
                     const key = tile.dataset.albumKey;
                     const album = this.albums.find(a => a.key === key);
                     if (!album) return;
@@ -438,7 +484,7 @@ class AlbumsPage extends Component {
             });
         }
         // 专辑卡事件
-        this.container.querySelectorAll('.albumsx-tile').forEach(tile => {
+        this.container.querySelectorAll('.albumsx-tile').forEach((tile: any) => {
             const key = tile.dataset.albumKey;
             const album = this.albums.find(a => a.key === key);
             if (!album) return;
@@ -454,7 +500,9 @@ class AlbumsPage extends Component {
         });
     }
 
-    setupDetailEventListeners() {
+    setupDetailEventListeners(): void {
+        if (!this.selectedAlbum) return;
+
         // 返回
         // 反向共享元素转场
         const backBtn = this.container.querySelector('#back-to-albums');
@@ -464,24 +512,24 @@ class AlbumsPage extends Component {
 
         // 播放 / 随机
         const playBtn = this.container.querySelector('#play-album');
-        if (playBtn) playBtn.addEventListener('click', () => this.emit('playAll', this.selectedAlbum.tracks.sort((a, b) => (a.track || 0) - (b.track || 0))));
+        if (playBtn) playBtn.addEventListener('click', () => this.emit('playAll', this.selectedAlbum?.tracks.sort((a, b) => ((a as any).track || 0) - ((b as any).track || 0))));
         const shuffleBtn = this.container.querySelector('#shuffle-album');
-        if (shuffleBtn) shuffleBtn.addEventListener('click', () => this.emit('playAll', [...this.selectedAlbum.tracks].sort(() => Math.random() - 0.5)));
+        if (shuffleBtn) shuffleBtn.addEventListener('click', () => this.emit('playAll', [...(this.selectedAlbum?.tracks || [])].sort(() => Math.random() - 0.5)));
 
         // 歌曲行
-        this.container.querySelectorAll('.trackx').forEach(row => {
+        this.container.querySelectorAll('.trackx').forEach((row: any) => {
             const trackPath = row.dataset.trackPath;
-            const track = this.selectedAlbum.tracks.find(t => t.filePath === trackPath);
+            const track = this.selectedAlbum?.tracks.find(t => t.filePath === trackPath);
             if (!track) return;
 
             const play = row.querySelector('.i-btn:first-of-type');
-            if (play) play.addEventListener('click', (e) => {
+            if (play) play.addEventListener('click', (e: Event) => {
                 e.stopPropagation();
                 this.emit('trackPlayed', track, 0);
             });
 
             const add = row.querySelector('.i-btn:last-of-type');
-            if (add) add.addEventListener('click', (e) => {
+            if (add) add.addEventListener('click', (e: Event) => {
                 e.stopPropagation();
                 this.emit('addToPlaylist', track);
             });
@@ -490,12 +538,13 @@ class AlbumsPage extends Component {
         });
     }
 
-    showAlbumDetail(album) {
+    showAlbumDetail(album: AlbumItem): void {
         this.selectedAlbum = album;
         this.render();
     }
 
-    formatDuration(seconds) {
+    formatDuration(seconds?: number): string {
+        seconds = seconds || 0;
         if (seconds < 3600) {
             const minutes = Math.floor(seconds / 60);
             return `${minutes} 分钟`;
@@ -507,16 +556,16 @@ class AlbumsPage extends Component {
     }
 
     // HTML转义
-    escapeHtml(text) {
+    escapeHtml(text: unknown): string {
         const div = document.createElement('div');
         div.textContent = text == null ? '' : String(text);
         return div.innerHTML;
     }
 
     // 方向性高光跟随：利用 CSS 变量驱动，节流到 rAF
-    attachGlossHandlers(artEl) {
+    attachGlossHandlers(artEl: HTMLElement): void {
         let raf = 0;
-        const onMove = (e) => {
+        const onMove = (e: MouseEvent) => {
             if (raf) return; // rAF 节流
             raf = requestAnimationFrame(() => {
                 raf = 0;
@@ -546,7 +595,7 @@ class AlbumsPage extends Component {
 
     // 封面飞入过渡：共享元素转场
     // 固定定位 + 顶左原点缩放/平移
-    animateToDetail(tileEl, album) {
+    animateToDetail(tileEl: HTMLElement, album: AlbumItem): void {
         const srcArtImg = tileEl.querySelector('.art img');
         const srcArt = tileEl.querySelector('.art');
         if (!srcArtImg || !srcArt) return this.showAlbumDetail(album);
@@ -578,7 +627,7 @@ class AlbumsPage extends Component {
 
         // 构建过渡层（ghost）
         const ghostWrap = document.createElement('div');
-        const ghost = srcArtImg.cloneNode(true);
+        const ghost = srcArtImg.cloneNode(true) as HTMLElement;
         Object.assign(ghostWrap.style, {
             position: 'fixed',
             left: `${srcRect.left}px`,
@@ -641,12 +690,12 @@ class AlbumsPage extends Component {
     }
 
     // 详情页内容分层进入：设置初始态
-    prepareDetailSequence() {
+    prepareDetailSequence(): void {
         const title = this.container.querySelector('.detail-hero .info .name');
         const stats = this.container.querySelector('.detail-hero .info .stats');
         const actions = this.container.querySelector('.detail-hero .info .actions');
         const tracks = this.container.querySelectorAll('.detail-tracks .trackx');
-        const setInit = (elList) => {
+        const setInit = (elList: any) => {
             if (!elList) return;
             const els = elList instanceof NodeList ? Array.from(elList) : [elList];
             els.forEach(el => {
@@ -663,12 +712,12 @@ class AlbumsPage extends Component {
     }
 
     // 详情页内容分层进入：执行序列
-    runDetailSequence() {
+    runDetailSequence(): void {
         const title = this.container.querySelector('.detail-hero .info .name');
         const stats = this.container.querySelector('.detail-hero .info .stats');
         const actions = this.container.querySelector('.detail-hero .info .actions');
         const tracks = this.container.querySelectorAll('.detail-tracks .trackx');
-        const phase = (els, delayBase) => {
+        const phase = (els: any, delayBase: number) => {
             const list = els instanceof NodeList ? Array.from(els) : [els];
             list.forEach((el, i) => {
                 if (!el) return;
@@ -686,7 +735,7 @@ class AlbumsPage extends Component {
     }
 
     // 反向共享元素转场：从详情页封面飞回网格卡片
-    animateBackToGrid() {
+    animateBackToGrid(): void {
         const dstCover = this.container.querySelector('.detail-hero .cover');
         const dstImg = dstCover ? dstCover.querySelector('img') : null;
         if (!dstCover || !dstImg) {
@@ -702,7 +751,7 @@ class AlbumsPage extends Component {
         const stats = this.container.querySelector('.detail-hero .info .stats');
         const actions = this.container.querySelector('.detail-hero .info .actions');
         const tracks = this.container.querySelectorAll('.detail-tracks .trackx');
-        const fadeOut = (els) => {
+        const fadeOut = (els: any) => {
             const list = els instanceof NodeList ? Array.from(els) : [els];
             return list.map(el => el ? el.animate([
                 {opacity: 1, transform: 'translateY(0px)'},
@@ -788,7 +837,7 @@ class AlbumsPage extends Component {
     }
 
     // 获取可滚动容器
-    getScrollContainer() {
+    getScrollContainer(): HTMLElement | null {
         return document.querySelector('.main-content');
     }
 }

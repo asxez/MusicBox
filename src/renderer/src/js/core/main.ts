@@ -41,7 +41,7 @@ import '@extensions/api/index.js';
 // 6. 导入页面组件
 // ============================================
 import '@components/component/ArtistsPage.js';
-import '@components/component/AlbumsPage.js';
+import '@components/component/AlbumsPage';
 import '@components/component/ContextMenu.js';
 import '@components/component/EqualizerComponent.js';
 import '@components/component/HomePage.js';
