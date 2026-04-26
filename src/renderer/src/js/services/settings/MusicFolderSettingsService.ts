@@ -36,6 +36,15 @@ class MusicFolderSettingsService {
         return this.normalizeAutoScanSettings(settings);
     }
 
+    async selectMusicFolder(): Promise<string | null> {
+        const result = await settingsSystemGateway.selectFolder();
+        if (!result || !result.filePaths || result.filePaths.length === 0) {
+            return null;
+        }
+
+        return result.filePaths[0];
+    }
+
     async addMusicFolder(folderPath: string): Promise<MusicFoldersUpdateResult> {
         const result = await settingsSystemGateway.settings.addMusicFolder(folderPath) as SettingsUpdateResult;
         return this.normalizeFoldersResult(result);

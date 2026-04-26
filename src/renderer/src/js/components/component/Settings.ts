@@ -3,18 +3,18 @@
  */
 
 import {showToast} from '@utils/index.js';
-import {localLyricsManager} from "@services/lyrics/LocalLyricsManager";
-import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {cacheMaintenanceService} from "@services/settings/CacheMaintenanceService";
 import {embeddedLyricsDiagnosticsService} from "@services/settings/EmbeddedLyricsDiagnosticsService";
+import {hardwareAccelerationSettingsService} from "@services/settings/HardwareAccelerationSettingsService";
+import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySettingsService";
 import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
 import {settingsStore, type SettingValue} from "@services/settings/SettingsStore";
+import {traySettingsService} from "@services/settings/TraySettingsService";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
-import {settingsSystemGateway} from "@js/infrastructure/electron";
 import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
 
 type ShortcutType = 'local' | 'global';
@@ -42,8 +42,6 @@ interface RgbColor {
 
 const getInputTarget = (event: Event): HTMLInputElement => event.target as HTMLInputElement;
 const getSelectTarget = (event: Event): HTMLSelectElement => event.target as HTMLSelectElement;
-const electronAPI = settingsSystemGateway as any;
-
 class Settings extends Component {
     [key: string]: any;
 
@@ -393,38 +391,31 @@ class Settings extends Component {
             const target = getInputTarget(e);
             this.updateSetting('systemTray', target.checked);
             this.toggleTraySettings(target.checked);
-            await electronAPI.tray.updateSettings({
-                enabled: target.checked
-            });
+            await traySettingsService.updateEnabled(target.checked);
         });
 
         this.trayCloseBehaviorSelect.addEventListener('change', async (e: Event) => {
             const target = getSelectTarget(e);
             this.updateSetting('trayCloseBehavior', target.value);
-            await electronAPI.tray.updateSettings({
-                closeToTray: target.value === 'minimize'
-            });
+            await traySettingsService.updateCloseBehavior(target.value);
         });
 
         this.trayStartMinimizedToggle.addEventListener('change', async (e: Event) => {
             const target = getInputTarget(e);
             this.updateSetting('trayStartMinimized', target.checked);
-            await electronAPI.tray.updateSettings({
-                startMinimized: target.checked
-            });
+            await traySettingsService.updateStartMinimized(target.checked);
         });
 
         this.selectLyricsFolderBtn.addEventListener('click', async () => {
             try {
-                const result = await electronAPI.selectFolder();
-                if (result && result.filePaths && result.filePaths.length > 0) {
-                    const selectedPath = result.filePaths[0];
+                const selectedPath = await mediaDirectorySettingsService.selectDirectory();
+                if (selectedPath) {
                     this.updateSetting('lyricsDirectory', selectedPath);
                     this.lyricsFolderPath.textContent = selectedPath;
                     this.lyricsFolderPath.classList.add('selected');
 
                     // 更新本地歌词管理器
-                    localLyricsManager.setLyricsDirectory(selectedPath);
+                    mediaDirectorySettingsService.applyLyricsDirectory(selectedPath);
                 }
             } catch (error) {
                 console.error('❌ Settings: 选择歌词目录失败:', error);
@@ -433,15 +424,14 @@ class Settings extends Component {
 
         this.selectCoverCacheFolderBtn.addEventListener('click', async () => {
             try {
-                const result = await electronAPI.selectFolder();
-                if (result && result.filePaths && result.filePaths.length > 0) {
-                    const selectedPath = result.filePaths[0];
+                const selectedPath = await mediaDirectorySettingsService.selectDirectory();
+                if (selectedPath) {
                     this.updateSetting('coverCacheDirectory', selectedPath);
                     this.coverCacheFolderPath.textContent = selectedPath;
                     this.coverCacheFolderPath.classList.add('selected');
 
                     // 更新本地封面管理器
-                    localCoverManager.setCoverDirectory(selectedPath);
+                    mediaDirectorySettingsService.applyCoverDirectory(selectedPath);
                 }
             } catch (error) {
                 console.error('❌ Settings: 选择封面缓存目录失败:', error);
@@ -656,7 +646,7 @@ class Settings extends Component {
             this.lyricsFolderPath.classList.add('selected');
 
             // 设置本地歌词管理器
-            localLyricsManager.setLyricsDirectory(lyricsDirectory);
+            mediaDirectorySettingsService.applyLyricsDirectory(lyricsDirectory);
         } else {
             this.lyricsFolderPath.textContent = '未选择';
             this.lyricsFolderPath.classList.remove('selected');
@@ -775,12 +765,7 @@ class Settings extends Component {
     // 初始化硬件加速设置
     async initializeHardwareAccelerationSettings(): Promise<void> {
         try {
-            const result = await electronAPI.hardwareAcceleration.getSettings();
-            if (result.success) {
-                this.hardwareAccelerationToggle.checked = result.settings.enabled !== false;
-            } else {
-                this.hardwareAccelerationToggle.checked = true; // 默认启用
-            }
+            this.hardwareAccelerationToggle.checked = await hardwareAccelerationSettingsService.getEnabled();
         } catch (error) {
             console.error('❌ Settings: 初始化硬件加速设置失败:', error);
             this.hardwareAccelerationToggle.checked = true; // 默认启用
@@ -792,32 +777,23 @@ class Settings extends Component {
         try {
             let coverCacheDirectory = typeof this.settings.coverCacheDirectory === 'string' ? this.settings.coverCacheDirectory : null;
 
-            // 如果用户未设置封面缓存目录，使用默认路径
-            if (!coverCacheDirectory) {
-                const defaultPathResult = await electronAPI.getDefaultCoverCachePath();
-                if (defaultPathResult.success) {
-                    coverCacheDirectory = defaultPathResult.path;
+            const resolved = await mediaDirectorySettingsService.resolveCoverCacheDirectory(coverCacheDirectory);
+            coverCacheDirectory = resolved.directory;
 
-                    // 确保默认目录存在
-                    const ensureResult = await electronAPI.ensureDirectoryExists(coverCacheDirectory);
-                    if (ensureResult.success) {
-                        // 保存默认路径到设置
-                        this.updateSetting('coverCacheDirectory', coverCacheDirectory);
-                        console.log(`✅ Settings: 使用默认封面缓存目录: ${coverCacheDirectory}`);
-                    } else {
-                        console.error('❌ Settings: 创建默认封面缓存目录失败:', ensureResult.error);
-                        coverCacheDirectory = null;
-                    }
-                } else {
-                    console.error('❌ Settings: 获取默认封面缓存路径失败:', defaultPathResult.error);
-                }
+            if (resolved.shouldPersist && coverCacheDirectory) {
+                this.updateSetting('coverCacheDirectory', coverCacheDirectory);
+                console.log(`✅ Settings: 使用默认封面缓存目录: ${coverCacheDirectory}`);
+            }
+
+            if (resolved.error) {
+                console.error('❌ Settings:', resolved.error);
             }
 
             // 设置封面缓存目录
             if (coverCacheDirectory) {
                 this.coverCacheFolderPath.textContent = coverCacheDirectory;
                 this.coverCacheFolderPath.classList.add('selected');
-                localCoverManager.setCoverDirectory(coverCacheDirectory);
+                mediaDirectorySettingsService.applyCoverDirectory(coverCacheDirectory);
             } else {
                 this.coverCacheFolderPath.textContent = '未选择';
                 this.coverCacheFolderPath.classList.remove('selected');
@@ -841,9 +817,7 @@ class Settings extends Component {
             }
 
             // 更新设置
-            const result = await electronAPI.hardwareAcceleration.updateSettings({
-                enabled: enabled
-            });
+            const result = await hardwareAccelerationSettingsService.updateEnabled(enabled);
 
             if (result.success) {
                 if (!enabled) {
@@ -878,7 +852,7 @@ class Settings extends Component {
             showToast('正在重启应用...', 'info');
             setTimeout(async () => {
                 try {
-                    await electronAPI.app.restart();
+                    await hardwareAccelerationSettingsService.restartApplication();
                 } catch (error) {
                     showToast('重启应用失败，请手动重启', 'error');
                 }
@@ -895,7 +869,7 @@ class Settings extends Component {
 
     // 打开应用数据文件夹
     async handleOpenUserDataFolder(): Promise<void> {
-        const result = await electronAPI.openUserDataFolder();
+        const result = await hardwareAccelerationSettingsService.openUserDataFolder();
         if (result.success) {
             showToast('已打开应用数据文件夹', 'success');
         } else {
@@ -906,7 +880,7 @@ class Settings extends Component {
 
     // 打开开发者工具
     async handleOpenDevTools(): Promise<void> {
-        const result = await electronAPI.openDevTools();
+        const result = await hardwareAccelerationSettingsService.openDevTools();
         if (result.success) {
             showToast('开发者工具已打开', 'success');
         } else {
@@ -1427,10 +1401,8 @@ class Settings extends Component {
 
     async handleAddMusicFolder(): Promise<void> {
         try {
-            const result = await electronAPI.selectFolder();
-            if (result && result.filePaths && result.filePaths.length > 0) {
-                const selectedPath = result.filePaths[0];
-
+            const selectedPath = await musicFolderSettingsService.selectMusicFolder();
+            if (selectedPath) {
                 const addResult = await musicFolderSettingsService.addMusicFolder(selectedPath);
                 if (addResult.success) {
                     this.renderMusicFolders(addResult.folders);
