@@ -231,7 +231,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         createPlaylist: (name: string, description: string) => ipcRenderer.invoke('library:createPlaylist', name, description),
         getPlaylistDetail: (playlistId: string) => ipcRenderer.invoke('library:getPlaylistDetail', playlistId),
         deletePlaylist: (playlistId: string) => ipcRenderer.invoke('library:deletePlaylist', playlistId),
-        renamePlaylist: (playlistId: string, newName: string) => ipcRenderer.invoke('library:renamePlaylist', playlistId, newName),
+        renamePlaylist: (playlistId: string, newName: string, description = '') => ipcRenderer.invoke('library:renamePlaylist', playlistId, newName, description),
         addToPlaylist: (playlistId: string, trackIds: string[]) => ipcRenderer.invoke('library:addToPlaylist', playlistId, trackIds),
         removeFromPlaylist: (playlistId: string, trackIds: string[]) => ipcRenderer.invoke('library:removeFromPlaylist', playlistId, trackIds),
         cleanupPlaylists: () => ipcRenderer.invoke('library:cleanupPlaylists'),

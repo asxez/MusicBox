@@ -494,13 +494,14 @@ export class LibraryCacheManager {
         return true;
     }
 
-    renamePlaylist(playlistId: string, newName: string): Playlist {
+    renamePlaylist(playlistId: string, newName: string, description = ''): Playlist {
         if (!newName?.trim()) throw new Error('歌单名称不能为空');
         const playlist = this.getPlaylistById(playlistId);
         if (!playlist) throw new Error('歌单不存在');
         if (this.cache.playlists.find(p => p.id !== playlistId && p.name === newName.trim())) throw new Error('歌单名称已存在');
         const oldName = playlist.name;
         playlist.name = newName.trim();
+        playlist.description = description.trim();
         playlist.updatedAt = Date.now();
         console.log(`✏️ LibraryCacheManager: 重命名歌单 - ${oldName} -> ${playlist.name}`);
         return playlist;

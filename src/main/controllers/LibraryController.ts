@@ -178,13 +178,13 @@ export class LibraryController extends BaseController {
     }
 
     @IpcHandle('library:renamePlaylist')
-    async renamePlaylist(playlistId: string, newName: string): Promise<{
+    async renamePlaylist(playlistId: string, newName: string, description = ''): Promise<{
         success: boolean;
         playlist?: any;
         error?: string
     }> {
         try {
-            const playlist = this.libraryCacheManager.renamePlaylist(playlistId, newName);
+            const playlist = this.libraryCacheManager.renamePlaylist(playlistId, newName, description);
             await this.libraryCacheManager.saveCache();
             return {success: true, playlist};
         } catch (error: any) {

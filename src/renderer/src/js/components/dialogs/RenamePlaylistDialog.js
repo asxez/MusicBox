@@ -23,6 +23,7 @@ class RenamePlaylistDialog extends Component {
         this.currentPlaylist = playlist;
         this.overlay.style.display = 'flex';
         this.nameInput.value = playlist.name;
+        this.descriptionInput.value = playlist.description || '';
         this.hideError();
         this.validateInput();
 
@@ -52,6 +53,7 @@ class RenamePlaylistDialog extends Component {
         this.cancelBtn = document.getElementById('rename-playlist-cancel');
         this.confirmBtn = document.getElementById('rename-playlist-confirm');
         this.nameInput = document.getElementById('rename-playlist-input');
+        this.descriptionInput = document.getElementById('rename-playlist-description-input');
         this.errorElement = document.getElementById('rename-playlist-error');
     }
 
@@ -60,6 +62,7 @@ class RenamePlaylistDialog extends Component {
         this.addEventListenerManaged(this.cancelBtn, 'click', () => this.hide());
         this.addEventListenerManaged(this.confirmBtn, 'click', () => this.renamePlaylist());
         this.addEventListenerManaged(this.nameInput, 'input', () => this.validateInput());
+        this.addEventListenerManaged(this.descriptionInput, 'input', () => this.validateInput());
         this.addEventListenerManaged(this.nameInput, 'keydown', (e) => {
             if (e.key === 'Enter' && !this.confirmBtn.disabled) {
                 this.renamePlaylist();
@@ -82,15 +85,19 @@ class RenamePlaylistDialog extends Component {
 
     validateInput() {
         const name = this.nameInput.value.trim();
-        const isValid = name.length > 0 && name.length <= 50 && name !== this.currentPlaylist?.name;
+        const description = this.descriptionInput.value.trim();
+        const hasChanges = name !== this.currentPlaylist?.name || description !== (this.currentPlaylist?.description || '');
+        const isValid = name.length > 0 && name.length <= 50 && description.length <= 200 && hasChanges;
         this.confirmBtn.disabled = !isValid;
 
         if (name.length === 0) {
             this.showError('歌单名称不能为空');
         } else if (name.length > 50) {
             this.showError('歌单名称不能超过50个字符');
-        } else if (name === this.currentPlaylist?.name) {
-            this.showError('新名称与当前名称相同');
+        } else if (description.length > 200) {
+            this.showError('歌单描述不能超过200个字符');
+        } else if (!hasChanges) {
+            this.showError('歌单名称和描述均未修改');
         } else {
             this.hideError();
         }
@@ -112,11 +119,12 @@ class RenamePlaylistDialog extends Component {
         }
 
         const newName = this.nameInput.value.trim();
+        const description = this.descriptionInput.value.trim();
 
         try {
             this.confirmBtn.disabled = true;
             this.confirmBtn.textContent = '重命名中...';
-            const result = await window.electronAPI.library.renamePlaylist(this.currentPlaylist.id, newName);
+            const result = await window.electronAPI.library.renamePlaylist(this.currentPlaylist.id, newName, description);
 
             if (result.success) {
                 // 触发重命名成功事件
