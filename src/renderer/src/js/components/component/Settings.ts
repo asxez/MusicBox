@@ -8,6 +8,7 @@ import {audioEngineSettingsService} from "@services/settings/AudioEngineSettings
 import {cacheMaintenanceService} from "@services/settings/CacheMaintenanceService";
 import {cacheSettingsService} from "@services/settings/CacheSettingsService";
 import {displayModeSettingsService} from "@services/settings/DisplayModeSettingsService";
+import {embeddedLyricsDiagnosticsDialogRenderer} from "@services/settings/EmbeddedLyricsDiagnosticsDialogRenderer";
 import {embeddedLyricsDiagnosticsService} from "@services/settings/EmbeddedLyricsDiagnosticsService";
 import {hardwareAccelerationSettingsService} from "@services/settings/HardwareAccelerationSettingsService";
 import {lyricsAppearanceSettingsService} from "@services/settings/LyricsAppearanceSettingsService";
@@ -954,27 +955,7 @@ class Settings extends Component {
             // 显示详细报告
             const report = diagnostics.report || diagnostics.error || '没有诊断报告';
             console.log('🔧 内嵌歌词测试报告:\n', report);
-            const dialog = document.createElement('div');
-            dialog.style.cssText = `
-                position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                background: white; border: 1px solid #ccc; border-radius: 8px;
-                padding: 20px; max-width: 80%; max-height: 80%; overflow: auto;
-                z-index: 10000; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-                font-family: monospace; font-size: 12px; line-height: 1.4;
-            `;
-
-            const closeBtn = document.createElement('button');
-            closeBtn.textContent = '关闭';
-            closeBtn.style.cssText = 'float: right; margin-bottom: 10px; padding: 5px 10px; color: red';
-            closeBtn.onclick = () => document.body.removeChild(dialog);
-
-            const content = document.createElement('pre');
-            content.textContent = report;
-            content.style.cssText = 'margin: 0; white-space: pre-wrap; word-wrap: break-word;';
-
-            dialog.appendChild(closeBtn);
-            dialog.appendChild(content);
-            document.body.appendChild(dialog);
+            embeddedLyricsDiagnosticsDialogRenderer.show(report);
         } catch (error) {
             console.error('❌ 内嵌歌词测试失败:', error);
             showToast('内嵌歌词测试失败', 'error');
