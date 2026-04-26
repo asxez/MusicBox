@@ -2345,7 +2345,9 @@ a {
     color: var(--color-text);
 
     .sidebar-playlist-actions {
-      display: flex;
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
     }
   }
 
@@ -2397,17 +2399,24 @@ a {
     right: 2px;
     top: 50%;
     transform: translateY(-50%);
-    display: none;
+    display: flex;
     align-items: center;
     gap: 2px; // 减小按钮间距，使布局更紧凑
     padding: 2px 4px;
-    background: var(--color-hover);
+    background: inherit;
     border-radius: var(--radius-sm);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
     z-index: 1;
+    transition:
+      opacity var(--transition-fast),
+      visibility var(--transition-fast),
+      background-color var(--transition-fast);
   }
 
   .sidebar-playlist-action-btn {
-    background: var(--color-hover);
+    background: inherit;
     border: none;
     cursor: pointer;
     padding: 4px; // 使用固定像素值确保一致的按钮尺寸
