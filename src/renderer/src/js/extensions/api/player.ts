@@ -9,6 +9,7 @@ import {ExtensionContext, IDisposable, toDisposable} from '@extensions/core';
 import {api} from '@api/api';
 import {app} from "@core/app";
 import {PlaybackStateType, PlayerAPI, PlayerState, PlayModeType, Track} from "@extensions/api/types/player";
+import type {Track as ApiTrack} from '@api/types/track';
 
 /**
  * 播放模式枚举
@@ -181,7 +182,7 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
 
             return ErrorUtils.wrapAsync(async () => {
                 if (typeof api.setPlaylist === 'function') {
-                    return await api.setPlaylist(tracks, startIndex);
+                    return await api.setPlaylist(tracks as unknown as ApiTrack[], startIndex);
                 } else {
                     throw new NotAvailableError('player.setPlaylist', 'API 未初始化');
                 }
@@ -191,7 +192,7 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
         getPlaylist(): Track[] {
             return ErrorUtils.wrapSync(() => {
                 if (Array.isArray(api.playlist)) {
-                    return [...api.playlist];
+                    return [...api.playlist] as unknown as Track[];
                 }
                 return [];
             }, 'player.getPlaylist');

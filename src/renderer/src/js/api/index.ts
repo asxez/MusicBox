@@ -3,9 +3,7 @@
  * 统一的 API 导出接口
  */
 
-
-// api.js 过于庞大，暂不迁移到TypeScript
-
+// api.ts 仅保留兼容重导出；具体 API 实现在 MusicBoxAPI.ts 和 modules/ 中
 
 // 导出 API 实例
 import {
