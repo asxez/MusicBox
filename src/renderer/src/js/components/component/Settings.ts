@@ -13,6 +13,7 @@ import {lyricsAppearanceSettingsService} from "@services/settings/LyricsAppearan
 import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySettingsService";
 import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
 import {settingsInteractionService} from "@services/settings/SettingsInteractionService";
+import {settingsPanelVisibilityService} from "@services/settings/SettingsPanelVisibilityService";
 import {settingsSectionNavigationService} from "@services/settings/SettingsSectionNavigationService";
 import {settingsStore, type SettingValue} from "@services/settings/SettingsStore";
 import {
@@ -674,17 +675,16 @@ class Settings extends Component {
 
     // 切换托盘设置显示
     toggleTraySettings(enabled: boolean): void {
-        if (this.trayCloseBehaviorItem && this.trayStartMinimizedItem) {
-            this.trayCloseBehaviorItem.style.display = enabled ? 'flex' : 'none';
-            this.trayStartMinimizedItem.style.display = enabled ? 'flex' : 'none';
-        }
+        settingsPanelVisibilityService.toggleTraySettings(
+            this.trayCloseBehaviorItem,
+            this.trayStartMinimizedItem,
+            enabled
+        );
     }
 
     // 切换WASAPI模式选择器显示
     toggleWasapiModeSelector(enabled: boolean): void {
-        if (this.wasapiShareModeItem) {
-            this.wasapiShareModeItem.style.display = enabled ? 'flex' : 'none';
-        }
+        settingsPanelVisibilityService.toggleWasapiModeSelector(this.wasapiShareModeItem, enabled);
     }
 
     // 初始化音频独占模式设置
@@ -692,21 +692,12 @@ class Settings extends Component {
         const exclusiveModeSettings = audioEngineSettingsService.getExclusiveModeSettings(this.settings);
 
         if (!exclusiveModeSettings.available) {
-            // 非Windows平台，隐藏音频独占模式选项
-            if (this.exclusiveModeItem) {
-                this.exclusiveModeItem.style.display = 'none';
-            }
-            if (this.wasapiShareModeItem) {
-                this.wasapiShareModeItem.style.display = 'none';
-            }
+            settingsPanelVisibilityService.showWasapiUnavailable(this.exclusiveModeItem, this.wasapiShareModeItem);
             console.log('ℹ️ Settings: 非Windows平台，WASAPI引擎不可用');
             return;
         }
 
-        // Windows平台，显示选项并初始化状态
-        if (this.exclusiveModeItem) {
-            this.exclusiveModeItem.style.display = 'flex';
-        }
+        settingsPanelVisibilityService.showWasapiAvailable(this.exclusiveModeItem);
 
         // 初始化开关状态
         const exclusiveModeEnabled = exclusiveModeSettings.enabled;
@@ -1236,11 +1227,7 @@ class Settings extends Component {
 
     // 切换网络磁盘配置区域显示
     toggleNetworkDriveConfig(enabled: boolean): void {
-        if (enabled) {
-            this.networkDriveConfig.style.display = 'block';
-        } else {
-            this.networkDriveConfig.style.display = 'none';
-        }
+        settingsPanelVisibilityService.toggleNetworkDriveConfig(this.networkDriveConfig, enabled);
     }
 
     // 显示网络磁盘配置模态框
@@ -1427,7 +1414,7 @@ class Settings extends Component {
     }
 
     toggleScanFrequencyVisibility(visible: boolean): void {
-        this.scanFrequencyContainer.style.display = visible ? 'flex' : 'none';
+        settingsPanelVisibilityService.toggleScanFrequency(this.scanFrequencyContainer, visible);
     }
 
     async handleClearIgnoreList(): Promise<void> {
