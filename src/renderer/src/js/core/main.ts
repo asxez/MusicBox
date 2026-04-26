@@ -45,7 +45,7 @@ import '@components/component/AlbumsPage';
 import '@components/component/ContextMenu';
 import '@components/component/EqualizerComponent';
 import '@components/component/HomePage';
-import '@components/component/Lyrics.js';
+import '@components/component/Lyrics';
 import '@components/component/Navigation';
 import '@components/component/NetworkDiskModal';
 import '@components/component/NetworkDriveDetailPage';

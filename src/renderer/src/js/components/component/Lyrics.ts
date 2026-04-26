@@ -6,9 +6,94 @@ import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {coverAPI, lyricsAPI} from "@js/api";
+import type {LyricLine} from "@api/types/lyrics";
+import type {Track} from "@api/types/track";
+
+type WordLyric = {
+    text: string;
+    time: number;
+    endTime?: number;
+};
+
+type RenderLyricLine = LyricLine & {
+    type?: string;
+    words?: WordLyric[];
+    endTime?: number;
+};
+
+type LyricsTrack = Track & {
+    path?: string;
+    lyrics?: string | RenderLyricLine[];
+    lrcText?: string;
+    lyricsContent?: string;
+    lyricsFormat?: string;
+};
 
 class Lyrics extends Component {
-    constructor(element) {
+    public isVisible: boolean;
+    public isFullscreen: boolean;
+    private isPlaying: boolean;
+    private currentTrack: LyricsTrack | null;
+    private lyrics: RenderLyricLine[];
+    private currentLyricIndex: number;
+    private listenersSetup: boolean;
+    private page!: HTMLElement;
+    private background!: HTMLElement;
+    private closeBtn!: HTMLElement;
+    private fullscreenBtn!: HTMLElement;
+    private fullscreenIcon!: HTMLElement;
+    private fullscreenExitIcon!: HTMLElement;
+    private trackCover!: HTMLImageElement;
+    private trackTitle!: HTMLElement;
+    private trackArtist!: HTMLElement;
+    private lyricsDisplay!: HTMLElement;
+    private lyricsMain!: HTMLElement;
+    private leftSide!: HTMLElement;
+    private playBtn!: HTMLElement;
+    private prevBtn!: HTMLElement;
+    private nextBtn!: HTMLElement;
+    private playIcon!: HTMLElement;
+    private pauseIcon!: HTMLElement;
+    private progressBar!: HTMLElement;
+    private progressFill!: HTMLElement;
+    private progressHandle!: HTMLElement;
+    private currentTimeEl!: HTMLElement;
+    private durationEl!: HTMLElement;
+    private volumeBtn!: HTMLElement;
+    private volumeSliderContainer!: HTMLElement;
+    private volumeFill!: HTMLElement;
+    private volumeHandle!: HTMLElement;
+    private volumeIcon!: HTMLElement;
+    private volumeMuteIcon!: HTMLElement;
+    private volumeHalfIcon!: HTMLElement;
+    private playModeBtn!: HTMLElement;
+    private modeSequenceIcon!: HTMLElement;
+    private modeShuffleIcon!: HTMLElement;
+    private modeRepeatOneIcon!: HTMLElement;
+    private isDraggingProgress: boolean;
+    private isDraggingVolume: boolean;
+    private currentVolume: number;
+    private previousVolume: number;
+    private elementMouseMoveHandler: (() => void) | null;
+    private clearHideTimer: (() => void) | null;
+    private _lastTrackPath: string | null;
+    private _lastLoadedLyricsPath: string | null;
+    private _lastLoadedTrackId: string | null;
+    private _isLoadingLyrics: boolean;
+    private _updateTrackInfoInProgress: boolean;
+    private _pendingUpdatePromise: Promise<void> | null;
+    private _currentPlaybackPosition: number;
+    private _lastMonotonicPosition: number;
+    private _rafId: number | null;
+    private _lastWordUpdateTime: number;
+    private _wordUpdateInterval: number;
+    private isCenterMode: boolean;
+    private isTransitioning: boolean;
+    private lastClickTime: number;
+    private readonly doubleClickDelay: number;
+    private _toggleInProgress: boolean;
+
+    constructor(element: Element | null) {
         super(element);
         this.isPlaying = false;
         this.element = element;
@@ -38,11 +123,19 @@ class Lyrics extends Component {
         this.isTransitioning = false; // 是否正在进行布局切换动画
         this.lastClickTime = 0; // 上次点击时间，用于双击检测
         this.doubleClickDelay = 300; // 双击检测延迟（毫秒）
+        this.isFullscreen = false;
+        this.isDraggingProgress = false;
+        this.isDraggingVolume = false;
+        this.currentVolume = 50;
+        this.previousVolume = 50;
+        this.elementMouseMoveHandler = null;
+        this.clearHideTimer = null;
+        this._toggleInProgress = false;
 
         this.setupElements();
     }
 
-    async show(track) {
+    async show(track: LyricsTrack | null): Promise<void> {
         // 只在首次显示或事件监听器被清理后才设置
         if (!this.listenersSetup) {
             this.setupEventListeners();
@@ -76,7 +169,7 @@ class Lyrics extends Component {
         }, 50);
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
         this.page.classList.remove('show');
 
@@ -98,7 +191,7 @@ class Lyrics extends Component {
         }, 300);
     }
 
-    destroy() {
+    destroy(): void {
         // 清理歌词数据
         this.lyrics = [];
         this.currentTrack = null;
@@ -113,58 +206,57 @@ class Lyrics extends Component {
         super.destroy();
     }
 
-    setupElements() {
-        this.page = this.element;
-        this.background = this.element.querySelector('.lyrics-background');
-        this.closeBtn = this.element.querySelector('#lyrics-close');
-        this.fullscreenBtn = this.element.querySelector('#lyrics-fullscreen');
+    setupElements(): void {
+        this.page = this.requireElement(this.element, '#lyrics-page');
+        this.background = this.queryElement('.lyrics-background');
+        this.closeBtn = this.queryElement('#lyrics-close');
+        this.fullscreenBtn = this.queryElement('#lyrics-fullscreen');
 
         // 全屏按钮图标
-        this.fullscreenIcon = this.fullscreenBtn.querySelector('.fullscreen-icon');
-        this.fullscreenExitIcon = this.fullscreenBtn.querySelector('.fullscreen-exit-icon');
+        this.fullscreenIcon = this.queryChildElement(this.fullscreenBtn, '.fullscreen-icon');
+        this.fullscreenExitIcon = this.queryChildElement(this.fullscreenBtn, '.fullscreen-exit-icon');
 
         // 封面和歌曲信息
-        this.trackCover = this.element.querySelector('#lyrics-cover-image');
-        this.trackTitle = this.element.querySelector('#lyrics-track-title');
-        this.trackArtist = this.element.querySelector('#lyrics-track-artist');
+        this.trackCover = this.queryElement<HTMLImageElement>('#lyrics-cover-image');
+        this.trackTitle = this.queryElement('#lyrics-track-title');
+        this.trackArtist = this.queryElement('#lyrics-track-artist');
 
         // 歌词显示
-        this.lyricsDisplay = this.element.querySelector('#lyrics-display');
+        this.lyricsDisplay = this.queryElement('#lyrics-display');
 
         // 布局切换相关元素
-        this.lyricsMain = this.element.querySelector('.lyrics-main');
-        this.leftSide = this.element.querySelector('.lyrics-left-side');
+        this.lyricsMain = this.queryElement('.lyrics-main');
+        this.leftSide = this.queryElement('.lyrics-left-side');
         // this.rightSide = this.element.querySelector('.lyrics-right-side');
 
         // 播放控制
-        this.playBtn = this.element.querySelector('#lyrics-play-btn');
-        this.prevBtn = this.element.querySelector('#lyrics-prev-btn');
-        this.nextBtn = this.element.querySelector('#lyrics-next-btn');
-        this.playIcon = this.playBtn.querySelector('.play-icon');
-        this.pauseIcon = this.playBtn.querySelector('.pause-icon');
+        this.playBtn = this.queryElement('#lyrics-play-btn');
+        this.prevBtn = this.queryElement('#lyrics-prev-btn');
+        this.nextBtn = this.queryElement('#lyrics-next-btn');
+        this.playIcon = this.queryChildElement(this.playBtn, '.play-icon');
+        this.pauseIcon = this.queryChildElement(this.playBtn, '.pause-icon');
 
         // 进度条
-        this.progressBar = this.element.querySelector('#lyrics-progress-bar');
-        this.progressFill = this.element.querySelector('#lyrics-progress-fill');
-        this.progressHandle = this.element.querySelector('#lyrics-progress-handle');
-        this.currentTimeEl = this.element.querySelector('#lyrics-current-time');
-        this.durationEl = this.element.querySelector('#lyrics-duration');
+        this.progressBar = this.queryElement('#lyrics-progress-bar');
+        this.progressFill = this.queryElement('#lyrics-progress-fill');
+        this.progressHandle = this.queryElement('#lyrics-progress-handle');
+        this.currentTimeEl = this.queryElement('#lyrics-current-time');
+        this.durationEl = this.queryElement('#lyrics-duration');
 
         // 音量控制
-        this.volumeBtn = this.element.querySelector('#lyrics-volume-btn');
-        this.volumeSliderContainer = this.element.querySelector('.volume-slider-container');
-        this.volumeSlider = this.element.querySelector('.volume-slider');
-        this.volumeFill = this.element.querySelector('#lyrics-volume-fill');
-        this.volumeHandle = this.element.querySelector('#lyrics-volume-handle');
-        this.volumeIcon = this.volumeBtn.querySelector('.volume-icon');
-        this.volumeMuteIcon = this.volumeBtn.querySelector('.volume-mute-icon');
-        this.volumeHalfIcon = this.volumeBtn.querySelector('.volume-half-icon');
+        this.volumeBtn = this.queryElement('#lyrics-volume-btn');
+        this.volumeSliderContainer = this.queryElement('.volume-slider-container');
+        this.volumeFill = this.queryElement('#lyrics-volume-fill');
+        this.volumeHandle = this.queryElement('#lyrics-volume-handle');
+        this.volumeIcon = this.queryChildElement(this.volumeBtn, '.volume-icon');
+        this.volumeMuteIcon = this.queryChildElement(this.volumeBtn, '.volume-mute-icon');
+        this.volumeHalfIcon = this.queryChildElement(this.volumeBtn, '.volume-half-icon');
 
         // 播放模式控制
-        this.playModeBtn = this.element.querySelector('#lyrics-playmode-btn');
-        this.modeSequenceIcon = this.playModeBtn.querySelector('.lyrics-mode-sequence');
-        this.modeShuffleIcon = this.playModeBtn.querySelector('.lyrics-mode-shuffle');
-        this.modeRepeatOneIcon = this.playModeBtn.querySelector('.lyrics-mode-repeat-one');
+        this.playModeBtn = this.queryElement('#lyrics-playmode-btn');
+        this.modeSequenceIcon = this.queryChildElement(this.playModeBtn, '.lyrics-mode-sequence');
+        this.modeShuffleIcon = this.queryChildElement(this.playModeBtn, '.lyrics-mode-shuffle');
+        this.modeRepeatOneIcon = this.queryChildElement(this.playModeBtn, '.lyrics-mode-repeat-one');
 
         // 全屏状态
         this.isFullscreen = false;
@@ -176,7 +268,7 @@ class Lyrics extends Component {
         this.previousVolume = 50;
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         this.addEventListenerManaged(this.closeBtn, 'click', () => {
             this.hide();
         });
@@ -199,7 +291,7 @@ class Lyrics extends Component {
 
         // 封面双击切换布局事件
         this.addEventListenerManaged(this.trackCover, 'click', async (e) => {
-            await this.handleCoverClick(e);
+            await this.handleCoverClick(e as MouseEvent);
         });
 
         // 窗口大小变化监听器
@@ -215,15 +307,16 @@ class Lyrics extends Component {
         // 音量条点击和拖拽事件
         this.addEventListenerManaged(this.volumeSliderContainer, 'mousedown', async (e) => {
             this.isDraggingVolume = true;
-            await this.updateVolumeFromEvent(e);
+            await this.updateVolumeFromEvent(e as MouseEvent);
         });
         this.addEventListenerManaged(this.volumeSliderContainer, 'click', async (e) => {
             if (!this.isDraggingVolume) {
-                await this.updateVolumeFromEvent(e);
+                await this.updateVolumeFromEvent(e as MouseEvent);
             }
         });
         this.addEventListenerManaged(this.volumeSliderContainer, 'mousewheel', async (e) => {
-            if (e.wheelDelta < 0) await this.setVolume(Math.min(100, this.currentVolume + 1));
+            const wheelEvent = e as WheelEvent & {wheelDelta?: number};
+            if ((wheelEvent.wheelDelta || -wheelEvent.deltaY) < 0) await this.setVolume(Math.min(100, this.currentVolume + 1));
             else await this.setVolume(Math.max(0, this.currentVolume - 1));
         });
 
@@ -235,19 +328,19 @@ class Lyrics extends Component {
 
         // 进度条交互事件
         this.addEventListenerManaged(this.progressBar, 'click', async (e) => {
-            await this.seekToPosition(e);
+            await this.seekToPosition(e as MouseEvent);
         });
         this.addEventListenerManaged(this.progressBar, 'mousedown', (e) => {
-            this.startProgressDrag(e);
+            this.startProgressDrag(e as MouseEvent);
         });
 
         // document
         this.addEventListenerManaged(document, 'mousemove', async (e) => {
             if (this.isDraggingProgress) {
-                this.updateProgressDrag(e);
+                this.updateProgressDrag(e as MouseEvent);
             }
             if (this.isDraggingVolume) {
-                await this.updateVolumeFromEvent(e);
+                await this.updateVolumeFromEvent(e as MouseEvent);
             }
         });
         this.addEventListenerManaged(document, 'mouseup', async () => {
@@ -261,35 +354,35 @@ class Lyrics extends Component {
 
         // 鼠标隐藏逻辑
         const HIDE_DELAY = 2000;
-        let mouseTimer = null;
+        let mouseTimer: ReturnType<typeof setTimeout> | null = null;
         this.elementMouseMoveHandler = () => {
             if (this.isVisible && this.isFullscreen) {
-                this.element.classList.remove('hide-cursor');
-                clearTimeout(mouseTimer);
+                this.page.classList.remove('hide-cursor');
+                if (mouseTimer) clearTimeout(mouseTimer);
                 mouseTimer = setTimeout(() => {
                     if (this.isVisible && this.isFullscreen) {
-                        this.element.classList.add('hide-cursor');
+                        this.page.classList.add('hide-cursor');
                     }
                 }, HIDE_DELAY);
             }
         };
-        this.addEventListenerManaged(this.element, 'mousemove', this.elementMouseMoveHandler);
+        this.addEventListenerManaged(this.page, 'mousemove', this.elementMouseMoveHandler);
 
         this.clearHideTimer = () => {
-            clearTimeout(mouseTimer);
+            if (mouseTimer) clearTimeout(mouseTimer);
             mouseTimer = null;
-            this.element.classList.remove('hide-cursor');
+            this.page.classList.remove('hide-cursor');
         };
 
         this.addEventListenerManaged(document, 'fullscreenchange', () => {
-            if (!this.isFullscreen) this.clearHideTimer();
+            if (!this.isFullscreen) this.clearHideTimer?.();
             this.updateFullscreenState();
         });
     }
 
-    setupAPIListeners() {
+    setupAPIListeners(): void {
         // 监听播放进度变化，用于歌词同步和进度条更新
-        this.addAPIEventListenerManaged('positionChanged', (position) => {
+        this.addAPIEventListenerManaged('positionChanged', (position: number) => {
             // 单调时间
             // 允许小幅回跳（可能是seek操作），但对于微小回跳则忽略
             const timeDiff = position - this._lastMonotonicPosition;
@@ -317,33 +410,33 @@ class Lyrics extends Component {
             this.updateLyricHighlight(position);
         });
 
-        this.addAPIEventListenerManaged('playbackStateChanged', (state) => {
+        this.addAPIEventListenerManaged('playbackStateChanged', (state: string) => {
             this.isPlaying = state === 'playing';
             this.updatePlayButton();
         });
 
         // 时长变化事件
-        this.addAPIEventListenerManaged('durationChanged', (duration) => {
+        this.addAPIEventListenerManaged('durationChanged', (duration: number) => {
             if (this.durationEl && duration > 0) {
                 this.durationEl.textContent = this.formatTime(duration);
             }
         });
 
         // 监听歌曲变化事件，更新封面和歌词信息
-        this.addAPIEventListenerManaged('trackChanged', async (track) => {
+        this.addAPIEventListenerManaged('trackChanged', async (track: LyricsTrack) => {
             // 只有在歌词页面可见时才更新，避免不必要的资源消耗
             if (this.isVisible && track) {
                 await this.updateTrackInfo(track);
             }
         });
 
-        this.addAPIEventListenerManaged('volumeChanged', (volume) => {
+        this.addAPIEventListenerManaged('volumeChanged', (volume: number) => {
             this.currentVolume = volume * 100;
             this.updateVolumeDisplay();
         });
     }
 
-    async toggle(track) {
+    async toggle(track: LyricsTrack | null): Promise<void> {
         if (this.isVisible) {
             this.hide();
         } else {
@@ -351,7 +444,7 @@ class Lyrics extends Component {
         }
     }
 
-    async togglePlayPause() {
+    async togglePlayPause(): Promise<void> {
         // 防止重复调用的锁定机制
         if (this._toggleInProgress) {
             return;
@@ -380,7 +473,7 @@ class Lyrics extends Component {
         }
     }
 
-    updateProgress(currentTime, duration) {
+    updateProgress(currentTime: number, duration: number): void {
         // 更新进度条填充和滑块位置
         if (this.progressFill && this.progressHandle && duration > 0) {
             const percentage = (currentTime / duration) * 100;
@@ -396,7 +489,7 @@ class Lyrics extends Component {
         }
     }
 
-    updatePlayButton() {
+    updatePlayButton(): void {
         if (this.isPlaying) {
             this.playIcon.style.display = 'none';
             this.pauseIcon.style.display = 'block';
@@ -406,14 +499,14 @@ class Lyrics extends Component {
         }
     }
 
-    formatTime(seconds) {
+    formatTime(seconds: number): string {
         if (isNaN(seconds) || seconds < 0) return '0:00';
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = Math.floor(seconds % 60);
         return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
 
-    async updateTrackInfo(track) {
+    async updateTrackInfo(track: LyricsTrack | null): Promise<void> {
         if (!track) return;
 
         // 检查是否正在更新或是同一首歌
@@ -447,7 +540,7 @@ class Lyrics extends Component {
         }
     }
 
-    async _doUpdateTrackInfo(track) {
+    async _doUpdateTrackInfo(track: LyricsTrack): Promise<void> {
         try {
             console.log('🎵 Lyrics: 开始更新歌曲信息', track.title, '时间戳:', Date.now());
 
@@ -468,7 +561,7 @@ class Lyrics extends Component {
         }
     }
 
-    async loadLyrics(track) {
+    async loadLyrics(track: LyricsTrack): Promise<void> {
         if (!track || !track.title || !track.artist) {
             this.showNoLyrics();
             return;
@@ -495,7 +588,12 @@ class Lyrics extends Component {
 
         // 检查是否已有内嵌的歌词
         if (track.lyrics) {
-            this.lyrics = track.lyrics;
+            if (Array.isArray(track.lyrics)) {
+                this.lyrics = track.lyrics as RenderLyricLine[];
+            } else {
+                const parsedLyrics = lyricsAPI.parse(String(track.lyrics), track.lyricsFormat as any);
+                this.lyrics = parsedLyrics as RenderLyricLine[];
+            }
             this.renderLyrics();
 
             // 同步歌词到桌面歌词窗口
@@ -509,7 +607,7 @@ class Lyrics extends Component {
         try {
             const lyricsResult = await lyricsAPI.getLyrics(track.title, track.artist, track.album, track.filePath);
             if (lyricsResult.success) {
-                let parsedLyrics;
+                let parsedLyrics: RenderLyricLine[] | undefined;
 
                 if (lyricsResult.format === 'ttml' && lyricsResult.content) {
                     parsedLyrics = lyricsAPI.parseTTML(lyricsResult.content);
@@ -549,7 +647,7 @@ class Lyrics extends Component {
         }
     }
 
-    async updateCoverArt(track) {
+    async updateCoverArt(track: LyricsTrack): Promise<void> {
         // 首先设置默认封面和背景
         this.trackCover.src = 'assets/images/default-cover.svg';
         this.trackCover.classList.add('loading');
@@ -589,7 +687,7 @@ class Lyrics extends Component {
     }
 
     // 设置背景图片的辅助方法
-    async setBackgroundImage(imageUrl) {
+    async setBackgroundImage(imageUrl: string | null): Promise<void> {
         if (!this.background) return;
 
         if (imageUrl) {
@@ -611,7 +709,7 @@ class Lyrics extends Component {
     }
 
     // 处理图片URL，将file://协议转换为可用格式
-    async processImageUrl(url) {
+    async processImageUrl(url: string): Promise<string | null> {
         if (!url || typeof url !== 'string') return null;
 
         // 如果是data URL或blob URL，直接返回
@@ -634,7 +732,7 @@ class Lyrics extends Component {
     }
 
     // 将file://协议的URL转换为blob URL
-    async convertFileUrlToBlobUrl(fileUrl) {
+    async convertFileUrlToBlobUrl(fileUrl: string): Promise<string | null> {
         try {
             // 提取文件路径
             let filePath = fileUrl.replace('file://', '');
@@ -652,10 +750,10 @@ class Lyrics extends Component {
     }
 
     // 将本地文件路径转换为blob URL
-    async convertLocalPathToBlobUrl(filePath) {
+    async convertLocalPathToBlobUrl(filePath: string): Promise<string | null> {
         try {
             // 读取文件数据
-            const fileData = await window.electronAPI.fs.readFile(filePath);
+            const fileData = await (window.electronAPI.fs.readFile as any)(filePath);
             if (!fileData || fileData.length === 0) {
                 console.error('❌ Lyrics: 文件数据为空');
                 return null;
@@ -665,7 +763,9 @@ class Lyrics extends Component {
             const mimeType = this.getMimeTypeFromPath(filePath);
 
             // 创建Blob
-            const uint8Array = new Uint8Array(fileData);
+            const uint8Array = typeof fileData === 'string'
+                ? new TextEncoder().encode(fileData)
+                : new Uint8Array(fileData);
             const blob = new Blob([uint8Array], {type: mimeType});
 
             // 创建blob URL
@@ -677,9 +777,9 @@ class Lyrics extends Component {
     }
 
     // 根据文件路径获取MIME类型
-    getMimeTypeFromPath(filePath) {
-        const ext = filePath.toLowerCase().split('.').pop();
-        const mimeTypes = {
+    getMimeTypeFromPath(filePath: string): string {
+        const ext = filePath.toLowerCase().split('.').pop() || '';
+        const mimeTypes: Record<string, string> = {
             'jpg': 'image/jpeg',
             'jpeg': 'image/jpeg',
             'png': 'image/png',
@@ -692,7 +792,7 @@ class Lyrics extends Component {
     }
 
     // 统一设置封面和背景的方法
-    async setCoverAndBackground(imageUrl) {
+    async setCoverAndBackground(imageUrl: string): Promise<void> {
         try {
             // 使用urlValidator安全设置封面图片
             const success = await urlValidator.safeSetImageSrc(this.trackCover, imageUrl);
@@ -709,7 +809,7 @@ class Lyrics extends Component {
         }
     }
 
-    showLoading() {
+    showLoading(): void {
         this.lyricsDisplay.innerHTML = `
             <div class="lyrics-text">
                 <p class="lyrics-line loading">正在加载歌词...</p>
@@ -717,7 +817,7 @@ class Lyrics extends Component {
         `;
     }
 
-    showNoLyrics() {
+    showNoLyrics(): void {
         this.lyrics = [];
         this.currentLyricIndex = -1;
         this.lyricsDisplay.innerHTML = `
@@ -730,7 +830,7 @@ class Lyrics extends Component {
         `;
     }
 
-    renderLyrics() {
+    renderLyrics(): void {
         if (!this.lyrics || this.lyrics.length === 0) {
             this.showNoLyrics();
             return;
@@ -758,9 +858,9 @@ class Lyrics extends Component {
         // 重置滚动位置到顶部，确保从第一行歌词开始显示
         this.lyricsDisplay.scrollTop = 0;
         // 添加点击事件，允许用户跳转到指定时间
-        this.lyricsDisplay.querySelectorAll('.lyrics-line').forEach(line => {
+        this.lyricsDisplay.querySelectorAll<HTMLElement>('.lyrics-line').forEach((line) => {
             line.addEventListener('click', async () => {
-                const time = parseFloat(line.dataset.time);
+                const time = parseFloat(line.dataset.time || '');
                 if (!isNaN(time)) {
                     await api.seek(time);
                 }
@@ -772,7 +872,7 @@ class Lyrics extends Component {
         this._lastMonotonicPosition = 0;
     }
 
-    updateLyricHighlight(currentTime) {
+    updateLyricHighlight(currentTime: number): void {
         if (!this.lyrics || this.lyrics.length === 0 || !this.isVisible) {
             return;
         }
@@ -828,7 +928,7 @@ class Lyrics extends Component {
         }
     }
 
-    updateWordHighlight(lineIndex, currentTime) {
+    updateWordHighlight(lineIndex: number, currentTime: number): void {
         const lyric = this.lyrics[lineIndex];
         if (!lyric || !lyric.words || lyric.words.length === 0) {
             return;
@@ -849,7 +949,8 @@ class Lyrics extends Component {
         }
 
         this._lastWordUpdateTime = now;
-        const words = currentLine.querySelectorAll('.lyric-word');
+        const lyricWords = lyric.words || [];
+        const words = currentLine.querySelectorAll<HTMLElement>('.lyric-word');
 
         // 取消之前的RAF请求，防止重复调用
         if (this._rafId) {
@@ -864,8 +965,8 @@ class Lyrics extends Component {
             const latestTime = this._currentPlaybackPosition !== undefined ? this._currentPlaybackPosition : currentTime;
 
             // 遍历所有字，更新状态
-            for (let i = 0; i < lyric.words.length; i++) {
-                const word = lyric.words[i];
+            for (let i = 0; i < lyricWords.length; i++) {
+                const word = lyricWords[i];
                 const wordElement = words[i];
 
                 if (!wordElement) continue;
@@ -874,7 +975,7 @@ class Lyrics extends Component {
                 }
 
                 const wordStartTime = word.time;
-                const wordEndTime = word.endTime || (lyric.words[i + 1] ? lyric.words[i + 1].time : lyric.endTime || wordStartTime + 0.5);
+                const wordEndTime = word.endTime || (lyricWords[i + 1] ? lyricWords[i + 1].time : lyric.endTime || wordStartTime + 0.5);
                 if (latestTime < wordStartTime) {
                     // 未播放的字：保持默认状态（只移除highlight，不影响played）
                     if (wordElement.classList.contains('highlight')) {
@@ -913,17 +1014,17 @@ class Lyrics extends Component {
      * 重置逐字高亮状态（用于seek操作时回退到更早位置）
      * @param {number} seekPosition - seek到的时间位置
      */
-    resetWordHighlightStates(seekPosition) {
+    resetWordHighlightStates(seekPosition: number): void {
         if (!this.lyricsDisplay) return;
 
         // 获取所有歌词行
-        const allLines = this.lyricsDisplay.querySelectorAll('.lyrics-line.lyrics-word-by-word');
+        const allLines = this.lyricsDisplay.querySelectorAll<HTMLElement>('.lyrics-line.lyrics-word-by-word');
 
         for (const line of allLines) {
-            const words = line.querySelectorAll('.lyric-word');
+            const words = line.querySelectorAll<HTMLElement>('.lyric-word');
 
             for (const wordElement of words) {
-                const wordTime = parseFloat(wordElement.dataset.wordTime);
+                const wordTime = parseFloat(wordElement.dataset.wordTime || '');
 
                 // 如果字的开始时间在seek位置之后，需要重置状态
                 if (wordTime > seekPosition) {
@@ -935,7 +1036,7 @@ class Lyrics extends Component {
     }
 
     // 全屏功能方法
-    toggleFullscreen() {
+    toggleFullscreen(): void {
         if (this.isFullscreen) {
             this.exitFullscreen();
         } else {
@@ -943,7 +1044,7 @@ class Lyrics extends Component {
         }
     }
 
-    enterFullscreen() {
+    enterFullscreen(): void {
         if (document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen().then(() => {
                 console.log('🎵 Lyrics: 进入全屏模式');
@@ -953,7 +1054,7 @@ class Lyrics extends Component {
         }
     }
 
-    exitFullscreen() {
+    exitFullscreen(): void {
         if (document.exitFullscreen) {
             document.exitFullscreen().then(() => {
                 console.log('🎵 Lyrics: 退出全屏模式');
@@ -963,7 +1064,7 @@ class Lyrics extends Component {
         }
     }
 
-    updateFullscreenState() {
+    updateFullscreenState(): void {
         this.isFullscreen = !!document.fullscreenElement;
 
         // 更新按钮图标
@@ -977,7 +1078,7 @@ class Lyrics extends Component {
     }
 
     // 初始化控件状态
-    async initializeControls() {
+    async initializeControls(): Promise<void> {
         this.isPlaying = api.isPlaying;
 
         const currentVolume = api.getVolume ? (await api.getVolume() * 100) : 50;
@@ -988,13 +1089,13 @@ class Lyrics extends Component {
     }
 
     // 音量控制方法
-    async setVolume(volume) {
+    async setVolume(volume: number): Promise<void> {
         this.currentVolume = Math.max(0, Math.min(100, volume));
         this.updateVolumeDisplay();
         await api.setVolume(this.currentVolume / 100);
     }
 
-    updateVolumeDisplay() {
+    updateVolumeDisplay(): void {
         // 更新音量条填充和滑块位置
         if (this.volumeFill) {
             this.volumeFill.style.width = `${this.currentVolume}%`;
@@ -1019,7 +1120,7 @@ class Lyrics extends Component {
     }
 
     // 从鼠标事件更新音量
-    async updateVolumeFromEvent(e) {
+    async updateVolumeFromEvent(e: MouseEvent): Promise<void> {
         if (!this.volumeSliderContainer) return;
 
         const rect = this.volumeSliderContainer.getBoundingClientRect();
@@ -1030,7 +1131,7 @@ class Lyrics extends Component {
         await this.setVolume(volume);
     }
 
-    async toggleVolumeMute() {
+    async toggleVolumeMute(): Promise<void> {
         if (this.currentVolume > 0) {
             this.previousVolume = this.currentVolume;
             await this.setVolume(0);
@@ -1039,7 +1140,7 @@ class Lyrics extends Component {
         }
     }
 
-    updatePlayModeDisplay(mode) {
+    updatePlayModeDisplay(mode: string): void {
         if (!this.modeSequenceIcon || !this.modeShuffleIcon || !this.modeRepeatOneIcon) {
             return;
         }
@@ -1068,8 +1169,8 @@ class Lyrics extends Component {
     }
 
     // 进度条交互方法
-    async seekToPosition(e) {
-        const duration = (this.currentTrack && this.currentTrack.duration) ? this.currentTrack.duration : (await api.getDuration());
+    async seekToPosition(e: MouseEvent): Promise<void> {
+        const duration = (this.currentTrack && this.currentTrack.duration) ? this.currentTrack.duration : (api.getDuration ? await api.getDuration() : 0);
         if (!this.currentTrack || !duration) return;
         const rect = this.progressBar.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
@@ -1079,13 +1180,13 @@ class Lyrics extends Component {
         // console.log('🎵 Lyrics: 跳转到', this.formatTime(seekTime));
     }
 
-    startProgressDrag(e) {
+    startProgressDrag(e: MouseEvent): void {
         this.isDraggingProgress = true;
         this.progressBar.classList.add('dragging');
         this.updateProgressDrag(e);
     }
 
-    updateProgressDrag(e) {
+    updateProgressDrag(e: MouseEvent): void {
         const duration = (this.currentTrack && this.currentTrack.duration) ? this.currentTrack.duration : (api.duration || 0);
         if (!this.isDraggingProgress || !this.currentTrack || duration <= 0) return;
 
@@ -1098,7 +1199,7 @@ class Lyrics extends Component {
         this.currentTimeEl.textContent = this.formatTime(percentage * duration);
     }
 
-    async endProgressDrag() {
+    async endProgressDrag(): Promise<void> {
         if (!this.isDraggingProgress) return;
 
         this.isDraggingProgress = false;
@@ -1106,13 +1207,13 @@ class Lyrics extends Component {
 
         // 执行实际的跳转
         const percentage = parseFloat(this.progressFill.style.width) / 100;
-        const duration = (this.currentTrack && this.currentTrack.duration) ? this.currentTrack.duration : (await api.getDuration());
+        const duration = (this.currentTrack && this.currentTrack.duration) ? this.currentTrack.duration : (api.getDuration ? await api.getDuration() : 0);
         const seekTime = percentage * (duration || 0);
         await api.seek(seekTime);
     }
 
     // 封面点击处理方法
-    async handleCoverClick(e) {
+    async handleCoverClick(e: MouseEvent): Promise<void> {
         e.preventDefault();
         e.stopPropagation();
 
@@ -1128,7 +1229,7 @@ class Lyrics extends Component {
     }
 
     // 封面双击处理方法
-    async handleCoverDoubleClick() {
+    async handleCoverDoubleClick(): Promise<void> {
         if (this.isTransitioning) {
             return; // 如果正在切换，忽略双击
         }
@@ -1145,12 +1246,12 @@ class Lyrics extends Component {
     }
 
     // 检查是否支持布局切换（在小屏幕上禁用）
-    isLayoutSwitchSupported() {
+    isLayoutSwitchSupported(): boolean {
         return window.innerWidth > 768;
     }
 
     // 处理窗口大小变化
-    handleWindowResize() {
+    handleWindowResize(): void {
         // 若当前处于居中模式，但屏幕变小了，则退出居中模式
         if (this.isCenterMode && !this.isLayoutSwitchSupported()) {
             this.resetLayoutState();
@@ -1167,7 +1268,7 @@ class Lyrics extends Component {
     }
 
     // 动态计算精确的居中transform值
-    calculateCenterTransform() {
+    calculateCenterTransform(): string {
         if (!this.page || !this.lyricsMain || !this.leftSide) {
             return 'translateX(0)';
         }
@@ -1195,7 +1296,7 @@ class Lyrics extends Component {
     }
 
     // 应用动态居中
-    applyDynamicCenter() {
+    applyDynamicCenter(): void {
         if (!this.leftSide) return;
 
         const transform = this.calculateCenterTransform();
@@ -1206,7 +1307,7 @@ class Lyrics extends Component {
     }
 
     // 切换布局模式
-    toggleLayoutMode() {
+    toggleLayoutMode(): void {
         if (this.isTransitioning || !this.isLayoutSwitchSupported() || !this.page) {
             return;
         }
@@ -1231,7 +1332,7 @@ class Lyrics extends Component {
     }
 
     // 重置布局状态
-    resetLayoutState() {
+    resetLayoutState(): void {
         if (!this.page) {
             return;
         }
@@ -1247,6 +1348,32 @@ class Lyrics extends Component {
         if (this.leftSide) {
             this.leftSide.style.removeProperty('--dynamic-center-transform');
         }
+    }
+
+    private requireElement<T extends HTMLElement = HTMLElement>(element: Element | null, selector: string): T {
+        if (element instanceof HTMLElement) {
+            return element as T;
+        }
+
+        throw new Error(`Element not found: ${selector}`);
+    }
+
+    private queryElement<T extends HTMLElement = HTMLElement>(selector: string): T {
+        const element = this.page?.querySelector<T>(selector);
+        if (!element) {
+            throw new Error(`Element not found: ${selector}`);
+        }
+
+        return element;
+    }
+
+    private queryChildElement<T extends HTMLElement = HTMLElement>(root: ParentNode, selector: string): T {
+        const element = root.querySelector<T>(selector);
+        if (!element) {
+            throw new Error(`Element not found: ${selector}`);
+        }
+
+        return element;
     }
 }
 
