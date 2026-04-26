@@ -4,76 +4,91 @@
 
 import {cacheManager} from "@services/CacheManager";
 import {localCoverManager} from "@services/cover/LocalCoverManager";
-import {formatTime} from "@utils";
+import {formatTime} from "@utils/index.js";
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
 import {coverAPI} from "@js/api";
+import type {Track} from "@api/types/library";
+
+interface RecentTrack extends Track {
+    playTime?: number;
+    cover?: string | null;
+}
+
+type TrackGroups = Record<string, RecentTrack[]>;
 
 class RecentPage extends Component {
-    constructor(container) {
+    private container: Element | null;
+    private recentTracks: RecentTrack[];
+    private listenersSetup: boolean;
+    isVisible: boolean;
+
+    constructor(container: string | Element | null) {
         super(container);
+        this.container = this.element;
         this.recentTracks = [];
         this.listenersSetup = false; // 事件监听器是否已设置
+        this.isVisible = false;
     }
 
-    async show() {
+    async show(): Promise<void> {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupAPIListeners();
             this.listenersSetup = true;
         }
         if (this.element) {
-            this.element.style.display = 'block';
+            (this.element as HTMLElement).style.display = 'block';
         }
         this.isVisible = true;
         this.loadPlayHistory();
         this.render();
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
         if (this.container) {
             this.container.innerHTML = '';
         }
     }
 
-    destroy() {
+    destroy(): void {
         this.recentTracks.length = 0;
         this.listenersSetup = false;
-        return super.destroy();
+        super.destroy();
     }
 
-    setupElements() {
+    setupElements(): void {
         this.container = this.element;
     }
 
-    setupAPIListeners() {
+    setupAPIListeners(): void {
         // 监听播放历史更新
-        this.addAPIEventListenerManaged('trackChanged', (track) => {
-            this.updatePlayHistory(track);
+        this.addAPIEventListenerManaged('trackChanged', (track: Track | null) => {
+            this.updatePlayHistory(track as RecentTrack | null);
         });
     }
 
-    loadPlayHistory() {
-        const history = cacheManager.getLocalCache('musicbox-play-history');
-        if (history) {
-            try {
+    loadPlayHistory(): void {
+        try {
+            const history = cacheManager.getLocalCache('musicbox-play-history') as RecentTrack[] | null;
+            if (Array.isArray(history)) {
                 this.recentTracks = history;
-            } catch (error) {
-                console.error('加载播放历史失败:', error);
+            } else {
                 this.recentTracks = [];
             }
-        } else {
+        } catch (error) {
+            console.error('加载播放历史失败:', error);
             this.recentTracks = [];
         }
     }
 
-    updatePlayHistory(track) {
+    updatePlayHistory(track: RecentTrack | null): void {
         if (!track || !track.filePath) return;
 
-        let history = [];
-        const stored = cacheManager.getLocalCache('musicbox-play-history')
-        if (stored) {
+        let history: RecentTrack[] = [];
+        const stored = cacheManager.getLocalCache('musicbox-play-history') as RecentTrack[] | null;
+        if (Array.isArray(stored)) {
             history = stored;
         }
 
@@ -93,7 +108,7 @@ class RecentPage extends Component {
     }
 
     // 清空播放历史
-    clearHistory() {
+    clearHistory(): void {
         try {
             cacheManager.removeLocalCache('musicbox-play-history');
             this.recentTracks = [];
@@ -104,9 +119,9 @@ class RecentPage extends Component {
     }
 
     // 移除单个历史记录
-    removeHistoryItem(trackPath) {
+    removeHistoryItem(trackPath: string): void {
         try {
-            let history = cacheManager.getLocalCache('musicbox-play-history') || [];
+            let history = (cacheManager.getLocalCache('musicbox-play-history') || []) as RecentTrack[];
             history = history.filter(item => item.filePath !== trackPath);
 
             cacheManager.setLocalCache('musicbox-play-history', history);
@@ -117,7 +132,7 @@ class RecentPage extends Component {
         }
     }
 
-    render() {
+    render(): void {
         if (!this.container) return;
 
         // 按日期分组
@@ -190,15 +205,15 @@ class RecentPage extends Component {
         this.preloadVisibleCovers();
     }
 
-    groupTracksByDate() {
-        const groups = {};
+    groupTracksByDate(): TrackGroups {
+        const groups: TrackGroups = {};
         const now = new Date();
 
         this.recentTracks.forEach(track => {
             const playDate = new Date(track.playTime || Date.now());
-            const diffDays = Math.floor((now - playDate) / (1000 * 60 * 60 * 24));
+            const diffDays = Math.floor((now.getTime() - playDate.getTime()) / (1000 * 60 * 60 * 24));
 
-            let dateKey;
+            let dateKey: string;
             if (diffDays === 0) {
                 dateKey = '今天';
             } else if (diffDays === 1) {
@@ -224,7 +239,7 @@ class RecentPage extends Component {
         return groups;
     }
 
-    renderTrackItem(track, index) {
+    renderTrackItem(track: RecentTrack, index: number): string {
         const playTime = new Date(track.playTime || Date.now());
         const timeStr = playTime.toLocaleTimeString('zh-CN', {
             hour: '2-digit',
@@ -271,7 +286,7 @@ class RecentPage extends Component {
         `;
     }
 
-    getTrackCover(track) {
+    getTrackCover(track: RecentTrack): string {
         // 优先使用已缓存的封面
         if (track.cover && typeof track.cover === 'string') {
             return track.cover;
@@ -282,7 +297,7 @@ class RecentPage extends Component {
         return 'assets/images/default-cover.svg';
     }
 
-    async loadTrackCoverAsync(track) {
+    async loadTrackCoverAsync(track: RecentTrack): Promise<void> {
         try {
             // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
             const loadCover = async () => {
@@ -309,13 +324,15 @@ class RecentPage extends Component {
 
                     // 使用requestAnimationFrame确保DOM更新在下一帧进行
                     requestAnimationFrame(() => {
-                        const trackItems = this.container.querySelectorAll('.track-item');
+                        if (!this.container) return;
+
+                        const trackItems = this.container.querySelectorAll<HTMLElement>('.track-item');
                         trackItems.forEach((item, _index) => {
-                            const itemIndex = parseInt(item.dataset.index);
+                            const itemIndex = parseInt(item.dataset.index || '-1', 10);
                             if (this.recentTracks[itemIndex] === track) {
-                                const coverImg = item.querySelector('.track-cover img');
+                                const coverImg = item.querySelector<HTMLImageElement>('.track-cover img');
                                 if (coverImg) {
-                                    coverImg.src = track.cover;
+                                    coverImg.src = track.cover || 'assets/images/default-cover.svg';
                                 }
                             }
                         });
@@ -327,16 +344,20 @@ class RecentPage extends Component {
 
             // 如果支持requestIdleCallback，使用它；否则使用setTimeout
             if (window.requestIdleCallback) {
-                window.requestIdleCallback(loadCover);
+                window.requestIdleCallback(() => {
+                    void loadCover();
+                });
             } else {
-                setTimeout(loadCover, 0);
+                setTimeout(() => {
+                    void loadCover();
+                }, 0);
             }
         } catch (error) {
             console.warn('RecentPage: 加载封面失败:', error);
         }
     }
 
-    preloadVisibleCovers() {
+    preloadVisibleCovers(): void {
         // 预加载当前页面显示的所有歌曲封面
         if (this.recentTracks.length > 0 && localCoverManager) {
             console.log(`🖼️ RecentPage: 开始预加载 ${this.recentTracks.length} 首最近播放歌曲的封面`);
@@ -350,7 +371,9 @@ class RecentPage extends Component {
         }
     }
 
-    setupPageEventListeners() {
+    setupPageEventListeners(): void {
+        if (!this.container) return;
+
         // 播放全部按钮
         const playAllBtn = this.container.querySelector('#play-all-recent');
         if (playAllBtn) {
@@ -388,7 +411,7 @@ class RecentPage extends Component {
 
         // 歌曲项目事件
         this.container.querySelectorAll('.track-item').forEach(item => {
-            const index = parseInt(item.dataset.index);
+            const index = parseInt((item as HTMLElement).dataset.index || '-1', 10);
             const track = this.recentTracks[index];
 
             if (!track) return;
