@@ -58,7 +58,7 @@ import '@components/component/Search.js';
 import '@components/component/Settings.js';
 import '@components/component/StatisticsPage.js';
 import '@components/component/TrackList.js';
-import '@components/component/UpdateModal.js';
+import '@components/component/UpdateModal';
 
 // ============================================
 // 7. 导入对话框组件

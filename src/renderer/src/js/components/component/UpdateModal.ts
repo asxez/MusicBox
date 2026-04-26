@@ -4,7 +4,45 @@
 
 import {Component} from "@components/base/Component";
 
+interface GitHubRelease {
+    tag_name: string;
+    name?: string;
+    body?: string;
+    html_url?: string;
+    published_at?: string;
+    [key: string]: unknown;
+}
+
+interface PackageInfo {
+    version?: string;
+}
+
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
 class UpdateModal extends Component {
+    private isVisible: boolean;
+    private currentVersion: string | null;
+    private latestVersion: string | null;
+    private releaseInfo: GitHubRelease | null;
+    private modal: HTMLElement | null;
+    private listenersSetup: boolean;
+    private closeBtn!: HTMLElement;
+    private laterBtn!: HTMLElement;
+    private nowBtn!: HTMLElement;
+    private retryBtn!: HTMLElement;
+    private okBtn!: HTMLElement;
+    private checkingEl!: HTMLElement;
+    private availableEl!: HTMLElement;
+    private latestEl!: HTMLElement;
+    private errorEl!: HTMLElement;
+    private currentVersionEl!: HTMLElement;
+    private latestVersionEl!: HTMLElement;
+    private currentVersionLatestEl!: HTMLElement;
+    private notesContentEl!: HTMLElement;
+    private errorMessageEl!: HTMLElement;
+
     constructor() {
         super(null, false);
         this.isVisible = false;
@@ -15,47 +53,52 @@ class UpdateModal extends Component {
         this.listenersSetup = false; // 事件监听器是否已设置
     }
 
-    show() {
+    show(): void {
         if (!this.listenersSetup) {
             this.setupElements();
             this.setupEventListeners();
             this.listenersSetup = true;
         }
         this.isVisible = true;
-        this.modal.style.display = 'flex';
+        if (!this.modal) return;
+
+        const modal = this.modal;
+        modal.style.display = 'flex';
 
         // 动画显示
         requestAnimationFrame(() => {
-            this.modal.classList.add('show');
+            modal.classList.add('show');
         });
 
         // 自动开始检查更新
         this.checkForUpdates();
     }
 
-    hide() {
+    hide(): void {
         this.isVisible = false;
+        if (!this.modal) return;
+
         this.modal.classList.remove('show');
         setTimeout(() => {
-            if (!this.isVisible) {
+            if (!this.isVisible && this.modal) {
                 this.modal.style.display = 'none';
             }
         }, 300);
     }
 
-    destroy() {
+    destroy(): void {
         this.currentVersion = null;
         this.latestVersion = null;
         this.releaseInfo = null;
         this.modal = null;
         this.listenersSetup = false;
-        return super.destroy();
+        super.destroy();
     }
 
-    setupElements() {
+    setupElements(): void {
         // 检查是否已经存在模态窗口
         if (document.getElementById('update-modal')) {
-            this.modal = document.getElementById('update-modal');
+            this.modal = document.getElementById('update-modal') as HTMLElement;
         } else {
             // 创建模态窗口HTML结构
             const modalHTML = `
@@ -138,31 +181,31 @@ class UpdateModal extends Component {
 
             // 添加到页面
             document.body.insertAdjacentHTML('beforeend', modalHTML);
-            this.modal = document.getElementById('update-modal');
+            this.modal = document.getElementById('update-modal') as HTMLElement;
         }
 
         // 获取元素引用
-        this.closeBtn = document.getElementById('update-modal-close');
-        this.laterBtn = document.getElementById('update-later');
-        this.nowBtn = document.getElementById('update-now');
-        this.retryBtn = document.getElementById('update-retry');
-        this.okBtn = document.getElementById('update-ok');
+        this.closeBtn = document.getElementById('update-modal-close') as HTMLElement;
+        this.laterBtn = document.getElementById('update-later') as HTMLElement;
+        this.nowBtn = document.getElementById('update-now') as HTMLElement;
+        this.retryBtn = document.getElementById('update-retry') as HTMLElement;
+        this.okBtn = document.getElementById('update-ok') as HTMLElement;
 
         // 状态元素
-        this.checkingEl = document.getElementById('update-checking');
-        this.availableEl = document.getElementById('update-available');
-        this.latestEl = document.getElementById('update-latest');
-        this.errorEl = document.getElementById('update-error');
+        this.checkingEl = document.getElementById('update-checking') as HTMLElement;
+        this.availableEl = document.getElementById('update-available') as HTMLElement;
+        this.latestEl = document.getElementById('update-latest') as HTMLElement;
+        this.errorEl = document.getElementById('update-error') as HTMLElement;
 
         // 信息元素
-        this.currentVersionEl = document.getElementById('current-version');
-        this.latestVersionEl = document.getElementById('latest-version');
-        this.currentVersionLatestEl = document.getElementById('current-version-latest');
-        this.notesContentEl = document.getElementById('notes-content');
-        this.errorMessageEl = document.getElementById('error-message');
+        this.currentVersionEl = document.getElementById('current-version') as HTMLElement;
+        this.latestVersionEl = document.getElementById('latest-version') as HTMLElement;
+        this.currentVersionLatestEl = document.getElementById('current-version-latest') as HTMLElement;
+        this.notesContentEl = document.getElementById('notes-content') as HTMLElement;
+        this.errorMessageEl = document.getElementById('error-message') as HTMLElement;
     }
 
-    setupEventListeners() {
+    setupEventListeners(): void {
         // 关闭按钮
         this.closeBtn.addEventListener('click', () => this.hide());
 
@@ -183,21 +226,21 @@ class UpdateModal extends Component {
         this.okBtn.addEventListener('click', () => this.hide());
 
         // 点击背景关闭
-        this.modal.addEventListener('click', (e) => {
+        this.modal?.addEventListener('click', (e: MouseEvent) => {
             if (e.target === this.modal) {
                 this.hide();
             }
         });
 
         // ESC键关闭
-        document.addEventListener('keydown', (e) => {
+        document.addEventListener('keydown', (e: KeyboardEvent) => {
             if (e.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
         });
     }
 
-    async checkForUpdates() {
+    async checkForUpdates(): Promise<void> {
         try {
             // 显示检查中状态
             this.showCheckingState();
@@ -218,33 +261,33 @@ class UpdateModal extends Component {
             }
 
         } catch (error) {
-            this.showError(error.message);
+            this.showError(getErrorMessage(error));
         }
     }
 
-    async getCurrentVersion() {
+    async getCurrentVersion(): Promise<string> {
         try {
             const response = await fetch('../../../package.json');
-            const packageInfo = await response.json();
-            return packageInfo.version;
+            const packageInfo = await response.json() as PackageInfo;
+            return packageInfo.version || '';
         } catch (error) {
             return '';
         }
     }
 
-    async getLatestRelease() {
+    async getLatestRelease(): Promise<GitHubRelease> {
         const response = await fetch('https://api.github.com/repos/asxez/MusicBox/releases/latest');
 
         if (!response.ok) {
             throw new Error(`GitHub API请求失败: ${response.status} ${response.statusText}`);
         }
 
-        return await response.json();
+        return await response.json() as GitHubRelease;
     }
 
-    isNewerVersion(latest, current) {
+    isNewerVersion(latest: string, current: string): boolean {
         // 简单的版本比较逻辑
-        const parseVersion = (version) => {
+        const parseVersion = (version: string): number[] => {
             const parts = version.replace(/-(alpha|beta|rc).*$/, '').split('.');
             return parts.map(part => parseInt(part, 10));
         };
@@ -263,23 +306,23 @@ class UpdateModal extends Component {
         return false;
     }
 
-    showCheckingState() {
+    showCheckingState(): void {
         this.hideAllStates();
         this.checkingEl.style.display = 'block';
         this.hideAllButtons();
         this.laterBtn.style.display = 'inline-block';
     }
 
-    showUpdateAvailable() {
+    showUpdateAvailable(): void {
         this.hideAllStates();
         this.availableEl.style.display = 'block';
 
         // 填充版本信息
-        this.currentVersionEl.textContent = this.currentVersion;
-        this.latestVersionEl.textContent = this.latestVersion;
+        this.currentVersionEl.textContent = this.currentVersion || '';
+        this.latestVersionEl.textContent = this.latestVersion || '';
 
         // 填充更新说明
-        if (this.releaseInfo.body) {
+        if (this.releaseInfo?.body) {
             this.notesContentEl.innerHTML = this.formatReleaseNotes(this.releaseInfo.body);
         } else {
             this.notesContentEl.textContent = '暂无更新说明';
@@ -290,16 +333,16 @@ class UpdateModal extends Component {
         this.nowBtn.style.display = 'inline-block';
     }
 
-    showLatestVersion() {
+    showLatestVersion(): void {
         this.hideAllStates();
         this.latestEl.style.display = 'block';
-        this.currentVersionLatestEl.textContent = this.currentVersion;
+        this.currentVersionLatestEl.textContent = this.currentVersion || '';
 
         this.hideAllButtons();
         this.okBtn.style.display = 'inline-block';
     }
 
-    showError(message) {
+    showError(message: string): void {
         this.hideAllStates();
         this.errorEl.style.display = 'block';
         this.errorMessageEl.textContent = message;
@@ -309,21 +352,21 @@ class UpdateModal extends Component {
         this.retryBtn.style.display = 'inline-block';
     }
 
-    hideAllStates() {
+    hideAllStates(): void {
         this.checkingEl.style.display = 'none';
         this.availableEl.style.display = 'none';
         this.latestEl.style.display = 'none';
         this.errorEl.style.display = 'none';
     }
 
-    hideAllButtons() {
+    hideAllButtons(): void {
         this.laterBtn.style.display = 'none';
         this.nowBtn.style.display = 'none';
         this.retryBtn.style.display = 'none';
         this.okBtn.style.display = 'none';
     }
 
-    formatReleaseNotes(notes) {
+    formatReleaseNotes(notes: string): string {
         // 简单的Markdown格式化
         return notes
             .replace(/^### (.*$)/gim, '<h6>$1</h6>')
@@ -337,7 +380,7 @@ class UpdateModal extends Component {
             .replace(/<\/li><\/p>/g, '</li></ul>');
     }
 
-    openRepository() {
+    openRepository(): void {
         window.open('https://github.com/asxez/MusicBox/releases', '_blank');
         this.hide();
     }
