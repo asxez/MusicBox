@@ -556,16 +556,18 @@ class Settings extends Component {
 
     // 初始化设置值
     initializeSettings(): void {
-        this.languageSelect.value = this.settings.language || 'zh-CN';
-        this.autoplayToggle.checked = this.settings.autoplay || false;
-        this.rememberPositionToggle.checked = this.settings.hasOwnProperty('rememberPosition') ? this.settings.rememberPosition : false;
-        this.desktopLyricsToggle.checked = this.settings.hasOwnProperty('desktopLyrics') ? this.settings.desktopLyrics : true;
-        this.statisticsToggle.checked = this.settings.hasOwnProperty('statistics') ? this.settings.statistics : true;
-        this.recentPlayToggle.checked = this.settings.hasOwnProperty('recentPlay') ? this.settings.recentPlay : true;
-        this.artistsPageToggle.checked = this.settings.hasOwnProperty('artistsPage') ? this.settings.artistsPage : true;
-        this.albumsPageToggle.checked = this.settings.hasOwnProperty('albumsPage') ? this.settings.albumsPage : true;
-        this.showTrackCoversToggle.checked = this.settings.hasOwnProperty('showTrackCovers') ? this.settings.showTrackCovers : true;
-        this.gaplessPlaybackToggle.checked = this.settings.hasOwnProperty('gaplessPlayback') ? this.settings.gaplessPlayback : false;
+        const initialValues = settingsStore.getInitialValues(this.settings);
+
+        this.languageSelect.value = initialValues.language;
+        this.autoplayToggle.checked = initialValues.autoplay;
+        this.rememberPositionToggle.checked = initialValues.rememberPosition;
+        this.desktopLyricsToggle.checked = initialValues.desktopLyrics;
+        this.statisticsToggle.checked = initialValues.statistics;
+        this.recentPlayToggle.checked = initialValues.recentPlay;
+        this.artistsPageToggle.checked = initialValues.artistsPage;
+        this.albumsPageToggle.checked = initialValues.albumsPage;
+        this.showTrackCoversToggle.checked = initialValues.showTrackCovers;
+        this.gaplessPlaybackToggle.checked = initialValues.gaplessPlayback;
 
         // 初始化音乐文件夹和自动扫描设置
         this.initializeMusicFoldersAndAutoScan();
@@ -574,13 +576,13 @@ class Settings extends Component {
         this.initializeExclusiveModeSettings();
 
         // 初始化系统托盘设置
-        this.systemTrayToggle.checked = this.settings.hasOwnProperty('systemTray') ? this.settings.systemTray : true;
-        this.trayCloseBehaviorSelect.value = this.settings.hasOwnProperty('trayCloseBehavior') ? this.settings.trayCloseBehavior : 'exit';
-        this.trayStartMinimizedToggle.checked = this.settings.hasOwnProperty('trayStartMinimized') ? this.settings.trayStartMinimized : false;
+        this.systemTrayToggle.checked = initialValues.systemTray;
+        this.trayCloseBehaviorSelect.value = initialValues.trayCloseBehavior;
+        this.trayStartMinimizedToggle.checked = initialValues.trayStartMinimized;
         this.toggleTraySettings(this.systemTrayToggle.checked);
 
         // 初始化本地歌词目录
-        const lyricsDirectory = typeof this.settings.lyricsDirectory === 'string' ? this.settings.lyricsDirectory : '';
+        const lyricsDirectory = initialValues.lyricsDirectory;
         if (lyricsDirectory) {
             this.lyricsFolderPath.textContent = lyricsDirectory;
             this.lyricsFolderPath.classList.add('selected');
@@ -596,7 +598,7 @@ class Settings extends Component {
         this.initializeCoverCacheDirectory();
 
         // 初始化网络磁盘设置
-        this.networkDriveToggle.checked = this.settings.hasOwnProperty('networkDriveEnabled') ? this.settings.networkDriveEnabled : false;
+        this.networkDriveToggle.checked = initialValues.networkDriveEnabled;
         this.toggleNetworkDriveConfig(this.networkDriveToggle.checked);
 
         // 初始化硬件加速设置
@@ -622,14 +624,16 @@ class Settings extends Component {
         console.log('🎵 Settings: 设置值初始化完成', this.settings);
 
         // 初始化完成后，发出设置状态事件，确保相关组件同步
+        this.emitInitialSettingEvents(initialValues);
+    }
+
+    private emitInitialSettingEvents(initialValues: ReturnType<typeof settingsStore.getInitialValues>): void {
+        const events = settingsStore.getSyncEvents(initialValues);
+
         setTimeout(() => {
-            this.emit('desktopLyricsEnabled', this.desktopLyricsToggle.checked);
-            this.emit('statisticsEnabled', this.statisticsToggle.checked);
-            this.emit('recentPlayEnabled', this.recentPlayToggle.checked);
-            this.emit('artistsPageEnabled', this.artistsPageToggle.checked);
-            this.emit('albumsPageEnabled', this.albumsPageToggle.checked);
-            this.emit('gaplessPlaybackEnabled', this.gaplessPlaybackToggle.checked);
-            this.emit('networkDriveEnabled', this.networkDriveToggle.checked);
+            Object.entries(events).forEach(([eventName, enabled]) => {
+                this.emit(eventName, enabled);
+            });
         }, 100);
     }
 
