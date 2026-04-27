@@ -5,28 +5,12 @@
 import {showToast} from '@utils/index.js';
 import {appInfoSettingsService} from "@services/settings/AppInfoSettingsService";
 import {audioEngineSettingsController} from "@services/settings/AudioEngineSettingsController";
-import {
-    cacheSettingsRenderer,
-    type CacheSettingsElements
-} from "@services/settings/CacheSettingsRenderer";
-import {cacheSettingsService} from "@services/settings/CacheSettingsService";
 import {displayModeSettingsController} from "@services/settings/DisplayModeSettingsController";
 import {
     displayModeSettingsRenderer,
     type DesktopLyricsSettingsElements,
     type MiniModeSettingsElements
 } from "@services/settings/DisplayModeSettingsRenderer";
-import {embeddedLyricsDiagnosticsDialogRenderer} from "@services/settings/EmbeddedLyricsDiagnosticsDialogRenderer";
-import {embeddedLyricsDiagnosticsService} from "@services/settings/EmbeddedLyricsDiagnosticsService";
-import {lyricsAppearanceSettingsService} from "@services/settings/LyricsAppearanceSettingsService";
-import {
-    lyricsAppearanceSettingsRenderer,
-    type LyricsAppearanceSettingsElements
-} from "@services/settings/LyricsAppearanceSettingsRenderer";
-import {
-    embeddedLyricsDiagnosticsRenderer,
-    type EmbeddedLyricsDiagnosticsElements
-} from "@services/settings/EmbeddedLyricsDiagnosticsRenderer";
 import {
     generalSettingsController,
     type GeneralSettingsElements
@@ -34,17 +18,16 @@ import {
 import {hardwareAccelerationSettingsController} from "@services/settings/HardwareAccelerationSettingsController";
 import {musicFolderListRenderer} from "@services/settings/MusicFolderListRenderer";
 import {musicFolderSettingsController} from "@services/settings/MusicFolderSettingsController";
-import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySettingsService";
-import {
-    mediaDirectorySettingsRenderer,
-    type MediaDirectoryElements
-} from "@services/settings/MediaDirectorySettingsRenderer";
 import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
 import {settingsInteractionService} from "@services/settings/SettingsInteractionService";
 import {settingsPanelVisibilityService} from "@services/settings/SettingsPanelVisibilityService";
 import {settingsPageVisibilityService} from "@services/settings/SettingsPageVisibilityService";
 import {settingsSectionNavigationService} from "@services/settings/SettingsSectionNavigationService";
 import {settingsStore, type SettingValue} from "@services/settings/SettingsStore";
+import {
+    settingsToolsController,
+    type SettingsToolsElements
+} from "@services/settings/SettingsToolsController";
 import {
     shortcutSettingsController,
     type ShortcutSettingsElements
@@ -84,7 +67,7 @@ class Settings extends Component {
     async show(): Promise<void> {
         this.isVisible = true;
         settingsPageVisibilityService.show(this.page);
-        await this.showCacheStatistics();
+        await settingsToolsController.showCacheStatistics(this.getSettingsToolsElements());
     }
 
     hide(): void {
@@ -270,34 +253,9 @@ class Settings extends Component {
             await traySettingsService.updateStartMinimized(target.checked);
         });
 
-        this.selectLyricsFolderBtn.addEventListener('click', async () => {
-            try {
-                const selectedPath = await mediaDirectorySettingsService.selectDirectory();
-                if (selectedPath) {
-                    this.updateSetting('lyricsDirectory', selectedPath);
-                    mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'lyrics', selectedPath);
-
-                    // 更新本地歌词管理器
-                    mediaDirectorySettingsService.applyLyricsDirectory(selectedPath);
-                }
-            } catch (error) {
-                console.error('❌ Settings: 选择歌词目录失败:', error);
-            }
-        });
-
-        this.selectCoverCacheFolderBtn.addEventListener('click', async () => {
-            try {
-                const selectedPath = await mediaDirectorySettingsService.selectDirectory();
-                if (selectedPath) {
-                    this.updateSetting('coverCacheDirectory', selectedPath);
-                    mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'coverCache', selectedPath);
-
-                    // 更新本地封面管理器
-                    mediaDirectorySettingsService.applyCoverDirectory(selectedPath);
-                }
-            } catch (error) {
-                console.error('❌ Settings: 选择封面缓存目录失败:', error);
-            }
+        settingsToolsController.initialize(this.getSettingsToolsElements(), {
+            updateSetting: (key, value) => this.updateSetting(key, value),
+            emit: (eventName, ...args) => this.emit(eventName, ...args)
         });
 
         // 前往仓库按钮事件
@@ -305,26 +263,8 @@ class Settings extends Component {
             await this.openRepository();
         });
 
-        // 缓存管理按钮事件
-        this.viewCacheStatsBtn.addEventListener('click', async () => {
-            await this.showCacheStatistics();
-        });
-
-        this.validateCacheBtn.addEventListener('click', async () => {
-            await this.validateCache();
-        });
-
-        this.clearCacheBtn.addEventListener('click', async () => {
-            await this.clearCache();
-        });
-
         this.clearIgnoreListBtn.addEventListener('click', async () => {
             await this.handleClearIgnoreList();
-        });
-
-        // 内嵌歌词测试事件监听器
-        this.testEmbeddedLyricsBtn.addEventListener('click', async () => {
-            await this.testEmbeddedLyrics();
         });
 
         // 快捷键配置事件监听器
@@ -352,22 +292,6 @@ class Settings extends Component {
                 await hardwareAccelerationSettingsController.openDevTools();
             });
         }
-
-        // 歌词高亮透明度设置
-        this.lyricsHighlightOpacitySlider.addEventListener('input', (e: Event) => {
-            const value = parseFloat(getInputTarget(e).value);
-            lyricsAppearanceSettingsRenderer.updateOpacity(this.getLyricsAppearanceElements(), value);
-            this.updateSetting('lyricsHighlightOpacity', value);
-            this.updateLyricsHighlightOpacity(value);
-        });
-
-        // 歌词高亮颜色设置
-        this.lyricsHighlightColor.addEventListener('input', (e: Event) => {
-            const color = getInputTarget(e).value;
-            lyricsAppearanceSettingsRenderer.updateColor(this.getLyricsAppearanceElements(), color);
-            this.updateSetting('lyricsHighlightColor', color);
-            this.updateLyricsHighlightColor(color);
-        });
 
         // 插件管理事件监听器
         if (this.openPluginManagerBtn) {
@@ -488,19 +412,16 @@ class Settings extends Component {
         this.trayStartMinimizedToggle.checked = initialValues.trayStartMinimized;
         this.toggleTraySettings(this.systemTrayToggle.checked);
 
-        // 初始化本地歌词目录
-        const lyricsDirectory = initialValues.lyricsDirectory;
-        if (lyricsDirectory) {
-            mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'lyrics', lyricsDirectory);
-
-            // 设置本地歌词管理器
-            mediaDirectorySettingsService.applyLyricsDirectory(lyricsDirectory);
-        } else {
-            mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'lyrics', null);
-        }
-
-        // 初始化封面缓存目录
-        this.initializeCoverCacheDirectory();
+        // 初始化媒体目录
+        settingsToolsController.initializeLyricsDirectory(this.settings, this.getSettingsToolsElements());
+        void settingsToolsController.initializeCoverCacheDirectory(
+            this.settings,
+            this.getSettingsToolsElements(),
+            {
+                updateSetting: (key, value) => this.updateSetting(key, value),
+                emit: (eventName, ...args) => this.emit(eventName, ...args)
+            }
+        );
 
         // 初始化网络磁盘设置
         this.networkDriveToggle.checked = initialValues.networkDriveEnabled;
@@ -510,10 +431,14 @@ class Settings extends Component {
         this.initializeHardwareAccelerationSettings();
 
         // 初始化歌词高亮透明度设置
-        const lyricsAppearanceSettings = lyricsAppearanceSettingsService.getSettings(this.settings);
-        lyricsAppearanceSettingsRenderer.initialize(this.getLyricsAppearanceElements(), lyricsAppearanceSettings);
-        this.updateLyricsHighlightOpacity(lyricsAppearanceSettings.highlightOpacity);
-        this.updateLyricsHighlightColor(lyricsAppearanceSettings.highlightColor);
+        settingsToolsController.initializeLyricsAppearance(
+            this.settings,
+            this.getSettingsToolsElements(),
+            {
+                updateSetting: (key, value) => this.updateSetting(key, value),
+                emit: (eventName, ...args) => this.emit(eventName, ...args)
+            }
+        );
 
         // 初始化桌面歌词设置
         this.initializeDesktopLyricsSettings();
@@ -597,147 +522,6 @@ class Settings extends Component {
     // 初始化硬件加速设置
     async initializeHardwareAccelerationSettings(): Promise<void> {
         this.hardwareAccelerationToggle.checked = await hardwareAccelerationSettingsController.getInitialEnabled();
-    }
-
-    // 初始化封面缓存目录
-    async initializeCoverCacheDirectory(): Promise<void> {
-        try {
-            let coverCacheDirectory = typeof this.settings.coverCacheDirectory === 'string' ? this.settings.coverCacheDirectory : null;
-
-            const resolved = await mediaDirectorySettingsService.resolveCoverCacheDirectory(coverCacheDirectory);
-            coverCacheDirectory = resolved.directory;
-
-            if (resolved.shouldPersist && coverCacheDirectory) {
-                this.updateSetting('coverCacheDirectory', coverCacheDirectory);
-                console.log(`✅ Settings: 使用默认封面缓存目录: ${coverCacheDirectory}`);
-            }
-
-            if (resolved.error) {
-                console.error('❌ Settings:', resolved.error);
-            }
-
-            if (coverCacheDirectory) {
-                mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'coverCache', coverCacheDirectory);
-                mediaDirectorySettingsService.applyCoverDirectory(coverCacheDirectory);
-            } else {
-                mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'coverCache', null);
-            }
-        } catch (error) {
-            console.error('❌ Settings: 初始化封面缓存目录失败:', error);
-            mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'coverCache', null);
-        }
-    }
-
-    // 更新歌词高亮透明度
-    updateLyricsHighlightOpacity(opacity: number): void {
-        lyricsAppearanceSettingsService.applyHighlightOpacity(opacity);
-        this.emit('lyricsHighlightOpacityChanged', opacity);
-    }
-
-    // 更新歌词高亮颜色
-    updateLyricsHighlightColor(color: string): void {
-        lyricsAppearanceSettingsService.applyHighlightColor(color);
-    }
-
-    // 缓存管理方法
-    async showCacheStatistics(): Promise<void> {
-        try {
-            cacheSettingsRenderer.setStatisticsLoading(this.getCacheSettingsElements(), true);
-
-            const display = await cacheSettingsService.getStatisticsDisplay();
-            if (display.success) {
-                cacheSettingsRenderer.updateDescription(this.getCacheSettingsElements(), display.description || '');
-                showToast(display.toastMessage || '缓存统计已更新', 'info');
-            } else {
-                showToast(display.error || '获取缓存统计失败', 'error');
-            }
-        } catch (error) {
-            console.error('❌ 获取缓存统计失败:', error);
-            showToast('获取缓存统计失败', 'error');
-        } finally {
-            cacheSettingsRenderer.setStatisticsLoading(this.getCacheSettingsElements(), false);
-        }
-    }
-
-    async validateCache(): Promise<void> {
-        try {
-            cacheSettingsRenderer.setValidationLoading(this.getCacheSettingsElements(), true);
-            showToast('开始验证缓存，请稍候...', 'info');
-
-            const result = await cacheSettingsService.validateCache();
-            if (result.success) {
-                showToast(result.message, 'success');
-            } else {
-                showToast(result.message, 'error');
-            }
-        } catch (error) {
-            console.error('缓存验证失败:', error);
-            showToast('缓存验证失败', 'error');
-        } finally {
-            cacheSettingsRenderer.setValidationLoading(this.getCacheSettingsElements(), false);
-        }
-    }
-
-    async clearCache(): Promise<void> {
-        const confirmed = await settingsInteractionService.confirm({
-            title: '清空缓存',
-            message: '确定要清空所有缓存吗？这将删除所有已缓存的音乐文件信息，下次启动时需要重新扫描。',
-            type: 'warning',
-            confirmText: '清空'
-        });
-
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-            cacheSettingsRenderer.setClearLoading(this.getCacheSettingsElements(), true);
-
-            const result = await cacheSettingsService.clearCache();
-            if (result.success) {
-                showToast(result.message, 'success');
-                cacheSettingsRenderer.updateDescription(this.getCacheSettingsElements(), result.description || '');
-            } else {
-                showToast(result.message, 'error');
-            }
-        } catch (error) {
-            console.error('清空缓存失败:', error);
-            showToast('清空缓存失败', 'error');
-        } finally {
-            cacheSettingsRenderer.setClearLoading(this.getCacheSettingsElements(), false);
-        }
-    }
-
-    // 内嵌歌词测试方法
-    async testEmbeddedLyrics(): Promise<void> {
-        try {
-            embeddedLyricsDiagnosticsRenderer.setState(this.getEmbeddedLyricsDiagnosticsElements(), 'selecting');
-
-            const diagnostics = await embeddedLyricsDiagnosticsService.chooseFileAndBuildReport();
-            if (!diagnostics.selected) {
-                showToast('未选择文件', 'info');
-                return;
-            }
-
-            embeddedLyricsDiagnosticsRenderer.setState(this.getEmbeddedLyricsDiagnosticsElements(), 'checking');
-            console.log(`🎵 测试内嵌歌词: ${diagnostics.filePath}`);
-
-            if (diagnostics.foundLyrics) {
-                showToast('检测到内嵌歌词！', 'success');
-            } else {
-                showToast('未检测到内嵌歌词', 'info');
-            }
-
-            // 显示详细报告
-            const report = diagnostics.report || diagnostics.error || '没有诊断报告';
-            console.log('🔧 内嵌歌词测试报告:\n', report);
-            embeddedLyricsDiagnosticsDialogRenderer.show(report);
-        } catch (error) {
-            console.error('❌ 内嵌歌词测试失败:', error);
-            showToast('内嵌歌词测试失败', 'error');
-        } finally {
-            embeddedLyricsDiagnosticsRenderer.setState(this.getEmbeddedLyricsDiagnosticsElements(), 'idle');
-        }
     }
 
     // 网络磁盘相关方法
@@ -917,37 +701,6 @@ class Settings extends Component {
         };
     }
 
-    private getMediaDirectoryElements(): MediaDirectoryElements {
-        return {
-            lyricsFolderPath: this.lyricsFolderPath,
-            coverCacheFolderPath: this.coverCacheFolderPath
-        };
-    }
-
-    private getLyricsAppearanceElements(): LyricsAppearanceSettingsElements {
-        return {
-            highlightOpacitySlider: this.lyricsHighlightOpacitySlider,
-            highlightOpacityValue: this.lyricsHighlightOpacityValue,
-            highlightColorInput: this.lyricsHighlightColor,
-            highlightColorValue: this.lyricsHighlightColorValue
-        };
-    }
-
-    private getCacheSettingsElements(): CacheSettingsElements {
-        return {
-            viewCacheStatsButton: this.viewCacheStatsBtn,
-            validateCacheButton: this.validateCacheBtn,
-            clearCacheButton: this.clearCacheBtn,
-            cacheStatsDescription: this.cacheStatsDescription
-        };
-    }
-
-    private getEmbeddedLyricsDiagnosticsElements(): EmbeddedLyricsDiagnosticsElements {
-        return {
-            testButton: this.testEmbeddedLyricsBtn
-        };
-    }
-
     private getShortcutSettingsElements(): ShortcutSettingsElements {
         return {
             globalShortcutsToggle: this.globalShortcutsToggle,
@@ -976,6 +729,24 @@ class Settings extends Component {
             networkDriveConfig: this.networkDriveConfig,
             checkUpdatesButton: this.checkUpdatesBtn,
             addNetworkDriveButton: this.addNetworkDriveBtn
+        };
+    }
+
+    private getSettingsToolsElements(): SettingsToolsElements {
+        return {
+            selectLyricsFolderButton: this.selectLyricsFolderBtn,
+            lyricsFolderPath: this.lyricsFolderPath,
+            selectCoverCacheFolderButton: this.selectCoverCacheFolderBtn,
+            coverCacheFolderPath: this.coverCacheFolderPath,
+            viewCacheStatsButton: this.viewCacheStatsBtn,
+            validateCacheButton: this.validateCacheBtn,
+            clearCacheButton: this.clearCacheBtn,
+            cacheStatsDescription: this.cacheStatsDescription,
+            testEmbeddedLyricsButton: this.testEmbeddedLyricsBtn,
+            lyricsHighlightOpacitySlider: this.lyricsHighlightOpacitySlider,
+            lyricsHighlightOpacityValue: this.lyricsHighlightOpacityValue,
+            lyricsHighlightColorInput: this.lyricsHighlightColor,
+            lyricsHighlightColorValue: this.lyricsHighlightColorValue
         };
     }
 }
