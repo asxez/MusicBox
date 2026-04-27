@@ -17,6 +17,10 @@ import {embeddedLyricsDiagnosticsDialogRenderer} from "@services/settings/Embedd
 import {embeddedLyricsDiagnosticsService} from "@services/settings/EmbeddedLyricsDiagnosticsService";
 import {hardwareAccelerationSettingsService} from "@services/settings/HardwareAccelerationSettingsService";
 import {lyricsAppearanceSettingsService} from "@services/settings/LyricsAppearanceSettingsService";
+import {
+    lyricsAppearanceSettingsRenderer,
+    type LyricsAppearanceSettingsElements
+} from "@services/settings/LyricsAppearanceSettingsRenderer";
 import {musicFolderListRenderer} from "@services/settings/MusicFolderListRenderer";
 import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySettingsService";
 import {
@@ -449,7 +453,7 @@ class Settings extends Component {
         // 歌词高亮透明度设置
         this.lyricsHighlightOpacitySlider.addEventListener('input', (e: Event) => {
             const value = parseFloat(getInputTarget(e).value);
-            this.lyricsHighlightOpacityValue.textContent = value.toFixed(1);
+            lyricsAppearanceSettingsRenderer.updateOpacity(this.getLyricsAppearanceElements(), value);
             this.updateSetting('lyricsHighlightOpacity', value);
             this.updateLyricsHighlightOpacity(value);
         });
@@ -457,7 +461,7 @@ class Settings extends Component {
         // 歌词高亮颜色设置
         this.lyricsHighlightColor.addEventListener('input', (e: Event) => {
             const color = getInputTarget(e).value;
-            this.lyricsHighlightColorValue.textContent = color;
+            lyricsAppearanceSettingsRenderer.updateColor(this.getLyricsAppearanceElements(), color);
             this.updateSetting('lyricsHighlightColor', color);
             this.updateLyricsHighlightColor(color);
         });
@@ -611,13 +615,8 @@ class Settings extends Component {
 
         // 初始化歌词高亮透明度设置
         const lyricsAppearanceSettings = lyricsAppearanceSettingsService.getSettings(this.settings);
-        this.lyricsHighlightOpacitySlider.value = String(lyricsAppearanceSettings.highlightOpacity);
-        this.lyricsHighlightOpacityValue.textContent = lyricsAppearanceSettings.highlightOpacity.toFixed(1);
+        lyricsAppearanceSettingsRenderer.initialize(this.getLyricsAppearanceElements(), lyricsAppearanceSettings);
         this.updateLyricsHighlightOpacity(lyricsAppearanceSettings.highlightOpacity);
-
-        // 初始化歌词高亮颜色设置
-        this.lyricsHighlightColor.value = lyricsAppearanceSettings.highlightColor;
-        this.lyricsHighlightColorValue.textContent = lyricsAppearanceSettings.highlightColor;
         this.updateLyricsHighlightColor(lyricsAppearanceSettings.highlightColor);
 
         // 初始化桌面歌词设置
@@ -1377,6 +1376,15 @@ class Settings extends Component {
         return {
             lyricsFolderPath: this.lyricsFolderPath,
             coverCacheFolderPath: this.coverCacheFolderPath
+        };
+    }
+
+    private getLyricsAppearanceElements(): LyricsAppearanceSettingsElements {
+        return {
+            highlightOpacitySlider: this.lyricsHighlightOpacitySlider,
+            highlightOpacityValue: this.lyricsHighlightOpacityValue,
+            highlightColorInput: this.lyricsHighlightColor,
+            highlightColorValue: this.lyricsHighlightColorValue
         };
     }
 }

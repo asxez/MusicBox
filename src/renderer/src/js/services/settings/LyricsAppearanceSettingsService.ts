@@ -6,7 +6,7 @@ interface RgbColor {
     b: number;
 }
 
-interface LyricsAppearanceSettings {
+export interface LyricsAppearanceSettings {
     highlightOpacity: number;
     highlightColor: string;
 }
