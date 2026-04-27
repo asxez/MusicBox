@@ -4,7 +4,7 @@
 
 import {showToast} from '@utils/index.js';
 import {appInfoSettingsService} from "@services/settings/AppInfoSettingsService";
-import {audioEngineSettingsService} from "@services/settings/AudioEngineSettingsService";
+import {audioEngineSettingsController} from "@services/settings/AudioEngineSettingsController";
 import {cacheMaintenanceService} from "@services/settings/CacheMaintenanceService";
 import {
     cacheSettingsRenderer,
@@ -294,36 +294,19 @@ class Settings extends Component {
             const target = getInputTarget(e);
             const enabled = target.checked;
             this.updateSetting('exclusiveMode', enabled);
-
-            console.log(`🎵 Settings: WASAPI引擎${enabled ? '启用' : '禁用'}`);
-
             this.toggleWasapiModeSelector(enabled);
 
-            const result = await audioEngineSettingsService.switchExclusiveMode(enabled);
-            if (result.success) {
-                this.showNotification(result.message || '音频引擎已切换');
-            } else {
-                console.error('❌ Settings: 音频引擎切换失败:', result.error);
-                target.checked = !enabled;
-                this.updateSetting('exclusiveMode', !enabled);
-                this.toggleWasapiModeSelector(!enabled);
-                this.showNotification(result.error || '音频引擎切换失败', 'error');
-            }
+            const result = await audioEngineSettingsController.switchExclusiveMode(enabled);
+            target.checked = result.checked;
+            this.updateSetting('exclusiveMode', result.checked);
+            this.toggleWasapiModeSelector(result.checked);
         });
 
         // WASAPI模式选择
         this.wasapiShareModeSelect.addEventListener('change', async (e: Event) => {
             const mode = getSelectTarget(e).value as WasapiShareMode;
             this.updateSetting('wasapiShareMode', mode);
-            console.log(`🎵 Settings: WASAPI模式切换到${mode === 'exclusive' ? '独占' : '共享'}模式`);
-
-            const result = await audioEngineSettingsService.switchWasapiShareMode(mode);
-            if (result.success) {
-                this.showNotification(result.message || 'WASAPI模式已切换');
-            } else {
-                console.error('❌ Settings: WASAPI模式切换失败:', result.error);
-                this.showNotification(result.error || 'WASAPI模式切换失败', 'error');
-            }
+            await audioEngineSettingsController.switchWasapiShareMode(mode);
         });
 
         // 无间隙播放设置
@@ -681,7 +664,7 @@ class Settings extends Component {
 
     // 初始化音频独占模式设置
     initializeExclusiveModeSettings(): void {
-        const exclusiveModeSettings = audioEngineSettingsService.getExclusiveModeSettings(this.settings);
+        const exclusiveModeSettings = audioEngineSettingsController.getExclusiveModeSettings(this.settings);
 
         if (!exclusiveModeSettings.available) {
             settingsPanelVisibilityService.showWasapiUnavailable(this.exclusiveModeItem, this.wasapiShareModeItem);
