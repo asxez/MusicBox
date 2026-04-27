@@ -6,6 +6,10 @@ import {showToast} from '@utils/index.js';
 import {appInfoSettingsService} from "@services/settings/AppInfoSettingsService";
 import {audioEngineSettingsService} from "@services/settings/AudioEngineSettingsService";
 import {cacheMaintenanceService} from "@services/settings/CacheMaintenanceService";
+import {
+    cacheSettingsRenderer,
+    type CacheSettingsElements
+} from "@services/settings/CacheSettingsRenderer";
 import {cacheSettingsService} from "@services/settings/CacheSettingsService";
 import {displayModeSettingsService} from "@services/settings/DisplayModeSettingsService";
 import {
@@ -836,12 +840,11 @@ class Settings extends Component {
     // 缓存管理方法
     async showCacheStatistics(): Promise<void> {
         try {
-            this.viewCacheStatsBtn.disabled = true;
-            this.viewCacheStatsBtn.textContent = '获取中...';
+            cacheSettingsRenderer.setStatisticsLoading(this.getCacheSettingsElements(), true);
 
             const display = await cacheSettingsService.getStatisticsDisplay();
             if (display.success) {
-                this.cacheStatsDescription.textContent = display.description || '';
+                cacheSettingsRenderer.updateDescription(this.getCacheSettingsElements(), display.description || '');
                 showToast(display.toastMessage || '缓存统计已更新', 'info');
             } else {
                 showToast(display.error || '获取缓存统计失败', 'error');
@@ -850,15 +853,13 @@ class Settings extends Component {
             console.error('❌ 获取缓存统计失败:', error);
             showToast('获取缓存统计失败', 'error');
         } finally {
-            this.viewCacheStatsBtn.disabled = false;
-            this.viewCacheStatsBtn.textContent = '查看统计';
+            cacheSettingsRenderer.setStatisticsLoading(this.getCacheSettingsElements(), false);
         }
     }
 
     async validateCache(): Promise<void> {
         try {
-            this.validateCacheBtn.disabled = true;
-            this.validateCacheBtn.textContent = '验证中...';
+            cacheSettingsRenderer.setValidationLoading(this.getCacheSettingsElements(), true);
             showToast('开始验证缓存，请稍候...', 'info');
 
             const result = await cacheSettingsService.validateCache();
@@ -871,8 +872,7 @@ class Settings extends Component {
             console.error('缓存验证失败:', error);
             showToast('缓存验证失败', 'error');
         } finally {
-            this.validateCacheBtn.disabled = false;
-            this.validateCacheBtn.textContent = '验证缓存';
+            cacheSettingsRenderer.setValidationLoading(this.getCacheSettingsElements(), false);
         }
     }
 
@@ -889,13 +889,12 @@ class Settings extends Component {
         }
 
         try {
-            this.clearCacheBtn.disabled = true;
-            this.clearCacheBtn.textContent = '清空中...';
+            cacheSettingsRenderer.setClearLoading(this.getCacheSettingsElements(), true);
 
             const result = await cacheSettingsService.clearCache();
             if (result.success) {
                 showToast(result.message, 'success');
-                this.cacheStatsDescription.textContent = result.description || '';
+                cacheSettingsRenderer.updateDescription(this.getCacheSettingsElements(), result.description || '');
             } else {
                 showToast(result.message, 'error');
             }
@@ -903,8 +902,7 @@ class Settings extends Component {
             console.error('清空缓存失败:', error);
             showToast('清空缓存失败', 'error');
         } finally {
-            this.clearCacheBtn.disabled = false;
-            this.clearCacheBtn.textContent = '清空缓存';
+            cacheSettingsRenderer.setClearLoading(this.getCacheSettingsElements(), false);
         }
     }
 
@@ -1385,6 +1383,15 @@ class Settings extends Component {
             highlightOpacityValue: this.lyricsHighlightOpacityValue,
             highlightColorInput: this.lyricsHighlightColor,
             highlightColorValue: this.lyricsHighlightColorValue
+        };
+    }
+
+    private getCacheSettingsElements(): CacheSettingsElements {
+        return {
+            viewCacheStatsButton: this.viewCacheStatsBtn,
+            validateCacheButton: this.validateCacheBtn,
+            clearCacheButton: this.clearCacheBtn,
+            cacheStatsDescription: this.cacheStatsDescription
         };
     }
 }
