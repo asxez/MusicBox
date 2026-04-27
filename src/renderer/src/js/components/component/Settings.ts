@@ -10,7 +10,7 @@ import {
     type CacheSettingsElements
 } from "@services/settings/CacheSettingsRenderer";
 import {cacheSettingsService} from "@services/settings/CacheSettingsService";
-import {displayModeSettingsService} from "@services/settings/DisplayModeSettingsService";
+import {displayModeSettingsController} from "@services/settings/DisplayModeSettingsController";
 import {
     displayModeSettingsRenderer,
     type DesktopLyricsSettingsElements,
@@ -246,11 +246,7 @@ class Settings extends Component {
 
             // 如果禁用功能，同时隐藏已打开的桌面歌词窗口
             if (!target.checked) {
-                try {
-                    await displayModeSettingsService.hideDesktopLyrics();
-                } catch (error) {
-                    console.error('❌ Settings: 隐藏桌面歌词失败:', error);
-                }
+                await displayModeSettingsController.hideDesktopLyrics();
             }
         });
 
@@ -1104,50 +1100,33 @@ class Settings extends Component {
     // 桌面歌词设置相关方法
     async updateDesktopLyricsSetting(key: string, value: string | number): Promise<void> {
         // 更新本地设置缓存
-        const desktopLyricsSettings = displayModeSettingsService.updateDesktopLyricsSetting(this.settings, key, value);
+        const desktopLyricsSettings = displayModeSettingsController.updateDesktopLyricsSetting(this.settings, key, value);
         this.updateSetting('desktopLyricsSettings', desktopLyricsSettings);
-
-        // 发送设置到桌面歌词窗口
-        try {
-            await displayModeSettingsService.syncDesktopLyricsSettings({[key]: value});
-        } catch (error) {
-            console.error('❌ Settings: 更新桌面歌词设置失败:', error);
-        }
     }
 
     initializeDesktopLyricsSettings(): void {
-        const dlSettings = displayModeSettingsService.getDesktopLyricsSettings(this.settings);
+        const dlSettings = displayModeSettingsController.getDesktopLyricsSettings(this.settings);
         displayModeSettingsRenderer.initializeDesktopLyricsSettings(this.getDesktopLyricsElements(), dlSettings);
-
-        // 初始化完成后同步设置到桌面歌词窗口
-        setTimeout(async () => {
-            try {
-                await displayModeSettingsService.syncDesktopLyricsSettings(dlSettings);
-            } catch (error) {
-                console.error('❌ Settings: 初始化桌面歌词设置同步失败:', error);
-            }
-        }, 100);
+        displayModeSettingsController.scheduleDesktopLyricsSync(dlSettings);
     }
 
     // 迷你模式设置相关方法
     async updateMiniModeSetting(key: string, value: string | number): Promise<void> {
         // 更新本地设置缓存
-        const miniModeSettings = displayModeSettingsService.updateMiniModeSetting(this.settings, key, value);
+        const miniModeSettings = displayModeSettingsController.updateMiniModeSetting(this.settings, key, value);
         this.updateSetting('miniModeSettings', miniModeSettings);
-
-        // 实时应用到迷你模式
-        this.applyMiniModeSetting(key, value);
+        this.emit('miniModeSettingsChanged', {key, value});
     }
 
     applyMiniModeSetting(key: string, value: string | number): void {
-        displayModeSettingsService.applyMiniModeSetting(key, value);
+        displayModeSettingsController.applyMiniModeSetting(key, value);
 
         // 通知Player组件设置已更新
         this.emit('miniModeSettingsChanged', {key, value});
     }
 
     initializeMiniModeSettings(): void {
-        const mmSettings = displayModeSettingsService.getMiniModeSettings(this.settings);
+        const mmSettings = displayModeSettingsController.getMiniModeSettings(this.settings);
         displayModeSettingsRenderer.initializeMiniModeSettings(this.getMiniModeElements(), mmSettings);
 
         this.applyMiniModeSetting('fontColor', mmSettings.fontColor);
