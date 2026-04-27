@@ -17,6 +17,7 @@ import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySe
 import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
 import {settingsInteractionService} from "@services/settings/SettingsInteractionService";
 import {settingsPanelVisibilityService} from "@services/settings/SettingsPanelVisibilityService";
+import {settingsPageVisibilityService} from "@services/settings/SettingsPageVisibilityService";
 import {settingsSectionNavigationService} from "@services/settings/SettingsSectionNavigationService";
 import {settingsStore, type SettingValue} from "@services/settings/SettingsStore";
 import {
@@ -61,41 +62,13 @@ class Settings extends Component {
 
     async show(): Promise<void> {
         this.isVisible = true;
-        this.page.style.display = 'block';
-
-        // 隐藏其他页面元素
-        const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('main-content');
-        if (sidebar) sidebar.style.display = 'none';
-        if (mainContent) mainContent.style.display = 'none';
-
-        // 使用 requestAnimationFrame 确保动画正常播放
-        requestAnimationFrame(() => {
-            this.page.classList.add('show');
-        });
-
-        // 加载缓存统计信息
+        settingsPageVisibilityService.show(this.page);
         await this.showCacheStatistics();
     }
 
     hide(): void {
         this.isVisible = false;
-        this.page.classList.remove('show');
-        this.page.classList.add('hiding');
-
-        // 等待动画完成后隐藏页面
-        setTimeout(() => {
-            if (!this.isVisible) {
-                this.page.style.display = 'none';
-                this.page.classList.remove('hiding');
-
-                // 恢复其他页面元素
-                const sidebar = document.getElementById('sidebar');
-                const mainContent = document.getElementById('main-content');
-                if (sidebar) sidebar.style.display = 'block';
-                if (mainContent) mainContent.style.display = 'block';
-            }
-        }, 300);
+        settingsPageVisibilityService.hide(this.page, () => this.isVisible);
     }
 
     destroy(): void {
