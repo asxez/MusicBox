@@ -8,6 +8,11 @@ import {audioEngineSettingsService} from "@services/settings/AudioEngineSettings
 import {cacheMaintenanceService} from "@services/settings/CacheMaintenanceService";
 import {cacheSettingsService} from "@services/settings/CacheSettingsService";
 import {displayModeSettingsService} from "@services/settings/DisplayModeSettingsService";
+import {
+    displayModeSettingsRenderer,
+    type DesktopLyricsSettingsElements,
+    type MiniModeSettingsElements
+} from "@services/settings/DisplayModeSettingsRenderer";
 import {embeddedLyricsDiagnosticsDialogRenderer} from "@services/settings/EmbeddedLyricsDiagnosticsDialogRenderer";
 import {embeddedLyricsDiagnosticsService} from "@services/settings/EmbeddedLyricsDiagnosticsService";
 import {hardwareAccelerationSettingsService} from "@services/settings/HardwareAccelerationSettingsService";
@@ -485,7 +490,7 @@ class Settings extends Component {
         if (this.dlThemeColor) {
             this.dlThemeColor.addEventListener('input', (e: Event) => {
                 const color = getInputTarget(e).value;
-                this.dlThemeColorValue.textContent = color;
+                displayModeSettingsRenderer.updateDesktopLyricsValue(this.getDesktopLyricsElements(), 'themeColor', color);
                 this.updateDesktopLyricsSetting('themeColor', color);
             });
         }
@@ -493,7 +498,7 @@ class Settings extends Component {
         if (this.dlFontColor) {
             this.dlFontColor.addEventListener('input', (e: Event) => {
                 const color = getInputTarget(e).value;
-                this.dlFontColorValue.textContent = color;
+                displayModeSettingsRenderer.updateDesktopLyricsValue(this.getDesktopLyricsElements(), 'fontColor', color);
                 this.updateDesktopLyricsSetting('fontColor', color);
             });
         }
@@ -501,7 +506,7 @@ class Settings extends Component {
         if (this.dlOpacitySlider) {
             this.dlOpacitySlider.addEventListener('input', (e: Event) => {
                 const opacity = parseFloat(getInputTarget(e).value);
-                this.dlOpacityValue.textContent = Math.round(opacity * 100) + '%';
+                displayModeSettingsRenderer.updateDesktopLyricsValue(this.getDesktopLyricsElements(), 'opacity', opacity);
                 this.updateDesktopLyricsSetting('opacity', opacity);
             });
         }
@@ -509,7 +514,7 @@ class Settings extends Component {
         if (this.dlFontSizeSlider) {
             this.dlFontSizeSlider.addEventListener('input', (e: Event) => {
                 const fontSize = parseInt(getInputTarget(e).value);
-                this.dlFontSizeValue.textContent = fontSize + 'px';
+                displayModeSettingsRenderer.updateDesktopLyricsValue(this.getDesktopLyricsElements(), 'fontSize', fontSize);
                 this.updateDesktopLyricsSetting('fontSize', fontSize);
             });
         }
@@ -518,7 +523,7 @@ class Settings extends Component {
         if (this.miniModeFontColor) {
             this.miniModeFontColor.addEventListener('input', (e: Event) => {
                 const color = getInputTarget(e).value;
-                this.miniModeFontColorValue.textContent = color;
+                displayModeSettingsRenderer.updateMiniModeValue(this.getMiniModeElements(), 'fontColor', color);
                 this.updateMiniModeSetting('fontColor', color);
             });
         }
@@ -526,7 +531,7 @@ class Settings extends Component {
         if (this.miniModeHighlightColor) {
             this.miniModeHighlightColor.addEventListener('input', (e: Event) => {
                 const color = getInputTarget(e).value;
-                this.miniModeHighlightColorValue.textContent = color;
+                displayModeSettingsRenderer.updateMiniModeValue(this.getMiniModeElements(), 'highlightColor', color);
                 this.updateMiniModeSetting('highlightColor', color);
             });
         }
@@ -534,7 +539,7 @@ class Settings extends Component {
         if (this.miniModeFontSizeSlider) {
             this.miniModeFontSizeSlider.addEventListener('input', (e: Event) => {
                 const fontSize = parseInt(getInputTarget(e).value);
-                this.miniModeFontSizeValue.textContent = fontSize + 'px';
+                displayModeSettingsRenderer.updateMiniModeValue(this.getMiniModeElements(), 'fontSize', fontSize);
                 this.updateMiniModeSetting('fontSize', fontSize);
             });
         }
@@ -1307,52 +1312,7 @@ class Settings extends Component {
 
     initializeDesktopLyricsSettings(): void {
         const dlSettings = displayModeSettingsService.getDesktopLyricsSettings(this.settings);
-
-        // 初始化显示模式
-        if (this.dlDisplayModeSelect) {
-            this.dlDisplayModeSelect.value = dlSettings.displayMode;
-        }
-
-        // 初始化布局模式
-        if (this.dlLayoutModeSelect) {
-            this.dlLayoutModeSelect.value = dlSettings.layoutMode;
-        }
-
-        // 初始化主题颜色
-        if (this.dlThemeColor) {
-            const color = dlSettings.themeColor;
-            this.dlThemeColor.value = color;
-            if (this.dlThemeColorValue) {
-                this.dlThemeColorValue.textContent = color;
-            }
-        }
-
-        // 初始化透明度
-        if (this.dlOpacitySlider) {
-            const opacity = dlSettings.opacity;
-            this.dlOpacitySlider.value = opacity;
-            if (this.dlOpacityValue) {
-                this.dlOpacityValue.textContent = Math.round(opacity * 100) + '%';
-            }
-        }
-
-        // 初始化字体大小
-        if (this.dlFontSizeSlider) {
-            const fontSize = dlSettings.fontSize;
-            this.dlFontSizeSlider.value = fontSize;
-            if (this.dlFontSizeValue) {
-                this.dlFontSizeValue.textContent = fontSize + 'px';
-            }
-        }
-
-        // 初始化字体颜色
-        if (this.dlFontColor) {
-            const fontColor = dlSettings.fontColor;
-            this.dlFontColor.value = fontColor;
-            if (this.dlFontColorValue) {
-                this.dlFontColorValue.textContent = fontColor;
-            }
-        }
+        displayModeSettingsRenderer.initializeDesktopLyricsSettings(this.getDesktopLyricsElements(), dlSettings);
 
         // 初始化完成后同步设置到桌面歌词窗口
         setTimeout(async () => {
@@ -1383,36 +1343,37 @@ class Settings extends Component {
 
     initializeMiniModeSettings(): void {
         const mmSettings = displayModeSettingsService.getMiniModeSettings(this.settings);
+        displayModeSettingsRenderer.initializeMiniModeSettings(this.getMiniModeElements(), mmSettings);
 
-        // 初始化字体颜色
-        if (this.miniModeFontColor) {
-            const fontColor = mmSettings.fontColor;
-            this.miniModeFontColor.value = fontColor;
-            if (this.miniModeFontColorValue) {
-                this.miniModeFontColorValue.textContent = fontColor;
-            }
-            this.applyMiniModeSetting('fontColor', fontColor);
-        }
+        this.applyMiniModeSetting('fontColor', mmSettings.fontColor);
+        this.applyMiniModeSetting('highlightColor', mmSettings.highlightColor);
+        this.applyMiniModeSetting('fontSize', mmSettings.fontSize);
+    }
 
-        // 初始化高亮颜色
-        if (this.miniModeHighlightColor) {
-            const highlightColor = mmSettings.highlightColor;
-            this.miniModeHighlightColor.value = highlightColor;
-            if (this.miniModeHighlightColorValue) {
-                this.miniModeHighlightColorValue.textContent = highlightColor;
-            }
-            this.applyMiniModeSetting('highlightColor', highlightColor);
-        }
+    private getDesktopLyricsElements(): DesktopLyricsSettingsElements {
+        return {
+            displayModeSelect: this.dlDisplayModeSelect,
+            layoutModeSelect: this.dlLayoutModeSelect,
+            themeColorInput: this.dlThemeColor,
+            themeColorValue: this.dlThemeColorValue,
+            opacitySlider: this.dlOpacitySlider,
+            opacityValue: this.dlOpacityValue,
+            fontSizeSlider: this.dlFontSizeSlider,
+            fontSizeValue: this.dlFontSizeValue,
+            fontColorInput: this.dlFontColor,
+            fontColorValue: this.dlFontColorValue
+        };
+    }
 
-        // 初始化字体大小
-        if (this.miniModeFontSizeSlider) {
-            const fontSize = mmSettings.fontSize;
-            this.miniModeFontSizeSlider.value = fontSize;
-            if (this.miniModeFontSizeValue) {
-                this.miniModeFontSizeValue.textContent = fontSize + 'px';
-            }
-            this.applyMiniModeSetting('fontSize', fontSize);
-        }
+    private getMiniModeElements(): MiniModeSettingsElements {
+        return {
+            fontColorInput: this.miniModeFontColor,
+            fontColorValue: this.miniModeFontColorValue,
+            highlightColorInput: this.miniModeHighlightColor,
+            highlightColorValue: this.miniModeHighlightColorValue,
+            fontSizeSlider: this.miniModeFontSizeSlider,
+            fontSizeValue: this.miniModeFontSizeValue
+        };
     }
 }
 
