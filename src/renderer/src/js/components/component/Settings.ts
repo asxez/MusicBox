@@ -25,6 +25,10 @@ import {
     lyricsAppearanceSettingsRenderer,
     type LyricsAppearanceSettingsElements
 } from "@services/settings/LyricsAppearanceSettingsRenderer";
+import {
+    embeddedLyricsDiagnosticsRenderer,
+    type EmbeddedLyricsDiagnosticsElements
+} from "@services/settings/EmbeddedLyricsDiagnosticsRenderer";
 import {musicFolderListRenderer} from "@services/settings/MusicFolderListRenderer";
 import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySettingsService";
 import {
@@ -909,8 +913,7 @@ class Settings extends Component {
     // 内嵌歌词测试方法
     async testEmbeddedLyrics(): Promise<void> {
         try {
-            this.testEmbeddedLyricsBtn.disabled = true;
-            this.testEmbeddedLyricsBtn.textContent = '选择文件...';
+            embeddedLyricsDiagnosticsRenderer.setState(this.getEmbeddedLyricsDiagnosticsElements(), 'selecting');
 
             const diagnostics = await embeddedLyricsDiagnosticsService.chooseFileAndBuildReport();
             if (!diagnostics.selected) {
@@ -918,7 +921,7 @@ class Settings extends Component {
                 return;
             }
 
-            this.testEmbeddedLyricsBtn.textContent = '检测中...';
+            embeddedLyricsDiagnosticsRenderer.setState(this.getEmbeddedLyricsDiagnosticsElements(), 'checking');
             console.log(`🎵 测试内嵌歌词: ${diagnostics.filePath}`);
 
             if (diagnostics.foundLyrics) {
@@ -935,8 +938,7 @@ class Settings extends Component {
             console.error('❌ 内嵌歌词测试失败:', error);
             showToast('内嵌歌词测试失败', 'error');
         } finally {
-            this.testEmbeddedLyricsBtn.disabled = false;
-            this.testEmbeddedLyricsBtn.textContent = '测试内嵌歌词';
+            embeddedLyricsDiagnosticsRenderer.setState(this.getEmbeddedLyricsDiagnosticsElements(), 'idle');
         }
     }
 
@@ -1392,6 +1394,12 @@ class Settings extends Component {
             validateCacheButton: this.validateCacheBtn,
             clearCacheButton: this.clearCacheBtn,
             cacheStatsDescription: this.cacheStatsDescription
+        };
+    }
+
+    private getEmbeddedLyricsDiagnosticsElements(): EmbeddedLyricsDiagnosticsElements {
+        return {
+            testButton: this.testEmbeddedLyricsBtn
         };
     }
 }
