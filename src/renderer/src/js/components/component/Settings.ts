@@ -19,7 +19,6 @@ import {
 } from "@services/settings/DisplayModeSettingsRenderer";
 import {embeddedLyricsDiagnosticsDialogRenderer} from "@services/settings/EmbeddedLyricsDiagnosticsDialogRenderer";
 import {embeddedLyricsDiagnosticsService} from "@services/settings/EmbeddedLyricsDiagnosticsService";
-import {hardwareAccelerationSettingsService} from "@services/settings/HardwareAccelerationSettingsService";
 import {lyricsAppearanceSettingsService} from "@services/settings/LyricsAppearanceSettingsService";
 import {
     lyricsAppearanceSettingsRenderer,
@@ -29,6 +28,7 @@ import {
     embeddedLyricsDiagnosticsRenderer,
     type EmbeddedLyricsDiagnosticsElements
 } from "@services/settings/EmbeddedLyricsDiagnosticsRenderer";
+import {hardwareAccelerationSettingsController} from "@services/settings/HardwareAccelerationSettingsController";
 import {musicFolderListRenderer} from "@services/settings/MusicFolderListRenderer";
 import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySettingsService";
 import {
@@ -441,20 +441,21 @@ class Settings extends Component {
 
         // 硬件加速功能开关
         this.hardwareAccelerationToggle.addEventListener('change', async (e: Event) => {
-            await this.handleHardwareAccelerationChange(getInputTarget(e).checked);
+            const result = await hardwareAccelerationSettingsController.handleChange(getInputTarget(e).checked);
+            this.hardwareAccelerationToggle.checked = result.checked;
         });
 
         // 打开应用数据文件夹按钮
         if (this.openSoftDirBtn) {
             this.openSoftDirBtn.addEventListener('click', async () => {
-                await this.handleOpenUserDataFolder();
+                await hardwareAccelerationSettingsController.openUserDataFolder();
             });
         }
 
         // 开发者工具按钮
         if (this.developerToolsBtn) {
             this.developerToolsBtn.addEventListener('click', async () => {
-                await this.handleOpenDevTools();
+                await hardwareAccelerationSettingsController.openDevTools();
             });
         }
 
@@ -708,12 +709,7 @@ class Settings extends Component {
 
     // 初始化硬件加速设置
     async initializeHardwareAccelerationSettings(): Promise<void> {
-        try {
-            this.hardwareAccelerationToggle.checked = await hardwareAccelerationSettingsService.getEnabled();
-        } catch (error) {
-            console.error('❌ Settings: 初始化硬件加速设置失败:', error);
-            this.hardwareAccelerationToggle.checked = true; // 默认启用
-        }
+        this.hardwareAccelerationToggle.checked = await hardwareAccelerationSettingsController.getInitialEnabled();
     }
 
     // 初始化封面缓存目录
@@ -733,7 +729,6 @@ class Settings extends Component {
                 console.error('❌ Settings:', resolved.error);
             }
 
-            // 设置封面缓存目录
             if (coverCacheDirectory) {
                 mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'coverCache', coverCacheDirectory);
                 mediaDirectorySettingsService.applyCoverDirectory(coverCacheDirectory);
@@ -743,90 +738,6 @@ class Settings extends Component {
         } catch (error) {
             console.error('❌ Settings: 初始化封面缓存目录失败:', error);
             mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'coverCache', null);
-        }
-    }
-
-    // 处理硬件加速设置变更
-    async handleHardwareAccelerationChange(enabled: boolean): Promise<void> {
-        try {
-            if (!enabled) {
-                const shouldRestart = await this.showHardwareAccelerationConfirmDialog();
-                if (!shouldRestart) {
-                    this.hardwareAccelerationToggle.checked = true;
-                    return;
-                }
-            }
-
-            // 更新设置
-            const result = await hardwareAccelerationSettingsService.updateEnabled(enabled);
-
-            if (result.success) {
-                if (!enabled) {
-                    await this.restartApplication();
-                } else {
-                    this.showHardwareAccelerationEnabledNotification();
-                }
-            } else {
-                showToast('更新硬件加速设置失败', 'error');
-                this.hardwareAccelerationToggle.checked = !enabled;
-            }
-        } catch (error) {
-            showToast('处理硬件加速设置失败', 'error');
-            this.hardwareAccelerationToggle.checked = !enabled;
-        }
-    }
-
-    // 显示硬件加速确认对话框
-    async showHardwareAccelerationConfirmDialog(): Promise<boolean> {
-        const message = '关闭硬件加速可能会降低应用性能，但可以解决某些显卡兼容性问题。\n\n更改此设置需要重启应用才能生效。\n\n是否要关闭硬件加速并立即重启应用？';
-        return await settingsInteractionService.confirm({
-            title: '硬件加速设置',
-            message: message,
-            confirmText: '重启应用',
-            type: 'warning'
-        });
-    }
-
-    // 重启应用
-    async restartApplication(): Promise<void> {
-        try {
-            showToast('正在重启应用...', 'info');
-            setTimeout(async () => {
-                try {
-                    await hardwareAccelerationSettingsService.restartApplication();
-                } catch (error) {
-                    showToast('重启应用失败，请手动重启', 'error');
-                }
-            }, 1000);
-        } catch (error) {
-            showToast('重启应用失败，请手动重启', 'error');
-        }
-    }
-
-    // 显示硬件加速启用通知
-    showHardwareAccelerationEnabledNotification(): void {
-        showToast('硬件加速已启用，建议重启应用以获得最佳性能', 'success');
-    }
-
-    // 打开应用数据文件夹
-    async handleOpenUserDataFolder(): Promise<void> {
-        const result = await hardwareAccelerationSettingsService.openUserDataFolder();
-        if (result.success) {
-            showToast('已打开应用数据文件夹', 'success');
-        } else {
-            showToast('打开文件夹失败', 'error');
-            console.error('❌ Settings: 打开应用数据文件夹失败:', result.error);
-        }
-    }
-
-    // 打开开发者工具
-    async handleOpenDevTools(): Promise<void> {
-        const result = await hardwareAccelerationSettingsService.openDevTools();
-        if (result.success) {
-            showToast('开发者工具已打开', 'success');
-        } else {
-            showToast('打开开发者工具失败', 'error');
-            console.error('❌ Settings: 打开开发者工具失败:', result.error);
         }
     }
 

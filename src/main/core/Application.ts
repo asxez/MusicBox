@@ -48,12 +48,14 @@ export class Application {
     private configManager: ConfigManager;
     private controllers: BaseController[] = [];
     private isInitialized = false;
+    private isConfigured = false;
     private perfTimer = new PerformanceTimer();
 
     constructor() {
         this.container = new ServiceContainer();
         this.configManager = new ConfigManager();
         this.windowManager = new WindowManager();
+        this.applyConfiguration();
     }
 
     /**
@@ -143,19 +145,28 @@ export class Application {
      * 应用配置
      */
     private applyConfiguration(): void {
+        if (this.isConfigured) {
+            return;
+        }
+
         console.log('🔧 应用配置...');
 
         // 硬件加速设置
         const hardwareAcceleration = this.configManager.loadHardwareAccelerationSettings();
         if (!hardwareAcceleration) {
             console.log('🔧 禁用硬件加速');
-            app.disableHardwareAcceleration();
+            if (app.isReady()) {
+                console.warn('⚠️ 硬件加速只能在 app ready 前禁用，本次启动已跳过');
+            } else {
+                app.disableHardwareAcceleration();
+            }
         } else {
             console.log('✅ 硬件加速已启用');
         }
 
         // GC 标志
         app.commandLine.appendSwitch('js-flags', '--expose-gc');
+        this.isConfigured = true;
     }
 
     /**
