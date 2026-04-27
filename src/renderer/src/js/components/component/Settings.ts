@@ -19,6 +19,10 @@ import {hardwareAccelerationSettingsService} from "@services/settings/HardwareAc
 import {lyricsAppearanceSettingsService} from "@services/settings/LyricsAppearanceSettingsService";
 import {musicFolderListRenderer} from "@services/settings/MusicFolderListRenderer";
 import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySettingsService";
+import {
+    mediaDirectorySettingsRenderer,
+    type MediaDirectoryElements
+} from "@services/settings/MediaDirectorySettingsRenderer";
 import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
 import {settingsInteractionService} from "@services/settings/SettingsInteractionService";
 import {settingsPanelVisibilityService} from "@services/settings/SettingsPanelVisibilityService";
@@ -356,8 +360,7 @@ class Settings extends Component {
                 const selectedPath = await mediaDirectorySettingsService.selectDirectory();
                 if (selectedPath) {
                     this.updateSetting('lyricsDirectory', selectedPath);
-                    this.lyricsFolderPath.textContent = selectedPath;
-                    this.lyricsFolderPath.classList.add('selected');
+                    mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'lyrics', selectedPath);
 
                     // 更新本地歌词管理器
                     mediaDirectorySettingsService.applyLyricsDirectory(selectedPath);
@@ -372,8 +375,7 @@ class Settings extends Component {
                 const selectedPath = await mediaDirectorySettingsService.selectDirectory();
                 if (selectedPath) {
                     this.updateSetting('coverCacheDirectory', selectedPath);
-                    this.coverCacheFolderPath.textContent = selectedPath;
-                    this.coverCacheFolderPath.classList.add('selected');
+                    mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'coverCache', selectedPath);
 
                     // 更新本地封面管理器
                     mediaDirectorySettingsService.applyCoverDirectory(selectedPath);
@@ -589,14 +591,12 @@ class Settings extends Component {
         // 初始化本地歌词目录
         const lyricsDirectory = initialValues.lyricsDirectory;
         if (lyricsDirectory) {
-            this.lyricsFolderPath.textContent = lyricsDirectory;
-            this.lyricsFolderPath.classList.add('selected');
+            mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'lyrics', lyricsDirectory);
 
             // 设置本地歌词管理器
             mediaDirectorySettingsService.applyLyricsDirectory(lyricsDirectory);
         } else {
-            this.lyricsFolderPath.textContent = '未选择';
-            this.lyricsFolderPath.classList.remove('selected');
+            mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'lyrics', null);
         }
 
         // 初始化封面缓存目录
@@ -728,17 +728,14 @@ class Settings extends Component {
 
             // 设置封面缓存目录
             if (coverCacheDirectory) {
-                this.coverCacheFolderPath.textContent = coverCacheDirectory;
-                this.coverCacheFolderPath.classList.add('selected');
+                mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'coverCache', coverCacheDirectory);
                 mediaDirectorySettingsService.applyCoverDirectory(coverCacheDirectory);
             } else {
-                this.coverCacheFolderPath.textContent = '未选择';
-                this.coverCacheFolderPath.classList.remove('selected');
+                mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'coverCache', null);
             }
         } catch (error) {
             console.error('❌ Settings: 初始化封面缓存目录失败:', error);
-            this.coverCacheFolderPath.textContent = '未选择';
-            this.coverCacheFolderPath.classList.remove('selected');
+            mediaDirectorySettingsRenderer.updateDirectory(this.getMediaDirectoryElements(), 'coverCache', null);
         }
     }
 
@@ -1373,6 +1370,13 @@ class Settings extends Component {
             highlightColorValue: this.miniModeHighlightColorValue,
             fontSizeSlider: this.miniModeFontSizeSlider,
             fontSizeValue: this.miniModeFontSizeValue
+        };
+    }
+
+    private getMediaDirectoryElements(): MediaDirectoryElements {
+        return {
+            lyricsFolderPath: this.lyricsFolderPath,
+            coverCacheFolderPath: this.coverCacheFolderPath
         };
     }
 }
