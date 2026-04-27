@@ -42,13 +42,9 @@ import {settingsPageVisibilityService} from "@services/settings/SettingsPageVisi
 import {settingsSectionNavigationService} from "@services/settings/SettingsSectionNavigationService";
 import {settingsStore, type SettingValue} from "@services/settings/SettingsStore";
 import {
-    shortcutSettingsService,
-    type ShortcutConflict,
-    type ShortcutMap,
-    type ShortcutType
-} from "@services/settings/ShortcutSettingsService";
-import {shortcutDialogService} from "@services/settings/ShortcutDialogService";
-import {shortcutListRenderer} from "@services/settings/ShortcutListRenderer";
+    shortcutSettingsController,
+    type ShortcutSettingsElements
+} from "@services/settings/ShortcutSettingsController";
 import {traySettingsService} from "@services/settings/TraySettingsService";
 import {Component} from "@components/base/Component";
 import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
@@ -408,7 +404,10 @@ class Settings extends Component {
         });
 
         // 快捷键配置事件监听器
-        this.setupShortcutEventListeners();
+        shortcutSettingsController.initialize(
+            this.getShortcutSettingsElements(),
+            () => this.emit('shortcutsUpdated')
+        );
 
         // 网络磁盘功能开关
         this.networkDriveToggle.addEventListener('change', (e: Event) => {
@@ -832,157 +831,6 @@ class Settings extends Component {
         }
     }
 
-    // 快捷键配置相关方法
-    setupShortcutEventListeners(): void {
-        // 全局快捷键开关
-        this.globalShortcutsToggle.addEventListener('change', async (e: Event) => {
-            await this.toggleGlobalShortcuts(getInputTarget(e).checked);
-        });
-
-        // 重置快捷键按钮
-        this.resetShortcutsBtn.addEventListener('click', async () => {
-            await this.showResetShortcutsDialog();
-        });
-
-        // 初始化快捷键配置
-        this.initializeShortcuts();
-    }
-
-    initializeShortcuts(): void {
-        const config = shortcutSettingsService.getConfig();
-
-        // 设置全局快捷键开关状态
-        this.globalShortcutsToggle.checked = config.enableGlobalShortcuts;
-        this.updateGlobalShortcutsVisibility(config.enableGlobalShortcuts);
-
-        // 渲染快捷键列表
-        this.renderShortcutsList('local', config.localShortcuts);
-        this.renderShortcutsList('global', config.globalShortcuts);
-
-        // 延迟初始化折叠功能，确保DOM完全渲染
-        shortcutSettingsService.initializeCollapsibleShortcuts();
-    }
-
-    renderShortcutsList(type: ShortcutType, shortcuts: ShortcutMap): void {
-        const container = type === 'local' ? this.localShortcutsList : this.globalShortcutsList;
-        shortcutListRenderer.render({
-            container,
-            type,
-            shortcuts,
-            onRecord: (shortcutType, id, keyElement) => this.startRecordingShortcut(shortcutType, id, keyElement),
-            onToggle: (shortcutType, id, enabled) => this.toggleShortcut(shortcutType, id, enabled)
-        });
-    }
-
-    startRecordingShortcut(type: ShortcutType, id: string, element: HTMLElement): void {
-        shortcutSettingsService.startRecording(element, async (shortcutString: string) => {
-            await this.handleShortcutRecorded(type, id, shortcutString);
-        });
-    }
-
-    async handleShortcutRecorded(type: ShortcutType, id: string, shortcutString: string): Promise<void> {
-        // 检查冲突
-        const conflicts = shortcutSettingsService.checkConflicts(type, id, shortcutString);
-        if (conflicts.length > 0) {
-            await this.showShortcutConflict(conflicts, shortcutString, async () => {
-                // 用户确认覆盖
-                await this.updateShortcut(type, id, shortcutString);
-            });
-        } else {
-            await this.updateShortcut(type, id, shortcutString);
-        }
-    }
-
-    async updateShortcut(type: ShortcutType, id: string, shortcutString: string): Promise<void> {
-        try {
-            const success = await shortcutSettingsService.updateShortcut(type, id, shortcutString);
-            if (success) {
-                shortcutListRenderer.updateShortcutKey(type, id, shortcutString);
-                showToast('快捷键已更新', 'success');
-
-                // 通知应用更新快捷键
-                this.emit('shortcutsUpdated');
-            } else {
-                showToast('快捷键更新失败', 'error');
-            }
-        } catch (error) {
-            console.error('❌ 更新快捷键失败:', error);
-            showToast('快捷键更新失败', 'error');
-        }
-    }
-
-    toggleShortcut(type: ShortcutType, id: string, enabled: boolean): void {
-        const success = shortcutSettingsService.setShortcutEnabled(type, id, enabled);
-
-        if (success) {
-            shortcutListRenderer.updateShortcutEnabled(type, id, enabled);
-
-            showToast(enabled ? '快捷键已启用' : '快捷键已禁用', 'success');
-            this.emit('shortcutsUpdated');
-        } else {
-            showToast('快捷键状态更新失败', 'error');
-        }
-    }
-
-    async toggleGlobalShortcuts(enabled: boolean): Promise<void> {
-        try {
-            const success = await shortcutSettingsService.setGlobalShortcutsEnabled(enabled);
-            if (success) {
-                this.updateGlobalShortcutsVisibility(enabled);
-                // 刷新快捷键摘要
-                shortcutSettingsService.refreshSummary();
-                showToast(enabled ? '全局快捷键已启用' : '全局快捷键已禁用', 'success');
-                this.emit('shortcutsUpdated');
-            } else {
-                showToast('全局快捷键设置失败', 'error');
-                // 恢复开关状态
-                this.globalShortcutsToggle.checked = !enabled;
-            }
-        } catch (error) {
-            showToast('全局快捷键设置失败', 'error');
-            // 恢复开关状态
-            this.globalShortcutsToggle.checked = !enabled;
-        }
-    }
-
-    updateGlobalShortcutsVisibility(visible: boolean): void {
-        shortcutListRenderer.updateGlobalShortcutsVisibility(this.globalShortcutsGroup, visible);
-    }
-
-    async showShortcutConflict(conflicts: ShortcutConflict[], newShortcut: string, onConfirm: () => void | Promise<void>): Promise<void> {
-        const confirmed = await settingsInteractionService.confirm(
-            shortcutDialogService.createConflictConfirmOptions(conflicts, newShortcut)
-        );
-
-        if (confirmed) {
-            await onConfirm();
-        }
-    }
-
-    async showResetShortcutsDialog(): Promise<void> {
-        const confirmed = await settingsInteractionService.confirm(
-            shortcutDialogService.createResetConfirmOptions()
-        );
-
-        if (confirmed) {
-            this.resetShortcuts();
-        }
-    }
-
-    resetShortcuts(): void {
-        const success = shortcutSettingsService.resetToDefaults();
-        if (success) {
-            // 重新初始化快捷键配置
-            this.initializeShortcuts();
-            // 刷新摘要
-            shortcutSettingsService.refreshSummary();
-            showToast('快捷键已重置为默认设置', 'success');
-            this.emit('shortcutsUpdated');
-        } else {
-            showToast('重置快捷键失败', 'error');
-        }
-    }
-
     // 网络磁盘相关方法
 
     // 切换网络磁盘配置区域显示
@@ -1188,6 +1036,16 @@ class Settings extends Component {
     private getEmbeddedLyricsDiagnosticsElements(): EmbeddedLyricsDiagnosticsElements {
         return {
             testButton: this.testEmbeddedLyricsBtn
+        };
+    }
+
+    private getShortcutSettingsElements(): ShortcutSettingsElements {
+        return {
+            globalShortcutsToggle: this.globalShortcutsToggle,
+            resetShortcutsButton: this.resetShortcutsBtn,
+            localShortcutsList: this.localShortcutsList,
+            globalShortcutsList: this.globalShortcutsList,
+            globalShortcutsGroup: this.globalShortcutsGroup
         };
     }
 }
