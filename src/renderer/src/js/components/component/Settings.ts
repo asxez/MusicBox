@@ -27,6 +27,10 @@ import {
     embeddedLyricsDiagnosticsRenderer,
     type EmbeddedLyricsDiagnosticsElements
 } from "@services/settings/EmbeddedLyricsDiagnosticsRenderer";
+import {
+    generalSettingsController,
+    type GeneralSettingsElements
+} from "@services/settings/GeneralSettingsController";
 import {hardwareAccelerationSettingsController} from "@services/settings/HardwareAccelerationSettingsController";
 import {musicFolderListRenderer} from "@services/settings/MusicFolderListRenderer";
 import {musicFolderSettingsController} from "@services/settings/MusicFolderSettingsController";
@@ -205,80 +209,11 @@ class Settings extends Component {
     }
 
     setupEventListeners(): void {
-        // 侧边栏导航事件
-        this.navButtons.forEach((button: HTMLElement) => {
-            button.addEventListener('click', (e: Event) => {
-                const section = (e.currentTarget as HTMLElement).dataset.section || 'appearance';
-                this.switchToSection(section);
-            });
-        });
-
-        // 关闭按钮事件
-        this.closeBtn.addEventListener('click', () => {
-            this.hide();
-        });
-
-        // 语言设置
-        this.languageSelect.addEventListener('change', (e: Event) => {
-            const target = getSelectTarget(e);
-            this.updateSetting('language', target.value);
-            this.emit('languageChanged', target.value);
-        });
-
-        // 各种开关设置
-        this.autoplayToggle.addEventListener('change', (e: Event) => {
-            this.updateSetting('autoplay', getInputTarget(e).checked);
-        });
-
-        this.rememberPositionToggle.addEventListener('change', (e: Event) => {
-            this.updateSetting('rememberPosition', getInputTarget(e).checked);
-        });
-
-        // 桌面歌词设置 - 控制按钮显示/隐藏
-        this.desktopLyricsToggle.addEventListener('change', async (e: Event) => {
-            const target = getInputTarget(e);
-            this.updateSetting('desktopLyrics', target.checked);
-            this.emit('desktopLyricsEnabled', target.checked);
-
-            // 如果禁用功能，同时隐藏已打开的桌面歌词窗口
-            if (!target.checked) {
-                await displayModeSettingsController.hideDesktopLyrics();
-            }
-        });
-
-        // 统计信息设置 - 控制侧边栏统计按钮显示/隐藏
-        this.statisticsToggle.addEventListener('change', (e: Event) => {
-            const target = getInputTarget(e);
-            this.updateSetting('statistics', target.checked);
-            this.emit('statisticsEnabled', target.checked);
-        });
-
-        // 最近播放设置 - 控制侧边栏最近播放按钮显示/隐藏
-        this.recentPlayToggle.addEventListener('change', (e: Event) => {
-            const target = getInputTarget(e);
-            this.updateSetting('recentPlay', target.checked);
-            this.emit('recentPlayEnabled', target.checked);
-        });
-
-        // 艺术家页面设置 - 控制侧边栏艺术家按钮显示/隐藏
-        this.artistsPageToggle.addEventListener('change', (e: Event) => {
-            const target = getInputTarget(e);
-            this.updateSetting('artistsPage', target.checked);
-            this.emit('artistsPageEnabled', target.checked);
-        });
-
-        // 专辑页面设置
-        this.albumsPageToggle.addEventListener('change', (e: Event) => {
-            const target = getInputTarget(e);
-            this.updateSetting('albumsPage', target.checked);
-            this.emit('albumsPageEnabled', target.checked);
-        });
-
-        // 歌曲封面显示设置 - 控制歌曲列表中封面的显示/隐藏
-        this.showTrackCoversToggle.addEventListener('change', (e: Event) => {
-            const target = getInputTarget(e);
-            this.updateSetting('showTrackCovers', target.checked);
-            this.emit('showTrackCoversEnabled', target.checked);
+        generalSettingsController.initialize(this.getGeneralSettingsElements(), {
+            hide: () => this.hide(),
+            switchToSection: (sectionName) => this.switchToSection(sectionName),
+            updateSetting: (key, value) => this.updateSetting(key, value),
+            emit: (eventName, ...args) => this.emit(eventName, ...args)
         });
 
         // 音频独占模式设置
@@ -299,13 +234,6 @@ class Settings extends Component {
             const mode = getSelectTarget(e).value as WasapiShareMode;
             this.updateSetting('wasapiShareMode', mode);
             await audioEngineSettingsController.switchWasapiShareMode(mode);
-        });
-
-        // 无间隙播放设置
-        this.gaplessPlaybackToggle.addEventListener('change', (e: Event) => {
-            const target = getInputTarget(e);
-            this.updateSetting('gaplessPlayback', target.checked);
-            this.emit('gaplessPlaybackEnabled', target.checked);
         });
 
         this.autoScanToggle.addEventListener('change', async (e: Event) => {
@@ -372,10 +300,6 @@ class Settings extends Component {
             }
         });
 
-        this.checkUpdatesBtn.addEventListener('click', () => {
-            this.emit('checkUpdates');
-        });
-
         // 前往仓库按钮事件
         this.goToRepositoryBtn.addEventListener('click', async () => {
             await this.openRepository();
@@ -408,14 +332,6 @@ class Settings extends Component {
             this.getShortcutSettingsElements(),
             () => this.emit('shortcutsUpdated')
         );
-
-        // 网络磁盘功能开关
-        this.networkDriveToggle.addEventListener('change', (e: Event) => {
-            const target = getInputTarget(e);
-            this.updateSetting('networkDriveEnabled', target.checked);
-            this.toggleNetworkDriveConfig(target.checked);
-            this.emit('networkDriveEnabled', target.checked);
-        });
 
         // 硬件加速功能开关
         this.hardwareAccelerationToggle.addEventListener('change', async (e: Event) => {
@@ -452,13 +368,6 @@ class Settings extends Component {
             this.updateSetting('lyricsHighlightColor', color);
             this.updateLyricsHighlightColor(color);
         });
-
-        // 添加网络磁盘按钮
-        if (this.addNetworkDriveBtn) {
-            this.addNetworkDriveBtn.addEventListener('click', () => {
-                this.showNetworkDriveModal();
-            });
-        }
 
         // 插件管理事件监听器
         if (this.openPluginManagerBtn) {
@@ -1046,6 +955,27 @@ class Settings extends Component {
             localShortcutsList: this.localShortcutsList,
             globalShortcutsList: this.globalShortcutsList,
             globalShortcutsGroup: this.globalShortcutsGroup
+        };
+    }
+
+    private getGeneralSettingsElements(): GeneralSettingsElements {
+        return {
+            navButtons: this.navButtons,
+            closeButton: this.closeBtn,
+            languageSelect: this.languageSelect,
+            autoplayToggle: this.autoplayToggle,
+            rememberPositionToggle: this.rememberPositionToggle,
+            desktopLyricsToggle: this.desktopLyricsToggle,
+            statisticsToggle: this.statisticsToggle,
+            recentPlayToggle: this.recentPlayToggle,
+            artistsPageToggle: this.artistsPageToggle,
+            albumsPageToggle: this.albumsPageToggle,
+            showTrackCoversToggle: this.showTrackCoversToggle,
+            gaplessPlaybackToggle: this.gaplessPlaybackToggle,
+            networkDriveToggle: this.networkDriveToggle,
+            networkDriveConfig: this.networkDriveConfig,
+            checkUpdatesButton: this.checkUpdatesBtn,
+            addNetworkDriveButton: this.addNetworkDriveBtn
         };
     }
 }
