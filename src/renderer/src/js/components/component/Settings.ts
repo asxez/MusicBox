@@ -5,7 +5,6 @@
 import {showToast} from '@utils/index.js';
 import {appInfoSettingsService} from "@services/settings/AppInfoSettingsService";
 import {audioEngineSettingsController} from "@services/settings/AudioEngineSettingsController";
-import {cacheMaintenanceService} from "@services/settings/CacheMaintenanceService";
 import {
     cacheSettingsRenderer,
     type CacheSettingsElements
@@ -30,6 +29,7 @@ import {
 } from "@services/settings/EmbeddedLyricsDiagnosticsRenderer";
 import {hardwareAccelerationSettingsController} from "@services/settings/HardwareAccelerationSettingsController";
 import {musicFolderListRenderer} from "@services/settings/MusicFolderListRenderer";
+import {musicFolderSettingsController} from "@services/settings/MusicFolderSettingsController";
 import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySettingsService";
 import {
     mediaDirectorySettingsRenderer,
@@ -1061,59 +1061,16 @@ class Settings extends Component {
     }
 
     async handleAddMusicFolder(): Promise<void> {
-        try {
-            const selectedPath = await musicFolderSettingsService.selectMusicFolder();
-            if (selectedPath) {
-                const addResult = await musicFolderSettingsService.addMusicFolder(selectedPath);
-                if (addResult.success) {
-                    this.renderMusicFolders(addResult.folders);
-                    showToast('文件夹已添加', 'success');
-
-                    // 询问是否立即扫描
-                    const shouldScan = await settingsInteractionService.confirm({
-                        title: '扫描文件夹',
-                        message: '是否立即扫描该文件夹？',
-                        confirmText: '扫描'
-                    });
-
-                    if (shouldScan) {
-                        showToast('正在扫描...', 'info');
-                        await musicFolderSettingsService.scanDirectory(selectedPath);
-                        showToast('扫描完成', 'success');
-                    }
-                } else {
-                    showToast(addResult.error || '添加文件夹失败', 'error');
-                }
-            }
-        } catch (error) {
-            console.error('❌ Settings: 添加音乐文件夹失败:', error);
-            showToast('添加文件夹失败', 'error');
+        const folders = await musicFolderSettingsController.addMusicFolder();
+        if (folders) {
+            this.renderMusicFolders(folders);
         }
     }
 
     async handleRemoveMusicFolder(folderPath: string): Promise<void> {
-        const confirmed = await settingsInteractionService.confirm({
-            title: '移除文件夹',
-            message: `确定要移除文件夹吗？\n\n${folderPath}\n\n移除后该文件夹中的音乐将不会被自动扫描。`,
-            confirmText: '移除',
-            type: 'warning'
-        });
-
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-            const result = await musicFolderSettingsService.removeMusicFolder(folderPath);
-            if (result.success) {
-                this.renderMusicFolders(result.folders);
-                showToast('文件夹已移除', 'success');
-            } else {
-                showToast(result.error || '移除文件夹失败', 'error');
-            }
-        } catch (error) {
-            console.error('❌ Settings: 移除音乐文件夹失败:', error);
-            showToast('移除文件夹失败', 'error');
+        const folders = await musicFolderSettingsController.removeMusicFolder(folderPath);
+        if (folders) {
+            this.renderMusicFolders(folders);
         }
     }
 
@@ -1127,34 +1084,13 @@ class Settings extends Component {
     }
 
     async handleAutoScanToggle(enabled: boolean): Promise<void> {
-        try {
-            const result = await musicFolderSettingsService.updateAutoScanEnabled(enabled);
-            if (result.success) {
-                this.toggleScanFrequencyVisibility(enabled);
-                showToast(enabled ? '自动扫描已启用' : '自动扫描已禁用', 'success');
-            } else {
-                showToast('更新自动扫描设置失败', 'error');
-                this.autoScanToggle.checked = !enabled;
-            }
-        } catch (error) {
-            console.error('❌ Settings: 更新自动扫描设置失败:', error);
-            showToast('更新自动扫描设置失败', 'error');
-            this.autoScanToggle.checked = !enabled;
-        }
+        const result = await musicFolderSettingsController.toggleAutoScan(enabled);
+        this.autoScanToggle.checked = result.checked;
+        this.toggleScanFrequencyVisibility(result.checked);
     }
 
     async handleScanFrequencyChange(frequency: string): Promise<void> {
-        try {
-            const result = await musicFolderSettingsService.updateScanFrequency(frequency);
-            if (result.success) {
-                showToast('扫描频率已更新', 'success');
-            } else {
-                showToast('更新扫描频率失败', 'error');
-            }
-        } catch (error) {
-            console.error('❌ Settings: 更新扫描频率失败:', error);
-            showToast('更新扫描频率失败', 'error');
-        }
+        await musicFolderSettingsController.updateScanFrequency(frequency);
     }
 
     toggleScanFrequencyVisibility(visible: boolean): void {
@@ -1162,28 +1098,7 @@ class Settings extends Component {
     }
 
     async handleClearIgnoreList(): Promise<void> {
-        const confirmed = await settingsInteractionService.confirm({
-            title: '清空忽略列表',
-            message: '确定要清空忽略列表吗？\n\n清空后,之前手动删除的歌曲在下次自动扫描时会被重新添加到音乐库。',
-            confirmText: '清空',
-            type: 'warning'
-        });
-
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-            const result = await cacheMaintenanceService.clearIgnoreList();
-            if (result.success) {
-                showToast('忽略列表已清空', 'success');
-            } else {
-                showToast('清空忽略列表失败', 'error');
-            }
-        } catch (error) {
-            console.error('❌ Settings: 清空忽略列表失败:', error);
-            showToast('清空忽略列表失败', 'error');
-        }
+        await musicFolderSettingsController.clearIgnoreList();
     }
 
     // 桌面歌词设置相关方法
