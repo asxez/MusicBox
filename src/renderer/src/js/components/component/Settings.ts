@@ -25,6 +25,7 @@ import {
     type ShortcutMap,
     type ShortcutType
 } from "@services/settings/ShortcutSettingsService";
+import {shortcutDialogService} from "@services/settings/ShortcutDialogService";
 import {shortcutListRenderer} from "@services/settings/ShortcutListRenderer";
 import {traySettingsService} from "@services/settings/TraySettingsService";
 import {Component} from "@components/base/Component";
@@ -1005,10 +1006,6 @@ class Settings extends Component {
         });
     }
 
-    formatShortcutKey(key: string): string {
-        return shortcutListRenderer.formatKey(key);
-    }
-
     startRecordingShortcut(type: ShortcutType, id: string, element: HTMLElement): void {
         shortcutSettingsService.startRecording(element, async (shortcutString: string) => {
             await this.handleShortcutRecorded(type, id, shortcutString);
@@ -1085,14 +1082,9 @@ class Settings extends Component {
     }
 
     async showShortcutConflict(conflicts: ShortcutConflict[], newShortcut: string, onConfirm: () => void | Promise<void>): Promise<void> {
-        const conflictNames = conflicts.map(c => `${c.name} (${c.type === 'local' ? '应用内' : '全局'})`).join('、');
-        const message = `快捷键 "${this.formatShortcutKey(newShortcut)}" 与以下快捷键冲突：\n${conflictNames}\n\n是否要覆盖现有快捷键？`;
-        const confirmed = await settingsInteractionService.confirm({
-            title: '快捷键冲突',
-            message: message,
-            confirmText: '覆盖',
-            type: 'warning'
-        });
+        const confirmed = await settingsInteractionService.confirm(
+            shortcutDialogService.createConflictConfirmOptions(conflicts, newShortcut)
+        );
 
         if (confirmed) {
             await onConfirm();
@@ -1100,13 +1092,9 @@ class Settings extends Component {
     }
 
     async showResetShortcutsDialog(): Promise<void> {
-        const message = '确定要将所有快捷键重置为默认设置吗？\n\n此操作将清除您的所有自定义快捷键配置。';
-        const confirmed = await settingsInteractionService.confirm({
-            title: '重置快捷键',
-            message: message,
-            confirmText: '重置',
-            type: 'warning'
-        });
+        const confirmed = await settingsInteractionService.confirm(
+            shortcutDialogService.createResetConfirmOptions()
+        );
 
         if (confirmed) {
             this.resetShortcuts();

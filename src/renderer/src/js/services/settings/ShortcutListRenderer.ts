@@ -1,3 +1,4 @@
+import {shortcutDialogService} from "@services/settings/ShortcutDialogService";
 import type {ShortcutDefinition, ShortcutMap, ShortcutType} from "@services/settings/ShortcutSettingsService";
 
 interface ShortcutListRenderOptions {
@@ -32,16 +33,7 @@ class ShortcutListRenderer {
             return '未设置';
         }
 
-        return key
-            .replace(/Ctrl/g, 'Ctrl')
-            .replace(/Alt/g, 'Alt')
-            .replace(/Shift/g, 'Shift')
-            .replace(/Cmd/g, '⌘')
-            .replace(/ArrowUp/g, '↑')
-            .replace(/ArrowDown/g, '↓')
-            .replace(/ArrowLeft/g, '←')
-            .replace(/ArrowRight/g, '→')
-            .replace(/Space/g, '空格');
+        return shortcutDialogService.formatShortcutKey(key);
     }
 
     updateShortcutKey(type: ShortcutType, id: string, shortcutString: string): void {
@@ -99,7 +91,7 @@ class ShortcutListRenderer {
         key.title = '点击修改快捷键';
         key.textContent = this.formatKey(shortcut.key);
         key.addEventListener('click', () => {
-            if (shortcut.enabled) {
+            if (!key.classList.contains('disabled')) {
                 onRecord(type, id, key);
             }
         });
