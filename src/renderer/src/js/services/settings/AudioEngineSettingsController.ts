@@ -1,12 +1,69 @@
 import {showToast} from "@utils/index.js";
 import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
 import {audioEngineSettingsService} from "@services/settings/AudioEngineSettingsService";
+import {settingsPanelVisibilityService} from "@services/settings/SettingsPanelVisibilityService";
+import type {SettingValue} from "@services/settings/SettingsStore";
 
 interface ExclusiveModeChangeResult {
     checked: boolean;
 }
 
+export interface AudioEngineSettingsElements {
+    exclusiveModeToggle: HTMLInputElement | null;
+    exclusiveModeItem: HTMLElement | null;
+    wasapiShareModeSelect: HTMLSelectElement | null;
+    wasapiShareModeItem: HTMLElement | null;
+}
+
+interface AudioEngineSettingsCallbacks {
+    updateSetting: (key: string, value: SettingValue) => void;
+}
+
 class AudioEngineSettingsController {
+    initialize(elements: AudioEngineSettingsElements, callbacks: AudioEngineSettingsCallbacks): void {
+        elements.exclusiveModeToggle?.addEventListener('change', async () => {
+            const enabled = Boolean(elements.exclusiveModeToggle?.checked);
+            callbacks.updateSetting('exclusiveMode', enabled);
+            this.toggleWasapiModeSelector(elements, enabled);
+
+            const result = await this.switchExclusiveMode(enabled);
+            if (elements.exclusiveModeToggle) {
+                elements.exclusiveModeToggle.checked = result.checked;
+            }
+            callbacks.updateSetting('exclusiveMode', result.checked);
+            this.toggleWasapiModeSelector(elements, result.checked);
+        });
+
+        elements.wasapiShareModeSelect?.addEventListener('change', async () => {
+            const mode = this.getSelectedShareMode(elements);
+            callbacks.updateSetting('wasapiShareMode', mode);
+            await this.switchWasapiShareMode(mode);
+        });
+    }
+
+    initializeExclusiveModeSettings(settings: MusicBoxSettings, elements: AudioEngineSettingsElements): void {
+        const exclusiveModeSettings = this.getExclusiveModeSettings(settings);
+
+        if (!exclusiveModeSettings.available) {
+            settingsPanelVisibilityService.showWasapiUnavailable(elements.exclusiveModeItem, elements.wasapiShareModeItem);
+            console.log('ℹ️ Settings: 非Windows平台，WASAPI引擎不可用');
+            return;
+        }
+
+        settingsPanelVisibilityService.showWasapiAvailable(elements.exclusiveModeItem);
+
+        if (elements.exclusiveModeToggle) {
+            elements.exclusiveModeToggle.checked = exclusiveModeSettings.enabled;
+        }
+
+        if (elements.wasapiShareModeSelect) {
+            elements.wasapiShareModeSelect.value = exclusiveModeSettings.shareMode;
+        }
+
+        this.toggleWasapiModeSelector(elements, exclusiveModeSettings.enabled);
+        console.log(`🎵 Settings: WASAPI引擎初始化完成，状态: ${exclusiveModeSettings.enabled ? '启用' : '禁用'}，模式: ${exclusiveModeSettings.shareMode}`);
+    }
+
     getExclusiveModeSettings(settings: MusicBoxSettings) {
         return audioEngineSettingsService.getExclusiveModeSettings(settings);
     }
@@ -36,6 +93,14 @@ class AudioEngineSettingsController {
 
         console.error('❌ Settings: WASAPI模式切换失败:', result.error);
         showToast(result.error || 'WASAPI模式切换失败', 'error');
+    }
+
+    private toggleWasapiModeSelector(elements: AudioEngineSettingsElements, enabled: boolean): void {
+        settingsPanelVisibilityService.toggleWasapiModeSelector(elements.wasapiShareModeItem, enabled);
+    }
+
+    private getSelectedShareMode(elements: AudioEngineSettingsElements): WasapiShareMode {
+        return elements.wasapiShareModeSelect?.value === 'shared' ? 'shared' : 'exclusive';
     }
 }
 

@@ -4,7 +4,10 @@
 
 import {showToast} from '@utils/index.js';
 import {appInfoSettingsService} from "@services/settings/AppInfoSettingsService";
-import {audioEngineSettingsController} from "@services/settings/AudioEngineSettingsController";
+import {
+    audioEngineSettingsController,
+    type AudioEngineSettingsElements
+} from "@services/settings/AudioEngineSettingsController";
 import {displayModeSettingsController} from "@services/settings/DisplayModeSettingsController";
 import {
     displayModeSettingsRenderer,
@@ -32,9 +35,12 @@ import {
     shortcutSettingsController,
     type ShortcutSettingsElements
 } from "@services/settings/ShortcutSettingsController";
-import {traySettingsService} from "@services/settings/TraySettingsService";
+import {
+    traySettingsController,
+    type TraySettingsElements
+} from "@services/settings/TraySettingsController";
 import {Component} from "@components/base/Component";
-import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
+import type {MusicBoxSettings} from "@api/types/settings";
 
 const getInputTarget = (event: Event): HTMLInputElement => event.target as HTMLInputElement;
 const getSelectTarget = (event: Event): HTMLSelectElement => event.target as HTMLSelectElement;
@@ -199,24 +205,8 @@ class Settings extends Component {
             emit: (eventName, ...args) => this.emit(eventName, ...args)
         });
 
-        // 音频独占模式设置
-        this.exclusiveModeToggle.addEventListener('change', async (e: Event) => {
-            const target = getInputTarget(e);
-            const enabled = target.checked;
-            this.updateSetting('exclusiveMode', enabled);
-            this.toggleWasapiModeSelector(enabled);
-
-            const result = await audioEngineSettingsController.switchExclusiveMode(enabled);
-            target.checked = result.checked;
-            this.updateSetting('exclusiveMode', result.checked);
-            this.toggleWasapiModeSelector(result.checked);
-        });
-
-        // WASAPI模式选择
-        this.wasapiShareModeSelect.addEventListener('change', async (e: Event) => {
-            const mode = getSelectTarget(e).value as WasapiShareMode;
-            this.updateSetting('wasapiShareMode', mode);
-            await audioEngineSettingsController.switchWasapiShareMode(mode);
+        audioEngineSettingsController.initialize(this.getAudioEngineSettingsElements(), {
+            updateSetting: (key, value) => this.updateSetting(key, value)
         });
 
         this.autoScanToggle.addEventListener('change', async (e: Event) => {
@@ -233,24 +223,8 @@ class Settings extends Component {
             await this.handleScanFrequencyChange(getSelectTarget(e).value);
         });
 
-        // 系统托盘设置
-        this.systemTrayToggle.addEventListener('change', async (e: Event) => {
-            const target = getInputTarget(e);
-            this.updateSetting('systemTray', target.checked);
-            this.toggleTraySettings(target.checked);
-            await traySettingsService.updateEnabled(target.checked);
-        });
-
-        this.trayCloseBehaviorSelect.addEventListener('change', async (e: Event) => {
-            const target = getSelectTarget(e);
-            this.updateSetting('trayCloseBehavior', target.value);
-            await traySettingsService.updateCloseBehavior(target.value);
-        });
-
-        this.trayStartMinimizedToggle.addEventListener('change', async (e: Event) => {
-            const target = getInputTarget(e);
-            this.updateSetting('trayStartMinimized', target.checked);
-            await traySettingsService.updateStartMinimized(target.checked);
+        traySettingsController.initialize(this.getTraySettingsElements(), {
+            updateSetting: (key, value) => this.updateSetting(key, value)
         });
 
         settingsToolsController.initialize(this.getSettingsToolsElements(), {
@@ -410,7 +384,7 @@ class Settings extends Component {
         this.systemTrayToggle.checked = initialValues.systemTray;
         this.trayCloseBehaviorSelect.value = initialValues.trayCloseBehavior;
         this.trayStartMinimizedToggle.checked = initialValues.trayStartMinimized;
-        this.toggleTraySettings(this.systemTrayToggle.checked);
+        traySettingsController.toggleSettings(this.getTraySettingsElements(), this.systemTrayToggle.checked);
 
         // 初始化媒体目录
         settingsToolsController.initializeLyricsDirectory(this.settings, this.getSettingsToolsElements());
@@ -477,46 +451,9 @@ class Settings extends Component {
         return settingsStore.get(this.settings, key, defaultValue);
     }
 
-    // 切换托盘设置显示
-    toggleTraySettings(enabled: boolean): void {
-        settingsPanelVisibilityService.toggleTraySettings(
-            this.trayCloseBehaviorItem,
-            this.trayStartMinimizedItem,
-            enabled
-        );
-    }
-
-    // 切换WASAPI模式选择器显示
-    toggleWasapiModeSelector(enabled: boolean): void {
-        settingsPanelVisibilityService.toggleWasapiModeSelector(this.wasapiShareModeItem, enabled);
-    }
-
     // 初始化音频独占模式设置
     initializeExclusiveModeSettings(): void {
-        const exclusiveModeSettings = audioEngineSettingsController.getExclusiveModeSettings(this.settings);
-
-        if (!exclusiveModeSettings.available) {
-            settingsPanelVisibilityService.showWasapiUnavailable(this.exclusiveModeItem, this.wasapiShareModeItem);
-            console.log('ℹ️ Settings: 非Windows平台，WASAPI引擎不可用');
-            return;
-        }
-
-        settingsPanelVisibilityService.showWasapiAvailable(this.exclusiveModeItem);
-
-        // 初始化开关状态
-        const exclusiveModeEnabled = exclusiveModeSettings.enabled;
-        this.exclusiveModeToggle.checked = exclusiveModeEnabled;
-
-        // 初始化WASAPI模式选择器
-        const wasapiShareMode = exclusiveModeSettings.shareMode;
-        if (this.wasapiShareModeSelect) {
-            this.wasapiShareModeSelect.value = wasapiShareMode;
-        }
-
-        // 根据WASAPI引擎是否启用来显示/隐藏模式选择器
-        this.toggleWasapiModeSelector(exclusiveModeEnabled);
-
-        console.log(`🎵 Settings: WASAPI引擎初始化完成，状态: ${exclusiveModeEnabled ? '启用' : '禁用'}，模式: ${wasapiShareMode}`);
+        audioEngineSettingsController.initializeExclusiveModeSettings(this.settings, this.getAudioEngineSettingsElements());
     }
 
     // 初始化硬件加速设置
@@ -747,6 +684,25 @@ class Settings extends Component {
             lyricsHighlightOpacityValue: this.lyricsHighlightOpacityValue,
             lyricsHighlightColorInput: this.lyricsHighlightColor,
             lyricsHighlightColorValue: this.lyricsHighlightColorValue
+        };
+    }
+
+    private getAudioEngineSettingsElements(): AudioEngineSettingsElements {
+        return {
+            exclusiveModeToggle: this.exclusiveModeToggle,
+            exclusiveModeItem: this.exclusiveModeItem,
+            wasapiShareModeSelect: this.wasapiShareModeSelect,
+            wasapiShareModeItem: this.wasapiShareModeItem
+        };
+    }
+
+    private getTraySettingsElements(): TraySettingsElements {
+        return {
+            systemTrayToggle: this.systemTrayToggle,
+            trayCloseBehaviorSelect: this.trayCloseBehaviorSelect,
+            trayStartMinimizedToggle: this.trayStartMinimizedToggle,
+            trayCloseBehaviorItem: this.trayCloseBehaviorItem,
+            trayStartMinimizedItem: this.trayStartMinimizedItem
         };
     }
 }
