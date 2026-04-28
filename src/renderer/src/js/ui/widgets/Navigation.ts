@@ -5,8 +5,8 @@
 import {theme} from "@js/utils";
 import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
-import {app} from "@core/app";
 import {navigationDataService} from "@services/navigation/NavigationDataService";
+import {navigationInteractionService} from "@services/navigation/NavigationInteractionService";
 import type {Playlist} from "@api/types/playlist";
 import type {AppView, ConfirmOptions} from "@core/types/app";
 import type {Unsubscribe} from "@api/types/common";
@@ -528,7 +528,7 @@ class Navigation extends Component {
             confirmText: '删除',
             type: 'danger'
         };
-        const confirmed = await app.confirm(confirmOptions);
+        const confirmed = await navigationInteractionService.confirm(confirmOptions);
 
         if (!confirmed) {
             return;
@@ -538,14 +538,14 @@ class Navigation extends Component {
             const result = await navigationDataService.deletePlaylist(playlist.id);
             if (result.success) {
                 await this.refreshPlaylists();
-                app.showInfo(`歌单 "${playlist.name}" 已删除`);
+                navigationInteractionService.showInfo(`歌单 "${playlist.name}" 已删除`);
             } else {
                 console.error('❌ Navigation: 歌单删除失败', result.error);
-                app.showError(result.error || '删除失败');
+                navigationInteractionService.showError(result.error || '删除失败');
             }
         } catch (error) {
             console.error('❌ Navigation: 歌单删除失败', error);
-            app.showError('删除失败，请重试');
+            navigationInteractionService.showError('删除失败，请重试');
         }
     }
 
@@ -660,10 +660,10 @@ class Navigation extends Component {
         try {
             await navigationDataService.refreshNetworkDrive(drive.id);
             await this.loadNetworkDrives();
-            app.showInfo(`网络磁盘 "${drive.displayName || drive.config?.displayName || '未命名磁盘'}" 已刷新`);
+            navigationInteractionService.showInfo(`网络磁盘 "${drive.displayName || drive.config?.displayName || '未命名磁盘'}" 已刷新`);
         } catch (error) {
             console.error('❌ Navigation: 刷新网络磁盘失败', error);
-            app.showError('刷新失败，请重试');
+            navigationInteractionService.showError('刷新失败，请重试');
         }
     }
 
