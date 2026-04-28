@@ -1,4 +1,5 @@
 import {api} from "@api/api";
+import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
 import type {AppView, ComponentMap, RendererAppContext} from "@core/types/app";
@@ -246,6 +247,7 @@ export class ComponentEventBinder {
         });
 
         components.settings.on('showTrackCoversEnabled', async (enabled: boolean) => {
+            trackCoverDisplayPreferenceService.setEnabled(enabled);
             if (enabled && app.isInitialized) {
                 await app.preloadTrackCovers();
             }
@@ -376,6 +378,10 @@ export class ComponentEventBinder {
 
                     this.components.networkDriveDetailPage.on('playTracks', async (tracks: Track[]) => {
                         await app.handlePlayAllTracks(tracks);
+                    });
+
+                    this.components.networkDriveDetailPage.on('trackRightClick', (track: Track, index: number, x: number, y: number) => {
+                        this.components.contextMenu.show(x, y, track, index);
                     });
                 }
                 break;

@@ -2,11 +2,14 @@
  * 网络磁盘详情页组件
  */
 
-import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
-import {libraryAPI} from "@js/api";
-import {libraryGateway, networkDriveGateway} from "@js/infrastructure/electron";
+import {
+    networkDriveDetailService,
+    type SingleFileScanResult
+} from "@services/networkDrive/NetworkDriveDetailService";
+import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
+import type {Unsubscribe} from "@api/types/common";
 import type {Track} from "@api/types/track";
 import type {ScanProgress} from "@api/types/events";
 import type {
@@ -24,13 +27,6 @@ type NetworkDrive = MountedNetworkDrive & {
     };
 };
 
-interface SingleFileScanResult {
-    success: boolean;
-    track?: Track;
-    error?: string;
-    isNew?: boolean;
-}
-
 class NetworkDriveDetailPage extends Component {
     isVisible: boolean;
     currentDrive: NetworkDrive | null;
@@ -42,6 +38,7 @@ class NetworkDriveDetailPage extends Component {
     directoryStructure: NetworkDriveDirectoryItem[];
     showCovers: boolean;
     container: HTMLElement | null = null;
+    private coverDisplayPreferenceUnsubscribe: Unsubscribe | null = null;
 
     constructor(container: string | Element | null) {
         super(container);
@@ -100,29 +97,29 @@ class NetworkDriveDetailPage extends Component {
         }
     }
 
+    destroy(): void {
+        if (this.coverDisplayPreferenceUnsubscribe) {
+            this.coverDisplayPreferenceUnsubscribe();
+            this.coverDisplayPreferenceUnsubscribe = null;
+        }
+        super.destroy();
+    }
+
     setupElements(): void {
         this.container = this.element as HTMLElement | null;
     }
 
     getShowCoversSettings(): boolean {
-        const settings = cacheManager.getLocalCache<Record<string, boolean>>('musicbox-settings') || {};
-        return Object.prototype.hasOwnProperty.call(settings, 'showTrackCovers') ? settings.showTrackCovers : true;
+        return trackCoverDisplayPreferenceService.isEnabled();
     }
 
     setupSettingsListener(): void {
-        const setupListener = () => {
-            if (app?.components?.settings) {
-                app.components.settings.on('showTrackCoversEnabled', (enabled: boolean) => {
-                    this.showCovers = enabled;
-                    if (this.isVisible) {
-                        this.render();
-                    }
-                });
-            } else {
-                setTimeout(setupListener, 100);
+        this.coverDisplayPreferenceUnsubscribe = trackCoverDisplayPreferenceService.onChanged((enabled) => {
+            this.showCovers = enabled;
+            if (this.isVisible) {
+                this.render();
             }
-        };
-        setupListener();
+        });
     }
 
     async loadDriveStatus(): Promise<void> {
@@ -131,7 +128,7 @@ class NetworkDriveDetailPage extends Component {
         }
 
         try {
-            this.driveStatus = await networkDriveGateway.getStatus(this.currentDrive.id);
+            this.driveStatus = await networkDriveDetailService.getStatus(this.currentDrive.id);
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 加载磁盘状态失败', error);
             this.driveStatus = null;
@@ -144,7 +141,7 @@ class NetworkDriveDetailPage extends Component {
         }
 
         try {
-            this.tracks = await libraryAPI.getTracksByDrive(this.currentDrive.id);
+            this.tracks = await networkDriveDetailService.getTracksByDrive(this.currentDrive.id);
             console.log(`📀 NetworkDriveDetailPage: 加载了 ${this.tracks.length} 首歌曲`);
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 加载歌曲失败', error);
@@ -158,7 +155,7 @@ class NetworkDriveDetailPage extends Component {
         }
 
         try {
-            const result = await networkDriveGateway.getDirectoryStructure(this.currentDrive.id, path);
+            const result = await networkDriveDetailService.getDirectoryStructure(this.currentDrive.id, path);
             if (result.success) {
                 this.directoryStructure = result.structure || [];
                 console.log(`📁 NetworkDriveDetailPage: 加载了 ${this.directoryStructure.length} 个项目`);
@@ -302,7 +299,7 @@ class NetworkDriveDetailPage extends Component {
         }
 
         try {
-            await networkDriveGateway.refreshConnection(this.currentDrive.id);
+            await networkDriveDetailService.refreshConnection(this.currentDrive.id);
             await this.loadDriveStatus();
             this.render();
             const displayName = this.currentDrive.config?.displayName || this.currentDrive.displayName || '未命名磁盘';
@@ -322,12 +319,12 @@ class NetworkDriveDetailPage extends Component {
         this.showScanTip();
 
         // 监听扫描进度
-        const removeListener = libraryGateway.onScanProgress((progress) => {
+        const removeListener = networkDriveDetailService.onScanProgress((progress) => {
             this.updateScanTip(progress);
         });
 
         try {
-            const result = await libraryAPI.scanNetworkDrive(this.currentDrive.id, '/');
+            const result = await networkDriveDetailService.scanNetworkDrive(this.currentDrive.id, '/');
 
             if (result) {
                 await this.loadDriveTracks();
@@ -411,9 +408,9 @@ class NetworkDriveDetailPage extends Component {
         }
 
         try {
-            const result = await libraryAPI.removeTracksByDrive(this.currentDrive.id);
+            const result = await networkDriveDetailService.removeTracksByDrive(this.currentDrive.id);
             if (result.success) {
-                await networkDriveGateway.unmount(this.currentDrive.id);
+                await networkDriveDetailService.unmount(this.currentDrive.id);
 
                 this.emit('driveRemoved', this.currentDrive);
 
@@ -460,7 +457,7 @@ class NetworkDriveDetailPage extends Component {
                 console.log('🎵 NetworkDriveDetailPage: 文件未在缓存中，开始扫描...');
                 app.showInfo('正在加载音乐...');
 
-                const result = await libraryAPI.scanSingleFile(networkPath) as SingleFileScanResult;
+                const result = await networkDriveDetailService.scanSingleFile(networkPath) as SingleFileScanResult;
 
                 if (result.success && result.track) {
                     // 扫描成功，添加到本地 tracks 列表
@@ -500,9 +497,7 @@ class NetworkDriveDetailPage extends Component {
 
             if (track) {
                 // 如果已经在缓存中，显示完整的右键菜单
-                if (app && app.components && app.components.contextMenu) {
-                    app.components.contextMenu.show(x, y, track, 0);
-                }
+                this.emit('trackRightClick', track, 0, x, y);
             } else {
                 // 如果不在缓存中，创建临时 track 对象并显示右键菜单
                 // 当用户点击播放等操作时，会自动触发扫描
@@ -516,9 +511,7 @@ class NetworkDriveDetailPage extends Component {
                     needsScan: true // 标记需要扫描
                 };
 
-                if (app && app.components && app.components.contextMenu) {
-                    app.components.contextMenu.show(x, y, track, 0);
-                }
+                this.emit('trackRightClick', track, 0, x, y);
             }
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 显示右键菜单失败', error);

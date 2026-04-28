@@ -2,11 +2,12 @@
  * 歌单页组件
  */
 
-import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {app} from "@core/app";
+import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
 import {coverAPI, fileAPI, libraryAPI} from "@js/api";
+import type {Unsubscribe} from "@api/types/common";
 import type {Playlist, Track} from "@api/types/library";
 
 type PlaylistDetailTrack = Track & {
@@ -51,6 +52,7 @@ class PlaylistDetailPage extends Component {
     private lastSelectedIndex: number;
     private showCovers: boolean;
     private documentClickHandler: ((event: MouseEvent) => void) | null;
+    private coverDisplayPreferenceUnsubscribe: Unsubscribe | null = null;
 
     constructor(container: string | Element | null) {
         super(container);
@@ -113,31 +115,33 @@ class PlaylistDetailPage extends Component {
         }
     }
 
+    destroy(): void {
+        if (this.coverDisplayPreferenceUnsubscribe) {
+            this.coverDisplayPreferenceUnsubscribe();
+            this.coverDisplayPreferenceUnsubscribe = null;
+        }
+        if (this.documentClickHandler) {
+            document.removeEventListener('click', this.documentClickHandler);
+            this.documentClickHandler = null;
+        }
+        super.destroy();
+    }
+
     setupElements(): void {
         this.container = this.element instanceof HTMLElement ? this.element : null;
     }
 
     getShowCoversSettings(): boolean {
-        const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as Record<string, boolean>;
-        return Object.prototype.hasOwnProperty.call(settings, 'showTrackCovers') ? settings.showTrackCovers : true;
+        return trackCoverDisplayPreferenceService.isEnabled();
     }
 
     setupSettingsListener(): void {
-        // 延迟设置监听器，确保app.components.settings已初始化
-        const setupListener = () => {
-            if (app && app.components && app.components.settings) {
-                app.components.settings.on('showTrackCoversEnabled', (enabled: boolean) => {
-                    this.showCovers = enabled;
-                    if (this.isVisible) {
-                        this.render(); // 重新渲染列表
-                    }
-                });
-            } else {
-                // 如果还没有初始化，延迟重试
-                setTimeout(setupListener, 100);
+        this.coverDisplayPreferenceUnsubscribe = trackCoverDisplayPreferenceService.onChanged((enabled) => {
+            this.showCovers = enabled;
+            if (this.isVisible) {
+                this.render();
             }
-        };
-        setupListener();
+        });
     }
 
     render(): void {

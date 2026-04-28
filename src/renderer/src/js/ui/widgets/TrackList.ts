@@ -3,12 +3,12 @@
  */
 
 import {formatTime, sanitizeHTML} from "@utils/index.js";
-import {cacheManager} from "@services/CacheManager";
 import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
 import type {CoverUpdateData} from "@services/cover/CoverUpdateManager";
+import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
 import {Component} from "@components/base/Component";
-import {app} from "@core/app";
 import {coverAPI} from "@js/api";
+import type {Unsubscribe} from "@api/types/common";
 import type {Track} from "@api/types/track";
 
 type ExtendedCoverUpdateData = CoverUpdateData & {
@@ -24,6 +24,7 @@ class TrackList extends Component {
     lastTracksHash: string | null;
     coverObserver: IntersectionObserver | null;
     coverUpdateUnsubscribe: (() => void) | null = null;
+    coverDisplayPreferenceUnsubscribe: Unsubscribe | null = null;
     filteredTracks: Track[] = [];
     currentTrackIndex = -1;
 
@@ -91,6 +92,10 @@ class TrackList extends Component {
             this.coverUpdateUnsubscribe();
             this.coverUpdateUnsubscribe = null;
         }
+        if (this.coverDisplayPreferenceUnsubscribe) {
+            this.coverDisplayPreferenceUnsubscribe();
+            this.coverDisplayPreferenceUnsubscribe = null;
+        }
         this.tracks = [];
         this.filteredTracks = [];
         this.currentTrackIndex = -1;
@@ -99,8 +104,7 @@ class TrackList extends Component {
     }
 
     getShowCoversSettings(): boolean {
-        const settings = cacheManager.getLocalCache<Record<string, boolean>>('musicbox-settings') || {};
-        return Object.prototype.hasOwnProperty.call(settings, 'showTrackCovers') ? settings.showTrackCovers : true;
+        return trackCoverDisplayPreferenceService.isEnabled();
     }
 
     // 生成tracks的简单哈希值
@@ -112,17 +116,10 @@ class TrackList extends Component {
     }
 
     setupSettingsListener(): void {
-        const setupListener = () => {
-            if (app && app.components && app.components.settings) {
-                app.components.settings.on('showTrackCoversEnabled', (enabled: boolean) => {
-                    this.showCovers = enabled;
-                    this.render();
-                });
-            } else {
-                setTimeout(setupListener, 100);
-            }
-        };
-        setupListener();
+        this.coverDisplayPreferenceUnsubscribe = trackCoverDisplayPreferenceService.onChanged((enabled) => {
+            this.showCovers = enabled;
+            this.render();
+        });
     }
 
     setupCoverUpdateListener(): void {
