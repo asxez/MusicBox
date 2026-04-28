@@ -3,7 +3,6 @@
  */
 
 import {Component} from "@components/base/Component";
-import {app} from "@core/app";
 import {libraryAPI} from "@js/api";
 import type {Playlist, Track} from "@api/types/library";
 
@@ -337,13 +336,13 @@ class MusicLibrarySelectionDialog extends Component {
             this.hide();
 
             if (failCount === 0) {
-                app.showInfo(`成功添加 ${successCount} 首歌曲到歌单`);
+                this.emit('notification', {type: 'info', message: `成功添加 ${successCount} 首歌曲到歌单`});
             } else {
-                app.showInfo(`添加完成：成功 ${successCount} 首，失败 ${failCount} 首`);
+                this.emit('notification', {type: 'info', message: `添加完成：成功 ${successCount} 首，失败 ${failCount} 首`});
             }
         } catch (error) {
             console.error('❌ 批量添加歌曲失败:', error);
-            app.showError('添加歌曲失败，请重试');
+            this.emit('notification', {type: 'error', message: '添加歌曲失败，请重试'});
         } finally {
             // 恢复按钮状态
             this.confirmBtn.disabled = false;

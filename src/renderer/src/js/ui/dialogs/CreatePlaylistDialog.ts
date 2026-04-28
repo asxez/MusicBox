@@ -3,7 +3,6 @@
  */
 
 import {Component} from "@components/base/Component";
-import {app} from "@core/app";
 import {libraryAPI} from "@js/api";
 
 interface TrackToAdd {
@@ -165,7 +164,7 @@ class CreatePlaylistDialog extends Component {
                 // 触发歌单创建事件
                 this.emit('playlistCreated', result.playlist);
                 this.hide();
-                app.showInfo(`歌单 "${name}" 创建成功`);
+                this.emit('notification', {type: 'info', message: `歌单 "${name}" 创建成功`});
             } else {
                 this.showError(result.error || '创建歌单失败');
             }

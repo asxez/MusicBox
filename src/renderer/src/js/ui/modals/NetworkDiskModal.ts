@@ -3,8 +3,7 @@
  */
 
 import {Component} from "@components/base/Component";
-import {api} from "@api/api";
-import {libraryGateway, networkDriveGateway} from "@js/infrastructure/electron";
+import {networkDriveManagementService} from "@services/networkDrive/NetworkDriveManagementService";
 import type {ScanProgress} from "@api/types/events";
 import type {MountedNetworkDrive, NetworkDriveConfig} from "@api/types/electron";
 import type {Unsubscribe} from "@api/types/common";
@@ -296,7 +295,7 @@ class NetworkDiskModal extends Component {
         this.testConnectionBtn.textContent = '测试中...';
 
         try {
-            const success = await networkDriveGateway.testConnection(config);
+            const success = await networkDriveManagementService.testConnection(config);
             if (success) {
                 this.showConnectionTestResult(true, '连接测试成功');
             } else {
@@ -322,12 +321,7 @@ class NetworkDiskModal extends Component {
         this.networkDriveConfirm.textContent = '添加中...';
 
         try {
-            let success = false;
-            if (config.type === 'smb') {
-                success = await networkDriveGateway.mountSMB(config);
-            } else if (config.type === 'webdav') {
-                success = await networkDriveGateway.mountWebDAV(config);
-            }
+            const success = await networkDriveManagementService.mount(config);
 
             if (success) {
                 this.hide();
@@ -356,17 +350,17 @@ class NetworkDiskModal extends Component {
         }
 
         // 监听网络磁盘事件
-        this.networkDriveUnsubscribers.push(networkDriveGateway.onConnected(async (driveId, config) => {
+        this.networkDriveUnsubscribers.push(networkDriveManagementService.onConnected(async (driveId, config) => {
             await this.refreshMountedDrivesList();
             this.emit('driveConnected', driveId, config);
         }));
 
-        this.networkDriveUnsubscribers.push(networkDriveGateway.onDisconnected(async (driveId, config) => {
+        this.networkDriveUnsubscribers.push(networkDriveManagementService.onDisconnected(async (driveId, config) => {
             await this.refreshMountedDrivesList();
             this.emit('driveDisconnected', driveId, config);
         }));
 
-        this.networkDriveUnsubscribers.push(networkDriveGateway.onError((_driveId, error) => {
+        this.networkDriveUnsubscribers.push(networkDriveManagementService.onError((_driveId, error) => {
             this.showNotification(`网络磁盘错误: ${error}`, 'error');
         }));
 
@@ -377,7 +371,7 @@ class NetworkDiskModal extends Component {
     // 刷新已挂载的磁盘列表
     async refreshMountedDrivesList(): Promise<void> {
         try {
-            const mountedDrives = await networkDriveGateway.getMountedDrives();
+            const mountedDrives = await networkDriveManagementService.getMountedDrives();
             this.renderMountedDrivesList(mountedDrives);
         } catch (error) {
             console.error('❌ 获取挂载磁盘列表失败:', error);
@@ -451,13 +445,12 @@ class NetworkDiskModal extends Component {
         this.showScanTip(driveId);
 
         // 监听扫描进度
-        const removeListener = libraryGateway.onScanProgress((progress) => {
+        const removeListener = networkDriveManagementService.onScanProgress((progress) => {
             this.updateScanTip(driveId, progress);
         });
 
         try {
-            // 使用API层的统一方法
-            const success = await api.scanNetworkDrive(driveId, '/');
+            const success = await networkDriveManagementService.scanNetworkDrive(driveId, '/');
 
             if (success) {
                 this.showNotification('网络磁盘扫描完成', 'success');
@@ -527,7 +520,7 @@ class NetworkDiskModal extends Component {
         try {
             console.log(`🔄 NetworkDiskModal: 开始卸载网络磁盘 ${driveId}`);
 
-            const success = await networkDriveGateway.unmount(driveId);
+            const success = await networkDriveManagementService.unmount(driveId);
             if (success) {
                 console.log(`✅ NetworkDiskModal: 网络磁盘 ${driveId} 卸载成功`);
 
@@ -559,7 +552,7 @@ class NetworkDiskModal extends Component {
             this.refreshDrivesBtn.disabled = true;
             this.refreshDrivesBtn.textContent = '刷新中...';
 
-            const success = await networkDriveGateway.refreshConnections();
+            const success = await networkDriveManagementService.refreshConnections();
             if (success) {
                 this.showNotification('网络磁盘状态刷新完成', 'success');
                 // 刷新显示列表

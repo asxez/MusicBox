@@ -3,7 +3,6 @@
  */
 
 import {Component} from "@components/base/Component";
-import {app} from "@core/app";
 import {libraryAPI} from "@js/api";
 
 interface PlaylistLike {
@@ -148,7 +147,7 @@ class RenamePlaylistDialog extends Component {
                 this.emit('playlistRenamed', result.playlist);
                 this.hide();
 
-                app.showInfo(`歌单已重命名为 "${newName}"`);
+                this.emit('notification', {type: 'info', message: `歌单已重命名为 "${newName}"`});
             } else {
                 this.showError('重命名失败');
                 console.error(result);

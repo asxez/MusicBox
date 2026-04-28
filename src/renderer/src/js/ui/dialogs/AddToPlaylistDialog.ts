@@ -3,7 +3,6 @@
  */
 
 import {Component} from "@components/base/Component";
-import {app} from "@core/app";
 import {libraryAPI} from "@js/api";
 import type {Playlist, Track} from "@api/types/library";
 
@@ -132,7 +131,7 @@ class AddToPlaylistDialog extends Component {
 
     async addToPlaylist(playlistId: string): Promise<void> {
         if (!this.currentTrack?.fileId) {
-            app.showError('当前歌曲缺少文件标识，无法添加到歌单');
+            this.emit('notification', {type: 'error', message: '当前歌曲缺少文件标识，无法添加到歌单'});
             return;
         }
 
@@ -143,18 +142,18 @@ class AddToPlaylistDialog extends Component {
             );
             if (result.success) {
                 const playlist = this.playlists.find(p => p.id === playlistId);
-                app.showInfo(`已添加到歌单 "${playlist?.name || '未知'}"`);
+                this.emit('notification', {type: 'info', message: `已添加到歌单 "${playlist?.name || '未知'}"`});
 
                 // 触发添加成功事件
                 this.emit('trackAdded', {playlist, track: this.currentTrack});
                 this.hide();
             } else {
                 console.error('❌ 添加到歌单失败:', result.error);
-                app.showError(result.error || '添加到歌单失败');
+                this.emit('notification', {type: 'error', message: result.error || '添加到歌单失败'});
             }
         } catch (error) {
             console.error('❌ 添加到歌单失败:', error);
-            app.showError('添加到歌单失败，请重试');
+            this.emit('notification', {type: 'error', message: '添加到歌单失败，请重试'});
         }
     }
 

@@ -31,6 +31,11 @@ interface PlaylistTrackAddedPayload {
     track: Track;
 }
 
+interface ComponentNotificationPayload {
+    message: string;
+    type?: 'info' | 'success' | 'error' | 'warning';
+}
+
 export class ComponentEventBinder {
     private readonly app: RendererAppContext;
     private readonly components: ComponentMap;
@@ -139,6 +144,9 @@ export class ComponentEventBinder {
         components.createPlaylistDialog.on('playlistCreated', async (playlist: Playlist) => {
             await app.handlePlaylistCreated(playlist);
         });
+        components.createPlaylistDialog.on('notification', (data: ComponentNotificationPayload) => {
+            this.showNotification(data);
+        });
 
         components.addToPlaylistDialog.on('createNewPlaylist', (track: Track) => {
             components.createPlaylistDialog.show(track);
@@ -147,13 +155,22 @@ export class ComponentEventBinder {
         components.addToPlaylistDialog.on('trackAdded', async ({playlist, track}: PlaylistTrackAddedPayload) => {
             await app.handleTrackAddedToPlaylist(playlist, track);
         });
+        components.addToPlaylistDialog.on('notification', (data: ComponentNotificationPayload) => {
+            this.showNotification(data);
+        });
 
         components.renamePlaylistDialog.on('playlistRenamed', async (playlist: Playlist) => {
             await app.handlePlaylistRenamed(playlist);
         });
+        components.renamePlaylistDialog.on('notification', (data: ComponentNotificationPayload) => {
+            this.showNotification(data);
+        });
 
         components.musicLibrarySelectionDialog.on('tracksAdded', async (data: unknown) => {
             await app.handleTracksAddedToPlaylist(data);
+        });
+        components.musicLibrarySelectionDialog.on('notification', (data: ComponentNotificationPayload) => {
+            this.showNotification(data);
         });
 
         components.editTrackInfoDialog.on('trackUpdated', async (data: unknown) => {
@@ -360,8 +377,8 @@ export class ComponentEventBinder {
 
             case 'networkDiskModal':
                 if (this.components.networkDiskModal) {
-                    this.components.networkDiskModal.on('notification', (data: {message: string}) => {
-                        app.showSuccess(data.message);
+                    this.components.networkDiskModal.on('notification', (data: ComponentNotificationPayload) => {
+                        this.showNotification(data);
                     });
                 }
                 break;
@@ -388,6 +405,22 @@ export class ComponentEventBinder {
 
             default:
                 console.warn('🎵 App: 未知的组件名称:', componentName);
+        }
+    }
+
+    private showNotification(data: ComponentNotificationPayload): void {
+        switch (data.type) {
+            case 'success':
+                this.app.showSuccess(data.message);
+                break;
+            case 'error':
+                this.app.showError(data.message);
+                break;
+            case 'info':
+            case 'warning':
+            default:
+                this.app.showInfo(data.message);
+                break;
         }
     }
 }
