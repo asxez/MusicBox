@@ -4,7 +4,6 @@
 
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
-import {app} from "@core/app";
 import {fileAPI, libraryAPI, userDataAPI} from "@js/api";
 import type {Track} from "@api/types/library";
 
@@ -36,11 +35,7 @@ class HomePage extends Component {
 
         // 只有在没有tracks数据时才获取，避免重复调用
         if (!this.tracks || this.tracks.length === 0) {
-            if (app && Array.isArray(app.library) && app.library.length > 0) {
-                this.tracks = app.library as Track[];
-            } else {
-                this.tracks = await libraryAPI.getTracks();
-            }
+            this.tracks = await libraryAPI.getTracks();
             this._lastTracksHash = this._generateTracksHash(this.tracks);
         }
 
@@ -103,7 +98,7 @@ class HomePage extends Component {
         if (focusBtn) {
             focusBtn.addEventListener('click', () => {
                 this.toggleFocusMode();
-                app.components.lyrics.toggleFullscreen();
+                this.emit('toggleLyricsFullscreen');
             });
         }
 

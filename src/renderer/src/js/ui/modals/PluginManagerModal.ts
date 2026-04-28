@@ -5,23 +5,13 @@
 import {showToast} from "@utils/index.js";
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
-import {extensionsGateway} from "@js/infrastructure/electron";
+import {
+    pluginManagerService,
+    type PluginExtension
+} from "@services/plugins/PluginManagerService";
 import type {ConfirmOptions} from "@core/types/app";
-import type {ExtensionDescriptor} from "@extensions/core/ExtensionsRegistry";
 
 type ToastType = 'info' | 'success' | 'error' | 'warning';
-
-type PluginExtension = ExtensionDescriptor & {
-    isActive?: boolean;
-};
-
-interface PluginExtensionService {
-    getExtensions(): PluginExtension[];
-    installExtensionFromFile(filePath: string): Promise<unknown>;
-    enableExtension(extensionId: string): Promise<void>;
-    disableExtension(extensionId: string): Promise<void>;
-    uninstallExtensionFromDisk(extensionId: string): Promise<void>;
-}
 
 class PluginManagerModal extends Component {
     isVisible: boolean;
@@ -91,20 +81,20 @@ class PluginManagerModal extends Component {
     setupEventListeners(): void {
         // 关闭按钮
         if (this.closeBtn) {
-            this.closeBtn.addEventListener('click', () => {
+            this.addEventListenerManaged(this.closeBtn, 'click', () => {
                 this.hide();
             });
         }
 
         // 安装按钮
         if (this.installBtn) {
-            this.installBtn.addEventListener('click', async () => {
+            this.addEventListenerManaged(this.installBtn, 'click', async () => {
                 await this.handleInstallExtension();
             });
         }
 
         // ESC 键关闭
-        document.addEventListener('keydown', (e) => {
+        this.addEventListenerManaged(document, 'keydown', (e) => {
             if (e.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
@@ -116,8 +106,7 @@ class PluginManagerModal extends Component {
      */
     async loadPluginList(): Promise<void> {
         try {
-            const extensionService = this.getExtensionService();
-            if (!extensionService) {
+            if (!pluginManagerService.isAvailable()) {
                 console.warn('⚠️ PluginManagerModal: 扩展服务未初始化');
                 return;
             }
@@ -132,7 +121,7 @@ class PluginManagerModal extends Component {
             this.pluginListEmpty.style.display = 'none';
 
             // 获取所有扩展
-            const extensions = extensionService.getExtensions();
+            const extensions = pluginManagerService.getExtensions();
 
             if (extensions.length === 0) {
                 this.pluginListLoading.style.display = 'none';
@@ -269,20 +258,12 @@ class PluginManagerModal extends Component {
      */
     async handleInstallExtension(): Promise<void> {
         try {
-            const extensionService = this.getExtensionService();
-            if (!extensionService) {
+            if (!pluginManagerService.isAvailable()) {
                 this.showNotification('扩展服务未初始化', 'error');
                 return;
             }
 
-            // 选择扩展包文件
-            const filePath = await extensionsGateway.selectPackage();
-            if (!filePath) {
-                return;
-            }
-
-            console.log('📦 PluginManagerModal: 调用 ExtensionService.installExtensionFromFile');
-            await extensionService.installExtensionFromFile(filePath);
+            await pluginManagerService.selectAndInstallExtension();
 
             // 刷新插件列表
             await this.loadPluginList();
@@ -297,13 +278,12 @@ class PluginManagerModal extends Component {
      */
     async handleEnableExtension(extensionId: string, _extensionName: string): Promise<void> {
         try {
-            const extensionService = this.getExtensionService();
-            if (!extensionService) {
+            if (!pluginManagerService.isAvailable()) {
                 this.showNotification('扩展服务未初始化', 'error');
                 return;
             }
 
-            await extensionService.enableExtension(extensionId);
+            await pluginManagerService.enableExtension(extensionId);
             await this.loadPluginList();
         } catch (error) {
             console.error('❌ PluginManagerModal: 启用扩展失败:', error);
@@ -316,13 +296,12 @@ class PluginManagerModal extends Component {
      */
     async handleDisableExtension(extensionId: string, _extensionName: string): Promise<void> {
         try {
-            const extensionService = this.getExtensionService();
-            if (!extensionService) {
+            if (!pluginManagerService.isAvailable()) {
                 this.showNotification('扩展服务未初始化', 'error');
                 return;
             }
 
-            await extensionService.disableExtension(extensionId);
+            await pluginManagerService.disableExtension(extensionId);
             await this.loadPluginList();
         } catch (error) {
             console.error('❌ PluginManagerModal: 禁用扩展失败:', error);
@@ -335,8 +314,7 @@ class PluginManagerModal extends Component {
      */
     async handleUninstallExtension(extensionId: string, extensionName: string): Promise<void> {
         try {
-            const extensionService = this.getExtensionService();
-            if (!extensionService) {
+            if (!pluginManagerService.isAvailable()) {
                 this.showNotification('扩展服务未初始化', 'error');
                 return;
             }
@@ -353,7 +331,7 @@ class PluginManagerModal extends Component {
                 return;
             }
 
-            await extensionService.uninstallExtensionFromDisk(extensionId);
+            await pluginManagerService.uninstallExtension(extensionId);
             await this.loadPluginList();
         } catch (error) {
             console.error('❌ PluginManagerModal: 卸载扩展失败:', error);
@@ -375,10 +353,6 @@ class PluginManagerModal extends Component {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
-    }
-
-    getExtensionService(): PluginExtensionService | null {
-        return window.extensionService as PluginExtensionService | null | undefined || null;
     }
 
     getErrorMessage(error: unknown): string {

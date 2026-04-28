@@ -291,6 +291,10 @@ export class ComponentEventBinder {
             this.components.navigation.navigateToView(view);
         });
 
+        this.components.homePage.on('toggleLyricsFullscreen', () => {
+            this.components.lyrics.toggleFullscreen();
+        });
+
         if (this.components.recentPage) {
             this.setupSingleComponentEvents('recentPage');
         }
