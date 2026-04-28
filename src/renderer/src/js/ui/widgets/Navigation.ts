@@ -6,9 +6,11 @@ import {theme} from "@js/utils";
 import {cacheManager} from "@services/CacheManager";
 import {Component} from "@components/base/Component";
 import {app} from "@core/app";
+import {navigationDataService} from "@services/navigation/NavigationDataService";
 import type {Playlist} from "@api/types/playlist";
 import type {AppView, ConfirmOptions} from "@core/types/app";
-import type {Result, Unsubscribe} from "@api/types/common";
+import type {Unsubscribe} from "@api/types/common";
+import type {MountedNetworkDrive} from "@api/types/electron";
 
 type SidebarView = AppView;
 
@@ -17,32 +19,7 @@ interface SidebarPlaylist extends Playlist {
     trackIds?: string[];
 }
 
-interface NetworkDrive {
-    id: string;
-    type?: string;
-    displayName?: string;
-    config?: {
-        displayName?: string;
-    };
-    [key: string]: unknown;
-}
-
-interface NetworkDriveAPI {
-    getMountedDrives(): Promise<NetworkDrive[] | null | undefined>;
-    onConnected(callback: () => void | Promise<void>): Unsubscribe;
-    onDisconnected(callback: () => void | Promise<void>): Unsubscribe;
-    refreshConnection(driveId: string): Promise<unknown>;
-}
-
-interface DeletePlaylistResult extends Result {
-    error?: string;
-}
-
-interface NavigationWindow extends Window {
-    electronAPI: Window['electronAPI'] & {
-        networkDrive: NetworkDriveAPI;
-    };
-}
+type NetworkDrive = MountedNetworkDrive;
 
 interface WindowStateResult {
     status: boolean;
@@ -55,6 +32,9 @@ class Navigation extends Component {
     userPlaylists: SidebarPlaylist[];
     networkDrives: NetworkDrive[];
     removeLibraryUpdatedListener: Unsubscribe | null = null;
+    removeWindowMaximizedListener: Unsubscribe | null = null;
+    removeNetworkDriveConnectedListener: Unsubscribe | null = null;
+    removeNetworkDriveDisconnectedListener: Unsubscribe | null = null;
     isMaximized = false;
 
     backBtn!: HTMLElement | null;
@@ -100,16 +80,8 @@ class Navigation extends Component {
         });
     }
 
-    get electronAPI(): NavigationWindow['electronAPI'] {
-        return (window as unknown as NavigationWindow).electronAPI;
-    }
-
     setupLibraryUpdateListener(): void {
-        if (!this.electronAPI?.library?.onLibraryUpdated) {
-            return;
-        }
-
-        this.removeLibraryUpdatedListener = this.electronAPI.library.onLibraryUpdated(async () => {
+        this.removeLibraryUpdatedListener = navigationDataService.onLibraryUpdated(async () => {
             await this.refreshPlaylists();
         });
     }
@@ -187,7 +159,7 @@ class Navigation extends Component {
         });
 
         // 监听窗口最大化状态变化
-        this.electronAPI.window.onMaximizedChanged((isMaximized) => {
+        this.removeWindowMaximizedListener = navigationDataService.onWindowMaximizedChanged((isMaximized) => {
             this.updateMaximizeButton(isMaximized);
         });
 
@@ -213,11 +185,11 @@ class Navigation extends Component {
         });
 
         // 监听网络磁盘事件
-        this.electronAPI.networkDrive.onConnected(async () => {
+        this.removeNetworkDriveConnectedListener = navigationDataService.onNetworkDriveConnected(async () => {
             await this.loadNetworkDrives();
         });
 
-        this.electronAPI.networkDrive.onDisconnected(async () => {
+        this.removeNetworkDriveDisconnectedListener = navigationDataService.onNetworkDriveDisconnected(async () => {
             await this.loadNetworkDrives();
         });
     }
@@ -267,7 +239,7 @@ class Navigation extends Component {
     // 窗口控制方法
     async minimizeWindow(): Promise<void> {
         try {
-            await this.electronAPI.window.minimize();
+            await navigationDataService.minimizeWindow();
             console.log('🎵 Navigation: 窗口最小化');
         } catch (error) {
             console.error('❌ Navigation: 窗口最小化失败', error);
@@ -276,7 +248,7 @@ class Navigation extends Component {
 
     async toggleMaximizeWindow(): Promise<void> {
         try {
-            await this.electronAPI.window.maximize();
+            await navigationDataService.toggleMaximizeWindow();
             console.log('🎵 Navigation: 窗口最大化/还原切换');
         } catch (error) {
             console.error('❌ Navigation: 窗口最大化/还原失败', error);
@@ -285,7 +257,7 @@ class Navigation extends Component {
 
     async closeWindow(): Promise<void> {
         try {
-            await this.electronAPI.window.close();
+            await navigationDataService.closeWindow();
         } catch (error) {
             console.error('❌ Navigation: 窗口关闭失败', error);
         }
@@ -305,7 +277,7 @@ class Navigation extends Component {
 
     async initializeWindowState(): Promise<WindowStateResult> {
         try {
-            const isMaximized = await this.electronAPI.window.isMaximized();
+            const isMaximized = await navigationDataService.isWindowMaximized();
             this.updateMaximizeButton(isMaximized);
             return {
                 status: true,
@@ -406,7 +378,7 @@ class Navigation extends Component {
     // 加载用户歌单
     async loadUserPlaylists(): Promise<void> {
         try {
-            this.userPlaylists = await this.electronAPI.library.getPlaylists() as SidebarPlaylist[];
+            this.userPlaylists = await navigationDataService.getPlaylists() as SidebarPlaylist[];
             this.renderUserPlaylists();
             // console.log(`🎵 Navigation: 加载了 ${this.userPlaylists.length} 个用户歌单`);
         } catch (error) {
@@ -563,7 +535,7 @@ class Navigation extends Component {
         }
 
         try {
-            const result = await this.electronAPI.library.deletePlaylist(playlist.id) as DeletePlaylistResult;
+            const result = await navigationDataService.deletePlaylist(playlist.id);
             if (result.success) {
                 await this.refreshPlaylists();
                 app.showInfo(`歌单 "${playlist.name}" 已删除`);
@@ -587,7 +559,7 @@ class Navigation extends Component {
 
     async loadNetworkDrives(): Promise<void> {
         try {
-            const mountedDrives = await this.electronAPI.networkDrive.getMountedDrives();
+            const mountedDrives = await navigationDataService.getMountedNetworkDrives();
             this.networkDrives = mountedDrives || [];
             this.renderNetworkDrives();
             console.log(`✅ Navigation: 加载了 ${this.networkDrives.length} 个网络磁盘`);
@@ -686,7 +658,7 @@ class Navigation extends Component {
 
     async refreshNetworkDrive(drive: NetworkDrive): Promise<void> {
         try {
-            await this.electronAPI.networkDrive.refreshConnection(drive.id);
+            await navigationDataService.refreshNetworkDrive(drive.id);
             await this.loadNetworkDrives();
             app.showInfo(`网络磁盘 "${drive.displayName || drive.config?.displayName || '未命名磁盘'}" 已刷新`);
         } catch (error) {
@@ -706,6 +678,18 @@ class Navigation extends Component {
         if (this.removeLibraryUpdatedListener) {
             this.removeLibraryUpdatedListener();
             this.removeLibraryUpdatedListener = null;
+        }
+        if (this.removeWindowMaximizedListener) {
+            this.removeWindowMaximizedListener();
+            this.removeWindowMaximizedListener = null;
+        }
+        if (this.removeNetworkDriveConnectedListener) {
+            this.removeNetworkDriveConnectedListener();
+            this.removeNetworkDriveConnectedListener = null;
+        }
+        if (this.removeNetworkDriveDisconnectedListener) {
+            this.removeNetworkDriveDisconnectedListener();
+            this.removeNetworkDriveDisconnectedListener = null;
         }
 
         // 清理用户歌单数据

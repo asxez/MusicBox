@@ -126,6 +126,16 @@ export class LibraryAPI extends BaseAPI {
         );
     }
 
+    async deletePlaylist(playlistId: string): Promise<Result> {
+        Validator.assertNonEmptyString(playlistId, 'playlistId');
+
+        return this.wrapIPC(
+            () => libraryGateway.deletePlaylist(playlistId),
+            'library.deletePlaylist',
+            {success: false, error: '删除歌单失败'}
+        );
+    }
+
     async renamePlaylist(playlistId: string, newName: string): Promise<{success: boolean; playlist?: Playlist; error?: string}> {
         Validator.assertNonEmptyString(playlistId, 'playlistId');
         Validator.assertNonEmptyString(newName, 'newName');

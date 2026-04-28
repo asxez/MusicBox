@@ -38,41 +38,36 @@ import '@extensions/core/index.js';
 import '@extensions/api/index.js';
 
 // ============================================
-// 6. 导入页面组件
+// 6. 导入 UI 页面和组件
 // ============================================
-import '@components/component/ArtistsPage';
-import '@components/component/AlbumsPage';
-import '@components/component/ContextMenu';
-import '@components/component/EqualizerComponent';
-import '@components/component/HomePage';
-import '@components/component/Lyrics';
-import '@components/component/Navigation';
-import '@components/component/NetworkDiskModal';
-import '@components/component/NetworkDriveDetailPage';
-import '@components/component/Player';
-import '@components/component/Playlist';
-import '@components/component/PlaylistDetailPage';
-import '@components/component/PluginManagerModal';
-import '@components/component/RecentPage';
-import '@components/component/Search';
-import '@components/component/Settings';
-import '@components/component/StatisticsPage';
-import '@components/component/TrackList';
-import '@components/component/UpdateModal';
+import '@ui/pages/ArtistsPage';
+import '@ui/pages/AlbumsPage';
+import '@ui/pages/HomePage';
+import '@ui/pages/NetworkDriveDetailPage';
+import '@ui/pages/PlaylistDetailPage';
+import '@ui/pages/RecentPage';
+import '@ui/pages/Settings';
+import '@ui/pages/StatisticsPage';
+import '@ui/widgets/ContextMenu';
+import '@ui/widgets/EqualizerComponent';
+import '@ui/widgets/Lyrics';
+import '@ui/widgets/Navigation';
+import '@ui/widgets/Player';
+import '@ui/widgets/Playlist';
+import '@ui/widgets/Search';
+import '@ui/widgets/TrackList';
+import '@ui/modals/NetworkDiskModal';
+import '@ui/modals/PluginManagerModal';
+import '@ui/modals/UpdateModal';
 
 // ============================================
 // 7. 导入对话框组件
 // ============================================
-import '@components/dialogs/AddToPlaylistDialog';
-import '@components/dialogs/CreatePlaylistDialog';
-import '@components/dialogs/EditTrackInfoDialog';
-import '@components/dialogs/MusicLibrarySelectionDialog';
-import '@components/dialogs/RenamePlaylistDialog';
-
-// ============================================
-// 8. 导入组件索引
-// ============================================
-import '@components/index';
+import '@ui/dialogs/AddToPlaylistDialog';
+import '@ui/dialogs/CreatePlaylistDialog';
+import '@ui/dialogs/EditTrackInfoDialog';
+import '@ui/dialogs/MusicLibrarySelectionDialog';
+import '@ui/dialogs/RenamePlaylistDialog';
 
 // ============================================
 // 9. 导入主应用

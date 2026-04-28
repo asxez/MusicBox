@@ -27,6 +27,7 @@
       "@api/*": ["src/js/api/*"],
       "@pages/*": ["src/js/pages/*"],
       "@components/*": ["src/js/components/*"],
+      "@ui/*": ["src/js/ui/*"],
       "@extensions/*": ["src/js/extensions/*"],
       "@styles/*": ["src/styles/*"],
       "@assets/*": ["src/assets/*"]

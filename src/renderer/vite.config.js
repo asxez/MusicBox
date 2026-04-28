@@ -67,8 +67,8 @@ export default defineConfig({
             return 'extensions';
           }
 
-          // 组件
-          if (id.includes('components/') || id.includes('WasapiEngine')) {
+          // UI 组件
+          if (id.includes('components/') || id.includes('ui/') || id.includes('WasapiEngine')) {
             return 'components';
           }
         }
@@ -91,6 +91,7 @@ export default defineConfig({
       '@api': path.resolve(__dirname, 'src/js/api'),
       '@pages': path.resolve(__dirname, 'src/js/pages'),
       '@components': path.resolve(__dirname, 'src/js/components'),
+      '@ui': path.resolve(__dirname, 'src/js/ui'),
       '@extensions': path.resolve(__dirname, 'src/js/extensions'),
       '@styles': path.resolve(__dirname, 'src/styles'),
       '@assets': path.resolve(__dirname, 'src/assets'),

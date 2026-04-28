@@ -7,6 +7,7 @@ import {windowGateway} from '@js/infrastructure/electron';
 import {cacheManager} from '@services/CacheManager';
 import {BaseAPI, Validator} from "@api/core";
 import {WindowBounds, WindowSize} from "@api/types";
+import type {Unsubscribe} from "@api/types/common";
 
 /**
  * 窗口尺寸数据
@@ -260,6 +261,10 @@ export class WindowAPI extends BaseAPI {
             () => windowGateway.close(),
             'window.close'
         );
+    }
+
+    onMaximizedChanged(handler: (isMaximized: boolean) => void): Unsubscribe {
+        return windowGateway.onMaximizedChanged(handler);
     }
 
     /**
