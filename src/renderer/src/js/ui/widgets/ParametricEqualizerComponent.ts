@@ -5,8 +5,8 @@
 import {api} from "@api/api";
 import type {AudioEngineManagerBridge} from "@api/audio/AudioEngineAdapter";
 import {Component} from "@components/base/Component";
-import {app} from "@core/app";
 import {showInputDialog} from "@js/utils/InputDialog";
+import {appInteractionService} from "@services/ui/AppInteractionService";
 import type ParametricEqualizer from "@services/audio/ParametricEqualizer";
 import type {ParametricFilterType} from "@services/audio/ParametricEqualizerPresets";
 
@@ -692,10 +692,10 @@ class ParametricEqualizerComponent extends Component {
 
             // 选中新保存的预设
             this.presetSelector.value = `custom:${result.id}`;
-            app.showSuccess('预设保存成功！');
+            appInteractionService.showSuccess('预设保存成功！');
         } else {
             console.error('❌ 保存自定义预设失败:', result.error);
-            app.showError('保存预设失败');
+            appInteractionService.showError('保存预设失败');
         }
     }
 
@@ -707,13 +707,13 @@ class ParametricEqualizerComponent extends Component {
         if (result.success && result.preset) {
             await this.refresh();
             await this.equalizer.saveCurrentState(); // 保存状态
-            app.showSuccess('导入成功');
+            appInteractionService.showSuccess('导入成功');
 
             // 重置预设选择器
             this.presetSelector.value = '';
         } else if (result.error) {
             console.error('❌ 导入设置失败:', result.error);
-            app.showError('导入失败');
+            appInteractionService.showError('导入失败');
         }
     }
 
@@ -728,10 +728,10 @@ class ParametricEqualizerComponent extends Component {
 
         const result = await this.equalizer.exportCurrentSettings(name.trim());
         if (result.success && result.filePath) {
-            app.showSuccess('导出成功！');
+            appInteractionService.showSuccess('导出成功！');
         } else if (result.error) {
             console.error('❌ 导出设置失败:', result.error);
-            app.showError('导出失败');
+            appInteractionService.showError('导出失败');
         }
     }
 

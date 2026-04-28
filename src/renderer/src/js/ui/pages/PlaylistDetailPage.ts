@@ -4,8 +4,8 @@
 
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
-import {app} from "@core/app";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
+import {appInteractionService} from "@services/ui/AppInteractionService";
 import {coverAPI, fileAPI, libraryAPI} from "@js/api";
 import type {Unsubscribe} from "@api/types/common";
 import type {Playlist, Track} from "@api/types/library";
@@ -595,8 +595,7 @@ class PlaylistDetailPage extends Component {
 
     async playTrack(track: PlaylistDetailTrack, index: number): Promise<void> {
         try {
-            app.components.playlist.setTracks(this.tracks, index);
-            await app.playTrackFromPlaylist(track, index);
+            this.emit('trackPlayed', track, index, this.tracks);
         } catch (error) {
             console.error('❌ PlaylistDetailPage: 播放歌曲失败', error);
         }
@@ -604,7 +603,7 @@ class PlaylistDetailPage extends Component {
 
     async playAllTracks(): Promise<void> {
         if (this.tracks.length === 0) {
-            app.showInfo('歌单为空，无法播放');
+            appInteractionService.showInfo('歌单为空，无法播放');
             return;
         }
         this.emit('playAllTracks', this.tracks);
@@ -612,7 +611,7 @@ class PlaylistDetailPage extends Component {
 
     async shufflePlayTracks(): Promise<void> {
         if (this.tracks.length === 0) {
-            app.showInfo('歌单为空，无法播放');
+            appInteractionService.showInfo('歌单为空，无法播放');
             return;
         }
 
@@ -629,7 +628,7 @@ class PlaylistDetailPage extends Component {
     async addFromFolder(): Promise<void> {
         try {
             // 显示进度提示
-            app.showInfo('正在选择文件夹...');
+            appInteractionService.showInfo('正在选择文件夹...');
 
             // 打开文件夹选择对话框
             const folderPath = await fileAPI.openDirectory();
@@ -638,18 +637,18 @@ class PlaylistDetailPage extends Component {
             }
 
             // 显示扫描进度
-            app.showInfo('正在扫描文件夹中的音频文件...');
+            appInteractionService.showInfo('正在扫描文件夹中的音频文件...');
 
             // 扫描文件夹中的音频文件
             const audioFiles = await this.scanFolderForAudioFiles(folderPath);
 
             if (audioFiles.length === 0) {
-                app.showInfo('在选择的文件夹中未找到音频文件');
+                appInteractionService.showInfo('在选择的文件夹中未找到音频文件');
                 return;
             }
 
             // 显示添加进度
-            app.showInfo(`正在添加 ${audioFiles.length} 首歌曲到歌单...`);
+            appInteractionService.showInfo(`正在添加 ${audioFiles.length} 首歌曲到歌单...`);
 
             // 批量添加到歌单
             const result = await this.addTracksToPlaylist(audioFiles);
@@ -663,15 +662,15 @@ class PlaylistDetailPage extends Component {
                 if (failCount > 0) {
                     message += `，${failCount} 首歌曲添加失败`;
                 }
-                app.showSuccess(message);
+                appInteractionService.showSuccess(message);
                 await this.loadPlaylistTracks();
                 this.emit('playlistUpdated', this.currentPlaylist);
             } else {
-                app.showError(result.error || '添加歌曲到歌单失败');
+                appInteractionService.showError(result.error || '添加歌曲到歌单失败');
             }
 
         } catch (error) {
-            app.showError('从文件夹添加音乐失败，请重试');
+            appInteractionService.showError('从文件夹添加音乐失败，请重试');
         }
     }
 
@@ -679,7 +678,7 @@ class PlaylistDetailPage extends Component {
         if (!this.currentPlaylist || !this.tracks.length) return;
 
         const confirmMessage = `确定要清空歌单"${this.currentPlaylist.name}"吗？\n这将移除歌单中的所有 ${this.tracks.length} 首歌曲，此操作无法撤销。`;
-        const confirmed = await app.confirm({
+        const confirmed = await appInteractionService.confirm({
             title: '清空歌单',
             message: confirmMessage,
             confirmText: '清空',
@@ -705,12 +704,12 @@ class PlaylistDetailPage extends Component {
                 // 触发歌单更新事件
                 this.emit('playlistUpdated', this.currentPlaylist);
 
-                app.showInfo(`歌单"${this.currentPlaylist.name}"已清空`);
+                appInteractionService.showInfo(`歌单"${this.currentPlaylist.name}"已清空`);
             } else {
-                app.showError(result.error || '清空歌单失败');
+                appInteractionService.showError(result.error || '清空歌单失败');
             }
         } catch (error) {
-            app.showError('清空歌单失败，请重试');
+            appInteractionService.showError('清空歌单失败，请重试');
         }
     }
 
@@ -794,7 +793,7 @@ class PlaylistDetailPage extends Component {
         if (this.selectedTracks.size === 0) return;
 
         const selectedCount = this.selectedTracks.size;
-        const confirmed = await app.confirm({
+        const confirmed = await appInteractionService.confirm({
             title: '移除歌曲',
             message: `确定要从歌单中移除选中的 ${selectedCount} 首歌曲吗？`,
             confirmText: '移除',
@@ -842,12 +841,12 @@ class PlaylistDetailPage extends Component {
             this.emit('playlistUpdated', this.currentPlaylist);
 
             if (failCount === 0) {
-                app.showInfo(`成功移除 ${successCount} 首歌曲`);
+                appInteractionService.showInfo(`成功移除 ${successCount} 首歌曲`);
             } else {
-                app.showInfo(`移除完成：成功 ${successCount} 首，失败 ${failCount} 首`);
+                appInteractionService.showInfo(`移除完成：成功 ${successCount} 首，失败 ${failCount} 首`);
             }
         } catch (error) {
-            app.showError('批量移除失败，请重试');
+            appInteractionService.showError('批量移除失败，请重试');
         }
     }
 
@@ -858,7 +857,13 @@ class PlaylistDetailPage extends Component {
     }
 
     async removeTrackFromPlaylist(track: PlaylistDetailTrack, _index: number): Promise<void> {
-        if (!confirm(`确定要从歌单中移除 "${track.title}" 吗？`)) {
+        const confirmed = await appInteractionService.confirm({
+            title: '移除歌曲',
+            message: `确定要从歌单中移除 "${track.title}" 吗？`,
+            confirmText: '移除',
+            type: 'warning'
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -874,12 +879,12 @@ class PlaylistDetailPage extends Component {
 
                 // 触发歌单更新事件
                 this.emit('playlistUpdated', this.currentPlaylist);
-                app.showInfo(`已从歌单中移除 "${track.title}"`);
+                appInteractionService.showInfo(`已从歌单中移除 "${track.title}"`);
             } else {
-                app.showError(result.error || '移除失败');
+                appInteractionService.showError(result.error || '移除失败');
             }
         } catch (error) {
-            app.showError('移除失败，请重试');
+            appInteractionService.showError('移除失败，请重试');
         }
     }
 
@@ -1112,7 +1117,7 @@ class PlaylistDetailPage extends Component {
                 await this.setCover(result.path);
             }
         } catch (error) {
-            app.showError('选择图片失败，请重试');
+            appInteractionService.showError('选择图片失败，请重试');
         }
     }
 
@@ -1135,12 +1140,12 @@ class PlaylistDetailPage extends Component {
                 // 触发歌单更新事件
                 this.emit('playlistUpdated', this.currentPlaylist);
                 this.emit('playlistCoverUpdated', this.currentPlaylist);
-                app.showInfo('歌单封面设置成功');
+                appInteractionService.showInfo('歌单封面设置成功');
             } else {
                 throw new Error(result.error || '设置封面失败');
             }
         } catch (error) {
-            app.showError(getErrorMessage(error) || '设置封面失败，请重试');
+            appInteractionService.showError(getErrorMessage(error) || '设置封面失败，请重试');
         }
     }
 
@@ -1148,7 +1153,13 @@ class PlaylistDetailPage extends Component {
     async removeCover(): Promise<void> {
         if (!this.currentPlaylist) return;
         try {
-            if (!confirm('确定要移除歌单封面吗？')) {
+            const confirmed = await appInteractionService.confirm({
+                title: '移除歌单封面',
+                message: '确定要移除歌单封面吗？',
+                confirmText: '移除',
+                type: 'warning'
+            });
+            if (!confirmed) {
                 return;
             }
 
@@ -1163,12 +1174,12 @@ class PlaylistDetailPage extends Component {
                 // 触发歌单更新事件
                 this.emit('playlistUpdated', this.currentPlaylist);
                 this.emit('playlistCoverUpdated', this.currentPlaylist);
-                app.showInfo('歌单封面已移除');
+                appInteractionService.showInfo('歌单封面已移除');
             } else {
                 throw new Error(result.error || '移除封面失败');
             }
         } catch (error) {
-            app.showError(getErrorMessage(error) || '移除封面失败，请重试');
+            appInteractionService.showError(getErrorMessage(error) || '移除封面失败，请重试');
         }
     }
 
@@ -1193,8 +1204,7 @@ class PlaylistDetailPage extends Component {
     }
 
     showTrackContextMenu(x: number, y: number, track: PlaylistDetailTrack, index: number): void {
-        const contextMenu = app.components.contextMenu;
-        contextMenu.show(x, y, track, index, this.selectedTracks);
+        this.emit('trackRightClick', track, index, x, y, this.selectedTracks);
     }
 
     // 扫描文件夹中的音频文件

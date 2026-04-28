@@ -177,8 +177,18 @@ export class ComponentEventBinder {
             await app.handleTrackInfoUpdated(data);
         });
 
-        components.playlistDetailPage.on('trackPlayed', async (track: Track, index: number) => {
+        components.playlistDetailPage.on('trackPlayed', async (track: Track, index: number, tracks?: Track[]) => {
+            if (tracks && tracks.length > 0) {
+                components.playlist.setTracks(tracks, index);
+                await app.playTrackFromPlaylist(track, index);
+                return;
+            }
+
             await app.handleTrackPlayed(track, index);
+        });
+
+        components.playlistDetailPage.on('trackRightClick', (track: Track, index: number, x: number, y: number, selectedTracks?: Set<number>) => {
+            components.contextMenu.show(x, y, track, index, selectedTracks);
         });
 
         components.playlistDetailPage.on('playAllTracks', async (tracks: Track[]) => {

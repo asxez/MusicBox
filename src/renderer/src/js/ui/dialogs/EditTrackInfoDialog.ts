@@ -3,8 +3,8 @@
  */
 
 import {Component} from "@components/base/Component";
-import {app} from "@core/app";
 import {coverAPI, fileAPI, libraryAPI} from "@js/api";
+import {appInteractionService} from "@services/ui/AppInteractionService";
 import type {Track} from "@api/types/library";
 
 type EditableTrack = Omit<Track, 'cover' | 'year'> & {
@@ -840,7 +840,7 @@ class EditTrackInfoDialog extends Component {
 
     showError(message: string): void {
         console.error('❌ EditTrackInfoDialog:', message);
-        app.showError(message);
+        appInteractionService.showError(message);
     }
 
     clearForm(): void {
