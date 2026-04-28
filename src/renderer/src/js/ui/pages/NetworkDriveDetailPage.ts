@@ -7,8 +7,8 @@ import {
     networkDriveDetailService,
     type SingleFileScanResult
 } from "@services/networkDrive/NetworkDriveDetailService";
-import {networkDriveDetailInteractionService} from "@services/networkDrive/NetworkDriveDetailInteractionService";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
+import {appInteractionService} from "@services/ui/AppInteractionService";
 import type {Unsubscribe} from "@api/types/common";
 import type {Track} from "@api/types/track";
 import type {ScanProgress} from "@api/types/events";
@@ -302,10 +302,10 @@ class NetworkDriveDetailPage extends Component {
             await this.loadDriveStatus();
             this.render();
             const displayName = this.currentDrive.config?.displayName || this.currentDrive.displayName || '未命名磁盘';
-            networkDriveDetailInteractionService.showInfo(`网络磁盘 "${displayName}" 已刷新`);
+            appInteractionService.showInfo(`网络磁盘 "${displayName}" 已刷新`);
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 刷新失败', error);
-            networkDriveDetailInteractionService.showError('刷新失败，请重试');
+            appInteractionService.showError('刷新失败，请重试');
         }
     }
 
@@ -328,13 +328,13 @@ class NetworkDriveDetailPage extends Component {
             if (result) {
                 await this.loadDriveTracks();
                 this.render();
-                networkDriveDetailInteractionService.showInfo(`扫描完成，找到 ${this.tracks.length} 首歌曲`);
+                appInteractionService.showInfo(`扫描完成，找到 ${this.tracks.length} 首歌曲`);
             } else {
-                networkDriveDetailInteractionService.showError('扫描失败，请检查网络连接');
+                appInteractionService.showError('扫描失败，请检查网络连接');
             }
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 扫描失败', error);
-            networkDriveDetailInteractionService.showError('扫描失败，请重试');
+            appInteractionService.showError('扫描失败，请重试');
         } finally {
             removeListener();
             this.hideScanTip();
@@ -400,7 +400,7 @@ class NetworkDriveDetailPage extends Component {
             confirmText: '移除',
             type: 'warning' as const
         };
-        const confirmed = await networkDriveDetailInteractionService.confirm(confirmOptions);
+        const confirmed = await appInteractionService.confirm(confirmOptions);
 
         if (!confirmed) {
             return;
@@ -413,14 +413,14 @@ class NetworkDriveDetailPage extends Component {
 
                 this.emit('driveRemoved', this.currentDrive);
 
-                networkDriveDetailInteractionService.showInfo(`网络磁盘 "${displayName}" 已移除`);
-                await networkDriveDetailInteractionService.navigateToLibrary();
+                appInteractionService.showInfo(`网络磁盘 "${displayName}" 已移除`);
+                await appInteractionService.navigateToLibrary();
             } else {
-                networkDriveDetailInteractionService.showError('移除失败，请重试');
+                appInteractionService.showError('移除失败，请重试');
             }
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 移除失败', error);
-            networkDriveDetailInteractionService.showError('移除失败，请重试');
+            appInteractionService.showError('移除失败，请重试');
         }
     }
 
@@ -454,7 +454,7 @@ class NetworkDriveDetailPage extends Component {
             } else {
                 // 如果不在缓存中，自动扫描该文件
                 console.log('🎵 NetworkDriveDetailPage: 文件未在缓存中，开始扫描...');
-                networkDriveDetailInteractionService.showInfo('正在加载音乐...');
+                appInteractionService.showInfo('正在加载音乐...');
 
                 const result = await networkDriveDetailService.scanSingleFile(networkPath) as SingleFileScanResult;
 
@@ -467,17 +467,17 @@ class NetworkDriveDetailPage extends Component {
                     this.emit('playTrack', result.track, 0);
 
                     if (result.isNew) {
-                        networkDriveDetailInteractionService.showSuccess('音乐已添加到音乐库');
+                        appInteractionService.showSuccess('音乐已添加到音乐库');
                     }
                 } else {
                     // 扫描失败
                     console.error('❌ NetworkDriveDetailPage: 文件扫描失败', result.error);
-                    networkDriveDetailInteractionService.showError(result.error || '无法加载此音乐文件');
+                    appInteractionService.showError(result.error || '无法加载此音乐文件');
                 }
             }
         } catch (error) {
             console.error('❌ NetworkDriveDetailPage: 播放音乐文件失败', error);
-            networkDriveDetailInteractionService.showError('播放失败，请重试');
+            appInteractionService.showError('播放失败，请重试');
         }
     }
 

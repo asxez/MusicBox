@@ -4,6 +4,7 @@
 
 import {Component} from "@components/base/Component";
 import {coverAPI, fileAPI, libraryAPI} from "@js/api";
+import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import type {Track} from "@api/types/library";
 
@@ -927,10 +928,10 @@ class EditTrackInfoDialog extends Component {
                 } as MetadataUpdatePayload & Partial<EditableTrack>;
 
                 // 如果封面被更新，手动触发封面刷新
-                if (result.coverUpdated && window.coverUpdateManager) {
+                if (result.coverUpdated) {
                     console.log('🖼️ EditTrackInfoDialog: 检测到封面更新，触发刷新');
                     try {
-                        await window.coverUpdateManager.refreshCover(
+                        await coverUpdateManager.refreshCover(
                             track.filePath,
                             safeUpdatedData.title || track.title,
                             safeUpdatedData.artist || track.artist,

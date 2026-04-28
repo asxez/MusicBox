@@ -123,7 +123,6 @@ class CoverUpdateManager {
 }
 
 const coverUpdateManager = new CoverUpdateManager();
-window.coverUpdateManager = coverUpdateManager;
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         coverUpdateManager.initialize();

@@ -4,11 +4,11 @@
 
 import {showToast} from "@utils/index.js";
 import {Component} from "@components/base/Component";
-import {pluginManagerInteractionService} from "@services/plugins/PluginManagerInteractionService";
 import {
     pluginManagerService,
     type PluginExtension
 } from "@services/plugins/PluginManagerService";
+import {appInteractionService} from "@services/ui/AppInteractionService";
 import type {ConfirmOptions} from "@core/types/app";
 
 type ToastType = 'info' | 'success' | 'error' | 'warning';
@@ -325,7 +325,7 @@ class PluginManagerModal extends Component {
                 confirmText: '卸载',
                 type: 'warning'
             };
-            const confirmed = await pluginManagerInteractionService.confirm(confirmOptions);
+            const confirmed = await appInteractionService.confirm(confirmOptions);
 
             if (!confirmed) {
                 return;

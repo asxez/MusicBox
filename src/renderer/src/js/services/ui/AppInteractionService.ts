@@ -17,6 +17,10 @@ class AppInteractionService {
     showError(message: string): void {
         app.showError(message);
     }
+
+    navigateToLibrary(): Promise<void> {
+        return app.handleViewChange('library');
+    }
 }
 
 export const appInteractionService = new AppInteractionService();

@@ -231,10 +231,6 @@ declare global {
     interface Window {
         electronAPI: ElectronAPI;
         createExtensionAPI?: () => {};
-        coverUpdateManager?: {
-            refreshCover(filePath: string, title: string, artist: string, album?: string): Promise<void>;
-            onCoverUpdate(callback: (data: unknown) => void): () => void;
-        };
     }
 }
 
