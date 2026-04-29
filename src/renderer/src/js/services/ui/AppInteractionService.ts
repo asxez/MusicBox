@@ -21,6 +21,26 @@ class AppInteractionService {
     navigateToLibrary(): Promise<void> {
         return app.handleViewChange('library');
     }
+
+    showNetworkDriveModal(): boolean {
+        const modal = app.components.networkDiskModal;
+        if (!modal) {
+            return false;
+        }
+
+        modal.show();
+        return true;
+    }
+
+    async showPluginManager(): Promise<boolean> {
+        const modal = app.components.pluginManagerModal;
+        if (!modal) {
+            return false;
+        }
+
+        await modal.show();
+        return true;
+    }
 }
 
 export const appInteractionService = new AppInteractionService();

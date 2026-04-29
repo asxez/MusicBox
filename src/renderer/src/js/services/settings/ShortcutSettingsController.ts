@@ -1,5 +1,5 @@
 import {showToast} from "@utils/index.js";
-import {settingsInteractionService} from "@services/settings/SettingsInteractionService";
+import {appInteractionService} from "@services/ui/AppInteractionService";
 import {shortcutDialogService} from "@services/settings/ShortcutDialogService";
 import {shortcutListRenderer} from "@services/settings/ShortcutListRenderer";
 import {
@@ -162,7 +162,7 @@ class ShortcutSettingsController {
         newShortcut: string,
         onConfirm: () => void | Promise<void>
     ): Promise<void> {
-        const confirmed = await settingsInteractionService.confirm(
+        const confirmed = await appInteractionService.confirm(
             shortcutDialogService.createConflictConfirmOptions(conflicts, newShortcut)
         );
 
@@ -175,7 +175,7 @@ class ShortcutSettingsController {
         elements: ShortcutSettingsElements,
         onShortcutsUpdated: ShortcutsUpdatedCallback
     ): Promise<void> {
-        const confirmed = await settingsInteractionService.confirm(
+        const confirmed = await appInteractionService.confirm(
             shortcutDialogService.createResetConfirmOptions()
         );
 

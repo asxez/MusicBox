@@ -22,7 +22,7 @@ import {hardwareAccelerationSettingsController} from "@services/settings/Hardwar
 import {musicFolderListRenderer} from "@services/settings/MusicFolderListRenderer";
 import {musicFolderSettingsController} from "@services/settings/MusicFolderSettingsController";
 import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
-import {settingsInteractionService} from "@services/settings/SettingsInteractionService";
+import {appInteractionService} from "@services/ui/AppInteractionService";
 import {settingsPanelVisibilityService} from "@services/settings/SettingsPanelVisibilityService";
 import {settingsPageVisibilityService} from "@services/settings/SettingsPageVisibilityService";
 import {settingsSectionNavigationService} from "@services/settings/SettingsSectionNavigationService";
@@ -470,7 +470,7 @@ class Settings extends Component {
 
     // 显示网络磁盘配置模态框
     showNetworkDriveModal(): void {
-        if (!settingsInteractionService.showNetworkDriveModal()) {
+        if (!appInteractionService.showNetworkDriveModal()) {
             this.showNotification('网络磁盘功能不可用', 'error');
         }
     }
@@ -509,7 +509,7 @@ class Settings extends Component {
     }
 
     async openPluginManager(): Promise<void> {
-        const opened = await settingsInteractionService.showPluginManager();
+        const opened = await appInteractionService.showPluginManager();
         if (!opened) {
             this.showNotification('插件管理器不可用', 'error');
         }

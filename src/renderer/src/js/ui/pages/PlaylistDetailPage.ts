@@ -51,7 +51,8 @@ class PlaylistDetailPage extends Component {
     private isMultiSelectMode: boolean;
     private lastSelectedIndex: number;
     private showCovers: boolean;
-    private documentClickHandler: ((event: MouseEvent) => void) | null;
+    private documentClickHandler: ((event: Event) => void) | null;
+    private coverContextMenuCloseHandler: ((event: Event) => void) | null;
     private coverDisplayPreferenceUnsubscribe: Unsubscribe | null = null;
 
     constructor(container: string | Element | null) {
@@ -64,6 +65,7 @@ class PlaylistDetailPage extends Component {
         this.lastSelectedIndex = -1;
         this.container = this.element instanceof HTMLElement ? this.element : null;
         this.documentClickHandler = null;
+        this.coverContextMenuCloseHandler = null;
 
         // 获取封面显示设置
         this.showCovers = this.getShowCoversSettings();
@@ -106,9 +108,10 @@ class PlaylistDetailPage extends Component {
 
         // 清理事件监听器
         if (this.documentClickHandler) {
-            document.removeEventListener('click', this.documentClickHandler);
+            this.removeEventListenerManaged(document, 'click', this.documentClickHandler);
             this.documentClickHandler = null;
         }
+        this.removeCoverContextMenuCloseHandler();
 
         if (this.container) {
             this.container.innerHTML = '';
@@ -121,9 +124,10 @@ class PlaylistDetailPage extends Component {
             this.coverDisplayPreferenceUnsubscribe = null;
         }
         if (this.documentClickHandler) {
-            document.removeEventListener('click', this.documentClickHandler);
+            this.removeEventListenerManaged(document, 'click', this.documentClickHandler);
             this.documentClickHandler = null;
         }
+        this.removeCoverContextMenuCloseHandler();
         super.destroy();
     }
 
@@ -348,7 +352,7 @@ class PlaylistDetailPage extends Component {
     setupDocumentClickHandler(menuDropdown: Element): void {
         // 先移除旧的监听器
         if (this.documentClickHandler) {
-            document.removeEventListener('click', this.documentClickHandler);
+            this.removeEventListenerManaged(document, 'click', this.documentClickHandler);
         }
 
         // 创建新的监听器
@@ -357,7 +361,7 @@ class PlaylistDetailPage extends Component {
         };
 
         // 添加新的监听器
-        document.addEventListener('click', this.documentClickHandler);
+        this.addEventListenerManaged(document, 'click', this.documentClickHandler);
     }
 
     async loadPlaylistCover(): Promise<void> {
@@ -1089,23 +1093,36 @@ class PlaylistDetailPage extends Component {
         }
 
         // 点击外部关闭菜单
-        const closeMenu = (e: MouseEvent) => {
+        this.removeCoverContextMenuCloseHandler();
+        const closeHandler = (e: Event) => {
             if (!menu.contains(e.target as Node)) {
                 this.hideCoverContextMenu();
-                document.removeEventListener('click', closeMenu);
             }
         };
+        this.coverContextMenuCloseHandler = closeHandler;
         setTimeout(() => {
-            document.addEventListener('click', closeMenu);
+            if (this.coverContextMenuCloseHandler === closeHandler) {
+                this.addEventListenerManaged(document, 'click', closeHandler);
+            }
         }, 0);
     }
 
     // 隐藏封面右键菜单
     hideCoverContextMenu(): void {
+        this.removeCoverContextMenuCloseHandler();
         const existingMenu = document.querySelector('.cover-context-menu');
         if (existingMenu) {
             existingMenu.remove();
         }
+    }
+
+    removeCoverContextMenuCloseHandler(): void {
+        if (!this.coverContextMenuCloseHandler) {
+            return;
+        }
+
+        this.removeEventListenerManaged(document, 'click', this.coverContextMenuCloseHandler);
+        this.coverContextMenuCloseHandler = null;
     }
 
     // 选择并设置封面
