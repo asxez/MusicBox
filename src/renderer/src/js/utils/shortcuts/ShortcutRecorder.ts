@@ -17,6 +17,7 @@ class ShortcutRecorder extends EventEmitter {
     private readonly pressedKeys: Set<ShortcutKey>;
     private recordedKeys: ShortcutKey[];
     private currentElement: HTMLElement | null;
+    private listenersAttached: boolean;
 
     constructor() {
         super();
@@ -24,6 +25,7 @@ class ShortcutRecorder extends EventEmitter {
         this.pressedKeys = new Set();
         this.recordedKeys = [];
         this.currentElement = null;
+        this.listenersAttached = false;
 
         // 绑定事件处理器
         this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -44,10 +46,7 @@ class ShortcutRecorder extends EventEmitter {
         this.pressedKeys.clear();
         this.recordedKeys = [];
 
-        // 添加事件监听器
-        document.addEventListener('keydown', this.handleKeyDown, true);
-        document.addEventListener('keyup', this.handleKeyUp, true);
-        window.addEventListener('blur', this.handleBlur);
+        this.attachListeners();
 
         // 更新UI状态
         if (element) {
@@ -68,10 +67,7 @@ class ShortcutRecorder extends EventEmitter {
 
         this.isRecording = false;
 
-        // 移除事件监听器
-        document.removeEventListener('keydown', this.handleKeyDown, true);
-        document.removeEventListener('keyup', this.handleKeyUp, true);
-        window.removeEventListener('blur', this.handleBlur);
+        this.detachListeners();
 
         // 更新UI状态
         if (this.currentElement) {
@@ -84,6 +80,33 @@ class ShortcutRecorder extends EventEmitter {
 
         this.currentElement = null;
         this.pressedKeys.clear();
+    }
+
+    attachListeners(): void {
+        if (this.listenersAttached) {
+            return;
+        }
+
+        document.addEventListener('keydown', this.handleKeyDown, true);
+        document.addEventListener('keyup', this.handleKeyUp, true);
+        window.addEventListener('blur', this.handleBlur);
+        this.listenersAttached = true;
+    }
+
+    detachListeners(): void {
+        if (!this.listenersAttached) {
+            return;
+        }
+
+        document.removeEventListener('keydown', this.handleKeyDown, true);
+        document.removeEventListener('keyup', this.handleKeyUp, true);
+        window.removeEventListener('blur', this.handleBlur);
+        this.listenersAttached = false;
+    }
+
+    destroy(): void {
+        this.stopRecording();
+        this.removeAllListeners();
     }
 
     /**

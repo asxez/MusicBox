@@ -130,7 +130,19 @@ export function createKeybindingsAPI(context: ExtensionContext): KeybindingsAPI 
 
                     // 如果是全局快捷键，通知主进程注销
                     if (scope === KeybindingScope.GLOBAL) {
-                        await globalShortcutsGateway.unregister();
+                        const shortcutId = Array.from(extensionGlobalShortcutsConfig.entries())
+                            .find(([_id, config]) => config.key === normalizedKey)?.[0];
+
+                        if (shortcutId) {
+                            extensionGlobalShortcutsConfig.delete(shortcutId);
+                        }
+
+                        if (keybindingInfo.globalEventHandler) {
+                            window.removeEventListener('globalShortcutTriggered', keybindingInfo.globalEventHandler as EventListener);
+                        }
+                        await syncGlobalShortcuts();
+                    } else {
+                        disposeLocalKeybindingListenerIfUnused();
                     }
                 }
             }, 'keybindings.unregisterKeybinding');
@@ -279,6 +291,10 @@ async function registerKeybindingInternal(
         // 检查是否已注册
         if (registry.has(normalizedKey)) {
             console.warn(`⚠️ 快捷键 ${normalizedKey} 已注册，将被覆盖`);
+            const existingKeybindingInfo = registry.get(normalizedKey);
+            if (existingKeybindingInfo?.globalEventHandler) {
+                window.removeEventListener('globalShortcutTriggered', existingKeybindingInfo.globalEventHandler as EventListener);
+            }
         }
 
         const keybindingInfo: KeybindingInfo = {
@@ -349,6 +365,8 @@ async function registerKeybindingInternal(
                     // 重新注册所有全局快捷键
                     await syncGlobalShortcuts();
                 }
+            } else {
+                disposeLocalKeybindingListenerIfUnused();
             }
         });
     }, 'keybindings.registerKeybindingInternal');
@@ -519,6 +537,12 @@ export function disposeKeybindingListener(): void {
         document.removeEventListener('keydown', keybindingListener);
         keybindingListener = null;
         console.log('🗑️ 局部快捷键监听器已清理');
+    }
+}
+
+function disposeLocalKeybindingListenerIfUnused(): void {
+    if (localKeybindingsRegistry.size === 0) {
+        disposeKeybindingListener();
     }
 }
 
