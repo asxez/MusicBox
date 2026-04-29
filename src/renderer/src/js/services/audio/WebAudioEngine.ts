@@ -123,6 +123,9 @@ class WebAudioEngine {
     private preloadPromise: Promise<boolean> | null;
     private isWindowVisible: boolean;
     private memoryCleanupTimer: ReturnType<typeof setTimeout> | null;
+    private visibilityChangeListener: EventListener | null;
+    private windowFocusListener: EventListener | null;
+    private windowBlurListener: EventListener | null;
 
     constructor() {
         this.audioContext = null;
@@ -170,6 +173,9 @@ class WebAudioEngine {
         // 窗口可见性监听和内存管理
         this.isWindowVisible = true;
         this.memoryCleanupTimer = null;
+        this.visibilityChangeListener = null;
+        this.windowFocusListener = null;
+        this.windowBlurListener = null;
     }
 
     async initialize(): Promise<boolean> {
@@ -1114,21 +1120,29 @@ class WebAudioEngine {
     // 初始化窗口可见性监听
     initVisibilityListener(): void {
         try {
-            // 监听页面可见性变化
-            document.addEventListener('visibilitychange', async () => {
-                await this.handleVisibilityChange();
-            });
+            if (this.visibilityChangeListener || this.windowFocusListener || this.windowBlurListener) {
+                return;
+            }
 
-            // 监听窗口焦点变化
-            window.addEventListener('focus', async () => {
+            this.visibilityChangeListener = () => {
+                void this.handleVisibilityChange();
+            };
+            this.windowFocusListener = () => {
                 this.isWindowVisible = true;
-                await this.handleWindowVisible();
-            });
-
-            window.addEventListener('blur', () => {
+                void this.handleWindowVisible();
+            };
+            this.windowBlurListener = () => {
                 this.isWindowVisible = false;
                 this.handleWindowHidden();
-            });
+            };
+
+            // 监听页面可见性变化
+            document.addEventListener('visibilitychange', this.visibilityChangeListener);
+
+            // 监听窗口焦点变化
+            window.addEventListener('focus', this.windowFocusListener);
+
+            window.addEventListener('blur', this.windowBlurListener);
         } catch (error) {
             console.error('❌ WebAudioEngine: 初始化窗口可见性监听失败:', error);
         }
@@ -1222,10 +1236,24 @@ class WebAudioEngine {
             this.audioContext.close();
         }
 
-        // 移除事件监听器
-        document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-        window.removeEventListener('focus', this.handleWindowVisible);
-        window.removeEventListener('blur', this.handleWindowHidden);
+        this.removeVisibilityListeners();
+    }
+
+    removeVisibilityListeners(): void {
+        if (this.visibilityChangeListener) {
+            document.removeEventListener('visibilitychange', this.visibilityChangeListener);
+            this.visibilityChangeListener = null;
+        }
+
+        if (this.windowFocusListener) {
+            window.removeEventListener('focus', this.windowFocusListener);
+            this.windowFocusListener = null;
+        }
+
+        if (this.windowBlurListener) {
+            window.removeEventListener('blur', this.windowBlurListener);
+            this.windowBlurListener = null;
+        }
     }
 }
 

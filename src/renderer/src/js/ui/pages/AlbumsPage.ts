@@ -121,7 +121,7 @@ class AlbumsPage extends Component {
     }
 
     _bindLibraryEvents(): void {
-        api.on('libraryUpdated', (tracks: Track[]) => {
+        this.addAPIEventListenerManaged('libraryUpdated', (tracks) => {
             const newTracksHash = this._generateTracksHash(tracks || []);
 
             // 检查tracks是否真正发生了变化
@@ -130,7 +130,7 @@ class AlbumsPage extends Component {
             }
 
             this._lastTracksHash = newTracksHash;
-            this.tracks = tracks || [];
+            this.tracks = (tracks || []) as Track[];
             this._coversScheduled = false; // 重置封面调度状态
             this.processAlbums();
             if (this.isVisible) this.render();
