@@ -83,16 +83,16 @@ class Playlist extends Component {
     }
 
     setupEventListeners(): void {
-        this.closeBtn.addEventListener('click', () => {
+        this.addEventListenerManaged(this.closeBtn, 'click', () => {
             this.hide();
         });
 
-        this.clearBtn.addEventListener('click', () => {
+        this.addEventListenerManaged(this.clearBtn, 'click', () => {
             this.clear();
         });
 
         // Close on outside click
-        document.addEventListener('click', (e) => {
+        this.addEventListenerManaged(document, 'click', (e: Event) => {
             const target = e.target as HTMLElement | null;
             if (this.isVisible && target && !this.panel.contains(target) && !target.closest('#playlist-btn')) {
                 this.hide();
@@ -100,8 +100,8 @@ class Playlist extends Component {
         });
 
         // Close on escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.isVisible) {
+        this.addEventListenerManaged(document, 'keydown', (e: Event) => {
+            if ((e as KeyboardEvent).key === 'Escape' && this.isVisible) {
                 this.hide();
             }
         });

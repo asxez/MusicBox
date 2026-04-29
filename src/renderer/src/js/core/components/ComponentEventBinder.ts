@@ -1,5 +1,7 @@
 import {api} from "@api/api";
+import {updateAPI} from "@js/api";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
+import {settingsExtensionNavigationService} from "@services/settings/SettingsExtensionNavigationService";
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
 import type {AppView, ComponentMap, RendererAppContext} from "@core/types/app";
@@ -209,6 +211,14 @@ export class ComponentEventBinder {
 
         components.settings.on('checkUpdates', () => {
             components.updateModal.show();
+        });
+
+        updateAPI.onShowUpdateDetails(() => {
+            components.updateModal.show();
+        });
+
+        settingsExtensionNavigationService.onNavigate((sectionName) => {
+            components.settings.switchToSection(sectionName);
         });
 
         components.settings.on('desktopLyricsEnabled', async (enabled: boolean) => {

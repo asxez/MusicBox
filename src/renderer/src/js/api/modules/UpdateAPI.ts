@@ -7,12 +7,23 @@ import {showToast} from '@js/utils';
 import {BaseAPI, Logger} from "@api/core";
 import {type GitHubRelease, updateService} from "@services/update/UpdateService";
 
+type ShowUpdateDetailsHandler = () => void;
+
 /**
  * 更新 API 类
  */
 export class UpdateAPI extends BaseAPI {
+    private readonly showUpdateDetailsHandlers = new Set<ShowUpdateDetailsHandler>();
+
     constructor() {
         super('UpdateAPI');
+    }
+
+    onShowUpdateDetails(handler: ShowUpdateDetailsHandler): () => void {
+        this.showUpdateDetailsHandlers.add(handler);
+        return () => {
+            this.showUpdateDetailsHandlers.delete(handler);
+        };
     }
 
     /**
@@ -150,9 +161,8 @@ export class UpdateAPI extends BaseAPI {
         closeBtn?.addEventListener('click', removeToast);
         laterBtn?.addEventListener('click', removeToast);
         detailBtn?.addEventListener('click', () => {
-            // 触发更新模态框（假设有 updateModal 对象）
-            if ((window as any).updateModal) {
-                (window as any).updateModal.show();
+            if (this.showUpdateDetailsHandlers.size > 0) {
+                this.showUpdateDetailsHandlers.forEach(handler => handler());
             } else {
                 // 如果没有模态框，直接打开 GitHub 发布页
                 if (releaseInfo) {

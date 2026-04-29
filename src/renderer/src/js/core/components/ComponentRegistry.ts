@@ -41,13 +41,6 @@ type OnDemandComponentName =
     | 'statisticsPage'
     | 'networkDiskModal';
 
-declare global {
-    interface Window {
-        settings?: unknown;
-        updateModal?: unknown;
-    }
-}
-
 export class ComponentRegistry {
     private readonly components: ComponentMap;
     private readonly setupComponentEvents: (componentName: string) => void;
@@ -79,10 +72,7 @@ export class ComponentRegistry {
         this.components.playlistDetailPage = new PlaylistDetailPage('#content-area');
         this.components.networkDriveDetailPage = new NetworkDriveDetailPage('#content-area');
 
-        window.settings = this.components.settings;
-
         this.components.updateModal = new UpdateModal();
-        window.updateModal = this.components.updateModal;
 
         this.components.networkDiskModal = null;
         this.components.pluginManagerModal = new PluginManagerModal();

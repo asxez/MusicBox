@@ -209,17 +209,17 @@ class Settings extends Component {
             updateSetting: (key, value) => this.updateSetting(key, value)
         });
 
-        this.autoScanToggle.addEventListener('change', async (e: Event) => {
+        this.addEventListenerManaged(this.autoScanToggle, 'change', async (e: Event) => {
             await this.handleAutoScanToggle(getInputTarget(e).checked);
         });
 
         // 按钮事件
-        this.selectFolderBtn.addEventListener('click', async () => {
+        this.addEventListenerManaged(this.selectFolderBtn, 'click', async () => {
             await this.handleAddMusicFolder();
         });
 
         // 扫描频率更改
-        this.scanFrequencySelect.addEventListener('change', async (e: Event) => {
+        this.addEventListenerManaged(this.scanFrequencySelect, 'change', async (e: Event) => {
             await this.handleScanFrequencyChange(getSelectTarget(e).value);
         });
 
@@ -233,11 +233,11 @@ class Settings extends Component {
         });
 
         // 前往仓库按钮事件
-        this.goToRepositoryBtn.addEventListener('click', async () => {
+        this.addEventListenerManaged(this.goToRepositoryBtn, 'click', async () => {
             await this.openRepository();
         });
 
-        this.clearIgnoreListBtn.addEventListener('click', async () => {
+        this.addEventListenerManaged(this.clearIgnoreListBtn, 'click', async () => {
             await this.handleClearIgnoreList();
         });
 
@@ -248,47 +248,47 @@ class Settings extends Component {
         );
 
         // 硬件加速功能开关
-        this.hardwareAccelerationToggle.addEventListener('change', async (e: Event) => {
+        this.addEventListenerManaged(this.hardwareAccelerationToggle, 'change', async (e: Event) => {
             const result = await hardwareAccelerationSettingsController.handleChange(getInputTarget(e).checked);
             this.hardwareAccelerationToggle.checked = result.checked;
         });
 
         // 打开应用数据文件夹按钮
         if (this.openSoftDirBtn) {
-            this.openSoftDirBtn.addEventListener('click', async () => {
+            this.addEventListenerManaged(this.openSoftDirBtn, 'click', async () => {
                 await hardwareAccelerationSettingsController.openUserDataFolder();
             });
         }
 
         // 开发者工具按钮
         if (this.developerToolsBtn) {
-            this.developerToolsBtn.addEventListener('click', async () => {
+            this.addEventListenerManaged(this.developerToolsBtn, 'click', async () => {
                 await hardwareAccelerationSettingsController.openDevTools();
             });
         }
 
         // 插件管理事件监听器
         if (this.openPluginManagerBtn) {
-            this.openPluginManagerBtn.addEventListener('click', async () => {
+            this.addEventListenerManaged(this.openPluginManagerBtn, 'click', async () => {
                 await this.openPluginManager();
             });
         }
 
         // 桌面歌词设置事件监听器
         if (this.dlDisplayModeSelect) {
-            this.dlDisplayModeSelect.addEventListener('change', (e: Event) => {
+            this.addEventListenerManaged(this.dlDisplayModeSelect, 'change', (e: Event) => {
                 this.updateDesktopLyricsSetting('displayMode', getSelectTarget(e).value);
             });
         }
 
         if (this.dlLayoutModeSelect) {
-            this.dlLayoutModeSelect.addEventListener('change', (e: Event) => {
+            this.addEventListenerManaged(this.dlLayoutModeSelect, 'change', (e: Event) => {
                 this.updateDesktopLyricsSetting('layoutMode', getSelectTarget(e).value);
             });
         }
 
         if (this.dlThemeColor) {
-            this.dlThemeColor.addEventListener('input', (e: Event) => {
+            this.addEventListenerManaged(this.dlThemeColor, 'input', (e: Event) => {
                 const color = getInputTarget(e).value;
                 displayModeSettingsRenderer.updateDesktopLyricsValue(this.getDesktopLyricsElements(), 'themeColor', color);
                 this.updateDesktopLyricsSetting('themeColor', color);
@@ -296,7 +296,7 @@ class Settings extends Component {
         }
 
         if (this.dlFontColor) {
-            this.dlFontColor.addEventListener('input', (e: Event) => {
+            this.addEventListenerManaged(this.dlFontColor, 'input', (e: Event) => {
                 const color = getInputTarget(e).value;
                 displayModeSettingsRenderer.updateDesktopLyricsValue(this.getDesktopLyricsElements(), 'fontColor', color);
                 this.updateDesktopLyricsSetting('fontColor', color);
@@ -304,7 +304,7 @@ class Settings extends Component {
         }
 
         if (this.dlOpacitySlider) {
-            this.dlOpacitySlider.addEventListener('input', (e: Event) => {
+            this.addEventListenerManaged(this.dlOpacitySlider, 'input', (e: Event) => {
                 const opacity = parseFloat(getInputTarget(e).value);
                 displayModeSettingsRenderer.updateDesktopLyricsValue(this.getDesktopLyricsElements(), 'opacity', opacity);
                 this.updateDesktopLyricsSetting('opacity', opacity);
@@ -312,7 +312,7 @@ class Settings extends Component {
         }
 
         if (this.dlFontSizeSlider) {
-            this.dlFontSizeSlider.addEventListener('input', (e: Event) => {
+            this.addEventListenerManaged(this.dlFontSizeSlider, 'input', (e: Event) => {
                 const fontSize = parseInt(getInputTarget(e).value);
                 displayModeSettingsRenderer.updateDesktopLyricsValue(this.getDesktopLyricsElements(), 'fontSize', fontSize);
                 this.updateDesktopLyricsSetting('fontSize', fontSize);
@@ -321,7 +321,7 @@ class Settings extends Component {
 
         // 迷你模式设置事件监听器
         if (this.miniModeFontColor) {
-            this.miniModeFontColor.addEventListener('input', (e: Event) => {
+            this.addEventListenerManaged(this.miniModeFontColor, 'input', (e: Event) => {
                 const color = getInputTarget(e).value;
                 displayModeSettingsRenderer.updateMiniModeValue(this.getMiniModeElements(), 'fontColor', color);
                 this.updateMiniModeSetting('fontColor', color);
@@ -329,7 +329,7 @@ class Settings extends Component {
         }
 
         if (this.miniModeHighlightColor) {
-            this.miniModeHighlightColor.addEventListener('input', (e: Event) => {
+            this.addEventListenerManaged(this.miniModeHighlightColor, 'input', (e: Event) => {
                 const color = getInputTarget(e).value;
                 displayModeSettingsRenderer.updateMiniModeValue(this.getMiniModeElements(), 'highlightColor', color);
                 this.updateMiniModeSetting('highlightColor', color);
@@ -337,15 +337,15 @@ class Settings extends Component {
         }
 
         if (this.miniModeFontSizeSlider) {
-            this.miniModeFontSizeSlider.addEventListener('input', (e: Event) => {
+            this.addEventListenerManaged(this.miniModeFontSizeSlider, 'input', (e: Event) => {
                 const fontSize = parseInt(getInputTarget(e).value);
                 displayModeSettingsRenderer.updateMiniModeValue(this.getMiniModeElements(), 'fontSize', fontSize);
                 this.updateMiniModeSetting('fontSize', fontSize);
             });
         }
 
-        document.addEventListener('keydown', (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && this.isVisible) {
+        this.addEventListenerManaged(document, 'keydown', (e: Event) => {
+            if ((e as KeyboardEvent).key === 'Escape' && this.isVisible) {
                 this.hide();
             }
         });
