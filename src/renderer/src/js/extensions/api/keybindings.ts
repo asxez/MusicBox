@@ -7,6 +7,7 @@ import {globalShortcutsGateway} from '@js/infrastructure/electron';
 import {Validator} from '@extensions/api/common/validation';
 import {ErrorUtils, NotFoundError} from '@extensions/api/common/errors';
 import {ExtensionContext, IDisposable, toDisposable} from '@extensions/core';
+import {extensionHostService} from "@services/plugins/ExtensionHostService";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import '@extensions/core/types';
 import {
@@ -492,19 +493,15 @@ function shouldExecuteKeybinding(keybindingInfo: KeybindingInfo): boolean {
         return true;
     }
 
-    // 获取应用状态（需要从全局访问）
-    const app = (window as any).app;
-    if (!app) {
-        return true; // 如果无法获取应用状态，默认允许执行
-    }
+    const playbackContext = extensionHostService.getPlaybackContext();
 
     switch (when) {
         case KeybindingWhen.PLAYER_PLAYING:
-            return app.isPlaying && app.isPlaying();
+            return playbackContext.isPlaying;
         case KeybindingWhen.PLAYER_PAUSED:
-            return app.isPlaying && !app.isPlaying();
+            return !playbackContext.isPlaying;
         case KeybindingWhen.TRACK_LOADED:
-            return app.currentTrack !== null && app.currentTrack !== undefined;
+            return playbackContext.currentTrack !== null && playbackContext.currentTrack !== undefined;
         case KeybindingWhen.SEARCH_FOCUSED:
             return !!document.activeElement?.classList?.contains('search-input');
         case KeybindingWhen.LYRICS_VISIBLE:
