@@ -3,19 +3,7 @@
  */
 
 import {Component} from "@components/base/Component";
-
-interface GitHubRelease {
-    tag_name: string;
-    name?: string;
-    body?: string;
-    html_url?: string;
-    published_at?: string;
-    [key: string]: unknown;
-}
-
-interface PackageInfo {
-    version?: string;
-}
+import {type GitHubRelease, updateService} from "@services/update/UpdateService";
 
 function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
@@ -207,34 +195,38 @@ class UpdateModal extends Component {
 
     setupEventListeners(): void {
         // 关闭按钮
-        this.closeBtn.addEventListener('click', () => this.hide());
+        this.addEventListenerManaged(this.closeBtn, 'click', () => this.hide());
 
         // 稍后提醒按钮
-        this.laterBtn.addEventListener('click', () => this.hide());
+        this.addEventListenerManaged(this.laterBtn, 'click', () => this.hide());
 
         // 立即更新按钮
-        this.nowBtn.addEventListener('click', () => {
-            this.openRepository();
+        this.addEventListenerManaged(this.nowBtn, 'click', () => {
+            this.openRepository().catch(error => {
+                this.showError(getErrorMessage(error));
+            });
         });
 
         // 重试按钮
-        this.retryBtn.addEventListener('click', async () => {
+        this.addEventListenerManaged(this.retryBtn, 'click', async () => {
             await this.checkForUpdates();
         });
 
         // 确定按钮
-        this.okBtn.addEventListener('click', () => this.hide());
+        this.addEventListenerManaged(this.okBtn, 'click', () => this.hide());
 
         // 点击背景关闭
-        this.modal?.addEventListener('click', (e: MouseEvent) => {
-            if (e.target === this.modal) {
-                this.hide();
-            }
-        });
+        if (this.modal) {
+            this.addEventListenerManaged(this.modal, 'click', (e: Event) => {
+                if (e.target === this.modal) {
+                    this.hide();
+                }
+            });
+        }
 
         // ESC键关闭
-        document.addEventListener('keydown', (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && this.isVisible) {
+        this.addEventListenerManaged(document, 'keydown', (e: Event) => {
+            if ((e as KeyboardEvent).key === 'Escape' && this.isVisible) {
                 this.hide();
             }
         });
@@ -245,16 +237,12 @@ class UpdateModal extends Component {
             // 显示检查中状态
             this.showCheckingState();
 
-            // 获取当前版本
-            this.currentVersion = await this.getCurrentVersion();
+            const result = await updateService.checkForUpdates({fallbackCurrentVersion: true});
+            this.currentVersion = result.currentVersion;
+            this.latestVersion = result.latestVersion;
+            this.releaseInfo = result.releaseInfo;
 
-            // 获取最新版本信息
-            const releaseInfo = await this.getLatestRelease();
-            this.latestVersion = releaseInfo.tag_name.replace(/^v/, ''); // 移除v前缀
-            this.releaseInfo = releaseInfo;
-
-            // 比较版本
-            if (this.isNewerVersion(this.latestVersion, this.currentVersion)) {
+            if (result.hasUpdate) {
                 this.showUpdateAvailable();
             } else {
                 this.showLatestVersion();
@@ -263,47 +251,6 @@ class UpdateModal extends Component {
         } catch (error) {
             this.showError(getErrorMessage(error));
         }
-    }
-
-    async getCurrentVersion(): Promise<string> {
-        try {
-            const response = await fetch('../../../package.json');
-            const packageInfo = await response.json() as PackageInfo;
-            return packageInfo.version || '';
-        } catch (error) {
-            return '';
-        }
-    }
-
-    async getLatestRelease(): Promise<GitHubRelease> {
-        const response = await fetch('https://api.github.com/repos/asxez/MusicBox/releases/latest');
-
-        if (!response.ok) {
-            throw new Error(`GitHub API请求失败: ${response.status} ${response.statusText}`);
-        }
-
-        return await response.json() as GitHubRelease;
-    }
-
-    isNewerVersion(latest: string, current: string): boolean {
-        // 简单的版本比较逻辑
-        const parseVersion = (version: string): number[] => {
-            const parts = version.replace(/-(alpha|beta|rc).*$/, '').split('.');
-            return parts.map(part => parseInt(part, 10));
-        };
-
-        const latestParts = parseVersion(latest);
-        const currentParts = parseVersion(current);
-
-        for (let i = 0; i < Math.max(latestParts.length, currentParts.length); i++) {
-            const latestPart = latestParts[i] || 0;
-            const currentPart = currentParts[i] || 0;
-
-            if (latestPart > currentPart) return true;
-            if (latestPart < currentPart) return false;
-        }
-
-        return false;
     }
 
     showCheckingState(): void {
@@ -380,8 +327,14 @@ class UpdateModal extends Component {
             .replace(/<\/li><\/p>/g, '</li></ul>');
     }
 
-    openRepository(): void {
-        window.open('https://github.com/asxez/MusicBox/releases', '_blank');
+    async openRepository(): Promise<void> {
+        const releaseUrl = this.releaseInfo?.html_url || undefined;
+        const result = await updateService.openReleasePage(releaseUrl);
+        if (!result.success) {
+            this.showError(result.error || '打开发布页面失败');
+            return;
+        }
+
         this.hide();
     }
 }

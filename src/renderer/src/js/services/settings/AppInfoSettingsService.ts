@@ -1,8 +1,5 @@
 import {systemGateway} from "@js/infrastructure/electron/SystemGateway";
-
-interface PackageInfo {
-    version?: string;
-}
+import {updateService} from "@services/update/UpdateService";
 
 class AppInfoSettingsService {
     private readonly repositoryUrl = 'https://github.com/asxez/MusicBox';
@@ -13,9 +10,8 @@ class AppInfoSettingsService {
             return;
         }
 
-        const response = await fetch('../../../package.json');
-        const packageInfo = await response.json() as PackageInfo;
-        versionElement.textContent = `MusicBox v${packageInfo.version || 'unknown'}`;
+        const version = await updateService.getCurrentVersion();
+        versionElement.textContent = `MusicBox v${version || 'unknown'}`;
     }
 
     async openRepository(): Promise<{success: boolean; error?: string}> {
