@@ -193,47 +193,48 @@ class Player extends Component {
 
     setupEventListeners(): void {
         // Play/pause button
-        this.playPauseBtn.addEventListener('click', async () => {
+        this.addEventListenerManaged(this.playPauseBtn, 'click', async () => {
             await this.togglePlayPause();
         });
 
         // Previous/next buttons
-        this.prevBtn.addEventListener('click', async () => {
+        this.addEventListenerManaged(this.prevBtn, 'click', async () => {
             await api.previousTrack();
         });
 
-        this.nextBtn.addEventListener('click', async () => {
+        this.addEventListenerManaged(this.nextBtn, 'click', async () => {
             await api.nextTrack();
         });
 
         // Progress bar - improved interaction
-        this.progressBarContainer.addEventListener('mousedown', (e) => {
+        this.addEventListenerManaged(this.progressBarContainer, 'mousedown', (e: Event) => {
+            const mouseEvent = e as MouseEvent;
             this.isDraggingProgress = true;
             this.progressBarContainer.classList.add('dragging');
-            this.updateProgress(e);
-            e.preventDefault();
+            this.updateProgress(mouseEvent);
+            mouseEvent.preventDefault();
         });
 
         // Show tooltip on hover
-        this.progressBarContainer.addEventListener('mousemove', (e) => {
+        this.addEventListenerManaged(this.progressBarContainer, 'mousemove', (e: Event) => {
             if (!this.isDraggingProgress) {
-                this.updateProgressTooltip(e);
+                this.updateProgressTooltip(e as MouseEvent);
             }
         });
 
-        this.progressBarContainer.addEventListener('mouseleave', () => {
+        this.addEventListenerManaged(this.progressBarContainer, 'mouseleave', () => {
             if (!this.isDraggingProgress) {
                 this.progressTooltip.style.opacity = '0';
             }
         });
 
-        document.addEventListener('mousemove', (e) => {
+        this.addEventListenerManaged(document, 'mousemove', (e: Event) => {
             if (this.isDraggingProgress) {
-                this.updateProgress(e);
+                this.updateProgress(e as MouseEvent);
             }
         });
 
-        document.addEventListener('mouseup', async () => {
+        this.addEventListenerManaged(document, 'mouseup', async () => {
             if (this.isDraggingProgress) {
                 this.isDraggingProgress = false;
                 this.progressBarContainer.classList.remove('dragging');
@@ -250,34 +251,34 @@ class Player extends Component {
         });
 
         // Volume slider
-        this.volumeSlider.addEventListener('mousedown', async (e) => {
+        this.addEventListenerManaged(this.volumeSlider, 'mousedown', async (e: Event) => {
             this.isDraggingVolume = true;
-            this.updateVolume(e);
+            this.updateVolume(e as MouseEvent);
             const volume = parseFloat(this.volumeFill.style.width) / 100;
             await api.setVolume(volume);
         });
 
-        this.volumeSlider.addEventListener('input', async (e) => {
+        this.addEventListenerManaged(this.volumeSlider, 'input', async (e: Event) => {
             this.updateVolume((e.target as HTMLInputElement).value);
             const volume = parseFloat(this.volumeFill.style.width) / 100;
             await api.setVolume(volume);
         });
 
-        this.volumeSliderContainer.addEventListener('mousewheel', async (e) => {
+        this.addEventListenerManaged(this.volumeSliderContainer, 'mousewheel', async (e: Event) => {
             const wheelEvent = e as WheelEvent & {wheelDelta?: number};
             if ((wheelEvent.wheelDelta ?? -wheelEvent.deltaY) < 0) await api.setVolume(Math.min(1, this.volume + 0.01));
             else await api.setVolume(Math.max(0, this.volume - 0.01));
         });
 
-        document.addEventListener('mousemove', async (e) => {
+        this.addEventListenerManaged(document, 'mousemove', async (e: Event) => {
             if (this.isDraggingVolume) {
-                this.updateVolume(e);
+                this.updateVolume(e as MouseEvent);
                 const volume = parseFloat(this.volumeFill.style.width) / 100;
                 await api.setVolume(volume);
             }
         });
 
-        document.addEventListener('mouseup', async () => {
+        this.addEventListenerManaged(document, 'mouseup', async () => {
             if (this.isDraggingVolume) {
                 this.isDraggingVolume = false;
                 const volume = parseFloat(this.volumeFill.style.width) / 100;
@@ -285,17 +286,17 @@ class Player extends Component {
             }
         });
 
-        this.volumeBtn.addEventListener('click', async () => {
+        this.addEventListenerManaged(this.volumeBtn, 'click', async () => {
             await this.toggleMute();
         });
-        this.playModeBtn.addEventListener('click', () => {
+        this.addEventListenerManaged(this.playModeBtn, 'click', () => {
             const newMode = api.togglePlayMode();
             this.updatePlayModeDisplay(newMode);
         });
-        this.lyricsBtn.addEventListener('click', () => {
+        this.addEventListenerManaged(this.lyricsBtn, 'click', () => {
             this.emit('toggleLyrics');
         });
-        this.playlistBtn.addEventListener('click', () => {
+        this.addEventListenerManaged(this.playlistBtn, 'click', () => {
             this.emit('togglePlaylist');
         });
 
@@ -303,7 +304,7 @@ class Player extends Component {
         this.coverClickHandler = () => {
             this.emit('toggleLyrics');
         };
-        this.trackCoverContainer.addEventListener('click', this.coverClickHandler);
+        this.addEventListenerManaged(this.trackCoverContainer, 'click', this.coverClickHandler);
 
         // 双击封面切换迷你模式
         this.coverDblClickHandler = async () => {
@@ -311,29 +312,29 @@ class Player extends Component {
                 await this.toggleMiniMode();
             }
         };
-        this.trackCoverContainer.addEventListener('dblclick', this.coverDblClickHandler);
+        this.addEventListenerManaged(this.trackCoverContainer, 'dblclick', this.coverDblClickHandler);
 
         // 封面悬浮效果
         this.coverMouseEnterHandler = () => {
             this.trackCoverContainer.classList.add('hover');
         };
-        this.trackCoverContainer.addEventListener('mouseenter', this.coverMouseEnterHandler);
+        this.addEventListenerManaged(this.trackCoverContainer, 'mouseenter', this.coverMouseEnterHandler);
 
         this.coverMouseLeaveHandler = () => {
             this.trackCoverContainer.classList.remove('hover');
         };
-        this.trackCoverContainer.addEventListener('mouseleave', this.coverMouseLeaveHandler);
+        this.addEventListenerManaged(this.trackCoverContainer, 'mouseleave', this.coverMouseLeaveHandler);
 
         // 桌面歌词按钮事件
         if (this.desktopLyricsBtn) {
-            this.desktopLyricsBtn.addEventListener('click', async () => {
+            this.addEventListenerManaged(this.desktopLyricsBtn, 'click', async () => {
                 await this.toggleDesktopLyrics();
             });
         }
 
         // 迷你模式按钮
         if (this.miniModeButton) {
-            this.miniModeButton.addEventListener('click', async () => {
+            this.addEventListenerManaged(this.miniModeButton, 'click', async () => {
                 await this.toggleMiniMode();
             });
         }
@@ -350,29 +351,29 @@ class Player extends Component {
         this._updateLock = false;
         this._pendingTrack = null;
 
-        api.on('durationChanged', (duration) => {
+        this.addAPIEventListenerManaged('durationChanged', (duration) => {
             this.duration = duration;
             this.updateProgressDisplay();
         });
 
-        api.on('positionChanged', (position) => {
+        this.addAPIEventListenerManaged('positionChanged', (position) => {
             if (!this.isDraggingProgress) {
                 this.currentTime = position;
                 this.updateProgressDisplay();
             }
         });
 
-        api.on('playbackStateChanged', (state) => {
+        this.addAPIEventListenerManaged('playbackStateChanged', (state) => {
             this.isPlaying = state === 'playing';
             this.updatePlayButton();
         });
 
-        api.on('volumeChanged', (volume) => {
+        this.addAPIEventListenerManaged('volumeChanged', (volume) => {
             this.volume = volume;
             this.updateVolumeDisplay();
         });
 
-        api.on('trackChanged', async (track) => {
+        this.addAPIEventListenerManaged('trackChanged', async (track) => {
             // 如果正在更新，记录新的track待后续处理
             if (this._updateLock) {
                 this._pendingTrack = track;
@@ -394,7 +395,7 @@ class Player extends Component {
             }
         });
 
-        api.on('trackIndexChanged', (index) => {
+        this.addAPIEventListenerManaged('trackIndexChanged', (index) => {
             this.emit('trackIndexChanged', index);
         });
     }
@@ -658,9 +659,9 @@ class Player extends Component {
         }
 
         // 移除封面的普通事件（保留双击事件用于退出迷你模式）
-        this.trackCoverContainer.removeEventListener('click', this.coverClickHandler);
-        this.trackCoverContainer.removeEventListener('mouseenter', this.coverMouseEnterHandler);
-        this.trackCoverContainer.removeEventListener('mouseleave', this.coverMouseLeaveHandler);
+        this.removeEventListenerManaged(this.trackCoverContainer, 'click', this.coverClickHandler);
+        this.removeEventListenerManaged(this.trackCoverContainer, 'mouseenter', this.coverMouseEnterHandler);
+        this.removeEventListenerManaged(this.trackCoverContainer, 'mouseleave', this.coverMouseLeaveHandler);
 
         // 添加鼠标进入/离开窗口的监听（悬浮展开/收起）
         this.miniModeMouseEnterHandler = () => {
@@ -673,8 +674,8 @@ class Player extends Component {
         // 监听app容器
         const appContainer = document.querySelector('.app');
         if (appContainer) {
-            appContainer.addEventListener('mouseenter', this.miniModeMouseEnterHandler);
-            appContainer.addEventListener('mouseleave', this.miniModeMouseLeaveHandler);
+            this.addEventListenerManaged(appContainer, 'mouseenter', this.miniModeMouseEnterHandler);
+            this.addEventListenerManaged(appContainer, 'mouseleave', this.miniModeMouseLeaveHandler);
             this.miniModeAppContainer = appContainer;
         }
 
@@ -697,7 +698,7 @@ class Player extends Component {
             // 更新逐字高亮
             this.updateMiniModeLyricsWordHighlight(position);
         };
-        api.on('positionChanged', this.miniModePositionChangeHandler);
+        this.addAPIEventListenerManaged('positionChanged', this.miniModePositionChangeHandler);
 
         // 初始更新歌词显示
         this.updateMiniModeLyrics();
@@ -728,14 +729,14 @@ class Player extends Component {
         }
 
         // 恢复封面事件
-        this.trackCoverContainer.addEventListener('click', this.coverClickHandler);
-        this.trackCoverContainer.addEventListener('mouseenter', this.coverMouseEnterHandler);
-        this.trackCoverContainer.addEventListener('mouseleave', this.coverMouseLeaveHandler);
+        this.addEventListenerManaged(this.trackCoverContainer, 'click', this.coverClickHandler);
+        this.addEventListenerManaged(this.trackCoverContainer, 'mouseenter', this.coverMouseEnterHandler);
+        this.addEventListenerManaged(this.trackCoverContainer, 'mouseleave', this.coverMouseLeaveHandler);
 
         // 移除迷你模式悬浮事件
         if (this.miniModeMouseEnterHandler && this.miniModeMouseLeaveHandler && this.miniModeAppContainer) {
-            this.miniModeAppContainer.removeEventListener('mouseenter', this.miniModeMouseEnterHandler);
-            this.miniModeAppContainer.removeEventListener('mouseleave', this.miniModeMouseLeaveHandler);
+            this.removeEventListenerManaged(this.miniModeAppContainer, 'mouseenter', this.miniModeMouseEnterHandler);
+            this.removeEventListenerManaged(this.miniModeAppContainer, 'mouseleave', this.miniModeMouseLeaveHandler);
             this.miniModeMouseEnterHandler = null;
             this.miniModeMouseLeaveHandler = null;
             this.miniModeAppContainer = null;
@@ -743,7 +744,7 @@ class Player extends Component {
 
         // 移除播放进度监听
         if (this.miniModePositionChangeHandler) {
-            api.off('positionChanged', this.miniModePositionChangeHandler);
+            this.removeAPIEventListenerManaged('positionChanged', this.miniModePositionChangeHandler);
             this.miniModePositionChangeHandler = null;
         }
 
@@ -1030,12 +1031,12 @@ class Player extends Component {
             }, 80);
         };
 
-        window.addEventListener('resize', this.miniModeResizeHandler);
+        this.addEventListenerManaged(window, 'resize', this.miniModeResizeHandler);
     }
 
     stopMiniModeResizeGuard(): void {
         if (this.miniModeResizeHandler) {
-            window.removeEventListener('resize', this.miniModeResizeHandler);
+            this.removeEventListenerManaged(window, 'resize', this.miniModeResizeHandler);
             this.miniModeResizeHandler = null;
         }
 
@@ -1291,6 +1292,32 @@ class Player extends Component {
     }
 
     destroy(): void {
+        if (this.isMiniMode) {
+            document.body.classList.remove('mini-mode', 'mini-mode-collapsed');
+            this.removeMiniModeLyricsElement();
+            this.clearMiniModeBackground();
+        }
+
+        this.stopMiniModeResizeGuard();
+
+        if (this.miniModeMouseEnterHandler && this.miniModeMouseLeaveHandler && this.miniModeAppContainer) {
+            this.removeEventListenerManaged(this.miniModeAppContainer, 'mouseenter', this.miniModeMouseEnterHandler);
+            this.removeEventListenerManaged(this.miniModeAppContainer, 'mouseleave', this.miniModeMouseLeaveHandler);
+            this.miniModeMouseEnterHandler = null;
+            this.miniModeMouseLeaveHandler = null;
+            this.miniModeAppContainer = null;
+        }
+
+        if (this.miniModePositionChangeHandler) {
+            this.removeAPIEventListenerManaged('positionChanged', this.miniModePositionChangeHandler);
+            this.miniModePositionChangeHandler = null;
+        }
+
+        if (this._miniModeLyricsRafId) {
+            cancelAnimationFrame(this._miniModeLyricsRafId);
+            this._miniModeLyricsRafId = null;
+        }
+
         // 清理封面更新订阅
         if (this.coverUpdateUnsubscribe) {
             this.coverUpdateUnsubscribe();
