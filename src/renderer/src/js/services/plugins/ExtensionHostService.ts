@@ -3,9 +3,15 @@ import {libraryAPI} from "@api/modules";
 import {cacheManager} from "@services/CacheManager";
 import type {Track as ApiTrack} from "@api/types/track";
 import type {RendererAppContext} from "@core/types/app";
+import type {
+    Album as ExtensionAlbum,
+    Artist as ExtensionArtist,
+    Playlist as ExtensionPlaylist,
+    Track as ExtensionTrack
+} from "@extensions/api/types/library";
 
-type AppEventHandler = (...args: any[]) => void;
-type ExtensionTrack = ApiTrack & {
+type AppEventHandler = (...args: unknown[]) => void;
+type HostTrack = ApiTrack & ExtensionTrack & {
     fileId?: string;
     id?: string;
     title?: string;
@@ -13,29 +19,7 @@ type ExtensionTrack = ApiTrack & {
     album?: string;
     cover?: string | null;
     path?: string;
-    [key: string]: any;
 };
-
-interface ExtensionAlbum {
-    name: string;
-    artist: string;
-    cover: string | null;
-    tracks: ExtensionTrack[];
-}
-
-interface ExtensionArtist {
-    name: string;
-    tracks: ExtensionTrack[];
-}
-
-interface ExtensionPlaylist {
-    id: string;
-    name: string;
-    tracks: ExtensionTrack[];
-    createdAt: number;
-    updatedAt: number;
-    [key: string]: any;
-}
 
 class ExtensionHostService {
     private app: RendererAppContext | null = null;
@@ -52,7 +36,7 @@ class ExtensionHostService {
         this.requireApp().off(eventName, callback);
     }
 
-    emit(eventName: string, data?: any): void {
+    emit(eventName: string, data?: unknown): void {
         this.requireApp().emit(eventName, data);
     }
 
@@ -60,20 +44,20 @@ class ExtensionHostService {
         this.requireApp().removeAllListeners(eventName);
     }
 
-    getLibraryTracks(): ExtensionTrack[] {
+    getLibraryTracks(): HostTrack[] {
         const app = this.requireApp();
-        return [...(app.library || [])] as ExtensionTrack[];
+        return [...(app.library || [])] as HostTrack[];
     }
 
-    getTrackById(trackId: string): ExtensionTrack | null {
+    getTrackById(trackId: string): HostTrack | null {
         return this.getLibraryTracks().find((track) => (
             track.fileId === trackId || track.id === trackId
         )) || null;
     }
 
-    async searchTracks(query: string): Promise<ExtensionTrack[]> {
+    async searchTracks(query: string): Promise<HostTrack[]> {
         if (typeof libraryAPI.searchLibrary === 'function') {
-            return await libraryAPI.searchLibrary(query) as ExtensionTrack[];
+            return await libraryAPI.searchLibrary(query) as HostTrack[];
         }
 
         const lowerQuery = query.toLowerCase();
@@ -85,15 +69,15 @@ class ExtensionHostService {
     }
 
     async addTrack(track: unknown): Promise<void> {
-        await api.addTrackToLibrary(track as ExtensionTrack);
+        await api.addTrackToLibrary(track as HostTrack);
     }
 
     async removeTrack(trackId: string, index: number): Promise<void> {
-        const track = this.getTrackById(trackId) || this.getLibraryTracks()[index] || ({id: trackId} as ExtensionTrack);
+        const track = this.getTrackById(trackId) || this.getLibraryTracks()[index] || ({id: trackId} as HostTrack);
         await this.requireApp().handleDeleteTrack(track, index);
     }
 
-    updateTrack(trackId: string, updates: Record<string, unknown>): boolean {
+    updateTrack(trackId: string, updates: Partial<HostTrack>): boolean {
         const track = this.getTrackById(trackId);
         if (!track) {
             return false;
@@ -177,10 +161,10 @@ class ExtensionHostService {
         await app.loadAndPlayFile(filePath);
     }
 
-    getPlaybackContext(): {isPlaying: boolean; currentTrack: ExtensionTrack | null} {
+    getPlaybackContext(): {isPlaying: boolean; currentTrack: HostTrack | null} {
         return {
             isPlaying: api.isPlaying || false,
-            currentTrack: (api.currentTrack || null) as ExtensionTrack | null
+            currentTrack: (api.currentTrack || null) as HostTrack | null
         };
     }
 
