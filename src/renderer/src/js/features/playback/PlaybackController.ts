@@ -2,6 +2,8 @@ import {api} from '@api/api';
 import type {MusicBoxAPIEvents} from '@api/types/events';
 import type {PlayMode} from '@api/types/playback';
 import type {Track} from '@api/types/track';
+import {PlaybackStore} from './PlaybackStore';
+import type {PlaybackState, PlaybackStoreListener, Unsubscribe} from './PlaybackStore';
 
 type PlaybackEventName =
     | 'durationChanged'
@@ -12,10 +14,31 @@ type PlaybackEventName =
     | 'trackIndexChanged';
 
 type PlaybackEventHandler<K extends PlaybackEventName> = (payload: MusicBoxAPIEvents[K]) => void;
-type Unsubscribe = () => void;
 
 class PlaybackController {
+    private readonly store: PlaybackStore;
     private toggleInProgress = false;
+
+    constructor() {
+        this.store = new PlaybackStore({
+            currentTrack: api.currentTrack ?? null,
+            currentIndex: api.currentIndex,
+            isPlaying: api.isPlaying,
+            position: api.position,
+            duration: api.duration,
+            volume: api.volume,
+            playMode: api.getPlayMode()
+        });
+        this.bindAPIEvents();
+    }
+
+    getState(): Readonly<PlaybackState> {
+        return this.store.getState();
+    }
+
+    subscribe(listener: PlaybackStoreListener): Unsubscribe {
+        return this.store.subscribe(listener);
+    }
 
     async togglePlayPause(isPlaying: boolean): Promise<boolean> {
         return isPlaying ? await this.pause() : await this.play();
@@ -79,7 +102,7 @@ class PlaybackController {
     }
 
     getVolume(): number {
-        return api.getVolume();
+        return this.store.getState().volume;
     }
 
     getCurrentTrack(): Track | null {
@@ -87,7 +110,7 @@ class PlaybackController {
     }
 
     getCurrentTrackSnapshot(): Track | null {
-        return api.currentTrack ?? null;
+        return this.store.getState().currentTrack;
     }
 
     togglePlayMode(): PlayMode {
@@ -95,7 +118,7 @@ class PlaybackController {
     }
 
     getPlayMode(): PlayMode {
-        return api.getPlayMode();
+        return this.store.getState().playMode;
     }
 
     on<K extends PlaybackEventName>(event: K, handler: PlaybackEventHandler<K>): Unsubscribe {
@@ -104,8 +127,33 @@ class PlaybackController {
             api.off(event, handler);
         };
     }
+
+    private bindAPIEvents(): void {
+        api.on('durationChanged', (duration) => {
+            this.store.setDuration(duration);
+        });
+        api.on('positionChanged', (position) => {
+            this.store.setPosition(position);
+        });
+        api.on('playbackStateChanged', (state) => {
+            this.store.setPlaybackState(state);
+        });
+        api.on('volumeChanged', (volume) => {
+            this.store.setVolume(volume);
+        });
+        api.on('trackChanged', (track) => {
+            this.store.setTrack(track);
+        });
+        api.on('trackIndexChanged', (index) => {
+            this.store.setTrackIndex(index);
+        });
+        api.on('playModeChanged', (mode) => {
+            this.store.setPlayMode(mode);
+        });
+    }
 }
 
 export const playbackController = new PlaybackController();
-export type {PlaybackEventHandler, PlaybackEventName, Unsubscribe};
+export type {PlaybackEventHandler, PlaybackEventName};
+export type {PlaybackState, PlaybackStoreChange, PlaybackStoreListener, Unsubscribe} from './PlaybackStore';
 export {PlaybackController};

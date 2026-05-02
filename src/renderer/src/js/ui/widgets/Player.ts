@@ -8,7 +8,7 @@ import {Component} from "@ui/base/Component";
 import {api} from "@api/api";
 import {coverAPI, windowAPI, lyricsAPI} from "@api/modules";
 import {playbackController} from "@js/features/playback";
-import type {PlaybackEventHandler, PlaybackEventName, Unsubscribe} from "@js/features/playback";
+import type {PlaybackState, PlaybackStoreChange, Unsubscribe} from "@js/features/playback";
 import type {PlayMode} from "@api/types/playback";
 import type {Track} from "@api/types/track";
 import type {LyricLine} from "@api/types/lyrics";
@@ -100,7 +100,7 @@ class Player extends Component {
     private miniModePositionUnsubscribe: Unsubscribe | null = null;
     private miniModeResizeHandler: (() => void) | null = null;
     private miniModeResizeGuardTimer: ReturnType<typeof setTimeout> | null = null;
-    private playbackEventUnsubscribes: Unsubscribe[];
+    private playbackStateUnsubscribe: Unsubscribe | null = null;
 
     private _miniModeLyricsRafId: number | null;
     private _miniModeLyricsLastUpdateTime: number;
@@ -124,7 +124,7 @@ class Player extends Component {
         this.currentTrack = null;
         this.miniModeButton = null;
         this.desktopLyricsBtn = null;
-        this.playbackEventUnsubscribes = [];
+        this.playbackStateUnsubscribe = null;
 
         // 迷你模式歌词相关
         this._miniModeLyricsRafId = null;
@@ -356,71 +356,85 @@ class Player extends Component {
         this._updateLock = false;
         this._pendingTrack = null;
 
-        this.addPlaybackEventListener('durationChanged', (duration) => {
-            this.duration = duration;
-            this.updateProgressDisplay();
+        this.playbackStateUnsubscribe = playbackController.subscribe((state, change) => {
+            return this.handlePlaybackStateChange(state, change);
         });
+    }
 
-        this.addPlaybackEventListener('positionChanged', (position) => {
-            if (!this.isDraggingProgress) {
-                this.currentTime = position;
+    private async handlePlaybackStateChange(
+        state: Readonly<PlaybackState>,
+        change: PlaybackStoreChange
+    ): Promise<void> {
+        switch (change.type) {
+            case 'durationChanged':
+                this.duration = state.duration;
                 this.updateProgressDisplay();
-            }
-        });
+                break;
 
-        this.addPlaybackEventListener('playbackStateChanged', (state) => {
-            this.isPlaying = state === 'playing';
-            this.updatePlayButton();
-        });
-
-        this.addPlaybackEventListener('volumeChanged', (volume) => {
-            this.volume = volume;
-            this.updateVolumeDisplay();
-        });
-
-        this.addPlaybackEventListener('trackChanged', async (track) => {
-            // 如果正在更新，记录新的track待后续处理
-            if (this._updateLock) {
-                this._pendingTrack = track;
-                return;
-            }
-
-            this._updateLock = true;
-            try {
-                await this.updateTrackInfo(track);
-
-                // 检查是否有待处理的track
-                while (this._pendingTrack) {
-                    const nextTrack = this._pendingTrack;
-                    this._pendingTrack = null;
-                    await this.updateTrackInfo(nextTrack);
+            case 'positionChanged':
+                if (!this.isDraggingProgress) {
+                    this.currentTime = state.position;
+                    this.updateProgressDisplay();
                 }
-            } finally {
-                this._updateLock = false;
-            }
-        });
+                break;
 
-        this.addPlaybackEventListener('trackIndexChanged', (index) => {
-            this.emit('trackIndexChanged', index);
-        });
+            case 'playbackStateChanged':
+                this.isPlaying = state.isPlaying;
+                this.updatePlayButton();
+                break;
+
+            case 'volumeChanged':
+                this.volume = state.volume;
+                this.updateVolumeDisplay();
+                break;
+
+            case 'trackChanged':
+                await this.handlePlaybackTrackChanged(state.currentTrack);
+                break;
+
+            case 'trackIndexChanged':
+                this.emit('trackIndexChanged', state.currentIndex);
+                break;
+
+            case 'playModeChanged':
+                this.updatePlayModeDisplay(state.playMode);
+                break;
+        }
     }
 
-    private addPlaybackEventListener<K extends PlaybackEventName>(
-        event: K,
-        handler: PlaybackEventHandler<K>
-    ): void {
-        this.playbackEventUnsubscribes.push(playbackController.on(event, handler));
+    private async handlePlaybackTrackChanged(track: Track | null): Promise<void> {
+        // 如果正在更新，记录新的track待后续处理
+        if (this._updateLock) {
+            this._pendingTrack = track;
+            return;
+        }
+
+        this._updateLock = true;
+        try {
+            await this.updateTrackInfo(track);
+
+            // 检查是否有待处理的track
+            while (this._pendingTrack) {
+                const nextTrack = this._pendingTrack;
+                this._pendingTrack = null;
+                await this.updateTrackInfo(nextTrack);
+            }
+        } finally {
+            this._updateLock = false;
+        }
     }
 
-    private removeAllPlaybackEventListeners(): void {
-        this.playbackEventUnsubscribes.forEach((unsubscribe) => {
-            try {
-                unsubscribe();
-            } catch (error) {
-                console.warn('⚠️ Player: 移除 playback 事件监听失败:', error);
-            }
-        });
-        this.playbackEventUnsubscribes = [];
+    private removePlaybackStateSubscription(): void {
+        if (!this.playbackStateUnsubscribe) {
+            return;
+        }
+
+        try {
+            this.playbackStateUnsubscribe();
+        } catch (error) {
+            console.warn('⚠️ Player: 移除 playback state 订阅失败:', error);
+        }
+        this.playbackStateUnsubscribe = null;
     }
 
     updateProgress(e: MouseEvent): void {
@@ -1355,7 +1369,7 @@ class Player extends Component {
         this.duration = 0;
         this.isDraggingProgress = false;
         this.isDraggingVolume = false;
-        this.removeAllPlaybackEventListeners();
+        this.removePlaybackStateSubscription();
         super.destroy();
     }
 }
