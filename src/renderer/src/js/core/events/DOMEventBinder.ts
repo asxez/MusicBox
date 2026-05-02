@@ -23,6 +23,8 @@ export class DOMEventBinder {
     }
 
     dispose(): void {
+        windowAPI.disposeWindowStateManagement();
+
         this.eventListeners.forEach(({element, event, handler}) => {
             try {
                 element.removeEventListener(event, handler);

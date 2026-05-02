@@ -6,6 +6,7 @@
 import {libraryGateway} from "@js/infrastructure/electron";
 import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {embeddedCoverManager} from "@services/cover/EmbeddedCoverManager";
+import {onDOMReady} from "@utils/index.js";
 
 export interface CoverUpdateData {
     filePath: string;
@@ -123,11 +124,5 @@ class CoverUpdateManager {
 }
 
 const coverUpdateManager = new CoverUpdateManager();
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        coverUpdateManager.initialize();
-    });
-} else {
-    coverUpdateManager.initialize();
-}
+onDOMReady(() => coverUpdateManager.initialize());
 export {coverUpdateManager};

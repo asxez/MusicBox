@@ -6,7 +6,7 @@
 import {Validator} from '@extensions/api/common/validation';
 import {ErrorUtils} from '@extensions/api/common/errors';
 import {IDisposable, toDisposable} from '@extensions/core/Lifecycle';
-import {showToast, theme} from '@js/utils';
+import {onDOMReady, showToast, theme} from '@js/utils';
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import {settingsExtensionNavigationService} from "@services/settings/SettingsExtensionNavigationService";
 import {ExtensionContext} from "@extensions/core";
@@ -467,13 +467,7 @@ class SettingsManagerClass {
 const SettingsManager = new SettingsManagerClass();
 
 // 初始化设置页管理器
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        SettingsManager.initialize();
-    });
-} else {
-    SettingsManager.initialize();
-}
+onDOMReady(() => SettingsManager.initialize());
 
 /**
  * 创建 UI API

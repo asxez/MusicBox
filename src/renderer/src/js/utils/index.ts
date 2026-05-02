@@ -153,6 +153,15 @@ interface ThemeController {
     emit(event: string, ...args: any[]): void;
 }
 
+function onDOMReady(callback: () => void): void {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', callback, {once: true});
+        return;
+    }
+
+    callback();
+}
+
 const theme: ThemeController = {
     get current() {
         return document.documentElement.getAttribute('data-theme') || 'light';
@@ -180,7 +189,7 @@ const theme: ThemeController = {
     emit: themeEvents.emit.bind(themeEvents)
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+onDOMReady(() => {
     theme.init();
 });
 
@@ -190,6 +199,7 @@ export {
     showToast,
     debounce,
     theme,
+    onDOMReady,
     formatTime,
     sanitizeHTML,
 };

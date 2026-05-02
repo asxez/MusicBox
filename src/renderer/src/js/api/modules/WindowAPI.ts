@@ -21,6 +21,8 @@ interface WindowSizeData extends WindowSize {
  */
 export class WindowAPI extends BaseAPI {
     private resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+    private resizeHandler: (() => void) | null = null;
+    private maximizedChangedUnsubscribe: Unsubscribe | null = null;
     private readonly MIN_WIDTH = 440;
     private readonly MIN_HEIGHT = 120;
     private readonly NORMAL_MIN_WIDTH = 1080;
@@ -36,10 +38,15 @@ export class WindowAPI extends BaseAPI {
      * 初始化窗口状态管理
      */
     initWindowStateManagement(): void {
+        if (this.resizeHandler || this.maximizedChangedUnsubscribe) {
+            this.log('窗口状态管理已初始化，跳过重复绑定');
+            return;
+        }
+
         this.log('初始化窗口状态管理');
 
         // 窗口尺寸变化监听
-        window.addEventListener('resize', () => {
+        this.resizeHandler = () => {
             if (this.resizeTimeout) {
                 clearTimeout(this.resizeTimeout);
             }
@@ -47,10 +54,11 @@ export class WindowAPI extends BaseAPI {
             this.resizeTimeout = setTimeout(async () => {
                 await this.saveWindowSize();
             }, 1500);
-        });
+        };
+        window.addEventListener('resize', this.resizeHandler);
 
         // 窗口最大化状态变化监听
-        windowGateway.onMaximizedChanged((isMaximized: boolean) => {
+        this.maximizedChangedUnsubscribe = windowGateway.onMaximizedChanged((isMaximized: boolean) => {
             if (!isMaximized) {
                 setTimeout(async () => {
                     await this.restoreWindowSize();
@@ -59,6 +67,24 @@ export class WindowAPI extends BaseAPI {
         });
 
         this.log('窗口状态管理初始化完成');
+    }
+
+    disposeWindowStateManagement(): void {
+        if (this.resizeHandler) {
+            window.removeEventListener('resize', this.resizeHandler);
+            this.resizeHandler = null;
+        }
+
+        if (this.resizeTimeout) {
+            clearTimeout(this.resizeTimeout);
+            this.resizeTimeout = null;
+            void this.saveWindowSize();
+        }
+
+        if (this.maximizedChangedUnsubscribe) {
+            this.maximizedChangedUnsubscribe();
+            this.maximizedChangedUnsubscribe = null;
+        }
     }
 
     /**
