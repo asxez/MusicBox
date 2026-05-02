@@ -1,5 +1,5 @@
 import {api} from "@api/api";
-import {updateAPI} from "@js/api";
+import {updateAPI} from "@api/modules";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
 import {settingsExtensionNavigationService} from "@services/settings/SettingsExtensionNavigationService";
 import type {Playlist} from "@api/types/playlist";

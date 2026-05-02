@@ -4,7 +4,7 @@
 
 import {Component} from "@ui/base/Component";
 import {api} from "@api/api";
-import {fileAPI, libraryAPI, userDataAPI} from "@js/api";
+import {fileAPI, libraryAPI, userDataAPI} from "@api/modules";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import type {Track} from "@api/types/library";
 

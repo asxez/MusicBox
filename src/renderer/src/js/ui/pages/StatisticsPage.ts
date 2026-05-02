@@ -4,7 +4,7 @@
 
 import {cacheManager} from "@services/CacheManager";
 import {Component} from "@ui/base/Component";
-import {libraryAPI, userDataAPI} from "@js/api";
+import {libraryAPI, userDataAPI} from "@api/modules";
 import type {Track} from "@api/types/library";
 import type {DiaryData, MoodData} from "@api/types/userdata";
 

@@ -7,7 +7,7 @@ import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
 import type {CoverUpdateData} from "@services/cover/CoverUpdateManager";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
 import {Component} from "@ui/base/Component";
-import {coverAPI} from "@js/api";
+import {coverAPI} from "@api/modules";
 import type {Unsubscribe} from "@api/types/common";
 import type {Track} from "@api/types/track";
 

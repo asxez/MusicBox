@@ -1,4 +1,4 @@
-import {trayAPI, windowAPI} from "@js/api";
+import {trayAPI, windowAPI} from "@api/modules";
 import type {ManagedDOMListener, RendererAppContext} from '@core/types/app';
 
 interface DOMEventBinderOptions {

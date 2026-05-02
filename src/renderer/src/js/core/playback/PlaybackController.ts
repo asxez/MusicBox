@@ -1,6 +1,6 @@
 import {cacheManager} from "@services/CacheManager";
 import {api} from "@api/api";
-import {libraryAPI} from "@js/api";
+import {libraryAPI} from "@api/modules";
 import type {PlaybackStateSnapshot, PlayMode} from '@api/types/playback';
 import type {MusicBoxSettings} from '@api/types/settings';
 import type {Track} from '@api/types/track';

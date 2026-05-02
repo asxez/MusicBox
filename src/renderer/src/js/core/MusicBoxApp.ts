@@ -17,7 +17,7 @@ import {extensionHostService} from "@services/plugins/ExtensionHostService";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import {api} from "@api/api";
 
-import {updateAPI} from "@js/api";
+import {updateAPI} from "@api/modules";
 import type {MusicBoxAPIEvents, ScanProgress} from "@api/types/events";
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";

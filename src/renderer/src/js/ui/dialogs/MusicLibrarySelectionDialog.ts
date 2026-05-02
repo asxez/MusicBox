@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {libraryAPI} from "@js/api";
+import {libraryAPI} from "@api/modules";
 import type {Playlist, Track} from "@api/types/library";
 
 type PlaylistWithTrackIds = Playlist & {trackIds?: string[]};

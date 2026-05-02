@@ -1,4 +1,4 @@
-import {libraryAPI, windowAPI} from "@js/api";
+import {libraryAPI, windowAPI} from "@api/modules";
 import {libraryGateway, networkDriveGateway} from "@js/infrastructure/electron";
 import type {Result, Unsubscribe} from "@api/types/common";
 import type {MountedNetworkDrive} from "@api/types/electron";

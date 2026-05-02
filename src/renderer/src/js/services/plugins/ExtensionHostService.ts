@@ -1,5 +1,5 @@
 import {api} from "@api/api";
-import {libraryAPI} from "@js/api";
+import {libraryAPI} from "@api/modules";
 import {cacheManager} from "@services/CacheManager";
 import type {Track as ApiTrack} from "@api/types/track";
 import type {RendererAppContext} from "@core/types/app";

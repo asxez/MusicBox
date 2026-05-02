@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {coverAPI, fileAPI, libraryAPI} from "@js/api";
+import {coverAPI, fileAPI, libraryAPI} from "@api/modules";
 import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import type {Track} from "@api/types/library";

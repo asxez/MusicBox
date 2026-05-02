@@ -1,4 +1,4 @@
-import {libraryAPI} from "@js/api";
+import {libraryAPI} from "@api/modules";
 import {libraryGateway, networkDriveGateway} from "@js/infrastructure/electron";
 import type {Result, Unsubscribe} from "@api/types/common";
 import type {ScanProgress} from "@api/types/events";

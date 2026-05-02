@@ -4,7 +4,7 @@
 
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@ui/base/Component";
-import {coverAPI, libraryAPI} from "@js/api";
+import {coverAPI, libraryAPI} from "@api/modules";
 import type {Track} from "@api/types/track";
 
 type ArtistViewMode = 'constellation' | 'galaxy';

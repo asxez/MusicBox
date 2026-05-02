@@ -7,7 +7,7 @@ import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import {formatTime} from "@utils/index.js";
 import {Component} from "@ui/base/Component";
-import {coverAPI} from "@js/api";
+import {coverAPI} from "@api/modules";
 import type {Track} from "@api/types/library";
 
 interface RecentTrack extends Track {

@@ -5,7 +5,7 @@
 
 import {formatTime} from "@utils/index.js";
 import {Component} from "@ui/base/Component";
-import {coverAPI, libraryAPI} from "@js/api";
+import {coverAPI, libraryAPI} from "@api/modules";
 import type {Track} from "@api/types/library";
 
 type AlbumViewSize = 's' | 'm' | 'l';

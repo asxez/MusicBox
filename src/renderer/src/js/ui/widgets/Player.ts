@@ -6,7 +6,7 @@ import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@ui/base/Component";
 import {api} from "@api/api";
-import {coverAPI, windowAPI, lyricsAPI} from "@js/api";
+import {coverAPI, windowAPI, lyricsAPI} from "@api/modules";
 import type {PlayMode} from "@api/types/playback";
 import type {Track} from "@api/types/track";
 import type {LyricLine} from "@api/types/lyrics";

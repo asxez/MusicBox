@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {libraryAPI} from "@js/api";
+import {libraryAPI} from "@api/modules";
 
 interface TrackToAdd {
     fileId?: string;

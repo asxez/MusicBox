@@ -1,5 +1,5 @@
 import {api} from "@api/api";
-import {libraryAPI} from "@js/api";
+import {libraryAPI} from "@api/modules";
 import {libraryGateway} from "@js/infrastructure/electron";
 import type {Result} from "@api/types/common";
 import type {CacheValidationResult} from "@api/types/events";

@@ -1,6 +1,6 @@
 import {showToast} from '@utils/index.js';
 import {api} from "@api/api";
-import {fileAPI, libraryAPI} from "@js/api";
+import {fileAPI, libraryAPI} from "@api/modules";
 import type {RendererAppContext} from '@core/types/app';
 
 interface FileImportControllerOptions {

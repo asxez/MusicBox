@@ -6,7 +6,7 @@ import {Component} from "@ui/base/Component";
 import {api} from "@api/api";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
 import {appInteractionService} from "@services/ui/AppInteractionService";
-import {coverAPI, fileAPI, libraryAPI} from "@js/api";
+import {coverAPI, fileAPI, libraryAPI} from "@api/modules";
 import type {Unsubscribe} from "@api/types/common";
 import type {Playlist, Track} from "@api/types/library";
 

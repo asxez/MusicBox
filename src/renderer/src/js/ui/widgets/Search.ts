@@ -4,7 +4,7 @@
 
 import {debounce, showToast} from "@utils/index.js";
 import {Component} from "@ui/base/Component";
-import {libraryAPI} from "@js/api";
+import {libraryAPI} from "@api/modules";
 
 type DebouncedSearch = ((query: string) => void) & {
     cancel?: () => void;

@@ -1,7 +1,7 @@
 import {cacheManager} from "@services/CacheManager";
 import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {api} from "@api/api";
-import {libraryAPI} from "@js/api";
+import {libraryAPI} from "@api/modules";
 import type {MusicBoxAPIEvents} from "@api/types/events";
 import type {Track} from "@api/types/track";
 import type {RendererAppContext} from "@core/types/app";
