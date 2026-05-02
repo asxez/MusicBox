@@ -5,6 +5,7 @@
 import {Component} from "@components/base/Component";
 import {api} from "@api/api";
 import {fileAPI, libraryAPI, userDataAPI} from "@js/api";
+import {appInteractionService} from "@services/ui/AppInteractionService";
 import type {Track} from "@api/types/library";
 
 type BreathingPhase = 'inhale' | 'hold' | 'exhale';
@@ -672,7 +673,7 @@ class HomePage extends Component {
         if (addFilesBtn) {
             addFilesBtn.addEventListener('click', async () => {
                 try {
-                    await app.addMusicFiles();
+                    await appInteractionService.addMusicFiles();
                     this.tracks = await libraryAPI.getTracks();
                     this.render();
                 } catch (error) {

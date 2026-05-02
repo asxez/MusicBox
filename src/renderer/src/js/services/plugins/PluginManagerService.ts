@@ -14,6 +14,12 @@ interface PluginExtensionServiceBridge {
 }
 
 class PluginManagerService {
+    private extensionService: PluginExtensionServiceBridge | null = null;
+
+    bindExtensionService(extensionService: PluginExtensionServiceBridge | null): void {
+        this.extensionService = extensionService;
+    }
+
     getExtensions(): PluginExtension[] {
         return this.getExtensionService()?.getExtensions() || [];
     }
@@ -54,7 +60,7 @@ class PluginManagerService {
     }
 
     private getExtensionService(): PluginExtensionServiceBridge | null {
-        return window.extensionService as PluginExtensionServiceBridge | null | undefined || null;
+        return this.extensionService;
     }
 }
 

@@ -5,7 +5,6 @@
 
 import {formatTime} from "@utils/index.js";
 import {Component} from "@components/base/Component";
-import {api} from "@api/api";
 import {coverAPI, libraryAPI} from "@js/api";
 import type {Track} from "@api/types/library";
 

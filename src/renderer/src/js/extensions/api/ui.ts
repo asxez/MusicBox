@@ -509,7 +509,9 @@ export function createUIAPI(_context: ExtensionContext): UIAPI {
                 const title = options.title || '确认';
                 const confirmText = options.confirmText || '确定';
                 const cancelText = options.cancelText || '取消';
-                const type = options.type || 'default';
+                const type = options.type === 'warning' || options.type === 'danger' || options.type === 'default'
+                    ? options.type
+                    : 'default';
 
                 return await appInteractionService.confirm({
                     title: title,

@@ -94,8 +94,9 @@ class PluginManagerModal extends Component {
         }
 
         // ESC 键关闭
-        this.addEventListenerManaged(document, 'keydown', (e) => {
-            if (e.key === 'Escape' && this.isVisible) {
+        this.addEventListenerManaged(document, 'keydown', (event) => {
+            const keyboardEvent = event as KeyboardEvent;
+            if (keyboardEvent.key === 'Escape' && this.isVisible) {
                 this.hide();
             }
         });

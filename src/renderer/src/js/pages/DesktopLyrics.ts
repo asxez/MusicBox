@@ -5,62 +5,7 @@
 import type {DesktopLyricsPlaybackState} from '@api/types/playback';
 import type {DesktopLyricsSettings as ApiDesktopLyricsSettings} from '@api/types/settings';
 import type {Track} from '@api/types/library';
-
-type Unsubscribe = () => void;
-type DesktopLyricsAPI = Window['electronAPI']['desktopLyrics'];
-
-class DesktopLyricsPageGateway {
-    private get api(): DesktopLyricsAPI {
-        const desktopLyricsAPI = window.electronAPI?.desktopLyrics;
-        if (!desktopLyricsAPI) {
-            throw new Error('electronAPI.desktopLyrics is not available');
-        }
-
-        return desktopLyricsAPI;
-    }
-
-    close(): Promise<unknown> {
-        return this.api.close();
-    }
-
-    setOpacity(opacity: number): Promise<unknown> {
-        return this.api.setOpacity(opacity);
-    }
-
-    setAlwaysOnTop(flag: boolean): Promise<unknown> {
-        return this.api.setAlwaysOnTop(flag);
-    }
-
-    setIgnoreMouseEvents(ignore: boolean, options?: {forward?: boolean}): Promise<unknown> {
-        return this.api.setIgnoreMouseEvents(ignore, options);
-    }
-
-    centerOnScreen(): Promise<unknown> {
-        return this.api.centerOnScreen();
-    }
-
-    onLyricsUpdated(handler: (lyricsData: unknown) => void): Unsubscribe {
-        return this.api.onLyricsUpdated?.(handler) || (() => {});
-    }
-
-    onPositionChanged(handler: (position: number) => void): Unsubscribe {
-        return this.api.onPositionChanged?.(handler) || (() => {});
-    }
-
-    onPlaybackStateChanged(handler: (state: DesktopLyricsPlaybackState) => void): Unsubscribe {
-        return this.api.onPlaybackStateChanged?.(handler) || (() => {});
-    }
-
-    onTrackChanged(handler: (track: Track | null) => void): Unsubscribe {
-        return this.api.onTrackChanged?.(handler) || (() => {});
-    }
-
-    onSettingsChanged(handler: (settings: ApiDesktopLyricsSettings) => void): Unsubscribe {
-        return this.api.onSettingsChanged?.(handler) || (() => {});
-    }
-}
-
-const desktopLyricsGateway = new DesktopLyricsPageGateway();
+import {desktopLyricsGateway} from '@js/infrastructure/electron';
 
 interface DesktopLyricWord {
     time: number;

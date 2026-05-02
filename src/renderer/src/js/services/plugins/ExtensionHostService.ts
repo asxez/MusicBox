@@ -1,8 +1,8 @@
 import {api} from "@api/api";
-import {app} from "@core/app";
 import {libraryAPI} from "@js/api";
 import {cacheManager} from "@services/CacheManager";
 import type {Track as ApiTrack} from "@api/types/track";
+import type {RendererAppContext} from "@core/types/app";
 
 type AppEventHandler = (...args: any[]) => void;
 type ExtensionTrack = ApiTrack & {
@@ -38,23 +38,30 @@ interface ExtensionPlaylist {
 }
 
 class ExtensionHostService {
+    private app: RendererAppContext | null = null;
+
+    bindApp(app: RendererAppContext): void {
+        this.app = app;
+    }
+
     on(eventName: string, callback: AppEventHandler): void {
-        app.on(eventName, callback);
+        this.requireApp().on(eventName, callback);
     }
 
     off(eventName: string, callback: AppEventHandler): void {
-        app.off(eventName, callback);
+        this.requireApp().off(eventName, callback);
     }
 
     emit(eventName: string, data?: any): void {
-        app.emit(eventName, data);
+        this.requireApp().emit(eventName, data);
     }
 
     removeAllListeners(eventName?: string): void {
-        app.removeAllListeners(eventName);
+        this.requireApp().removeAllListeners(eventName);
     }
 
     getLibraryTracks(): ExtensionTrack[] {
+        const app = this.requireApp();
         return [...(app.library || [])] as ExtensionTrack[];
     }
 
@@ -77,23 +84,23 @@ class ExtensionHostService {
         ));
     }
 
-    async addTrack(track: ExtensionTrack): Promise<void> {
-        await api.addTrackToLibrary(track);
+    async addTrack(track: unknown): Promise<void> {
+        await api.addTrackToLibrary(track as ExtensionTrack);
     }
 
     async removeTrack(trackId: string, index: number): Promise<void> {
         const track = this.getTrackById(trackId) || this.getLibraryTracks()[index] || ({id: trackId} as ExtensionTrack);
-        await app.handleDeleteTrack(track, index);
+        await this.requireApp().handleDeleteTrack(track, index);
     }
 
-    updateTrack(trackId: string, updates: Partial<ExtensionTrack>): boolean {
+    updateTrack(trackId: string, updates: Record<string, unknown>): boolean {
         const track = this.getTrackById(trackId);
         if (!track) {
             return false;
         }
 
         Object.assign(track, updates);
-        app.emit('libraryUpdated');
+        this.requireApp().emit('libraryUpdated');
         return true;
     }
 
@@ -142,11 +149,12 @@ class ExtensionHostService {
         return cacheManager.getLocalCache('playlists') || [];
     }
 
-    savePlaylists(playlists: ExtensionPlaylist[]): void {
+    savePlaylists(playlists: unknown[]): void {
         cacheManager.setLocalCache('playlists', playlists);
     }
 
     navigateToView(viewId: string): void {
+        const app = this.requireApp();
         const navigation = app.components.navigation;
         if (!navigation) {
             throw new Error('导航组件不可用');
@@ -156,10 +164,12 @@ class ExtensionHostService {
     }
 
     getCurrentView(): string | null {
+        const app = this.requireApp();
         return app.currentView || null;
     }
 
     async loadAndPlayFile(filePath: string): Promise<void> {
+        const app = this.requireApp();
         if (typeof app.loadAndPlayFile !== 'function') {
             throw new Error('app 未初始化');
         }
@@ -172,6 +182,14 @@ class ExtensionHostService {
             isPlaying: api.isPlaying || false,
             currentTrack: (api.currentTrack || null) as ExtensionTrack | null
         };
+    }
+
+    private requireApp(): RendererAppContext {
+        if (!this.app) {
+            throw new Error('插件宿主服务尚未绑定 App 上下文');
+        }
+
+        return this.app;
     }
 }
 

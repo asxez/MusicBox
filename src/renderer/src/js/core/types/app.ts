@@ -100,6 +100,10 @@ export interface RendererAppContext {
     coversPreloadedByApp?: boolean;
     extensionService?: unknown;
     instantiationService?: unknown;
+    on(event: string, handler: (...args: any[]) => void): void;
+    off(event: string, handler: (...args: any[]) => void): void;
+    emit(event: string, ...args: any[]): void;
+    removeAllListeners(event?: string): void;
     addManagedEventListener(
         element: EventTarget,
         event: string,
@@ -163,6 +167,7 @@ export interface RendererAppContext {
     hideAllPages(): void;
     updateSidebarSelection(type: string, id?: string | null): void;
     playTrackFromPlaylist(track: Track, index: number): Promise<void>;
+    loadAndPlayFile?(filePath: string): Promise<void>;
 }
 
 export interface PlayerLike {

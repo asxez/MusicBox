@@ -1,6 +1,7 @@
 import {ExtensionService} from "@extensions/core/ExtensionService";
 import {InstantiationService, ServiceCollection} from "@extensions/core/Instantiation";
 import {ActivationEvents} from "@extensions/core/ExtensionsRegistry";
+import {pluginManagerService} from "@services/plugins/PluginManagerService";
 import type {RendererAppContext} from '@core/types/app';
 
 interface PluginBootstrapOptions {
@@ -40,6 +41,7 @@ export class PluginBootstrap {
 
             window.extensionService = extensionService;
             window.instantiationService = instantiationService;
+            pluginManagerService.bindExtensionService(extensionService);
             app.extensionService = extensionService;
             app.instantiationService = instantiationService;
 

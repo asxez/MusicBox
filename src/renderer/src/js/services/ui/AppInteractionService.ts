@@ -1,28 +1,42 @@
-import {app} from "@core/app";
-import type {ConfirmOptions} from "@core/types/app";
+import type {ConfirmOptions, RendererAppContext} from "@core/types/app";
 
 class AppInteractionService {
+    private app: RendererAppContext | null = null;
+
+    bindApp(app: RendererAppContext): void {
+        this.app = app;
+    }
+
     confirm(options: ConfirmOptions): Promise<boolean> {
-        return app.confirm(options);
+        return this.requireApp().confirm(options);
     }
 
     showInfo(message: string): void {
-        app.showInfo(message);
+        this.requireApp().showInfo(message);
     }
 
     showSuccess(message: string): void {
-        app.showSuccess(message);
+        this.requireApp().showSuccess(message);
     }
 
     showError(message: string): void {
-        app.showError(message);
+        this.requireApp().showError(message);
     }
 
     navigateToLibrary(): Promise<void> {
-        return app.handleViewChange('library');
+        return this.requireApp().handleViewChange('library');
+    }
+
+    addMusicFiles(): Promise<void> {
+        return this.requireApp().addMusicFiles();
     }
 
     showNetworkDriveModal(): boolean {
+        const app = this.app;
+        if (!app) {
+            return false;
+        }
+
         const modal = app.components.networkDiskModal;
         if (!modal) {
             return false;
@@ -33,6 +47,11 @@ class AppInteractionService {
     }
 
     async showPluginManager(): Promise<boolean> {
+        const app = this.app;
+        if (!app) {
+            return false;
+        }
+
         const modal = app.components.pluginManagerModal;
         if (!modal) {
             return false;
@@ -40,6 +59,14 @@ class AppInteractionService {
 
         await modal.show();
         return true;
+    }
+
+    private requireApp(): RendererAppContext {
+        if (!this.app) {
+            throw new Error('应用交互服务尚未绑定 App 上下文');
+        }
+
+        return this.app;
     }
 }
 

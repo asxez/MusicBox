@@ -13,6 +13,8 @@ import {PlaybackController} from './playback/PlaybackController';
 import {PlaylistController} from './playlists/PlaylistController';
 
 import {cacheManager} from "@services/CacheManager";
+import {extensionHostService} from "@services/plugins/ExtensionHostService";
+import {appInteractionService} from "@services/ui/AppInteractionService";
 import {api} from "@api/api";
 
 import {updateAPI} from "@js/api";
@@ -86,6 +88,8 @@ export class MusicBoxApp extends EventEmitter {
         this.libraryController = new LibraryController({app: this});
         this.playbackController = new PlaybackController({app: this});
         this.playlistController = new PlaylistController({app: this});
+        appInteractionService.bindApp(this);
+        extensionHostService.bindApp(this);
 
         this.init().then((res: InitResult) => {
             if (!res.status) console.error('Failed to initialize MusicBox:', res.error);
