@@ -3,6 +3,10 @@
  * 用于测试新的模块化 API 系统
  */
 
+function getExtensionAPI(context) {
+    return context.api || createExtensionAPI(context);
+}
+
 
 async function activate(context) {
     console.log('🧪 API 测试扩展已激活');
@@ -64,7 +68,7 @@ function testPlayerAPI(context) {
     console.group('🎵 测试 Player API');
 
     try {
-        const {player} = createExtensionAPI(context);
+        const {player} = getExtensionAPI(context);
 
         // 测试获取状态
         const state = player.getState();
@@ -98,7 +102,7 @@ function testLibraryAPI(context) {
     console.group('📚 测试 Library API');
 
     try {
-        const {library} = createExtensionAPI(context);
+        const {library} = getExtensionAPI(context);
 
         // 测试获取所有歌曲
         const tracks = library.getAllTracks();
@@ -132,7 +136,7 @@ function testUIAPI(context) {
     console.group('🎨 测试 UI API');
 
     try {
-        const {ui} = createExtensionAPI(context);
+        const {ui} = getExtensionAPI(context);
 
         // 测试通知
         ui.showInformationMessage('这是一条信息通知');
@@ -156,7 +160,7 @@ function testStorageAPI(context) {
     console.group('💾 测试 Storage API');
 
     try {
-        const {storage} = createExtensionAPI(context);
+        const {storage} = getExtensionAPI(context);
 
         // 测试存储和读取
         storage.update('test-key', 'test-value').then(() => {
@@ -180,7 +184,7 @@ function testSettingsAPI(context) {
     console.group('⚙️ 测试 Settings API');
 
     try {
-        const {settings} = createExtensionAPI(context);
+        const {settings} = getExtensionAPI(context);
 
         // 测试获取设置
         const value = settings.get('test.setting', 'default');
@@ -202,7 +206,7 @@ function testCommandsAPI(context) {
     console.group('⌨️ 测试 Commands API');
 
     try {
-        const {commands} = createExtensionAPI(context);
+        const {commands} = getExtensionAPI(context);
 
         // 测试注册命令
         const disposable = commands.registerCommand('test.command', () => {
@@ -241,7 +245,7 @@ function testEventsAPI(context) {
     console.group('📡 测试 Events API');
 
     try {
-        const {events} = createExtensionAPI(context);
+        const {events} = getExtensionAPI(context);
 
         // 测试监听事件
         const disposable = events.on('test-event', (data) => {
@@ -266,7 +270,7 @@ function testViewsAPI(context) {
     console.group('👁️ 测试 Views API');
 
     try {
-        const {views} = createExtensionAPI(context);
+        const {views} = getExtensionAPI(context);
 
         // 测试注册视图
         const disposable = views.registerView('test.view', {
@@ -294,7 +298,7 @@ function testDiagnosticsAPI(context) {
     console.group('🔍 测试 Diagnostics API');
 
     try {
-        const {diagnostics} = createExtensionAPI(context);
+        const {diagnostics} = getExtensionAPI(context);
 
         // 测试创建诊断集合
         const collection = diagnostics.createDiagnosticCollection('test');
@@ -331,7 +335,7 @@ function testTasksAPI(context) {
     console.group('📋 测试 Tasks API');
 
     try {
-        const {tasks} = createExtensionAPI(context);
+        const {tasks} = getExtensionAPI(context);
 
         // 测试创建任务
         const task = tasks.createTask('测试任务', async (progress, token) => {
@@ -374,7 +378,7 @@ function testNavigationAPI(context) {
     console.group('🧭 测试 Navigation API');
 
     try {
-        const {navigation} = createExtensionAPI(context);
+        const {navigation} = getExtensionAPI(context);
 
         // 测试获取当前视图
         const currentView = navigation.getCurrentView();
@@ -396,7 +400,7 @@ function testNetworkAPI(context) {
     console.group('🌐 测试 Network API');
 
     try {
-        const {network} = createExtensionAPI(context);
+        const {network} = getExtensionAPI(context);
 
         // 测试 GET 请求（使用公共 API）
         network.get('https://www.github.com/').then(data => {
@@ -417,7 +421,7 @@ async function testSystemAPI(context) {
     console.group('💻 测试 System API');
 
     try {
-        const {system} = createExtensionAPI(context);
+        const {system} = getExtensionAPI(context);
 
         // 测试获取版本（异步）
         const version = await system.getVersion();

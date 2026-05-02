@@ -6,7 +6,7 @@
 import {extensionsGateway} from '@js/infrastructure/electron';
 import {cacheManager} from '@services/CacheManager';
 import {Disposable, DisposableStore} from '@extensions/core/Lifecycle';
-import {createExtensionAPI} from '@extensions/api/index.js';
+import {createExtensionAPI, type ExtensionAPI} from '@extensions/api/index.js';
 import {ExtensionDescriptor, ExtensionsRegistry} from '@extensions/core/ExtensionsRegistry';
 import {InstantiationService} from '@extensions/core/Instantiation';
 import './types';
@@ -91,7 +91,7 @@ export interface ExtensionContext {
     storageUri: string;
     globalStoragePath: string;
     globalStorageUri: string;
-    api: any;
+    api: ExtensionAPI;
 }
 
 export class ExtensionActivator extends Disposable {
@@ -112,7 +112,7 @@ export class ExtensionActivator extends Disposable {
         this._permissionManager = permissionManager;
 
         if (!window.createExtensionAPI) {
-            // @ts-ignore
+            // Compatibility bridge for legacy script-style extensions. Bundled extensions should use context.api.
             window.createExtensionAPI = createExtensionAPI;
         }
     }
@@ -364,7 +364,6 @@ export class ExtensionActivator extends Disposable {
             enableLogging: false
         };
 
-        // @ts-ignore
         const context: ExtensionContext = {
             extension: {
                 id: descriptor.id,
@@ -395,18 +394,10 @@ export class ExtensionActivator extends Disposable {
             globalStoragePath: '',
             globalStorageUri: '',
 
-            api: createExtensionAPI(
-                {
-                    // @ts-ignore
-                    extension: {
-                        id: descriptor.id,
-                        name: descriptor.name,
-                        version: descriptor.version,
-                    },
-                },
-                apiOptions
-            )
+            api: null as unknown as ExtensionAPI
         };
+
+        context.api = createExtensionAPI(context, apiOptions);
 
         return context;
     }

@@ -15,6 +15,7 @@ import type {
     ElectronWindowAPI
 } from '@api/types/electron';
 import type {Unsubscribe} from '@api/types/common';
+import type {createExtensionAPI} from '@extensions/api';
 
 interface ElectronSettingsAPI {
     get<T = unknown>(key: string): Promise<T | null>;
@@ -230,7 +231,7 @@ interface ElectronAPI {
 declare global {
     interface Window {
         electronAPI: ElectronAPI;
-        createExtensionAPI?: () => {};
+        createExtensionAPI?: typeof createExtensionAPI;
     }
 }
 
