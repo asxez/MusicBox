@@ -6,7 +6,10 @@ import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@ui/base/Component";
 import {api} from "@api/api";
 import {coverAPI, fileAPI, lyricsAPI} from "@api/modules";
+import {playbackController} from "@js/features/playback";
+import type {PlaybackState, PlaybackStoreChange, Unsubscribe} from "@js/features/playback";
 import type {LyricLine} from "@api/types/lyrics";
+import type {PlayMode} from "@api/types/playback";
 import type {Track} from "@api/types/track";
 
 type WordLyric = {
@@ -92,6 +95,7 @@ class Lyrics extends Component {
     private lastClickTime: number;
     private readonly doubleClickDelay: number;
     private _toggleInProgress: boolean;
+    private playbackStateUnsubscribe: Unsubscribe | null;
 
     constructor(element: Element | null) {
         super(element);
@@ -131,6 +135,7 @@ class Lyrics extends Component {
         this.elementMouseMoveHandler = null;
         this.clearHideTimer = null;
         this._toggleInProgress = false;
+        this.playbackStateUnsubscribe = null;
 
         this.setupElements();
     }
@@ -145,7 +150,7 @@ class Lyrics extends Component {
 
         this.currentTrack = track;
         this.isVisible = true;
-        this.isPlaying = api.isPlaying;
+        this.isPlaying = playbackController.getState().isPlaying;
 
         // 立即显示页面，不等待歌词加载
         this.page.style.display = 'block';
@@ -192,6 +197,8 @@ class Lyrics extends Component {
     }
 
     destroy(): void {
+        this.removePlaybackStateSubscription();
+
         // 清理歌词数据
         this.lyrics = [];
         this.currentTrack = null;
@@ -204,6 +211,19 @@ class Lyrics extends Component {
 
         this.resetLayoutState();
         super.destroy();
+    }
+
+    private removePlaybackStateSubscription(): void {
+        if (!this.playbackStateUnsubscribe) {
+            return;
+        }
+
+        try {
+            this.playbackStateUnsubscribe();
+        } catch (error) {
+            console.warn('⚠️ Lyrics: 移除 playback state 订阅失败:', error);
+        }
+        this.playbackStateUnsubscribe = null;
     }
 
     setupElements(): void {
@@ -282,11 +302,11 @@ class Lyrics extends Component {
         });
 
         this.addEventListenerManaged(this.prevBtn, 'click', async () => {
-            await api.previousTrack();
+            await playbackController.previousTrack();
         });
 
         this.addEventListenerManaged(this.nextBtn, 'click', async () => {
-            await api.nextTrack();
+            await playbackController.nextTrack();
         });
 
         // 封面双击切换布局事件
@@ -322,7 +342,7 @@ class Lyrics extends Component {
 
         // 播放模式切换事件
         this.addEventListenerManaged(this.playModeBtn, 'click', () => {
-            const newMode = api.togglePlayMode();
+            const newMode = playbackController.togglePlayMode();
             this.updatePlayModeDisplay(newMode);
         });
 
@@ -381,59 +401,75 @@ class Lyrics extends Component {
     }
 
     setupAPIListeners(): void {
-        // 监听播放进度变化，用于歌词同步和进度条更新
-        this.addAPIEventListenerManaged('positionChanged', (position: number) => {
-            // 单调时间
-            // 允许小幅回跳（可能是seek操作），但对于微小回跳则忽略
-            const timeDiff = position - this._lastMonotonicPosition;
-
-            // 如果时间大幅回退（超过0.5秒），说明是用户seek操作，允许并重置字状态
-            if (timeDiff < -0.5) {
-                this._lastMonotonicPosition = position;
-                this._currentPlaybackPosition = position;
-                this.resetWordHighlightStates(position);
-            }
-            // 如果时间前进或者微小回退（小于0.05秒），使用单调递增的时间
-            else if (timeDiff >= -0.05) {
-                // 确保时间只增不减（忽略微小回跳）
-                const monotonicTime = Math.max(position, this._lastMonotonicPosition);
-                this._lastMonotonicPosition = monotonicTime;
-                this._currentPlaybackPosition = monotonicTime;
-                position = monotonicTime;
-            }
-            // 如果是0.05-0.5秒的回退，也当作seek处理
-            else {
-                this._lastMonotonicPosition = position;
-                this._currentPlaybackPosition = position;
-                this.resetWordHighlightStates(position);
-            }
-            this.updateLyricHighlight(position);
+        this.playbackStateUnsubscribe = playbackController.subscribe((state, change) => {
+            return this.handlePlaybackStateChange(state, change);
         });
+    }
 
-        this.addAPIEventListenerManaged('playbackStateChanged', (state: string) => {
-            this.isPlaying = state === 'playing';
-            this.updatePlayButton();
-        });
+    private async handlePlaybackStateChange(
+        state: Readonly<PlaybackState>,
+        change: PlaybackStoreChange
+    ): Promise<void> {
+        switch (change.type) {
+            case 'positionChanged':
+                this.handlePlaybackPositionChanged(state.position);
+                break;
 
-        // 时长变化事件
-        this.addAPIEventListenerManaged('durationChanged', (duration: number) => {
-            if (this.durationEl && duration > 0) {
-                this.durationEl.textContent = this.formatTime(duration);
-            }
-        });
+            case 'playbackStateChanged':
+                this.isPlaying = state.isPlaying;
+                this.updatePlayButton();
+                break;
 
-        // 监听歌曲变化事件，更新封面和歌词信息
-        this.addAPIEventListenerManaged('trackChanged', async (track: LyricsTrack) => {
-            // 只有在歌词页面可见时才更新，避免不必要的资源消耗
-            if (this.isVisible && track) {
-                await this.updateTrackInfo(track);
-            }
-        });
+            case 'durationChanged':
+                if (this.durationEl && state.duration > 0) {
+                    this.durationEl.textContent = this.formatTime(state.duration);
+                }
+                break;
 
-        this.addAPIEventListenerManaged('volumeChanged', (volume: number) => {
-            this.currentVolume = volume * 100;
-            this.updateVolumeDisplay();
-        });
+            case 'trackChanged':
+                // 只有在歌词页面可见时才更新，避免不必要的资源消耗
+                if (this.isVisible && state.currentTrack) {
+                    await this.updateTrackInfo(state.currentTrack);
+                }
+                break;
+
+            case 'volumeChanged':
+                this.currentVolume = state.volume * 100;
+                this.updateVolumeDisplay();
+                break;
+
+            case 'playModeChanged':
+                this.updatePlayModeDisplay(state.playMode);
+                break;
+        }
+    }
+
+    private handlePlaybackPositionChanged(position: number): void {
+        // 单调时间
+        // 允许小幅回跳（可能是seek操作），但对于微小回跳则忽略
+        const timeDiff = position - this._lastMonotonicPosition;
+
+        // 如果时间大幅回退（超过0.5秒），说明是用户seek操作，允许并重置字状态
+        if (timeDiff < -0.5) {
+            this._lastMonotonicPosition = position;
+            this._currentPlaybackPosition = position;
+            this.resetWordHighlightStates(position);
+        }
+        // 如果时间前进或者微小回退（小于0.05秒），使用单调递增的时间
+        else if (timeDiff >= -0.05) {
+            // 确保时间只增不减（忽略微小回跳）
+            const monotonicTime = Math.max(position, this._lastMonotonicPosition);
+            this._lastMonotonicPosition = monotonicTime;
+            this._currentPlaybackPosition = monotonicTime;
+            position = monotonicTime;
+        }
+        // 如果是0.05-0.5秒的回退，也当作seek处理
+        else {
+            this._lastMonotonicPosition = position;
+            this._currentPlaybackPosition = position;
+            this.resetWordHighlightStates(position);
+        }
+        this.updateLyricHighlight(position);
     }
 
     async toggle(track: LyricsTrack | null): Promise<void> {
@@ -453,12 +489,12 @@ class Lyrics extends Component {
         this._toggleInProgress = true;
         try {
             if (this.isPlaying) {
-                const result = await api.pause();
+                const result = await playbackController.pause();
                 if (!result) {
                     console.error('❌ Lyrics: 暂停失败');
                 }
             } else {
-                const result = await api.play();
+                const result = await playbackController.play();
                 if (!result) {
                     console.error('❌ Lyrics: 播放失败');
                 }
@@ -862,7 +898,7 @@ class Lyrics extends Component {
             line.addEventListener('click', async () => {
                 const time = parseFloat(line.dataset.time || '');
                 if (!isNaN(time)) {
-                    await api.seek(time);
+                    await playbackController.seek(time);
                 }
             });
         });
@@ -1079,12 +1115,12 @@ class Lyrics extends Component {
 
     // 初始化控件状态
     async initializeControls(): Promise<void> {
-        this.isPlaying = api.isPlaying;
+        const playbackState = playbackController.getState();
+        this.isPlaying = playbackState.isPlaying;
 
-        const currentVolume = api.getVolume ? (await api.getVolume() * 100) : 50;
+        const currentVolume = playbackState.volume * 100;
         await this.setVolume(currentVolume);
-        const currentMode = api.getPlayMode ? api.getPlayMode() : 'repeat';
-        this.updatePlayModeDisplay(currentMode);
+        this.updatePlayModeDisplay(playbackState.playMode);
         this.updatePlayButton();
     }
 
@@ -1092,7 +1128,7 @@ class Lyrics extends Component {
     async setVolume(volume: number): Promise<void> {
         this.currentVolume = Math.max(0, Math.min(100, volume));
         this.updateVolumeDisplay();
-        await api.setVolume(this.currentVolume / 100);
+        await playbackController.setVolume(this.currentVolume / 100);
     }
 
     updateVolumeDisplay(): void {
@@ -1140,7 +1176,7 @@ class Lyrics extends Component {
         }
     }
 
-    updatePlayModeDisplay(mode: string): void {
+    updatePlayModeDisplay(mode: PlayMode): void {
         if (!this.modeSequenceIcon || !this.modeShuffleIcon || !this.modeRepeatOneIcon) {
             return;
         }
@@ -1170,13 +1206,13 @@ class Lyrics extends Component {
 
     // 进度条交互方法
     async seekToPosition(e: MouseEvent): Promise<void> {
-        const duration = (this.currentTrack && this.currentTrack.duration) ? this.currentTrack.duration : (api.getDuration ? await api.getDuration() : 0);
+        const duration = this.getPlaybackDuration();
         if (!this.currentTrack || !duration) return;
         const rect = this.progressBar.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const percentage = clickX / rect.width;
         const seekTime = percentage * duration;
-        await api.seek(seekTime);
+        await playbackController.seek(seekTime);
         // console.log('🎵 Lyrics: 跳转到', this.formatTime(seekTime));
     }
 
@@ -1187,7 +1223,7 @@ class Lyrics extends Component {
     }
 
     updateProgressDrag(e: MouseEvent): void {
-        const duration = (this.currentTrack && this.currentTrack.duration) ? this.currentTrack.duration : (api.duration || 0);
+        const duration = this.getPlaybackDuration();
         if (!this.isDraggingProgress || !this.currentTrack || duration <= 0) return;
 
         const rect = this.progressBar.getBoundingClientRect();
@@ -1207,9 +1243,13 @@ class Lyrics extends Component {
 
         // 执行实际的跳转
         const percentage = parseFloat(this.progressFill.style.width) / 100;
-        const duration = (this.currentTrack && this.currentTrack.duration) ? this.currentTrack.duration : (api.getDuration ? await api.getDuration() : 0);
+        const duration = this.getPlaybackDuration();
         const seekTime = percentage * (duration || 0);
-        await api.seek(seekTime);
+        await playbackController.seek(seekTime);
+    }
+
+    private getPlaybackDuration(): number {
+        return (this.currentTrack && this.currentTrack.duration) ? this.currentTrack.duration : playbackController.getState().duration;
     }
 
     // 封面点击处理方法
