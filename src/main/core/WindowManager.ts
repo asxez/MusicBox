@@ -253,6 +253,7 @@ export class WindowManager {
                 contextIsolation: true
             }
         });
+        this.desktopLyricsWindow.setIgnoreMouseEvents(true, {forward: true});
 
         // 加载桌面歌词页面
         const lyricsHtmlPath = path.join(__dirname, '../../../src/renderer/public/DesktopLyrics.html');

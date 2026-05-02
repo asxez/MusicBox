@@ -5,7 +5,7 @@
 import type {DesktopLyricsPlaybackState} from '@api/types/playback';
 import type {DesktopLyricsSettings as ApiDesktopLyricsSettings} from '@api/types/settings';
 import type {Track} from '@api/types/library';
-import {desktopLyricsGateway} from '@js/infrastructure/electron';
+import {desktopLyricsGateway} from '@js/infrastructure/electron/DesktopLyricsGateway';
 
 interface DesktopLyricWord {
     time: number;

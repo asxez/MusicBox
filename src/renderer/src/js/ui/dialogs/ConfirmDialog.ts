@@ -1,4 +1,4 @@
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 
 type ConfirmDialogType = 'default' | 'danger' | 'warning';
 

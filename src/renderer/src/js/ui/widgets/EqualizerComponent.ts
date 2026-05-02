@@ -4,7 +4,7 @@
 
 import {cacheManager} from "@services/CacheManager";
 import {appInteractionService} from "@services/ui/AppInteractionService";
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {api} from "@api/api";
 
 interface EqualizerFrequencyPoint {

@@ -177,6 +177,11 @@ export class MusicBoxAPI extends EventEmitter {
     async initializeAudio(): Promise<boolean> {
         try {
             await this.audioEngineReady;
+            if (this.audioEngine) {
+                this.isInitialized = true;
+                return true;
+            }
+
             const result = await audioGateway.init();
             this.isInitialized = result;
             return result;
@@ -233,9 +238,10 @@ export class MusicBoxAPI extends EventEmitter {
 
                     // 更新播放列表中的时长信息
                     this.updateTrackDuration(filePath, this.duration);
-                    await audioGateway.loadTrack(filePath);
                     return true;
                 }
+
+                return false;
             }
 
             const result = await audioGateway.loadTrack(filePath);
@@ -273,13 +279,12 @@ export class MusicBoxAPI extends EventEmitter {
                 const result = await this.audioEngine.play();
                 if (result) {
                     // 不在这里手动设置状态，让音频引擎的事件回调来处理
-
-                    // 同步到主进程
-                    await audioGateway.play();
                     return true;
                 } else {
                     console.log(`❌ API: ${this.getAudioEngineLabel()} 播放失败`);
                 }
+
+                return false;
             }
 
             const result = await audioGateway.play();
@@ -345,13 +350,12 @@ export class MusicBoxAPI extends EventEmitter {
                 const result = await this.audioEngine.pause();
                 if (result) {
                     // 不在这里手动设置状态，让音频引擎的事件回调来处理
-
-                    // 同步到主进程
-                    await audioGateway.pause();
                     return true;
                 } else {
-                    console.log('❌ API: Web Audio Engine 暂停失败');
+                    console.log(`❌ API: ${this.getAudioEngineLabel()} 暂停失败`);
                 }
+
+                return false;
             }
 
             const result = await audioGateway.pause();
@@ -368,6 +372,17 @@ export class MusicBoxAPI extends EventEmitter {
 
     async stop(): Promise<boolean> {
         try {
+            if (this.audioEngine) {
+                const result = await this.audioEngine.stop();
+                if (result) {
+                    this.isPlaying = false;
+                    this.position = 0;
+                    this.emit('playbackStateChanged', 'stopped');
+                    this.emit('positionChanged', 0);
+                }
+                return result;
+            }
+
             const result = await audioGateway.stop();
             if (result) {
                 this.isPlaying = false;
@@ -389,11 +404,10 @@ export class MusicBoxAPI extends EventEmitter {
                 if (result) {
                     this.position = position;
                     this.emit('positionChanged', position);
-
-                    // 同步到主进程
-                    await audioGateway.seek(position);
                     return true;
                 }
+
+                return false;
             }
 
             const result = await audioGateway.seek(position);
@@ -456,10 +470,10 @@ export class MusicBoxAPI extends EventEmitter {
                 if (result) {
                     this.volume = volume;
                     this.emit('volumeChanged', volume);
-                    // 同步到主进程
-                    await audioGateway.setVolume(volume);
                     return true;
                 }
+
+                return false;
             }
 
             await audioGateway.setVolume(volume);
@@ -526,11 +540,10 @@ export class MusicBoxAPI extends EventEmitter {
 
                     // 播放列表变更时保存状态
                     this.saveCurrentPlaybackState();
-
-                    // 同步到主进程
-                    await audioGateway.setPlaylist(tracks);
                     return true;
                 }
+
+                return false;
             }
 
             await audioGateway.setPlaylist(tracks);

@@ -4,7 +4,7 @@ import {formatTime, showToast} from "@js/utils";
 import {cacheManager} from "@services/CacheManager";
 import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
 import {urlValidator} from "@utils/URLValidator";
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {api} from "@api/api";
 import {coverAPI, windowAPI, lyricsAPI} from "@js/api";
 import type {PlayMode} from "@api/types/playback";

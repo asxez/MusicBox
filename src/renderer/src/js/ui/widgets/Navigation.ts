@@ -4,7 +4,7 @@
 
 import {theme} from "@js/utils";
 import {cacheManager} from "@services/CacheManager";
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {navigationDataService} from "@services/navigation/NavigationDataService";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import type {Playlist} from "@api/types/playlist";

@@ -4,7 +4,7 @@
 
 import {api} from "@api/api";
 import type {AudioEngineManagerBridge} from "@api/audio/AudioEngineAdapter";
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {showInputDialog} from "@js/utils/InputDialog";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import type ParametricEqualizer from "@services/audio/ParametricEqualizer";

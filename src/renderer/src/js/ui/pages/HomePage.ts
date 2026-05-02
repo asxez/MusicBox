@@ -2,7 +2,7 @@
  * 首页组件
  */
 
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {api} from "@api/api";
 import {fileAPI, libraryAPI, userDataAPI} from "@js/api";
 import {appInteractionService} from "@services/ui/AppInteractionService";

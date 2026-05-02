@@ -3,7 +3,7 @@
  */
 
 import {cacheManager} from "@services/CacheManager";
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {libraryAPI, userDataAPI} from "@js/api";
 import type {Track} from "@api/types/library";
 import type {DiaryData, MoodData} from "@api/types/userdata";

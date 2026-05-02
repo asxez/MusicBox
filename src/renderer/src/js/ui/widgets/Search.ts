@@ -3,7 +3,7 @@
  */
 
 import {debounce, showToast} from "@utils/index.js";
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {libraryAPI} from "@js/api";
 
 type DebouncedSearch = ((query: string) => void) & {

@@ -2,7 +2,7 @@
  * 创建歌单对话框组件
  */
 
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {libraryAPI} from "@js/api";
 
 interface TrackToAdd {

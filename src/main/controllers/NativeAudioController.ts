@@ -63,6 +63,12 @@ export class NativeAudioController extends BaseController {
     async initialize(): Promise<any> {
         try {
             if (!this.nativeAudioModule?.NativeAudioEngine) return {success: false, error: 'NativeAudioEngine类不存在'};
+            if (this.engine) {
+                console.log('ℹ️ Native音频引擎已初始化，复用现有实例');
+                this.startPolling();
+                return {success: true};
+            }
+
             this.engine = new this.nativeAudioModule.NativeAudioEngine();
             const result = await this.engine.initialize();
             this.startPolling();

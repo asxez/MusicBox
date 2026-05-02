@@ -1,5 +1,5 @@
 import AudioEngineManager from "@services/audio/AudioEngineManager";
-import {electronAudioAdapter} from "@api/adapters";
+import {audioGateway} from "@js/infrastructure/electron";
 import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
 
 type AudioEngineType = 'webaudio' | 'wasapi';
@@ -99,7 +99,7 @@ class AudioEngineService {
     }
 
     async initializeMainProcessAudio(): Promise<boolean> {
-        return electronAudioAdapter.init();
+        return audioGateway.init();
     }
 
     getEqualizer(): any | null {

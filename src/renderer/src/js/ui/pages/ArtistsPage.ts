@@ -3,7 +3,7 @@
  */
 
 import {urlValidator} from "@utils/URLValidator";
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {coverAPI, libraryAPI} from "@js/api";
 import type {Track} from "@api/types/track";
 

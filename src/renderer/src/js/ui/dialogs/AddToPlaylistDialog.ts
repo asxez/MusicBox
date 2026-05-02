@@ -2,7 +2,7 @@
  * 添加到歌单对话框组件
  */
 
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {libraryAPI} from "@js/api";
 import type {Playlist, Track} from "@api/types/library";
 

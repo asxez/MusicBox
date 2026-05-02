@@ -6,7 +6,7 @@ import {cacheManager} from "@services/CacheManager";
 import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import {formatTime} from "@utils/index.js";
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {coverAPI} from "@js/api";
 import type {Track} from "@api/types/library";
 

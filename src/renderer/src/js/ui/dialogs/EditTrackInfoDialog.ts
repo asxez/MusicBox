@@ -2,7 +2,7 @@
  * 编辑歌曲信息对话框组件
  */
 
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {coverAPI, fileAPI, libraryAPI} from "@js/api";
 import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
 import {appInteractionService} from "@services/ui/AppInteractionService";

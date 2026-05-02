@@ -3,7 +3,7 @@
  */
 
 import {formatTime} from "@utils/index.js";
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import type {Track} from "@api/types/track";
 
 interface PlaylistTrackEventPayload {

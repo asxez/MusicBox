@@ -6,7 +6,7 @@ import {formatTime, sanitizeHTML} from "@utils/index.js";
 import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
 import type {CoverUpdateData} from "@services/cover/CoverUpdateManager";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {coverAPI} from "@js/api";
 import type {Unsubscribe} from "@api/types/common";
 import type {Track} from "@api/types/track";

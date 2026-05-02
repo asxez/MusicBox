@@ -39,7 +39,7 @@ import {
     traySettingsController,
     type TraySettingsElements
 } from "@services/settings/TraySettingsController";
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import type {MusicBoxSettings} from "@api/types/settings";
 
 const getInputTarget = (event: Event): HTMLInputElement => event.target as HTMLInputElement;

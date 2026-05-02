@@ -2,7 +2,7 @@
  * 网络磁盘配置模态框组件
  */
 
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {networkDriveManagementService} from "@services/networkDrive/NetworkDriveManagementService";
 import type {ScanProgress} from "@api/types/events";
 import type {MountedNetworkDrive, NetworkDriveConfig} from "@api/types/electron";

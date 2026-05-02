@@ -2,7 +2,7 @@
  * 菜单组件
  */
 
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import type {Track} from "@api/types/library";
 
 class ContextMenu extends Component {

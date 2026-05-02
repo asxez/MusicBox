@@ -2,7 +2,7 @@
  * 网络磁盘详情页组件
  */
 
-import {Component} from "@components/base/Component";
+import {Component} from "@ui/base/Component";
 import {
     networkDriveDetailService,
     type SingleFileScanResult
