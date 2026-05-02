@@ -4,7 +4,11 @@
  */
 
 import {extensionsGateway} from '@js/infrastructure/electron';
-import {ExtensionActivationReason, ExtensionActivator} from '@extensions/core/ExtensionActivator';
+import {
+    ExtensionActivationReason,
+    ExtensionActivator,
+    type ExtensionExports
+} from '@extensions/core/ExtensionActivator';
 import {Emitter} from '@extensions/core/Event';
 import {createDecorator, InstantiationService} from '@extensions/core/Instantiation';
 import {
@@ -490,7 +494,7 @@ class ExtensionService extends Disposable {
         return this._registry.getExtension(extensionId);
     }
 
-    getExtensionExports(extensionId: string): any {
+    getExtensionExports(extensionId: string): ExtensionExports | undefined {
         return this._activator?.getExtensionExports(extensionId);
     }
 
