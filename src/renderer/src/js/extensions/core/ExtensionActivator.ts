@@ -289,7 +289,7 @@ export class ExtensionActivator extends Disposable {
                 })();
             `;
 
-            eval(wrappedCode);
+            globalThis.eval(wrappedCode);
 
             console.log(`✅ ExtensionActivator: 外部插件代码执行完成 ${descriptor.id}`);
 
