@@ -8,13 +8,6 @@ interface PluginBootstrapOptions {
     app: RendererAppContext;
 }
 
-declare global {
-    interface Window {
-        extensionService?: unknown;
-        instantiationService?: unknown;
-    }
-}
-
 export class PluginBootstrap {
     private readonly app: RendererAppContext;
 
@@ -23,8 +16,6 @@ export class PluginBootstrap {
     }
 
     async initializePluginSystem(): Promise<void> {
-        const app = this.app;
-
         try {
             console.log('🔌 App: 开始初始化插件系统');
 
@@ -39,11 +30,7 @@ export class PluginBootstrap {
 
             await extensionService.initialize();
 
-            window.extensionService = extensionService;
-            window.instantiationService = instantiationService;
             pluginManagerService.bindExtensionService(extensionService);
-            app.extensionService = extensionService;
-            app.instantiationService = instantiationService;
 
             console.log('✅ App: 扩展服务初始化成功');
 

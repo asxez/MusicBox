@@ -98,8 +98,6 @@ export interface RendererAppContext {
     library: Track[];
     filteredLibrary: Track[];
     coversPreloadedByApp?: boolean;
-    extensionService?: unknown;
-    instantiationService?: unknown;
     on(event: string, handler: (...args: any[]) => void): void;
     off(event: string, handler: (...args: any[]) => void): void;
     emit(event: string, ...args: any[]): void;
