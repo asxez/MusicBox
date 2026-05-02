@@ -1,4 +1,4 @@
-import {api} from "@api/api";
+import {desktopLyricsController} from "@js/features/desktopLyrics";
 import type {MusicBoxSettings} from "@api/types/settings";
 
 export type DisplaySettingValue = string | number;
@@ -40,11 +40,11 @@ class DisplayModeSettingsService {
     }
 
     syncDesktopLyricsSettings(settings: Partial<DesktopLyricsDisplaySettings> | DisplaySettingsMap): Promise<unknown> {
-        return api.updateDesktopLyricsSettings(settings);
+        return desktopLyricsController.updateSettings(settings);
     }
 
     hideDesktopLyrics(): Promise<unknown> {
-        return api.hideDesktopLyrics();
+        return desktopLyricsController.hide();
     }
 
     getMiniModeSettings(settings: MusicBoxSettings): MiniModeDisplaySettings {

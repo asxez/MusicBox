@@ -5,8 +5,8 @@ import {cacheManager} from "@services/CacheManager";
 import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@ui/base/Component";
-import {api} from "@api/api";
 import {coverAPI, windowAPI, lyricsAPI} from "@api/modules";
+import {desktopLyricsController} from "@js/features/desktopLyrics";
 import {playbackController} from "@js/features/playback";
 import type {PlaybackState, PlaybackStoreChange, Unsubscribe} from "@js/features/playback";
 import type {PlayMode} from "@api/types/playback";
@@ -860,7 +860,7 @@ class Player extends Component {
     // 桌面歌词控制方法
     async toggleDesktopLyrics(): Promise<void> {
         try {
-            const result = await api.toggleDesktopLyrics();
+            const result = await desktopLyricsController.toggle();
 
             if (result.success) {
                 this.updateDesktopLyricsButton(result.visible);
@@ -910,7 +910,7 @@ class Player extends Component {
     // 检查桌面歌词窗口状态的独立方法
     async checkDesktopLyricsWindowState(): Promise<void> {
         try {
-            const isVisible = await api.isDesktopLyricsVisible();
+            const isVisible = await desktopLyricsController.isVisible();
             this.updateDesktopLyricsButton(isVisible);
         } catch (error) {
             console.error('❌ Player: 检查桌面歌词窗口状态失败:', error);
@@ -934,7 +934,7 @@ class Player extends Component {
 
             // 如果功能启用，检查桌面歌词窗口的当前状态
             if (desktopLyricsEnabled) {
-                const isVisible = await api.isDesktopLyricsVisible();
+                const isVisible = await desktopLyricsController.isVisible();
                 this.updateDesktopLyricsButton(isVisible);
             }
         } catch (error) {
