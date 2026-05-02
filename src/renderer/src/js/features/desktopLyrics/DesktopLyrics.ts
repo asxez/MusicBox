@@ -34,12 +34,6 @@ interface DragPosition {
     y: number;
 }
 
-declare global {
-    interface Window {
-        desktopLyrics?: DesktopLyrics;
-    }
-}
-
 class DesktopLyrics {
     private container: HTMLElement;
     private currentLyricEl: HTMLElement;
@@ -521,5 +515,5 @@ class DesktopLyrics {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    window.desktopLyrics = new DesktopLyrics();
+    new DesktopLyrics();
 });
