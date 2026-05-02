@@ -7,6 +7,7 @@ import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@ui/base/Component";
 import {api} from "@api/api";
 import {coverAPI, windowAPI, lyricsAPI} from "@api/modules";
+import {playbackController} from "@js/features/playback";
 import type {PlayMode} from "@api/types/playback";
 import type {Track} from "@api/types/track";
 import type {LyricLine} from "@api/types/lyrics";
@@ -199,11 +200,11 @@ class Player extends Component {
 
         // Previous/next buttons
         this.addEventListenerManaged(this.prevBtn, 'click', async () => {
-            await api.previousTrack();
+            await playbackController.previousTrack();
         });
 
         this.addEventListenerManaged(this.nextBtn, 'click', async () => {
-            await api.nextTrack();
+            await playbackController.nextTrack();
         });
 
         // Progress bar - improved interaction
@@ -240,10 +241,10 @@ class Player extends Component {
                 this.progressBarContainer.classList.remove('dragging');
                 this.progressTooltip.style.opacity = '0';
                 const progress = parseFloat(this.progressFill.style.width) / 100;
-                await api.seek(this.duration * progress);
+                await playbackController.seek(this.duration * progress);
 
                 // 拖动结束后，强制同步当前播放状态
-                const currentTrack = api.getCurrentTrack?.() ?? null;
+                const currentTrack = playbackController.getCurrentTrack();
                 if (currentTrack && currentTrack !== this.currentTrack) {
                     await this.updateTrackInfo(currentTrack);
                 }
@@ -255,26 +256,26 @@ class Player extends Component {
             this.isDraggingVolume = true;
             this.updateVolume(e as MouseEvent);
             const volume = parseFloat(this.volumeFill.style.width) / 100;
-            await api.setVolume(volume);
+            await playbackController.setVolume(volume);
         });
 
         this.addEventListenerManaged(this.volumeSlider, 'input', async (e: Event) => {
             this.updateVolume((e.target as HTMLInputElement).value);
             const volume = parseFloat(this.volumeFill.style.width) / 100;
-            await api.setVolume(volume);
+            await playbackController.setVolume(volume);
         });
 
         this.addEventListenerManaged(this.volumeSliderContainer, 'mousewheel', async (e: Event) => {
             const wheelEvent = e as WheelEvent & {wheelDelta?: number};
-            if ((wheelEvent.wheelDelta ?? -wheelEvent.deltaY) < 0) await api.setVolume(Math.min(1, this.volume + 0.01));
-            else await api.setVolume(Math.max(0, this.volume - 0.01));
+            if ((wheelEvent.wheelDelta ?? -wheelEvent.deltaY) < 0) await playbackController.adjustVolume(0.01);
+            else await playbackController.adjustVolume(-0.01);
         });
 
         this.addEventListenerManaged(document, 'mousemove', async (e: Event) => {
             if (this.isDraggingVolume) {
                 this.updateVolume(e as MouseEvent);
                 const volume = parseFloat(this.volumeFill.style.width) / 100;
-                await api.setVolume(volume);
+                await playbackController.setVolume(volume);
             }
         });
 
@@ -282,7 +283,7 @@ class Player extends Component {
             if (this.isDraggingVolume) {
                 this.isDraggingVolume = false;
                 const volume = parseFloat(this.volumeFill.style.width) / 100;
-                await api.setVolume(volume);
+                await playbackController.setVolume(volume);
             }
         });
 
@@ -290,7 +291,7 @@ class Player extends Component {
             await this.toggleMute();
         });
         this.addEventListenerManaged(this.playModeBtn, 'click', () => {
-            const newMode = api.togglePlayMode();
+            const newMode = playbackController.togglePlayMode();
             this.updatePlayModeDisplay(newMode);
         });
         this.addEventListenerManaged(this.lyricsBtn, 'click', () => {
@@ -512,7 +513,7 @@ class Player extends Component {
             return;
         }
 
-        const currentTrack = api.getCurrentTrack?.() ?? null;
+        const currentTrack = playbackController.getCurrentTrack();
         if (!currentTrack) {
             return;
         }
@@ -606,7 +607,7 @@ class Player extends Component {
             this.updatePlayButton();
             this.updateProgressDisplay();
             this.updateVolumeDisplay();
-            this.updatePlayModeDisplay(api.getPlayMode());
+            this.updatePlayModeDisplay(playbackController.getPlayMode());
             await this.initDesktopLyricsButton();
             await this.restoreMiniModeState();
             return {
@@ -686,7 +687,7 @@ class Player extends Component {
         await this.updateMiniModeBackground();
 
         // 加载当前歌曲的歌词
-        const currentTrack = api.getCurrentTrack?.() ?? null;
+        const currentTrack = playbackController.getCurrentTrack();
         if (currentTrack) {
             await this.loadMiniModeLyrics(currentTrack);
         }
@@ -789,13 +790,13 @@ class Player extends Component {
         try {
             if (this.isPlaying) {
                 console.log('🔄 Player: 请求暂停');
-                const result = await api.pause();
+                const result = await playbackController.pause();
                 if (!result) {
                     console.error('❌ Player: 暂停失败');
                 }
             } else {
                 console.log('🔄 Player: 请求播放');
-                const result = await api.play();
+                const result = await playbackController.play();
                 if (!result) {
                     console.error('❌ Player: 播放失败');
                 }
@@ -813,9 +814,9 @@ class Player extends Component {
     async toggleMute(): Promise<void> {
         if (this.volume > 0) {
             this.previousVolume = this.volume;
-            await api.setVolume(0);
+            await playbackController.setVolume(0);
         } else {
-            await api.setVolume(this.previousVolume || 0.7);
+            await playbackController.setVolume(this.previousVolume || 0.7);
         }
     }
 

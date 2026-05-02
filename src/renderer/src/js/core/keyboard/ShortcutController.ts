@@ -1,4 +1,4 @@
-import {api} from "@api/api";
+import {playbackController} from "@js/features/playback";
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import type {RendererAppContext} from '@core/types/app';
@@ -144,22 +144,20 @@ export class ShortcutController {
             }
 
             case 'previousTrack':
-                await api.previousTrack();
+                await playbackController.previousTrack();
                 break;
 
             case 'nextTrack':
-                await api.nextTrack();
+                await playbackController.nextTrack();
                 break;
 
             case 'volumeUp': {
-                const currentVolume = api.getVolume();
-                await api.setVolume(Math.min(1, currentVolume + 0.01));
+                await playbackController.adjustVolume(0.01);
                 break;
             }
 
             case 'volumeDown': {
-                const volume = api.getVolume();
-                await api.setVolume(Math.max(0, volume - 0.01));
+                await playbackController.adjustVolume(-0.01);
                 break;
             }
 
@@ -168,11 +166,11 @@ export class ShortcutController {
                 break;
 
             case 'seekForward':
-                await api.seekForward(3);
+                await playbackController.seekForward(3);
                 break;
 
             case 'seekBackward':
-                await api.seekBackward(3);
+                await playbackController.seekBackward(3);
                 break;
 
             case 'toggleLyrics':
@@ -180,7 +178,7 @@ export class ShortcutController {
                     if (components.lyrics.isVisible) {
                         components.lyrics.hide();
                     } else {
-                        const currentTrack = api.currentTrack;
+                        const currentTrack = playbackController.getCurrentTrackSnapshot();
                         if (currentTrack) {
                             await components.lyrics.show(currentTrack);
                         }
