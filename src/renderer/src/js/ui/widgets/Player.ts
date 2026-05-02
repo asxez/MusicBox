@@ -8,6 +8,7 @@ import {Component} from "@ui/base/Component";
 import {api} from "@api/api";
 import {coverAPI, windowAPI, lyricsAPI} from "@api/modules";
 import {playbackController} from "@js/features/playback";
+import type {PlaybackEventHandler, PlaybackEventName, Unsubscribe} from "@js/features/playback";
 import type {PlayMode} from "@api/types/playback";
 import type {Track} from "@api/types/track";
 import type {LyricLine} from "@api/types/lyrics";
@@ -96,8 +97,10 @@ class Player extends Component {
     private miniModeMouseLeaveHandler: EventListener | null = null;
     private miniModeAppContainer: Element | null = null;
     private miniModePositionChangeHandler: ((position: number) => void) | null;
+    private miniModePositionUnsubscribe: Unsubscribe | null = null;
     private miniModeResizeHandler: (() => void) | null = null;
     private miniModeResizeGuardTimer: ReturnType<typeof setTimeout> | null = null;
+    private playbackEventUnsubscribes: Unsubscribe[];
 
     private _miniModeLyricsRafId: number | null;
     private _miniModeLyricsLastUpdateTime: number;
@@ -121,6 +124,7 @@ class Player extends Component {
         this.currentTrack = null;
         this.miniModeButton = null;
         this.desktopLyricsBtn = null;
+        this.playbackEventUnsubscribes = [];
 
         // 迷你模式歌词相关
         this._miniModeLyricsRafId = null;
@@ -352,29 +356,29 @@ class Player extends Component {
         this._updateLock = false;
         this._pendingTrack = null;
 
-        this.addAPIEventListenerManaged('durationChanged', (duration) => {
+        this.addPlaybackEventListener('durationChanged', (duration) => {
             this.duration = duration;
             this.updateProgressDisplay();
         });
 
-        this.addAPIEventListenerManaged('positionChanged', (position) => {
+        this.addPlaybackEventListener('positionChanged', (position) => {
             if (!this.isDraggingProgress) {
                 this.currentTime = position;
                 this.updateProgressDisplay();
             }
         });
 
-        this.addAPIEventListenerManaged('playbackStateChanged', (state) => {
+        this.addPlaybackEventListener('playbackStateChanged', (state) => {
             this.isPlaying = state === 'playing';
             this.updatePlayButton();
         });
 
-        this.addAPIEventListenerManaged('volumeChanged', (volume) => {
+        this.addPlaybackEventListener('volumeChanged', (volume) => {
             this.volume = volume;
             this.updateVolumeDisplay();
         });
 
-        this.addAPIEventListenerManaged('trackChanged', async (track) => {
+        this.addPlaybackEventListener('trackChanged', async (track) => {
             // 如果正在更新，记录新的track待后续处理
             if (this._updateLock) {
                 this._pendingTrack = track;
@@ -396,9 +400,27 @@ class Player extends Component {
             }
         });
 
-        this.addAPIEventListenerManaged('trackIndexChanged', (index) => {
+        this.addPlaybackEventListener('trackIndexChanged', (index) => {
             this.emit('trackIndexChanged', index);
         });
+    }
+
+    private addPlaybackEventListener<K extends PlaybackEventName>(
+        event: K,
+        handler: PlaybackEventHandler<K>
+    ): void {
+        this.playbackEventUnsubscribes.push(playbackController.on(event, handler));
+    }
+
+    private removeAllPlaybackEventListeners(): void {
+        this.playbackEventUnsubscribes.forEach((unsubscribe) => {
+            try {
+                unsubscribe();
+            } catch (error) {
+                console.warn('⚠️ Player: 移除 playback 事件监听失败:', error);
+            }
+        });
+        this.playbackEventUnsubscribes = [];
     }
 
     updateProgress(e: MouseEvent): void {
@@ -699,7 +721,7 @@ class Player extends Component {
             // 更新逐字高亮
             this.updateMiniModeLyricsWordHighlight(position);
         };
-        this.addAPIEventListenerManaged('positionChanged', this.miniModePositionChangeHandler);
+        this.miniModePositionUnsubscribe = playbackController.on('positionChanged', this.miniModePositionChangeHandler);
 
         // 初始更新歌词显示
         this.updateMiniModeLyrics();
@@ -744,8 +766,9 @@ class Player extends Component {
         }
 
         // 移除播放进度监听
-        if (this.miniModePositionChangeHandler) {
-            this.removeAPIEventListenerManaged('positionChanged', this.miniModePositionChangeHandler);
+        if (this.miniModePositionUnsubscribe) {
+            this.miniModePositionUnsubscribe();
+            this.miniModePositionUnsubscribe = null;
             this.miniModePositionChangeHandler = null;
         }
 
@@ -1309,8 +1332,9 @@ class Player extends Component {
             this.miniModeAppContainer = null;
         }
 
-        if (this.miniModePositionChangeHandler) {
-            this.removeAPIEventListenerManaged('positionChanged', this.miniModePositionChangeHandler);
+        if (this.miniModePositionUnsubscribe) {
+            this.miniModePositionUnsubscribe();
+            this.miniModePositionUnsubscribe = null;
             this.miniModePositionChangeHandler = null;
         }
 
@@ -1331,6 +1355,7 @@ class Player extends Component {
         this.duration = 0;
         this.isDraggingProgress = false;
         this.isDraggingVolume = false;
+        this.removeAllPlaybackEventListeners();
         super.destroy();
     }
 }

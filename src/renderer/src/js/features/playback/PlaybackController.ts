@@ -1,10 +1,41 @@
 import {api} from '@api/api';
+import type {MusicBoxAPIEvents} from '@api/types/events';
 import type {PlayMode} from '@api/types/playback';
 import type {Track} from '@api/types/track';
 
+type PlaybackEventName =
+    | 'durationChanged'
+    | 'positionChanged'
+    | 'playbackStateChanged'
+    | 'volumeChanged'
+    | 'trackChanged'
+    | 'trackIndexChanged';
+
+type PlaybackEventHandler<K extends PlaybackEventName> = (payload: MusicBoxAPIEvents[K]) => void;
+type Unsubscribe = () => void;
+
 class PlaybackController {
+    private toggleInProgress = false;
+
     async togglePlayPause(isPlaying: boolean): Promise<boolean> {
         return isPlaying ? await this.pause() : await this.play();
+    }
+
+    async toggleCurrentPlayback(): Promise<boolean> {
+        if (this.toggleInProgress) {
+            console.log('🚫 PlaybackController: 播放状态切换正在进行中，忽略重复调用');
+            return false;
+        }
+
+        this.toggleInProgress = true;
+
+        try {
+            return await this.togglePlayPause(api.isPlaying);
+        } finally {
+            setTimeout(() => {
+                this.toggleInProgress = false;
+            }, 100);
+        }
     }
 
     async play(): Promise<boolean> {
@@ -66,7 +97,15 @@ class PlaybackController {
     getPlayMode(): PlayMode {
         return api.getPlayMode();
     }
+
+    on<K extends PlaybackEventName>(event: K, handler: PlaybackEventHandler<K>): Unsubscribe {
+        api.on(event, handler);
+        return () => {
+            api.off(event, handler);
+        };
+    }
 }
 
 export const playbackController = new PlaybackController();
+export type {PlaybackEventHandler, PlaybackEventName, Unsubscribe};
 export {PlaybackController};

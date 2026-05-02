@@ -1,7 +1,7 @@
 import {playbackController} from "@js/features/playback";
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
-import type {RendererAppContext} from '@core/types/app';
+import type {PlayerLike, RendererAppContext} from '@core/types/app';
 
 interface ShortcutControllerOptions {
     app: RendererAppContext;
@@ -64,21 +64,6 @@ export class ShortcutController {
         });
     }
 
-    getActivePlayer(): any | null {
-        const components = this.app.components;
-
-        if (components.lyrics && components.lyrics.isVisible) {
-            return components.lyrics;
-        }
-
-        if (components.player) {
-            return components.player;
-        }
-
-        console.warn('⚠️ 未找到任何播放器组件');
-        return null;
-    }
-
     generateKeyString(event: KeyboardEvent): string {
         const keys: string[] = [];
 
@@ -129,17 +114,16 @@ export class ShortcutController {
         return null;
     }
 
+    getActivePlayer(): PlayerLike | null {
+        return this.app.components.player ?? null;
+    }
+
     async executeShortcutAction(shortcutId: string): Promise<void> {
         const components = this.app.components;
 
         switch (shortcutId) {
             case 'playPause': {
-                const player = this.getActivePlayer();
-                if (player && typeof player.togglePlayPause === 'function') {
-                    await player.togglePlayPause();
-                } else {
-                    console.warn('⚠️ 未找到活跃的播放器组件');
-                }
+                await playbackController.toggleCurrentPlayback();
                 break;
             }
 
