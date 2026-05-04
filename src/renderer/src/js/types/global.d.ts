@@ -12,7 +12,8 @@ import type {
     ElectronLyricsAPI,
     ElectronNetworkDriveAPI,
     ElectronNativeAudioAPI,
-    ElectronWindowAPI
+    ElectronWindowAPI,
+    ElectronBenchmarkAPI
 } from '@api/types/electron';
 import type {Unsubscribe} from '@api/types/common';
 import type {createExtensionAPI} from '@extensions/api';
@@ -151,6 +152,9 @@ interface ElectronAPI {
 
     // 原生引擎
     nativeAudio: ElectronNativeAudioAPI;
+
+    // benchmark instrumentation
+    benchmark: ElectronBenchmarkAPI;
 
     // 音乐库
     library: ElectronLibraryAPI;

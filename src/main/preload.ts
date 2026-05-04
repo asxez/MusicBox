@@ -143,7 +143,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         }
     },
 
-    // Native音频引擎（WASAPI独占模式）
+    // Native音频引擎（WASAPI shared/exclusive）
     nativeAudio: {
         // 初始化Native音频引擎
         initialize: () => ipcRenderer.invoke('native-audio:initialize'),
@@ -160,6 +160,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
         // 播放状态查询
         getPosition: () => ipcRenderer.invoke('native-audio:get-position'),
+        getRenderStats: () => ipcRenderer.invoke('native-audio:get-render-stats'),
+        resetRenderStats: () => ipcRenderer.invoke('native-audio:reset-render-stats'),
 
         // 均衡器控制
         setEqualizerEnabled: (enabled: boolean) => ipcRenderer.invoke('native-audio:set-equalizer-enabled', enabled),
@@ -198,6 +200,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
         // 销毁引擎
         destroy: () => ipcRenderer.invoke('native-audio:destroy'),
+    },
+
+    benchmark: {
+        ping: (payload: unknown) => ipcRenderer.invoke('benchmark:ping', payload),
+        getProcessSnapshot: () => ipcRenderer.invoke('benchmark:getProcessSnapshot'),
+        forceGc: () => ipcRenderer.invoke('benchmark:forceGc'),
     },
 
     // Native音频引擎事件监听

@@ -6,4 +6,4 @@ mod dither;
 mod wasapi;
 
 pub use dither::{DitherType, Ditherer};
-pub use wasapi::WasapiRenderer;
+pub use wasapi::{RenderStats, WasapiRenderer};

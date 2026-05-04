@@ -12,7 +12,7 @@ use ringbuf::traits::Observer;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
-use std::time::Duration as StdDuration;
+use std::time::{Duration as StdDuration, Instant};
 use wasapi::*;
 
 use crate::core::AudioFormat;
@@ -23,14 +23,53 @@ const S_OK: i32 = 0;
 const S_FALSE: i32 = 1;
 const RPC_E_CHANGED_MODE: i32 = 0x80010106u32 as i32;
 
+#[derive(Debug, Clone)]
+pub struct RenderStats {
+    pub callbacks: u64,
+    pub underruns: u64,
+    pub frames_written: u64,
+    pub samples_written: u64,
+    pub buffer_min_samples: usize,
+    pub buffer_max_samples: usize,
+    pub render_errors: u64,
+    pub seek_clears: u64,
+}
+
+impl Default for RenderStats {
+    fn default() -> Self {
+        Self {
+            callbacks: 0,
+            underruns: 0,
+            frames_written: 0,
+            samples_written: 0,
+            buffer_min_samples: usize::MAX,
+            buffer_max_samples: 0,
+            render_errors: 0,
+            seek_clears: 0,
+        }
+    }
+}
+
+impl RenderStats {
+    pub fn snapshot(&self) -> Self {
+        let mut snapshot = self.clone();
+        if snapshot.buffer_min_samples == usize::MAX {
+            snapshot.buffer_min_samples = 0;
+        }
+        snapshot
+    }
+}
+
 pub struct WasapiRenderer {
     stream_thread: Option<std::thread::JoinHandle<()>>,
+    stats: Arc<Mutex<RenderStats>>,
 }
 
 impl WasapiRenderer {
     pub fn new() -> Self {
         Self {
             stream_thread: None,
+            stats: Arc::new(Mutex::new(RenderStats::default())),
         }
     }
 
@@ -53,6 +92,7 @@ impl WasapiRenderer {
         let sample_rate = device_format.sample_rate;
         let buffer_durations = config.get_wasapi_buffer_durations();
         let share_mode = config.share_mode;
+        let stats = self.stats.clone();
 
         let stream_thread = std::thread::spawn(move || {
             if let Err(e) = run_render_loop(
@@ -70,8 +110,10 @@ impl WasapiRenderer {
                 equalizer,
                 parametric_equalizer,
                 equalizer_mode,
+                stats.clone(),
             ) {
                 eprintln!("❌ 渲染线程错误: {}", e);
+                stats.lock().render_errors += 1;
                 let _ = error_sender.send(ThreadMessage::Error(e));
             }
         });
@@ -84,6 +126,14 @@ impl WasapiRenderer {
         if let Some(thread) = self.stream_thread.take() {
             let _ = thread.join();
         }
+    }
+
+    pub fn get_stats(&self) -> RenderStats {
+        self.stats.lock().snapshot()
+    }
+
+    pub fn reset_stats(&self) {
+        *self.stats.lock() = RenderStats::default();
     }
 }
 
@@ -102,6 +152,7 @@ fn run_render_loop(
     equalizer: Arc<Mutex<Option<AudioEqualizer>>>,
     parametric_equalizer: Arc<Mutex<Option<ParametricEqualizer>>>,
     equalizer_mode: Arc<Mutex<EqualizerMode>>,
+    stats: Arc<Mutex<RenderStats>>,
 ) -> Result<(), String> {
     // 初始化COM
     let hr = initialize_mta();
@@ -277,6 +328,7 @@ fn run_render_loop(
                     drop(consumer_guard);
 
                     println!("✅ 渲染器: 已清空 {} 个样本", cleared_count);
+                    stats.lock().seek_clears += 1;
 
                     // 重置抖动器状态，避免跳转时的伪影
                     if let Some(ref mut dither) = ditherer {
@@ -399,6 +451,19 @@ fn run_render_loop(
                 render_client.write_to_device(frames_available as usize, &byte_data, None)
             {
                 eprintln!("❌ 渲染: 写入设备失败: {:?}", e);
+                stats.lock().render_errors += 1;
+            }
+
+            {
+                let mut stats_guard = stats.lock();
+                stats_guard.callbacks += 1;
+                stats_guard.frames_written += frames_available as u64;
+                stats_guard.samples_written += audio_data.len() as u64;
+                stats_guard.buffer_min_samples = stats_guard.buffer_min_samples.min(buffer_len);
+                stats_guard.buffer_max_samples = stats_guard.buffer_max_samples.max(buffer_len);
+                if underrun {
+                    stats_guard.underruns += 1;
+                }
             }
 
             if callback_counter % 5000 == 0 && callback_counter > 0 {

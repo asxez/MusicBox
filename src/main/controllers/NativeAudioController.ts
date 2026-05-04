@@ -167,6 +167,24 @@ export class NativeAudioController extends BaseController {
         }
     }
 
+    @IpcHandle('native-audio:get-render-stats')
+    async getRenderStats(): Promise<any> {
+        try {
+            return this.engine ? await this.engine.getRenderStats() : {success: false, error: '引擎未初始化'};
+        } catch (e: any) {
+            return {success: false, error: e.message};
+        }
+    }
+
+    @IpcHandle('native-audio:reset-render-stats')
+    async resetRenderStats(): Promise<any> {
+        try {
+            return this.engine ? await this.engine.resetRenderStats() : {success: false, error: '引擎未初始化'};
+        } catch (e: any) {
+            return {success: false, error: e.message};
+        }
+    }
+
     @IpcHandle('native-audio:set-equalizer-enabled')
     async setEqEnabled(enabled: boolean): Promise<any> {
         try {

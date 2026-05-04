@@ -1,6 +1,6 @@
 //! MusicBox Native Audio Engine
 //!
-//! 提供WASAPI独占模式音频播放支持
+//! 提供WASAPI共享/独占模式音频播放支持
 
 #[macro_use]
 extern crate napi_derive;
@@ -133,6 +133,30 @@ impl NativeAudioEngine {
         let mut response = create_success_response(&mut env)?;
         response.set_named_property("position", env.create_double(position)?)?;
         Ok(response)
+    }
+
+    #[napi]
+    pub fn get_render_stats(&self, mut env: Env) -> Result<JsObject> {
+        let engine = self.engine.lock();
+        let stats = engine.get_render_stats();
+
+        let mut response = create_success_response(&mut env)?;
+        response.set_named_property("callbacks", env.create_int64(stats.callbacks as i64)?)?;
+        response.set_named_property("underruns", env.create_int64(stats.underruns as i64)?)?;
+        response.set_named_property("framesWritten", env.create_int64(stats.frames_written as i64)?)?;
+        response.set_named_property("samplesWritten", env.create_int64(stats.samples_written as i64)?)?;
+        response.set_named_property("bufferMinSamples", env.create_int64(stats.buffer_min_samples as i64)?)?;
+        response.set_named_property("bufferMaxSamples", env.create_int64(stats.buffer_max_samples as i64)?)?;
+        response.set_named_property("renderErrors", env.create_int64(stats.render_errors as i64)?)?;
+        response.set_named_property("seekClears", env.create_int64(stats.seek_clears as i64)?)?;
+        Ok(response)
+    }
+
+    #[napi]
+    pub fn reset_render_stats(&self, mut env: Env) -> Result<JsObject> {
+        let engine = self.engine.lock();
+        engine.reset_render_stats();
+        create_success_response(&mut env)
     }
 
     #[napi]

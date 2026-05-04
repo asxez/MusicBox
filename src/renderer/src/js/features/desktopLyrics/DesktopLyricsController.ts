@@ -1,5 +1,6 @@
 import {api} from '@api/api';
 import type {Result} from '@api/types/common';
+import type {LyricLine} from '@api/types/lyrics';
 import type {DesktopLyricsSettings, MusicBoxSettings} from '@api/types/settings';
 
 export type DesktopLyricsToggleResult = {
@@ -23,6 +24,10 @@ class DesktopLyricsController {
 
     async updateSettings(settings: DesktopLyricsSettings | MusicBoxSettings): Promise<Result> {
         return await api.updateDesktopLyricsSettings(settings);
+    }
+
+    async syncLyrics(lyrics: LyricLine[] | string): Promise<void> {
+        await api.syncToDesktopLyrics('lyrics', lyrics);
     }
 }
 

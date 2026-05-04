@@ -34,6 +34,8 @@ export interface ElectronNativeAudioAPI {
     seek(position: number): Promise<unknown>;
     setVolume(volume: number): Promise<Result>;
     getPosition(): Promise<unknown>;
+    getRenderStats(): Promise<unknown>;
+    resetRenderStats(): Promise<unknown>;
     setEqualizerEnabled(enabled: boolean): Promise<Result>;
     isEqualizerEnabled(): Promise<Result>;
     setEqualizerPreamp(gain: number): Promise<Result>;
@@ -62,6 +64,12 @@ export interface ElectronNativeAudioAPI {
     getShareMode(): Promise<WasapiShareMode>;
     switchShareMode(mode: WasapiShareMode): Promise<boolean>;
     destroy(): Promise<unknown>;
+}
+
+export interface ElectronBenchmarkAPI {
+    ping(payload?: unknown): Promise<unknown>;
+    getProcessSnapshot(): Promise<unknown>;
+    forceGc(): Promise<unknown>;
 }
 
 export interface PlaylistDetailResult {

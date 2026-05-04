@@ -377,7 +377,7 @@ class Settings extends Component {
         // 初始化音乐文件夹和自动扫描设置
         this.initializeMusicFoldersAndAutoScan();
 
-        // 初始化音频独占模式设置（仅Windows平台）
+        // 初始化 WASAPI 音频引擎设置（仅Windows平台）
         this.initializeExclusiveModeSettings();
 
         // 初始化系统托盘设置
@@ -451,7 +451,7 @@ class Settings extends Component {
         return settingsStore.get(this.settings, key, defaultValue);
     }
 
-    // 初始化音频独占模式设置
+    // 初始化 WASAPI 音频引擎设置
     initializeExclusiveModeSettings(): void {
         audioEngineSettingsController.initializeExclusiveModeSettings(this.settings, this.getAudioEngineSettingsElements());
     }

@@ -5,8 +5,7 @@ import type {MusicBoxSettings, WasapiShareMode} from '@api/types/settings';
 export type AudioEngineType = 'webaudio' | 'wasapi';
 
 interface NativeEngineBridge {
-    getShareMode(): Promise<WasapiShareMode>;
-    setShareMode(mode: WasapiShareMode): Promise<unknown>;
+    getShareMode(): Promise<unknown>;
 }
 
 interface CurrentEngineBridge {
@@ -76,10 +75,14 @@ export class AudioEngineAdapter {
             if (initialized) {
                 if (engineType === 'wasapi' && this.audioEngine.currentEngine?.nativeEngine) {
                     try {
-                        const currentMode = await this.audioEngine.currentEngine.nativeEngine.getShareMode();
+                        const modeResult = await this.audioEngine.currentEngine.nativeEngine.getShareMode();
+                        const currentMode = this.normalizeShareMode(modeResult);
                         if (currentMode !== wasapiShareMode) {
-                            console.log(`🔧 API: 设置WASAPI模式为 ${wasapiShareMode}`);
-                            await this.audioEngine.currentEngine.nativeEngine.setShareMode(wasapiShareMode);
+                            console.log(`🔧 API: 切换WASAPI模式为 ${wasapiShareMode}`);
+                            const switched = await this.audioEngine.currentEngine.switchShareMode?.(wasapiShareMode);
+                            if (!switched) {
+                                console.warn(`⚠️ API: WASAPI模式切换到 ${wasapiShareMode} 失败，当前模式: ${currentMode}`);
+                            }
                         }
                     } catch (error) {
                         console.warn('⚠️ API: 设置WASAPI模式失败，使用默认模式:', error);
@@ -171,5 +174,16 @@ export class AudioEngineAdapter {
 
     getAudioEngineType(): string {
         return this.audioEngine?.getEngineType() || 'unknown';
+    }
+
+    private normalizeShareMode(result: unknown): WasapiShareMode | null {
+        if (result === 'shared' || result === 'exclusive') return result;
+
+        if (result && typeof result === 'object') {
+            const value = (result as {mode?: unknown}).mode;
+            if (value === 'shared' || value === 'exclusive') return value;
+        }
+
+        return null;
     }
 }

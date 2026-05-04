@@ -115,6 +115,10 @@ export class WindowManager {
         });
 
         // 加载页面
+        if (this.isBenchmarkMode()) {
+            console.log('📊 Benchmark模式 - Loading minimal benchmark page');
+            await this.mainWindow.loadURL('data:text/html;charset=utf-8,<html><body>MusicBox Benchmark</body></html>');
+        } else {
         const isDev = !app.isPackaged;
         let htmlPath: string;
         if (isDev) {
@@ -137,6 +141,7 @@ export class WindowManager {
             } catch (fallbackError: any) {
                 console.error(`❌ 备用路径也失败: ${fallbackError.message}`);
             }
+        }
         }
 
         // 窗口准备好后显示
@@ -201,6 +206,13 @@ export class WindowManager {
         });
 
         return this.mainWindow;
+    }
+
+    private isBenchmarkMode(): boolean {
+        return Boolean(
+            process.env.MUSICBOX_BENCHMARK_SCRIPT ||
+            process.argv.some(arg => arg.startsWith('--benchmark-script='))
+        );
     }
 
     /**

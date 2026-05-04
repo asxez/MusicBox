@@ -1,0 +1,45 @@
+{
+  "experimentName": "paper-long-stability",
+  "audioFiles": [],
+  "repetitions": 3,
+  "sampleIntervalMs": 5000,
+  "ipcIterations": 100,
+  "payloadBytes": [0, 1024, 65536, 1048576],
+  "conditions": [
+    {
+      "id": "webaudio_long_10min",
+      "backend": "webaudio",
+      "durationSec": 600,
+      "audioFiles": [
+        {
+          "id": "goldberg_loop_flac_48k_10min",
+          "path": "F:\\WorkSpace\\MusicBox\\MusicBox\\scripts\\benchmarks\\audio\\open-goldberg-loop-48k-stereo-10min.flac"
+        }
+      ]
+    },
+    {
+      "id": "wasapi_shared_long_30min",
+      "backend": "native",
+      "shareMode": "shared",
+      "durationSec": 1800,
+      "audioFiles": [
+        {
+          "id": "goldberg_loop_flac_48k_30min",
+          "path": "F:\\WorkSpace\\MusicBox\\MusicBox\\scripts\\benchmarks\\audio\\open-goldberg-loop-48k-stereo-30min.flac"
+        }
+      ]
+    },
+    {
+      "id": "wasapi_exclusive_long_30min",
+      "backend": "native",
+      "shareMode": "exclusive",
+      "durationSec": 1800,
+      "audioFiles": [
+        {
+          "id": "goldberg_loop_flac_48k_30min",
+          "path": "F:\\WorkSpace\\MusicBox\\MusicBox\\scripts\\benchmarks\\audio\\open-goldberg-loop-48k-stereo-30min.flac"
+        }
+      ]
+    }
+  ]
+}

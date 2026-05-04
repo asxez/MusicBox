@@ -19,7 +19,7 @@ use ringbuf::{HeapProd, HeapRb};
 use crate::core::AudioFormat;
 use crate::decoder;
 use crate::utils::PlaybackTracker;
-use crate::renderer::WasapiRenderer;
+use crate::renderer::{RenderStats, WasapiRenderer};
 use crate::utils::ThreadMessage;
 
 /// 组合 Read 和 Seek traits 的 trait，用于动态分发
@@ -489,6 +489,14 @@ impl AudioEngine {
             }
         }
         None
+    }
+
+    pub fn get_render_stats(&self) -> RenderStats {
+        self.renderer.get_stats()
+    }
+
+    pub fn reset_render_stats(&self) {
+        self.renderer.reset_stats();
     }
 
     fn start_decoder_thread(

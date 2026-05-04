@@ -4,8 +4,8 @@
 
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@ui/base/Component";
-import {api} from "@api/api";
 import {coverAPI, fileAPI, lyricsAPI} from "@api/modules";
+import {desktopLyricsController} from "@js/features/desktopLyrics";
 import {playbackController} from "@js/features/playback";
 import type {PlaybackState, PlaybackStoreChange, Unsubscribe} from "@js/features/playback";
 import type {LyricLine} from "@api/types/lyrics";
@@ -633,7 +633,7 @@ class Lyrics extends Component {
             this.renderLyrics();
 
             // 同步歌词到桌面歌词窗口
-            await api.syncToDesktopLyrics('lyrics', this.lyrics);
+            await desktopLyricsController.syncLyrics(this.lyrics);
             this._isLoadingLyrics = false;
             return;
         }
@@ -666,7 +666,7 @@ class Lyrics extends Component {
                     this.renderLyrics();
 
                     // 同步歌词到桌面歌词窗口
-                    await api.syncToDesktopLyrics('lyrics', this.lyrics);
+                    await desktopLyricsController.syncLyrics(this.lyrics);
                 } else {
                     this.showNoLyrics();
                     console.log('❌ Lyrics: 歌词解析失败');

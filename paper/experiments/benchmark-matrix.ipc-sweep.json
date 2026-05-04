@@ -1,0 +1,15 @@
+{
+  "experimentName": "paper-ipc-payload-sweep",
+  "audioFiles": [],
+  "repetitions": 5,
+  "durationSec": 0,
+  "sampleIntervalMs": 1000,
+  "ipcIterations": 300,
+  "payloadBytes": [0, 1024, 65536, 1048576, 4194304, 8388608],
+  "conditions": [
+    {
+      "id": "boundary_payload_sweep",
+      "backend": "none"
+    }
+  ]
+}
