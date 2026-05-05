@@ -2,6 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const os = require('os');
 const {spawn} = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -40,6 +42,7 @@ function parseArgs(argv) {
         repeatLabel: '',
         seekEverySec: 0,
         seekPositions: [],
+        warmup: false,
         noBuild: false,
     };
 
@@ -53,17 +56,25 @@ function parseArgs(argv) {
         else if (arg === '--duration-sec') args.durationSec = Number(next());
         else if (arg === '--sample-interval-ms') args.sampleIntervalMs = Number(next());
         else if (arg === '--ipc-iterations') args.ipcIterations = Number(next());
-        else if (arg === '--payload-bytes') args.payloadBytes = next().split(',').map(Number);
+        else if (arg === '--payload-bytes') {
+            const value = next();
+            args.payloadBytes = value ? value.split(',').map(Number).filter(Number.isFinite) : [];
+        }
         else if (arg === '--backend') args.backend = next();
         else if (arg === '--share-mode') args.shareMode = next();
         else if (arg === '--repeat-label') args.repeatLabel = next();
         else if (arg === '--seek-every-sec') args.seekEverySec = Number(next());
         else if (arg === '--seek-positions') args.seekPositions = next().split(',').map(Number).filter(Number.isFinite);
+        else if (arg === '--warmup') args.warmup = true;
         else if (arg === '--no-build') args.noBuild = true;
         else if (arg === '--help' || arg === '-h') {
             printHelp();
             process.exit(0);
         }
+    }
+
+    if (args.ipcIterations <= 0) {
+        args.payloadBytes = [];
     }
 
     return args;
@@ -84,6 +95,7 @@ Options:
   --repeat-label <label>      Optional label stored in result config for batch experiments
   --seek-every-sec <n>        Seek periodically during playback, disabled by default
   --seek-positions <list>     Comma-separated seek positions in seconds, used with --seek-every-sec
+  --warmup                    Mark this run as warm-up; summarizers exclude it from condition statistics
   --out-dir <path>            Raw output root. Each run gets its own subdirectory, default paper/experiments/raw
   --electron <path>           Electron executable
   --main <path>               Built main entry, default dist/main/main.js
@@ -121,6 +133,51 @@ function csvEscape(value) {
     return text;
 }
 
+function hashFile(filePath) {
+    if (!filePath || !fs.existsSync(filePath)) return '';
+    const hash = crypto.createHash('sha256');
+    hash.update(fs.readFileSync(filePath));
+    return hash.digest('hex');
+}
+
+function describeFile(filePath) {
+    if (!filePath) return {path: '', exists: false};
+    if (!fs.existsSync(filePath)) return {path: filePath, exists: false};
+    const stat = fs.statSync(filePath);
+    return {
+        path: filePath,
+        exists: true,
+        sizeBytes: stat.size,
+        mtime: stat.mtime.toISOString(),
+        sha256: hashFile(filePath)
+    };
+}
+
+function readPackageVersion(packagePath) {
+    try {
+        return JSON.parse(fs.readFileSync(packagePath, 'utf8')).version || '';
+    } catch {
+        return '';
+    }
+}
+
+function collectRunEnvironment(args) {
+    return {
+        platform: process.platform,
+        arch: process.arch,
+        osRelease: os.release(),
+        osVersion: os.version ? os.version() : '',
+        cpuCount: os.cpus().length,
+        cpuModels: [...new Set(os.cpus().map(cpu => cpu.model))],
+        totalMemoryBytes: os.totalmem(),
+        nodeVersion: process.version,
+        electronPackageVersion: readPackageVersion(path.join(ROOT, 'node_modules', 'electron', 'package.json')),
+        mainEntry: describeFile(args.main),
+        nativeAudioNode: describeFile(path.join(ROOT, 'dist', 'main', 'NativeAudio.node')),
+        audioFile: describeFile(args.audioFile)
+    };
+}
+
 function buildRendererScript(args) {
     const serialized = JSON.stringify({
         audioFile: args.audioFile,
@@ -133,6 +190,7 @@ function buildRendererScript(args) {
         repeatLabel: args.repeatLabel,
         seekEverySec: args.seekEverySec,
         seekPositions: args.seekPositions,
+        warmup: args.warmup,
     });
 
     return `
@@ -171,17 +229,25 @@ function buildRendererScript(args) {
                 seekEvents: [],
                 errors: [],
                 metricsSemantics: {
-                    ipcPayloadLatency: 'IPC payload latencies are measured before backend initialization and playback; they are control-plane probes, not audio-output latency.',
+                    ipcPayloadLatency: config.ipcIterations > 0
+                        ? 'IPC payload latencies are measured before backend initialization and playback; they are control-plane probes, not audio-output latency.'
+                        : 'IPC payload probing is disabled for this playback run to avoid contaminating playback memory, CPU, and garbage-collection state.',
                     processSnapshot: 'Electron process metrics are sampled from the renderer-side benchmark loop and may include scheduler jitter.',
                     nativeSampleRenderStats: 'Native per-sample render counters are read through IPC and may lag because the render thread flushes counters in batches.',
                     nativeFinalRenderStats: 'Native final render counters are captured after native.stop so pending render-thread counters have been flushed.',
-                    webAudioStats: 'WebAudio uses a benchmark-local AudioBufferSourceNode path and does not expose native-style render callback or underrun counters.'
+                    webAudioStats: 'WebAudio uses a benchmark-local AudioBufferSourceNode path and does not expose native-style render callback or underrun counters.',
+                    nativeInitializeShareMode: 'Native benchmark runs pass the requested WASAPI share mode to initialize(); switchShareMode is not part of the measured startup path unless explicitly recorded.',
+                    seekLatency: 'Seek latency is API command duration. It is not an acoustic output-settling or first-audible-frame latency measurement.',
+                    loadTrackTiming: 'WebAudio loadTrack reads the full file over Electron IPC and decodes an AudioBuffer; native loadTrack opens/probes the file and the playback path streams through the native decoder.'
                 }
             };
             const mark = async (name, fn) => {
                 const start = now();
                 try {
                     const value = await fn();
+                    if (value && typeof value === 'object' && (value.success === false || value.success === 0)) {
+                        throw new Error(value.error || value.message || name + ' returned success=false');
+                    }
                     const durationMs = now() - start;
                     result.lifecycle.push({name, durationMs, success: true});
                     return value;
@@ -193,15 +259,21 @@ function buildRendererScript(args) {
             };
 
             try {
-                for (const bytes of config.payloadBytes) {
-                    const payload = 'x'.repeat(bytes);
-                    const latencies = [];
-                    for (let i = 0; i < config.ipcIterations; i++) {
-                        const start = now();
-                        await window.electronAPI.benchmark.ping({id: String(i), bytes, sentAt: start, payload});
-                        latencies.push(now() - start);
+                if (config.ipcIterations > 0) {
+                    for (const bytes of config.payloadBytes) {
+                        const payload = 'x'.repeat(bytes);
+                        const latencies = [];
+                        for (let i = 0; i < config.ipcIterations; i++) {
+                            const start = now();
+                            await window.electronAPI.benchmark.ping({id: String(i), bytes, sentAt: start, payload});
+                            latencies.push(now() - start);
+                        }
+                        result.ipc.push({bytes, latencyMs: summarize(latencies)});
                     }
-                    result.ipc.push({bytes, latencyMs: summarize(latencies)});
+                }
+
+                if (config.ipcIterations > 0) {
+                    await mark('benchmark.forceGc.afterIpc', () => window.electronAPI.benchmark.forceGc());
                 }
 
                 await mark('processSnapshot.before', () => window.electronAPI.benchmark.getProcessSnapshot());
@@ -303,8 +375,7 @@ function buildRendererScript(args) {
                 };
 
                 if (config.backend === 'native') {
-                    await mark('native.initialize', () => window.electronAPI.nativeAudio.initialize());
-                    await mark('native.switchShareMode', () => window.electronAPI.nativeAudio.switchShareMode(config.shareMode));
+                    await mark('native.initialize', () => window.electronAPI.nativeAudio.initialize(config.shareMode));
                     await mark('native.resetRenderStats', () => window.electronAPI.nativeAudio.resetRenderStats());
                     await mark('native.loadTrack', () => window.electronAPI.nativeAudio.loadTrack(config.audioFile));
                     await mark('native.play', () => window.electronAPI.nativeAudio.play());
@@ -435,8 +506,10 @@ function runBenchmark(args) {
             shareMode: args.shareMode,
             repeatLabel: args.repeatLabel,
             seekEverySec: args.seekEverySec,
-            seekPositions: args.seekPositions
+            seekPositions: args.seekPositions,
+            warmup: args.warmup
         },
+        environment: collectRunEnvironment(args),
         output: {
             jsonPath,
             csvPath,

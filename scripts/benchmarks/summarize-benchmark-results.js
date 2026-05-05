@@ -48,6 +48,15 @@ function findBenchmarkJsonFiles(dir) {
     return results.sort();
 }
 
+function readRunMeta(resultPath) {
+    const metaPath = path.join(path.dirname(resultPath), 'run-meta.json');
+    try {
+        return JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+    } catch {
+        return {};
+    }
+}
+
 function percentile(values, p) {
     if (!values.length) return 0;
     const sorted = [...values].sort((a, b) => a - b);
@@ -264,10 +273,25 @@ function renderStatsScope(data, backend) {
 
 function ipcMeasurementPhase(data) {
     const note = String(data.metricsSemantics?.ipcPayloadLatency || '').toLowerCase();
+    if (note.includes('disabled')) {
+        return 'disabled_for_playback_run';
+    }
     if (note.includes('before backend initialization')) {
         return 'pre_backend_initialization';
     }
     return 'pre_backend_initialization';
+}
+
+function seekMeasurementScope(data) {
+    const note = String(data.metricsSemantics?.seekLatency || '').toLowerCase();
+    if (note.includes('api command')) return 'api_command_duration_only';
+    return 'api_command_duration_only';
+}
+
+function loadTrackScope(data, backend) {
+    if (backend === 'webaudio') return 'full_file_read_ipc_audiobuffer_decode';
+    if (backend === 'native') return 'native_file_probe_streaming_decode_path';
+    return 'not_applicable';
 }
 
 function qualityFlag(row) {
@@ -291,6 +315,9 @@ const RUN_HEADER = [
     'comparisonScope',
     'renderStatsScope',
     'ipcMeasurementPhase',
+    'seekMeasurementScope',
+    'loadTrackScope',
+    'isWarmup',
     'durationSec',
     'samples',
     'sampleCoverage',
@@ -329,6 +356,7 @@ const RUN_HEADER = [
     'framesWrittenFinal',
     'seekClearsFinal',
     'initializeMs',
+    'switchShareModeMs',
     'loadTrackMs',
     'playMs',
     'stopMs',
@@ -350,6 +378,8 @@ const CONDITION_HEADER = [
     'comparisonScope',
     'renderStatsScope',
     'ipcMeasurementPhase',
+    'seekMeasurementScope',
+    'loadTrackScope',
     'runs',
     'okRuns',
     'lowQualityRuns',
@@ -395,6 +425,7 @@ const CONDITION_HEADER = [
     'framesWritten_mean',
     'seekClears_mean',
     'initializeMs_mean',
+    'switchShareModeMs_mean',
     'loadTrackMs_mean',
     'loadTrackMs_sd',
     'playMs_mean',
@@ -419,6 +450,9 @@ function rowToCsvValues(row) {
         row.comparisonScope,
         row.renderStatsScope,
         row.ipcMeasurementPhase,
+        row.seekMeasurementScope,
+        row.loadTrackScope,
+        row.isWarmup,
         row.durationSec,
         row.samples,
         formatNumber(row.sampleCoverage),
@@ -457,6 +491,7 @@ function rowToCsvValues(row) {
         row.framesWrittenFinal,
         row.seekClearsFinal,
         formatNumber(row.initializeMs),
+        formatNumber(row.switchShareModeMs),
         formatNumber(row.loadTrackMs),
         formatNumber(row.playMs),
         formatNumber(row.stopMs),
@@ -472,6 +507,7 @@ function rowToCsvValues(row) {
 function parseRun(fullPath, rawDir) {
     const file = path.relative(rawDir, fullPath);
     const data = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+    const runMeta = readRunMeta(fullPath);
     const errors = Array.isArray(data.errors) ? data.errors.filter(Boolean) : [];
     if (errors.length) {
         return {
@@ -521,6 +557,9 @@ function parseRun(fullPath, rawDir) {
         comparisonScope: comparisonScope(backend),
         renderStatsScope: renderStatsScope(data, backend),
         ipcMeasurementPhase: ipcMeasurementPhase(data),
+        seekMeasurementScope: seekMeasurementScope(data),
+        loadTrackScope: loadTrackScope(data, backend),
+        isWarmup: Boolean(data.config?.warmup || runMeta.config?.warmup || /__warmup\d+$/i.test(repeatLabel)),
         durationSec: Number(data.config?.durationSec || 0),
         sampleIntervalMs,
         samples: samples.length,
@@ -558,6 +597,7 @@ function parseRun(fullPath, rawDir) {
         framesWrittenFinal: Number(finalStats.framesWritten || 0),
         seekClearsFinal: Number(finalStats.seekClears || 0),
         initializeMs: lifecycleDuration(data, 'initialize'),
+        switchShareModeMs: lifecycleDuration(data, 'switchShareMode'),
         loadTrackMs: lifecycleDuration(data, 'loadTrack'),
         playMs: lifecycleDuration(data, 'play'),
         stopMs: lifecycleDuration(data, 'stop'),
@@ -586,6 +626,8 @@ function conditionCsvValues(rows) {
         first.comparisonScope,
         first.renderStatsScope,
         first.ipcMeasurementPhase,
+        first.seekMeasurementScope,
+        first.loadTrackScope,
         rows.length,
         rows.length - lowQualityRuns,
         lowQualityRuns,
@@ -631,6 +673,7 @@ function conditionCsvValues(rows) {
         formatNumber(mean(rows.map(row => row.framesWrittenFinal))),
         formatNumber(mean(rows.map(row => row.seekClearsFinal))),
         formatNumber(mean(rows.map(row => row.initializeMs))),
+        formatNumber(mean(rows.map(row => row.switchShareModeMs))),
         formatNumber(mean(rows.map(row => row.loadTrackMs))),
         formatNumber(stdev(rows.map(row => row.loadTrackMs))),
         formatNumber(mean(rows.map(row => row.playMs))),
@@ -666,8 +709,10 @@ function main() {
             continue;
         }
 
-        parsedRows.push(parsed.row);
         runRows.push(rowToCsvValues(parsed.row));
+        if (!parsed.row.isWarmup) {
+            parsedRows.push(parsed.row);
+        }
     }
 
     const grouped = new Map();

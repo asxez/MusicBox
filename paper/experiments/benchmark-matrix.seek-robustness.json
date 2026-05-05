@@ -1,5 +1,8 @@
 {
   "experimentName": "paper-seek-robustness",
+  "executionOrder": "round_robin",
+  "warmupRepetitions": 1,
+  "warmupDurationSec": 20,
   "audioFiles": [
     {
       "id": "flac_source_96k",
@@ -13,8 +16,8 @@
   "repetitions": 3,
   "durationSec": 180,
   "sampleIntervalMs": 1000,
-  "ipcIterations": 200,
-  "payloadBytes": [0, 1024, 65536, 1048576],
+  "ipcIterations": 0,
+  "payloadBytes": [],
   "seekEverySec": 5,
   "seekPositions": [5, 30, 10, 45, 15, 60, 20, 75],
   "conditions": [

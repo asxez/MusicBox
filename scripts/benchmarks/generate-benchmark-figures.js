@@ -30,36 +30,74 @@ function readCsv(filePath) {
     const text = fs.readFileSync(filePath, 'utf8').trim();
     if (!text) return [];
     const lines = text.split(/\r?\n/);
-    const header = lines.shift().split(',');
+    const header = parseCsvLine(lines.shift()).map(value => value.replace(/^\uFEFF/, ''));
     return lines.map(line => {
-        const values = line.split(',');
+        const values = parseCsvLine(line);
         return Object.fromEntries(header.map((key, index) => [key, values[index] || '']));
     });
 }
 
-function barChart({title, rows, valueKey, labelKey, outPath, yLabel}) {
+function parseCsvLine(line) {
+    const values = [];
+    let current = '';
+    let quoted = false;
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (quoted) {
+            if (char === '"' && line[i + 1] === '"') {
+                current += '"';
+                i += 1;
+            } else if (char === '"') {
+                quoted = false;
+            } else {
+                current += char;
+            }
+            continue;
+        }
+        if (char === '"') {
+            quoted = true;
+        } else if (char === ',') {
+            values.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    values.push(current);
+    return values;
+}
+
+function barChart({title, rows, valueKey, errorKey, labelKey, outPath, yLabel}) {
     const width = 960;
     const height = 540;
     const margin = {top: 70, right: 40, bottom: 120, left: 90};
     const plotWidth = width - margin.left - margin.right;
     const plotHeight = height - margin.top - margin.bottom;
     const values = rows.map(row => Number(row[valueKey] || 0));
-    const max = Math.max(...values, 1);
+    const errors = rows.map(row => Number(errorKey ? row[errorKey] || 0 : 0));
+    const max = Math.max(...values.map((value, index) => value + errors[index]), 1);
     const barGap = 18;
     const barWidth = Math.max(20, (plotWidth - barGap * (rows.length - 1)) / Math.max(rows.length, 1));
 
     const bars = rows.map((row, index) => {
         const value = Number(row[valueKey] || 0);
+        const error = Number(errorKey ? row[errorKey] || 0 : 0);
         const barHeight = (value / max) * plotHeight;
         const x = margin.left + index * (barWidth + barGap);
         const y = margin.top + plotHeight - barHeight;
+        const errorTop = margin.top + plotHeight - ((value + error) / max) * plotHeight;
+        const errorBottom = margin.top + plotHeight - (Math.max(0, value - error) / max) * plotHeight;
+        const cx = x + barWidth / 2;
         const label = typeof labelKey === 'function'
             ? labelKey(row, index)
             : row[labelKey] || row.condition || row.backend || String(index + 1);
         return `
             <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${barHeight.toFixed(1)}" fill="#2563eb"/>
-            <text x="${(x + barWidth / 2).toFixed(1)}" y="${(y - 8).toFixed(1)}" font-size="14" text-anchor="middle">${value.toFixed(3)}</text>
-            <text x="${(x + barWidth / 2).toFixed(1)}" y="${height - 70}" font-size="13" text-anchor="end" transform="rotate(-35 ${(x + barWidth / 2).toFixed(1)} ${height - 70})">${escapeXml(label)}</text>
+            ${error > 0 ? `<line x1="${cx.toFixed(1)}" y1="${errorTop.toFixed(1)}" x2="${cx.toFixed(1)}" y2="${errorBottom.toFixed(1)}" stroke="#111827" stroke-width="1.5"/>
+            <line x1="${(cx - 7).toFixed(1)}" y1="${errorTop.toFixed(1)}" x2="${(cx + 7).toFixed(1)}" y2="${errorTop.toFixed(1)}" stroke="#111827" stroke-width="1.5"/>
+            <line x1="${(cx - 7).toFixed(1)}" y1="${errorBottom.toFixed(1)}" x2="${(cx + 7).toFixed(1)}" y2="${errorBottom.toFixed(1)}" stroke="#111827" stroke-width="1.5"/>` : ''}
+            <text x="${cx.toFixed(1)}" y="${(Math.min(y, errorTop) - 8).toFixed(1)}" font-size="14" text-anchor="middle">${value.toFixed(3)}</text>
+            <text x="${cx.toFixed(1)}" y="${height - 70}" font-size="13" text-anchor="end" transform="rotate(-35 ${cx.toFixed(1)} ${height - 70})">${escapeXml(label)}</text>
         `;
     }).join('\n');
 
@@ -104,14 +142,20 @@ function main() {
         return;
     }
 
+    const workingSetKey = nonEmptyRows.some(row => Number(row.appWorkingSetMeanMB_mean || 0) > 0)
+        ? 'appWorkingSetMeanMB_mean'
+        : 'rssMeanMB_mean';
+    const workingSetErrorKey = workingSetKey === 'appWorkingSetMeanMB_mean'
+        ? 'appWorkingSetMeanMB_ci95'
+        : 'rssMeanMB_ci95';
+
     barChart({
         title: 'Mean Electron Working Set by Benchmark Condition',
         rows: nonEmptyRows,
-        valueKey: nonEmptyRows.some(row => Number(row.appWorkingSetMeanMB_mean || 0) > 0)
-            ? 'appWorkingSetMeanMB_mean'
-            : 'rssMeanMB_mean',
+        valueKey: workingSetKey,
+        errorKey: workingSetErrorKey,
         labelKey: conditionFigureLabel,
-        yLabel: 'Working set mean (MB)',
+        yLabel: 'Working set mean (MB), 95% CI',
         outPath: path.join(args.outDir, 'working-set-mean-by-condition.svg')
     });
 
@@ -124,19 +168,22 @@ function main() {
         outPath: path.join(args.outDir, 'sample-coverage-by-condition.svg')
     });
 
-    barChart({
-        title: 'Mean Pre-Backend 1 MB IPC Latency by Condition',
-        rows: nonEmptyRows,
-        valueKey: 'ipc1MBMeanMs_mean',
-        labelKey: conditionFigureLabel,
-        yLabel: 'Latency (ms)',
-        outPath: path.join(args.outDir, 'ipc-1mb-latency-by-condition.svg')
-    });
-
-    if (nonEmptyRows.some(row => Number(row.ipc4MBMeanMs_mean || 0) > 0)) {
+    const ipcRows = nonEmptyRows.filter(row => row.ipcMeasurementPhase === 'pre_backend_initialization');
+    if (ipcRows.some(row => Number(row.ipc1MBMeanMs_mean || 0) > 0)) {
         barChart({
-            title: 'Mean Pre-Backend 4 MB IPC Latency by Condition',
-            rows: nonEmptyRows,
+            title: 'Mean Pre-Backend 1 MB IPC Latency',
+            rows: ipcRows,
+            valueKey: 'ipc1MBMeanMs_mean',
+            labelKey: conditionFigureLabel,
+            yLabel: 'Latency (ms)',
+            outPath: path.join(args.outDir, 'ipc-1mb-latency-by-condition.svg')
+        });
+    }
+
+    if (ipcRows.some(row => Number(row.ipc4MBMeanMs_mean || 0) > 0)) {
+        barChart({
+            title: 'Mean Pre-Backend 4 MB IPC Latency',
+            rows: ipcRows,
             valueKey: 'ipc4MBMeanMs_mean',
             labelKey: conditionFigureLabel,
             yLabel: 'Latency (ms)',

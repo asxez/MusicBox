@@ -103,6 +103,7 @@ function main() {
     const logRows = readCsv(path.join(tablesDir, 'benchmark-log-check.csv'));
     const excludedRows = readCsv(path.join(tablesDir, 'benchmark-excluded-runs.csv')).filter(row => row.file);
     const lowQualityRows = runRows.filter(row => !['ok', 'ipc_only'].includes(row.qualityFlag || ''));
+    const warmupRows = runRows.filter(row => row.isWarmup === 'true');
     const fatalRuns = logRows.filter(row => number(row.fatalCount) > 0);
     const missingLogs = logRows.filter(row => row.hasConsoleLog !== 'true');
     const plannedRuns = Array.isArray(manifest.plannedRuns) ? manifest.plannedRuns.length : 'unknown';
@@ -117,6 +118,7 @@ function main() {
         '',
         `- Planned runs: ${plannedRuns}.`,
         `- Parsed included runs: ${runRows.length}.`,
+        `- Warm-up rows retained in run table but excluded from condition statistics: ${warmupRows.length}.`,
         `- Excluded runs: ${excludedRows.length}.`,
         `- Fatal log runs: ${fatalRuns.length}.`,
         `- Missing console logs: ${missingLogs.length}.`,
@@ -132,6 +134,8 @@ function main() {
             {label: 'Scope', value: row => row.comparisonScope || ''},
             {label: 'Stats', value: row => row.renderStatsScope || ''},
             {label: 'IPC phase', value: row => row.ipcMeasurementPhase || ''},
+            {label: 'Seek scope', value: row => row.seekMeasurementScope || ''},
+            {label: 'Load scope', value: row => row.loadTrackScope || ''},
             {label: 'Runs', value: row => row.runs},
             {label: 'Coverage', value: row => row.sampleCoverage_mean},
             {label: 'App WS MB', value: row => row.appWorkingSetMeanMB_mean},
@@ -167,7 +171,11 @@ function main() {
         '- Long-stability comparisons are valid only when duration, input fixture, and repetitions match across backends.',
         '- Use the 48 kHz stereo PCM baseline for the least confounded backend comparison; compressed or non-48 kHz fixtures include codec and resampling costs.',
         '- Native final render counters are intended for underrun/error conclusions; per-sample native render counters are batched and can lag.',
-        '- IPC payload latencies are measured before backend initialization/playback in each run; differences by playback condition should be treated as control-plane noise unless an under-playback IPC experiment is added.',
+        '- Formal playback matrices disable IPC payload probing so that pre-playback IPC allocations do not contaminate playback memory, CPU, or garbage-collection state.',
+        '- IPC payload latencies are valid only for boundary/control-plane sweep rows. They must not be interpreted as WASAPI or WebAudio playback latency.',
+        '- Seek timing is API command duration only. It is not an acoustic output-settling or first-audible-frame latency measurement.',
+        '- WebAudio loadTrack reads and decodes a full AudioBuffer through the Electron path, whereas native loadTrack uses the Rust/WASAPI path. Load timing and memory therefore describe the tested application strategies, not intrinsic technology limits.',
+        '- Warm-up runs are kept for auditability but excluded from condition means and confidence intervals.',
         '- Expected WASAPI fallback warnings are environment evidence, not fatal errors.',
         '- Positive memory slopes should be discussed directly; negative short-run slopes should not be overinterpreted as memory reclamation proof.',
         '- Large IPC payload measurements define control-plane limits and must not be used to justify audio-sample streaming across Electron IPC.',

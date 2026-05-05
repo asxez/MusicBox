@@ -1,5 +1,6 @@
 {
   "experimentName": "paper-sanity-matrix",
+  "executionOrder": "round_robin",
   "audioFiles": [
     {
       "id": "flac_source_96k",
@@ -13,13 +14,9 @@
   "repetitions": 1,
   "durationSec": 5,
   "sampleIntervalMs": 1000,
-  "ipcIterations": 50,
-  "payloadBytes": [0, 1024, 65536, 1048576],
+  "ipcIterations": 0,
+  "payloadBytes": [],
   "conditions": [
-    {
-      "id": "boundary_only",
-      "backend": "none"
-    },
     {
       "id": "webaudio",
       "backend": "webaudio"

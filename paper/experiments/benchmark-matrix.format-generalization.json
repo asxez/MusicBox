@@ -1,5 +1,8 @@
 {
   "experimentName": "paper-format-generalization",
+  "executionOrder": "round_robin",
+  "warmupRepetitions": 1,
+  "warmupDurationSec": 10,
   "audioFiles": [
     {
       "id": "wav_48k_180s",
@@ -17,8 +20,8 @@
   "repetitions": 3,
   "durationSec": 60,
   "sampleIntervalMs": 1000,
-  "ipcIterations": 300,
-  "payloadBytes": [0, 1024, 65536, 1048576],
+  "ipcIterations": 0,
+  "payloadBytes": [],
   "conditions": [
     {
       "id": "webaudio_format",

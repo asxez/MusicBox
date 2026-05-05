@@ -10,8 +10,8 @@
   "repetitions": 3,
   "durationSec": 1800,
   "sampleIntervalMs": 5000,
-  "ipcIterations": 100,
-  "payloadBytes": [0, 1024, 65536, 1048576],
+  "ipcIterations": 0,
+  "payloadBytes": [],
   "conditions": [
     {
       "id": "webaudio_long_30min",

@@ -2,7 +2,9 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const {spawnSync} = require('child_process');
+const os = require('os');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULT_CONFIG = path.join(ROOT, 'paper', 'experiments', 'benchmark-matrix.example.json');
@@ -78,6 +80,11 @@ function validateConfig(configPath, config) {
             throw new Error(`${configPath}: each audioFiles entry requires id and path`);
         }
     }
+
+    const executionOrder = config.executionOrder || 'round_robin';
+    if (!['round_robin', 'blocked'].includes(executionOrder)) {
+        throw new Error(`${configPath}: executionOrder must be "round_robin" or "blocked"`);
+    }
 }
 
 function buildCommands(config, outDir) {
@@ -87,20 +94,33 @@ function buildCommands(config, outDir) {
     for (const [conditionIndex, condition] of config.conditions.entries()) {
         const backend = condition.backend || 'native';
         const repetitions = Number(condition.repetitions || config.repetitions || 1);
+        const warmupRepetitions = Number(pickValue(condition.warmupRepetitions, config.warmupRepetitions, 0));
         const audioFiles = backend === 'none' ? [{id: 'none', path: ''}] : (condition.audioFiles || config.audioFiles);
 
         for (const [audioIndex, audio] of audioFiles.entries()) {
-            for (let repeat = 1; repeat <= repetitions; repeat++) {
-                const label = `${condition.id || backend}__${audio.id}__r${repeat}`;
+            for (let runIndex = 1; runIndex <= warmupRepetitions + repetitions; runIndex++) {
+                const isWarmup = runIndex <= warmupRepetitions;
+                const repeat = isWarmup ? runIndex : runIndex - warmupRepetitions;
+                const repeatPart = isWarmup ? `warmup${repeat}` : `r${repeat}`;
+                const label = `${condition.id || backend}__${audio.id}__${repeatPart}`;
                 const args = [
                     RUNNER,
                     '--backend', backend,
-                    '--duration-sec', String(pickValue(condition.durationSec, config.durationSec, 30)),
+                    '--duration-sec', String(isWarmup
+                        ? pickValue(condition.warmupDurationSec, config.warmupDurationSec, condition.durationSec, config.durationSec, 30)
+                        : pickValue(condition.durationSec, config.durationSec, 30)),
                     '--sample-interval-ms', String(pickValue(condition.sampleIntervalMs, config.sampleIntervalMs, 1000)),
                     '--ipc-iterations', String(pickValue(condition.ipcIterations, config.ipcIterations, 200)),
-                    '--payload-bytes', (pickValue(condition.payloadBytes, config.payloadBytes, [0, 1024, 65536, 1048576])).join(','),
                     '--repeat-label', label,
                 ];
+                const payloadBytes = pickValue(condition.payloadBytes, config.payloadBytes, [0, 1024, 65536, 1048576]);
+                if (Array.isArray(payloadBytes) && payloadBytes.length) {
+                    args.push('--payload-bytes', payloadBytes.join(','));
+                }
+
+                if (isWarmup) {
+                    args.push('--warmup');
+                }
 
                 const effectiveOutDir = outDir || config.outDir;
                 if (effectiveOutDir) {
@@ -133,13 +153,14 @@ function buildCommands(config, outDir) {
                     conditionIndex,
                     audioIndex,
                     audioId: audio.id || '',
-                    repeat
+                    repeat,
+                    isWarmup
                 });
             }
         }
     }
 
-    return orderCommands(commands, config.executionOrder || 'blocked', config.conditions.length);
+    return orderCommands(commands, config.executionOrder || 'round_robin', config.conditions.length);
 }
 
 function orderCommands(commands, executionOrder, conditionCount) {
@@ -148,6 +169,9 @@ function orderCommands(commands, executionOrder, conditionCount) {
     }
 
     return [...commands].sort((a, b) => {
+        const warmupOrder = Number(b.isWarmup) - Number(a.isWarmup);
+        if (warmupOrder) return warmupOrder;
+
         const repeatOrder = a.repeat - b.repeat;
         if (repeatOrder) return repeatOrder;
 
@@ -203,21 +227,87 @@ function resolveExperimentPaths(args, config) {
     };
 }
 
+function runGit(args) {
+    const result = spawnSync('git', args, {
+        cwd: ROOT,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe']
+    });
+    if (result.status !== 0) return '';
+    return String(result.stdout || '').trim();
+}
+
+function hashFile(filePath) {
+    if (!filePath || !fs.existsSync(filePath)) return '';
+    const hash = crypto.createHash('sha256');
+    hash.update(fs.readFileSync(filePath));
+    return hash.digest('hex');
+}
+
+function describeFile(filePath) {
+    if (!filePath || !fs.existsSync(filePath)) return {path: filePath || '', exists: false};
+    const stat = fs.statSync(filePath);
+    return {
+        path: filePath,
+        exists: true,
+        sizeBytes: stat.size,
+        mtime: stat.mtime.toISOString(),
+        sha256: hashFile(filePath)
+    };
+}
+
+function collectEnvironment(config) {
+    const nativeNodePath = path.join(ROOT, 'dist', 'main', 'NativeAudio.node');
+    const audioFiles = (config.audioFiles || []).map(audio => ({
+        id: audio.id || '',
+        ...describeFile(audio.path || '')
+    }));
+
+    return {
+        platform: process.platform,
+        arch: process.arch,
+        osRelease: os.release(),
+        osVersion: os.version ? os.version() : '',
+        cpus: os.cpus().map(cpu => cpu.model),
+        cpuCount: os.cpus().length,
+        totalMemoryBytes: os.totalmem(),
+        nodeVersion: process.version,
+        electronPackageVersion: readPackageVersion(path.join(ROOT, 'node_modules', 'electron', 'package.json')),
+        gitCommit: runGit(['rev-parse', 'HEAD']),
+        gitStatusShort: runGit(['status', '--short']),
+        nativeAudioNode: describeFile(nativeNodePath),
+        audioFiles
+    };
+}
+
+function readPackageVersion(packagePath) {
+    try {
+        return JSON.parse(fs.readFileSync(packagePath, 'utf8')).version || '';
+    } catch {
+        return '';
+    }
+}
+
 function writeManifest({experimentDir, rawDir, configPath, config, commands}) {
     fs.mkdirSync(experimentDir, {recursive: true});
     const manifest = {
         createdAt: new Date().toISOString(),
         configPath,
         rawDir,
-        repetitions: config.repetitions || 1,
-        durationSec: config.durationSec || 30,
-        sampleIntervalMs: config.sampleIntervalMs || 1000,
-        ipcIterations: config.ipcIterations || 200,
-        payloadBytes: config.payloadBytes || [0, 1024, 65536, 1048576],
-        executionOrder: config.executionOrder || 'blocked',
+        repetitions: pickValue(config.repetitions, 1),
+        durationSec: pickValue(config.durationSec, 30),
+        sampleIntervalMs: pickValue(config.sampleIntervalMs, 1000),
+        ipcIterations: pickValue(config.ipcIterations, 200),
+        payloadBytes: pickValue(config.payloadBytes, [0, 1024, 65536, 1048576]),
+        executionOrder: config.executionOrder || 'round_robin',
+        warmupRepetitions: config.warmupRepetitions || 0,
+        warmupDurationSec: config.warmupDurationSec || 0,
         audioFiles: config.audioFiles || [],
         conditions: config.conditions || [],
-        plannedRuns: commands.map(command => command.label)
+        environment: collectEnvironment(config),
+        plannedRuns: commands.map(command => command.label),
+        plannedWarmupRuns: commands.filter(command => command.isWarmup).map(command => command.label),
+        plannedMeasuredRuns: commands.filter(command => !command.isWarmup).map(command => command.label)
     };
     fs.writeFileSync(path.join(experimentDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
     fs.writeFileSync(path.join(experimentDir, 'config.snapshot.json'), JSON.stringify(config, null, 2), 'utf8');
