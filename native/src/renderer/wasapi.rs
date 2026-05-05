@@ -437,8 +437,7 @@ fn run_render_loop(
     let is_float = matches!(device_format.sample_type, SampleType::Float);
     let mut stream_running = true;
 
-    // 如果输出格式是Int16，创建抖动器以提高音质
-    let mut ditherer = if !is_float {
+    let mut ditherer = if should_apply_dither(&device_format) {
         Some(Ditherer::new(dither_type, channels))
     } else {
         None
@@ -453,6 +452,8 @@ fn run_render_loop(
 
     let dither_label = if ditherer.is_some() {
         format!(" ({}抖动)", dither_name)
+    } else if !is_float {
+        " (24位以上跳过抖动)".to_string()
     } else {
         String::new()
     };
@@ -579,15 +580,11 @@ fn run_render_loop(
                 }
             }
 
-            // 应用音量
-            for sample in &mut audio_data {
-                *sample *= vol;
-            }
-
             let audio_bytes = encode_samples_for_device(
                 &mut audio_data,
                 &device_format,
                 channels,
+                vol,
                 ditherer.as_mut(),
                 &mut byte_data,
             )?;
@@ -722,6 +719,7 @@ fn encode_samples_for_device<'a>(
     samples: &'a mut [f32],
     format: &AudioFormat,
     channels: usize,
+    volume: f32,
     ditherer: Option<&mut Ditherer>,
     bytes: &'a mut Vec<u8>,
 ) -> Result<&'a [u8], String> {
@@ -735,12 +733,12 @@ fn encode_samples_for_device<'a>(
 
     match format.sample_type {
         SampleType::Float if can_write_float_samples_direct(bytes_per_sample) => {
-            clamp_float_samples_in_place(samples);
+            scale_and_clamp_float_samples_in_place(samples, volume);
             Ok(f32_slice_as_bytes(samples))
         }
         SampleType::Float => {
             reserve_encoded_sample_bytes(samples.len(), bytes_per_sample, bytes);
-            encode_float_samples(samples, bytes_per_sample, bytes)?;
+            encode_float_samples(samples, volume, bytes_per_sample, bytes)?;
             Ok(bytes.as_slice())
         }
         SampleType::Int => {
@@ -750,6 +748,7 @@ fn encode_samples_for_device<'a>(
                 channels,
                 bytes_per_sample,
                 format.valid_bits_per_sample,
+                volume,
                 ditherer,
                 bytes,
             )?;
@@ -770,9 +769,9 @@ fn reserve_encoded_sample_bytes(sample_count: usize, bytes_per_sample: usize, by
     }
 }
 
-fn clamp_float_samples_in_place(samples: &mut [f32]) {
+fn scale_and_clamp_float_samples_in_place(samples: &mut [f32], volume: f32) {
     for sample in samples {
-        *sample = sample.clamp(-1.0, 1.0);
+        *sample = (*sample * volume).clamp(-1.0, 1.0);
     }
 }
 
@@ -788,13 +787,14 @@ fn f32_slice_as_bytes(samples: &[f32]) -> &[u8] {
 
 fn encode_float_samples(
     samples: &[f32],
+    volume: f32,
     bytes_per_sample: usize,
     bytes: &mut Vec<u8>,
 ) -> Result<(), String> {
     match bytes_per_sample {
         4 => {
             for &sample in samples {
-                bytes.extend_from_slice(&sample.clamp(-1.0, 1.0).to_le_bytes());
+                bytes.extend_from_slice(&(sample * volume).clamp(-1.0, 1.0).to_le_bytes());
             }
             Ok(())
         }
@@ -816,40 +816,68 @@ fn encode_pcm_samples(
     channels: usize,
     bytes_per_sample: usize,
     valid_bits: u16,
+    volume: f32,
     mut ditherer: Option<&mut Ditherer>,
     bytes: &mut Vec<u8>,
 ) -> Result<(), String> {
     match (bytes_per_sample, valid_bits) {
         (4, 24) => {
             for (index, &sample) in samples.iter().enumerate() {
-                let pcm = quantize_sample(sample, index, channels, 24, ditherer.as_deref_mut());
+                let pcm = quantize_sample(
+                    sample * volume,
+                    index,
+                    channels,
+                    24,
+                    ditherer.as_deref_mut(),
+                );
                 bytes.extend_from_slice(&(pcm << 8).to_le_bytes());
             }
             Ok(())
         }
         (4, 32) => {
             for (index, &sample) in samples.iter().enumerate() {
-                let pcm = quantize_sample(sample, index, channels, 31, ditherer.as_deref_mut());
+                let pcm = quantize_sample(
+                    sample * volume,
+                    index,
+                    channels,
+                    31,
+                    ditherer.as_deref_mut(),
+                );
                 bytes.extend_from_slice(&pcm.to_le_bytes());
             }
             Ok(())
         }
         (3, 24) => {
             for (index, &sample) in samples.iter().enumerate() {
-                let pcm = quantize_sample(sample, index, channels, 24, ditherer.as_deref_mut());
+                let pcm = quantize_sample(
+                    sample * volume,
+                    index,
+                    channels,
+                    24,
+                    ditherer.as_deref_mut(),
+                );
                 bytes.extend_from_slice(&pcm.to_le_bytes()[..3]);
             }
             Ok(())
         }
         _ => {
             for (index, &sample) in samples.iter().enumerate() {
-                let pcm =
-                    quantize_sample(sample, index, channels, valid_bits, ditherer.as_deref_mut());
+                let pcm = quantize_sample(
+                    sample * volume,
+                    index,
+                    channels,
+                    valid_bits,
+                    ditherer.as_deref_mut(),
+                );
                 write_pcm_sample(bytes, pcm, bytes_per_sample, valid_bits)?;
             }
             Ok(())
         }
     }
+}
+
+fn should_apply_dither(format: &AudioFormat) -> bool {
+    matches!(format.sample_type, SampleType::Int) && format.valid_bits_per_sample <= 16
 }
 
 fn quantize_sample(

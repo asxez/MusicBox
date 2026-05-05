@@ -207,14 +207,8 @@ pub fn decode_with_resampling(
             interleaved_samples.clear();
             output_samples.clear();
 
-            // 重置重采样器
-            resampler = AudioResampler::with_quality(
-                source_sample_rate,
-                device_sample_rate,
-                source_channels,
-                resampling_quality,
-            )?;
-            resampled_output = resampler.output_buffer();
+            // 重置重采样器，清除 seek 前的滤波器历史状态。
+            resampler.reset();
             continue;
         }
 
@@ -348,6 +342,23 @@ fn deinterleave_samples(
     deinterleaved: &mut [Vec<f32>],
     zero_fill: bool,
 ) {
+    if channels == 2 && deinterleaved.len() >= 2 {
+        deinterleaved[0].resize(chunk_size, 0.0);
+        deinterleaved[1].resize(chunk_size, 0.0);
+        if zero_fill {
+            deinterleaved[0].fill(0.0);
+            deinterleaved[1].fill(0.0);
+        }
+
+        let available_frames = (interleaved.len() / 2).min(chunk_size);
+        for frame_idx in 0..available_frames {
+            let input_idx = frame_idx * 2;
+            deinterleaved[0][frame_idx] = interleaved[input_idx];
+            deinterleaved[1][frame_idx] = interleaved[input_idx + 1];
+        }
+        return;
+    }
+
     for channel_buf in deinterleaved.iter_mut().take(channels) {
         channel_buf.resize(chunk_size, 0.0);
         if zero_fill {

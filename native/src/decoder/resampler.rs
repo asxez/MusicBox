@@ -132,6 +132,10 @@ impl AudioResampler {
         self.quality
     }
 
+    pub fn reset(&mut self) {
+        self.resampler.reset();
+    }
+
     pub fn output_buffer(&self) -> Vec<Vec<f32>> {
         self.resampler.output_buffer_allocate(true)
     }
