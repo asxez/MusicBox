@@ -12,12 +12,12 @@ use std::sync::Arc;
 // 模块声明
 mod core;
 mod decoder;
-mod renderer;
 mod equalizer;
+mod renderer;
 mod utils;
 
 // 重新导出核心类型
-use core::{AudioEngine, ShareMode, EqualizerMode};
+use core::{AudioEngine, EqualizerMode, ShareMode};
 
 /// 创建成功响应对象
 fn create_success_response(env: &mut Env) -> Result<JsObject> {
@@ -151,11 +151,26 @@ impl NativeAudioEngine {
         let mut response = create_success_response(&mut env)?;
         response.set_named_property("callbacks", env.create_int64(stats.callbacks as i64)?)?;
         response.set_named_property("underruns", env.create_int64(stats.underruns as i64)?)?;
-        response.set_named_property("framesWritten", env.create_int64(stats.frames_written as i64)?)?;
-        response.set_named_property("samplesWritten", env.create_int64(stats.samples_written as i64)?)?;
-        response.set_named_property("bufferMinSamples", env.create_int64(stats.buffer_min_samples as i64)?)?;
-        response.set_named_property("bufferMaxSamples", env.create_int64(stats.buffer_max_samples as i64)?)?;
-        response.set_named_property("renderErrors", env.create_int64(stats.render_errors as i64)?)?;
+        response.set_named_property(
+            "framesWritten",
+            env.create_int64(stats.frames_written as i64)?,
+        )?;
+        response.set_named_property(
+            "samplesWritten",
+            env.create_int64(stats.samples_written as i64)?,
+        )?;
+        response.set_named_property(
+            "bufferMinSamples",
+            env.create_int64(stats.buffer_min_samples as i64)?,
+        )?;
+        response.set_named_property(
+            "bufferMaxSamples",
+            env.create_int64(stats.buffer_max_samples as i64)?,
+        )?;
+        response.set_named_property(
+            "renderErrors",
+            env.create_int64(stats.render_errors as i64)?,
+        )?;
         response.set_named_property("seekClears", env.create_int64(stats.seek_clears as i64)?)?;
         Ok(response)
     }

@@ -25,6 +25,8 @@ pub struct AudioResampler {
     quality: ResamplingQuality,
 }
 
+const STACK_INPUT_CHANNELS: usize = 32;
+
 impl AudioResampler {
     /// 创建新的重采样器，使用默认质量（高质量）
     pub fn new(
@@ -130,10 +132,31 @@ impl AudioResampler {
         self.quality
     }
 
-    pub fn process(&mut self, input: &[Vec<f32>]) -> Result<Vec<Vec<f32>>, String> {
-        let waves_in: Vec<&[f32]> = input.iter().map(|v| v.as_slice()).collect();
-        self.resampler
-            .process(&waves_in, None)
+    pub fn output_buffer(&self) -> Vec<Vec<f32>> {
+        self.resampler.output_buffer_allocate(true)
+    }
+
+    pub fn process_into(
+        &mut self,
+        input: &[Vec<f32>],
+        output: &mut [Vec<f32>],
+    ) -> Result<usize, String> {
+        let result = if input.len() <= STACK_INPUT_CHANNELS {
+            let empty: &[f32] = &[];
+            let mut waves_in = [empty; STACK_INPUT_CHANNELS];
+            for (slot, channel) in waves_in.iter_mut().zip(input.iter()) {
+                *slot = channel.as_slice();
+            }
+
+            self.resampler
+                .process_into_buffer(&waves_in[..input.len()], output, None)
+        } else {
+            let waves_in: Vec<&[f32]> = input.iter().map(|v| v.as_slice()).collect();
+            self.resampler.process_into_buffer(&waves_in, output, None)
+        };
+
+        result
+            .map(|(_, output_frames)| output_frames)
             .map_err(|e| format!("重采样失败: {:?}", e))
     }
 }

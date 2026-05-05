@@ -42,7 +42,10 @@ impl AudioFormat {
 
     pub fn from_wave_format(wave_format: WaveFormat) -> Result<Self, String> {
         let sample_type = Self::detect_sample_type(&wave_format)?;
-        Ok(Self::from_wave_format_with_sample_type(wave_format, sample_type))
+        Ok(Self::from_wave_format_with_sample_type(
+            wave_format,
+            sample_type,
+        ))
     }
 
     pub fn from_wave_format_with_sample_type(
