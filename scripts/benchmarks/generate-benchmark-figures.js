@@ -53,7 +53,9 @@ function barChart({title, rows, valueKey, labelKey, outPath, yLabel}) {
         const barHeight = (value / max) * plotHeight;
         const x = margin.left + index * (barWidth + barGap);
         const y = margin.top + plotHeight - barHeight;
-        const label = row[labelKey] || row.condition || row.backend || String(index + 1);
+        const label = typeof labelKey === 'function'
+            ? labelKey(row, index)
+            : row[labelKey] || row.condition || row.backend || String(index + 1);
         return `
             <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${barHeight.toFixed(1)}" fill="#2563eb"/>
             <text x="${(x + barWidth / 2).toFixed(1)}" y="${(y - 8).toFixed(1)}" font-size="14" text-anchor="middle">${value.toFixed(3)}</text>
@@ -81,6 +83,11 @@ function escapeXml(value) {
         .replace(/"/g, '&quot;');
 }
 
+function conditionFigureLabel(row) {
+    const input = row.inputWorkloadClass || '';
+    return [row.condition || row.backend, input].filter(Boolean).join(' / ');
+}
+
 function main() {
     const args = parseArgs(process.argv.slice(2));
     fs.mkdirSync(args.outDir, {recursive: true});
@@ -103,7 +110,7 @@ function main() {
         valueKey: nonEmptyRows.some(row => Number(row.appWorkingSetMeanMB_mean || 0) > 0)
             ? 'appWorkingSetMeanMB_mean'
             : 'rssMeanMB_mean',
-        labelKey: 'condition',
+        labelKey: conditionFigureLabel,
         yLabel: 'Working set mean (MB)',
         outPath: path.join(args.outDir, 'working-set-mean-by-condition.svg')
     });
@@ -112,26 +119,26 @@ function main() {
         title: 'Mean Sample Coverage by Condition',
         rows: nonEmptyRows,
         valueKey: 'sampleCoverage_mean',
-        labelKey: 'condition',
+        labelKey: conditionFigureLabel,
         yLabel: 'Sample coverage',
         outPath: path.join(args.outDir, 'sample-coverage-by-condition.svg')
     });
 
     barChart({
-        title: 'Mean 1 MB IPC Latency by Condition',
+        title: 'Mean Pre-Backend 1 MB IPC Latency by Condition',
         rows: nonEmptyRows,
         valueKey: 'ipc1MBMeanMs_mean',
-        labelKey: 'condition',
+        labelKey: conditionFigureLabel,
         yLabel: 'Latency (ms)',
         outPath: path.join(args.outDir, 'ipc-1mb-latency-by-condition.svg')
     });
 
     if (nonEmptyRows.some(row => Number(row.ipc4MBMeanMs_mean || 0) > 0)) {
         barChart({
-            title: 'Mean 4 MB IPC Latency by Condition',
+            title: 'Mean Pre-Backend 4 MB IPC Latency by Condition',
             rows: nonEmptyRows,
             valueKey: 'ipc4MBMeanMs_mean',
-            labelKey: 'condition',
+            labelKey: conditionFigureLabel,
             yLabel: 'Latency (ms)',
             outPath: path.join(args.outDir, 'ipc-4mb-latency-by-condition.svg')
         });
@@ -142,7 +149,7 @@ function main() {
             title: 'Mean Application Working-Set Slope by Condition',
             rows: nonEmptyRows,
             valueKey: 'appWorkingSetSlopeMBPerMin_mean',
-            labelKey: 'condition',
+            labelKey: conditionFigureLabel,
             yLabel: 'Slope (MB/min)',
             outPath: path.join(args.outDir, 'working-set-slope-by-condition.svg')
         });
@@ -153,7 +160,7 @@ function main() {
             title: 'Mean Seek Latency by Condition',
             rows: nonEmptyRows,
             valueKey: 'seekLatencyMeanMs_mean',
-            labelKey: 'condition',
+            labelKey: conditionFigureLabel,
             yLabel: 'Latency (ms)',
             outPath: path.join(args.outDir, 'seek-latency-by-condition.svg')
         });

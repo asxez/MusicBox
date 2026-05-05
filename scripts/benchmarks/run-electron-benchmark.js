@@ -171,6 +171,7 @@ function buildRendererScript(args) {
                 seekEvents: [],
                 errors: [],
                 metricsSemantics: {
+                    ipcPayloadLatency: 'IPC payload latencies are measured before backend initialization and playback; they are control-plane probes, not audio-output latency.',
                     processSnapshot: 'Electron process metrics are sampled from the renderer-side benchmark loop and may include scheduler jitter.',
                     nativeSampleRenderStats: 'Native per-sample render counters are read through IPC and may lag because the render thread flushes counters in batches.',
                     nativeFinalRenderStats: 'Native final render counters are captured after native.stop so pending render-thread counters have been flushed.',

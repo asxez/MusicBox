@@ -82,13 +82,14 @@ function validateConfig(configPath, config) {
 
 function buildCommands(config, outDir) {
     const commands = [];
+    let sequence = 0;
 
-    for (const condition of config.conditions) {
+    for (const [conditionIndex, condition] of config.conditions.entries()) {
         const backend = condition.backend || 'native';
         const repetitions = Number(condition.repetitions || config.repetitions || 1);
         const audioFiles = backend === 'none' ? [{id: 'none', path: ''}] : (condition.audioFiles || config.audioFiles);
 
-        for (const audio of audioFiles) {
+        for (const [audioIndex, audio] of audioFiles.entries()) {
             for (let repeat = 1; repeat <= repetitions; repeat++) {
                 const label = `${condition.id || backend}__${audio.id}__r${repeat}`;
                 const args = [
@@ -125,12 +126,45 @@ function buildCommands(config, outDir) {
                     args.push('--audio-file', audio.path);
                 }
 
-                commands.push({label, args});
+                commands.push({
+                    label,
+                    args,
+                    sequence: sequence++,
+                    conditionIndex,
+                    audioIndex,
+                    audioId: audio.id || '',
+                    repeat
+                });
             }
         }
     }
 
-    return commands;
+    return orderCommands(commands, config.executionOrder || 'blocked', config.conditions.length);
+}
+
+function orderCommands(commands, executionOrder, conditionCount) {
+    if (executionOrder !== 'round_robin') {
+        return commands;
+    }
+
+    return [...commands].sort((a, b) => {
+        const repeatOrder = a.repeat - b.repeat;
+        if (repeatOrder) return repeatOrder;
+
+        const audioOrder = a.audioIndex - b.audioIndex;
+        if (audioOrder) return audioOrder;
+
+        const conditionOrder = rotatedConditionRank(a, conditionCount) - rotatedConditionRank(b, conditionCount);
+        if (conditionOrder) return conditionOrder;
+
+        return a.sequence - b.sequence;
+    });
+}
+
+function rotatedConditionRank(command, conditionCount) {
+    if (!conditionCount) return command.conditionIndex;
+    const rotation = (command.repeat - 1) % conditionCount;
+    return (command.conditionIndex - rotation + conditionCount) % conditionCount;
 }
 
 function resolveExperimentPaths(args, config) {
@@ -180,6 +214,7 @@ function writeManifest({experimentDir, rawDir, configPath, config, commands}) {
         sampleIntervalMs: config.sampleIntervalMs || 1000,
         ipcIterations: config.ipcIterations || 200,
         payloadBytes: config.payloadBytes || [0, 1024, 65536, 1048576],
+        executionOrder: config.executionOrder || 'blocked',
         audioFiles: config.audioFiles || [],
         conditions: config.conditions || [],
         plannedRuns: commands.map(command => command.label)

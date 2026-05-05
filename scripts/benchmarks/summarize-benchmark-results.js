@@ -262,6 +262,14 @@ function renderStatsScope(data, backend) {
     return 'native_final_stats_timing_unknown';
 }
 
+function ipcMeasurementPhase(data) {
+    const note = String(data.metricsSemantics?.ipcPayloadLatency || '').toLowerCase();
+    if (note.includes('before backend initialization')) {
+        return 'pre_backend_initialization';
+    }
+    return 'pre_backend_initialization';
+}
+
 function qualityFlag(row) {
     if (row.backend === 'none') return 'ipc_only';
     if (row.backend === 'native' && row.renderStatsScope === 'native_final_stats_timing_unknown') {
@@ -282,6 +290,7 @@ const RUN_HEADER = [
     'inputWorkloadClass',
     'comparisonScope',
     'renderStatsScope',
+    'ipcMeasurementPhase',
     'durationSec',
     'samples',
     'sampleCoverage',
@@ -340,6 +349,7 @@ const CONDITION_HEADER = [
     'inputWorkloadClass',
     'comparisonScope',
     'renderStatsScope',
+    'ipcMeasurementPhase',
     'runs',
     'okRuns',
     'lowQualityRuns',
@@ -408,6 +418,7 @@ function rowToCsvValues(row) {
         row.inputWorkloadClass,
         row.comparisonScope,
         row.renderStatsScope,
+        row.ipcMeasurementPhase,
         row.durationSec,
         row.samples,
         formatNumber(row.sampleCoverage),
@@ -509,6 +520,7 @@ function parseRun(fullPath, rawDir) {
         inputWorkloadClass: inputWorkloadClass(audioFile, repeatLabel),
         comparisonScope: comparisonScope(backend),
         renderStatsScope: renderStatsScope(data, backend),
+        ipcMeasurementPhase: ipcMeasurementPhase(data),
         durationSec: Number(data.config?.durationSec || 0),
         sampleIntervalMs,
         samples: samples.length,
@@ -573,6 +585,7 @@ function conditionCsvValues(rows) {
         first.inputWorkloadClass,
         first.comparisonScope,
         first.renderStatsScope,
+        first.ipcMeasurementPhase,
         rows.length,
         rows.length - lowQualityRuns,
         lowQualityRuns,

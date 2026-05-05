@@ -1,5 +1,6 @@
 {
   "experimentName": "paper-long-stability",
+  "executionOrder": "round_robin",
   "audioFiles": [
     {
       "id": "goldberg_loop_flac_48k_30min",

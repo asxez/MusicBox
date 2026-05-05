@@ -1,5 +1,6 @@
 {
   "experimentName": "paper-main-matrix",
+  "executionOrder": "round_robin",
   "audioFiles": [
     {
       "id": "wav_48k_180s",
