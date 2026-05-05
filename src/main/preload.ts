@@ -146,7 +146,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Native音频引擎（WASAPI shared/exclusive）
     nativeAudio: {
         // 初始化Native音频引擎
-        initialize: () => ipcRenderer.invoke('native-audio:initialize'),
+        initialize: (shareMode?: string) => ipcRenderer.invoke('native-audio:initialize', shareMode),
 
         // 播放控制
         loadTrack: (filePath: string) => ipcRenderer.invoke('native-audio:load-track', filePath),

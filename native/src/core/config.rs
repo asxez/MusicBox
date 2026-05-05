@@ -127,12 +127,12 @@ impl AudioConfig {
                 if self.preferred_wasapi_buffer_ms > 0 {
                     vec![
                         (self.preferred_wasapi_buffer_ms as i64) * 10_000,
-                        5_000_000,
-                        10_000_000,
-                        20_000_000,
+                        5 * 10_000,
+                        10 * 10_000,
+                        20 * 10_000,
                     ]
                 } else {
-                    vec![3_000_000, 5_000_000, 10_000_000, 20_000_000]
+                    vec![3 * 10_000, 5 * 10_000, 10 * 10_000, 20 * 10_000]
                 }
             }
             ShareMode::Shared => {

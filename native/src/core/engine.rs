@@ -141,14 +141,21 @@ impl AudioEngine {
         println!("     采样率: {} Hz", mix_format.get_samplespersec());
         println!("     声道数: {}", mix_format.get_nchannels());
         println!("     位深度: {} bits", mix_format.get_bitspersample());
+        println!("     块对齐: {} bytes", mix_format.get_blockalign());
 
         let supported_format = self.query_format(&mut audio_client, &mix_format)?;
 
         println!("   {}支持的格式:", mode_str);
         println!("     采样率: {} Hz", supported_format.sample_rate);
         println!("     声道数: {}", supported_format.channels);
-        println!("     位深度: {} bits", supported_format.bits_per_sample);
+        println!(
+            "     位深度: {} bits (有效 {} bits)",
+            supported_format.bits_per_sample,
+            supported_format.valid_bits_per_sample
+        );
         println!("     样本类型: {:?}", supported_format.sample_type);
+        println!("     块对齐: {} bytes", supported_format.block_align);
+        println!("     声道掩码: 0x{:X}", supported_format.channel_mask);
 
         self.device_sample_rate = supported_format.sample_rate;
         self.device_channels = supported_format.channels;
@@ -186,16 +193,7 @@ impl AudioEngine {
             ShareMode::Shared => {
                 // 共享模式：使用系统混合格式
                 println!("   ✅ 使用系统混合格式（共享模式）");
-                Ok(AudioFormat::new(
-                    mix_format.get_samplespersec(),
-                    mix_format.get_nchannels(),
-                    mix_format.get_bitspersample(),
-                    if mix_format.get_bitspersample() == 32 {
-                        SampleType::Float
-                    } else {
-                        SampleType::Int
-                    },
-                ))
+                AudioFormat::from_wave_format(mix_format.clone())
             }
             ShareMode::Exclusive => {
                 // 独占模式：查询设备支持的格式
@@ -209,69 +207,63 @@ impl AudioEngine {
         audio_client: &mut AudioClient,
         mix_format: &WaveFormat,
     ) -> Result<AudioFormat, String> {
-        let sample_rate = mix_format.get_samplespersec();
         let channels = mix_format.get_nchannels();
-        let channelmask = make_channelmasks(channels as usize)
-            .first()
-            .copied()
-            .unwrap_or(0x3);
 
-        // 尝试 Float32
-        let float_format = WaveFormat::new(
-            32,
-            32,
-            &SampleType::Float,
-            sample_rate as usize,
-            channels as usize,
-            Some(channelmask),
-        );
+        let mut candidates = Vec::new();
+        candidates.push(mix_format.clone());
 
-        match audio_client.is_supported(&float_format, &ShareMode::Exclusive) {
-            Ok(Some(_)) | Ok(None) => {
-                println!("   ✅ 设备支持 Float32 独占模式");
-                return Ok(AudioFormat::new(
-                    sample_rate,
-                    channels,
-                    32,
-                    SampleType::Float,
-                ));
-            }
-            Err(e) => {
-                println!("   ⚠️ Float32 不支持: {:?}", e);
-            }
-        }
+        let mix_sample_rate = mix_format.get_samplespersec();
+        let common_rates = [mix_sample_rate, 192000, 176400, 96000, 88200, 48000, 44100];
+        let bit_depths = [
+            (32, 32, SampleType::Float),
+            (32, 24, SampleType::Int),
+            (24, 24, SampleType::Int),
+            (16, 16, SampleType::Int),
+        ];
+        let channel_masks = make_channelmasks(channels as usize);
 
-        // 尝试 Int16
-        let int16_format = WaveFormat::new(
-            16,
-            16,
-            &SampleType::Int,
-            sample_rate as usize,
-            channels as usize,
-            Some(channelmask),
-        );
-
-        match audio_client.is_supported(&int16_format, &ShareMode::Exclusive) {
-            Ok(Some(_)) | Ok(None) => {
-                println!("   ✅ 设备支持 Int16 独占模式");
-                return Ok(AudioFormat::new(sample_rate, channels, 16, SampleType::Int));
-            }
-            Err(e) => {
-                println!("   ⚠️ Int16 不支持: {:?}", e);
+        for sample_rate in common_rates {
+            for (store_bits, valid_bits, sample_type) in bit_depths {
+                for &channel_mask in &channel_masks {
+                    candidates.push(WaveFormat::new(
+                        store_bits,
+                        valid_bits,
+                        &sample_type,
+                        sample_rate as usize,
+                        channels as usize,
+                        Some(channel_mask),
+                    ));
+                }
             }
         }
 
-        println!("   ⚠️ 使用混合格式参数作为回退");
-        Ok(AudioFormat::new(
-            sample_rate,
-            channels,
-            mix_format.get_bitspersample(),
-            if mix_format.get_bitspersample() == 32 {
-                SampleType::Float
-            } else {
-                SampleType::Int
-            },
-        ))
+        for candidate in candidates {
+            match audio_client.is_supported_exclusive_with_quirks(&candidate) {
+                Ok(supported) => {
+                    println!(
+                        "   ✅ 设备驱动确认支持独占格式: {} Hz, {} 声道, {} / {} bits, mask 0x{:X}",
+                        supported.get_samplespersec(),
+                        supported.get_nchannels(),
+                        supported.get_validbitspersample(),
+                        supported.get_bitspersample(),
+                        supported.get_dwchannelmask()
+                    );
+                    return AudioFormat::from_wave_format(supported);
+                }
+                Err(e) => {
+                    println!(
+                        "   ⚠️ 独占格式不支持: {} Hz, {} 声道, {} / {} bits ({:?})",
+                        candidate.get_samplespersec(),
+                        candidate.get_nchannels(),
+                        candidate.get_validbitspersample(),
+                        candidate.get_bitspersample(),
+                        e
+                    );
+                }
+            }
+        }
+
+        Err("设备驱动未报告任何可用的WASAPI独占格式，请检查Windows声音设置中是否允许应用程序独占控制该设备".to_string())
     }
 
     pub fn load_track(&mut self, file_path: &str) -> Result<f64, String> {

@@ -3,7 +3,9 @@
  */
 
 import {libraryGateway, nativeAudioGateway} from "@js/infrastructure/electron";
+import {cacheManager} from "@services/CacheManager";
 import ParametricEqualizer from "@services/audio/ParametricEqualizer";
+import type {MusicBoxSettings} from "@api/types/settings";
 
 type WasapiShareMode = 'exclusive' | 'shared';
 type EqualizerMode = 'graphic' | 'parametric';
@@ -93,9 +95,11 @@ class WasapiEngine {
             }
 
             const nativeAudio = nativeAudioGateway.api;
+            const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as MusicBoxSettings;
+            const shareMode: WasapiShareMode = settings.wasapiShareMode === 'shared' ? 'shared' : 'exclusive';
 
             // 初始化Rust音频引擎
-            const result = await nativeAudio.initialize() as NativeResult;
+            const result = await nativeAudio.initialize(shareMode) as NativeResult;
             if (!result.success) {
                 throw new Error(result.error || '初始化失败');
             }
@@ -108,7 +112,7 @@ class WasapiEngine {
 
             // 设置事件监听
             this.setupEventListeners();
-            console.log('✅ WASAPI引擎初始化成功');
+            console.log(`✅ WASAPI引擎初始化成功 (${shareMode === 'exclusive' ? '独占' : '共享'}模式)`);
             return true;
         } catch (error) {
             console.error('❌ WASAPI引擎初始化失败:', error);

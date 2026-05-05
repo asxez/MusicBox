@@ -23,6 +23,7 @@ rodio = { version = "0.21", default-features = false, features = ["symphonia-all
 
 # wasapi - WASAPI独占模式音频输出
 wasapi = "0.21"
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Media_Audio"] }
 
 # 线程安全
 parking_lot = "0.12"

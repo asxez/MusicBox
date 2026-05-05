@@ -26,7 +26,7 @@ export interface ElectronAudioAPI {
 }
 
 export interface ElectronNativeAudioAPI {
-    initialize(): Promise<unknown>;
+    initialize(shareMode?: WasapiShareMode): Promise<unknown>;
     loadTrack(filePath: string): Promise<unknown>;
     play(): Promise<unknown>;
     pause(): Promise<unknown>;

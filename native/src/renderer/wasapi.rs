@@ -12,8 +12,15 @@ use ringbuf::traits::Observer;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
-use std::time::{Duration as StdDuration, Instant};
+use std::time::Duration as StdDuration;
 use wasapi::*;
+
+use windows::Win32::Foundation::E_INVALIDARG;
+use windows::Win32::Media::Audio::{
+    AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED, AUDCLNT_E_DEVICE_IN_USE,
+    AUDCLNT_E_ENDPOINT_CREATE_FAILED, AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED,
+    AUDCLNT_E_UNSUPPORTED_FORMAT,
+};
 
 use crate::core::AudioFormat;
 use crate::utils::ThreadMessage;
@@ -171,20 +178,7 @@ fn run_render_loop(
         .get_iaudioclient()
         .map_err(|e| format!("创建AudioClient失败: {:?}", e))?;
 
-    // 创建WaveFormat
-    let channelmask = make_channelmasks(device_format.channels as usize)
-        .first()
-        .copied()
-        .unwrap_or(0x3);
-
-    let wave_format = WaveFormat::new(
-        device_format.bits_per_sample as usize,
-        device_format.bits_per_sample as usize,
-        &device_format.sample_type,
-        device_format.sample_rate as usize,
-        device_format.channels as usize,
-        Some(channelmask),
-    );
+    let wave_format = device_format.wave_format.clone();
 
     // 初始化音频客户端（根据模式选择不同的初始化方式）
     let mut audio_client_result = None;
@@ -193,31 +187,115 @@ fn run_render_loop(
     use crate::core::ShareMode;
     match share_mode {
         ShareMode::Exclusive => {
-            // 独占模式：尝试使用更小的缓冲区以降低延迟
-            for &duration in &buffer_durations {
+            let (default_period, min_period) = audio_client
+                .get_device_period()
+                .map_err(|e| format!("获取设备周期失败: {:?}", e))?;
+
+            println!(
+                "   WASAPI独占周期: 默认 {:.2}ms, 最小 {:.2}ms",
+                default_period as f64 / 10_000.0,
+                min_period as f64 / 10_000.0
+            );
+
+            enable_raw_media_stream(&audio_client);
+
+            let periods = build_exclusive_period_candidates(
+                &audio_client,
+                &wave_format,
+                &buffer_durations,
+                default_period,
+            )?;
+
+            let mut last_error = None;
+            for period in periods {
+                let buffer_duration = period * 16;
                 let stream_mode = StreamMode::PollingExclusive {
-                    buffer_duration_hns: duration,
-                    period_hns: duration,
+                    buffer_duration_hns: buffer_duration,
+                    period_hns: period,
                 };
 
                 match audio_client.initialize_client(&wave_format, &Direction::Render, &stream_mode)
                 {
                     Ok(()) => {
-                        actual_buffer_duration = duration;
+                        actual_buffer_duration = buffer_duration;
                         audio_client_result = Some(());
-                        println!("   ✅ 独占模式缓冲区: {:.1}ms", duration as f64 / 10000.0);
+                        println!(
+                            "   ✅ 独占模式已打开: period {:.2}ms, buffer {:.2}ms",
+                            period as f64 / 10_000.0,
+                            buffer_duration as f64 / 10_000.0
+                        );
                         break;
                     }
                     Err(e) => {
-                        if duration == buffer_durations[buffer_durations.len() - 1] {
-                            return Err(format!("初始化独占模式失败: {:?}", e));
-                        }
+                        let error_message = describe_wasapi_error("初始化独占模式失败", &e);
                         println!(
-                            "   ⚠️ {:.1}ms缓冲区不支持，尝试更大的缓冲区",
-                            duration as f64 / 10000.0
+                            "   ⚠️ period {:.2}ms / buffer {:.2}ms 不可用: {}",
+                            period as f64 / 10_000.0,
+                            buffer_duration as f64 / 10_000.0,
+                            error_message
                         );
+                        last_error = Some(error_message);
+
+                        if is_buffer_alignment_error(&e) {
+                            if let Ok(buffer_frames) = audio_client.get_buffer_size() {
+                                let aligned_period = calculate_period_100ns(
+                                    buffer_frames as i64,
+                                    wave_format.get_samplespersec() as i64,
+                                );
+                                println!(
+                                    "   🔧 驱动要求缓冲区对齐，重试 period {:.2}ms",
+                                    aligned_period as f64 / 10_000.0
+                                );
+                                audio_client = device
+                                    .get_iaudioclient()
+                                    .map_err(|err| format!("重新创建AudioClient失败: {:?}", err))?;
+                                enable_raw_media_stream(&audio_client);
+
+                                let retry_mode = StreamMode::PollingExclusive {
+                                    period_hns: aligned_period,
+                                    buffer_duration_hns: 16 * aligned_period,
+                                };
+                                match audio_client.initialize_client(
+                                    &wave_format,
+                                    &Direction::Render,
+                                    &retry_mode,
+                                ) {
+                                    Ok(()) => {
+                                        actual_buffer_duration = 16 * aligned_period;
+                                        audio_client_result = Some(());
+                                        println!(
+                                            "   ✅ 独占模式已按驱动对齐要求打开: period {:.2}ms, buffer {:.2}ms",
+                                            aligned_period as f64 / 10_000.0,
+                                            (16 * aligned_period) as f64 / 10_000.0
+                                        );
+                                        break;
+                                    }
+                                    Err(retry_error) => {
+                                        last_error = Some(describe_wasapi_error(
+                                            "对齐后初始化独占模式失败",
+                                            &retry_error,
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+
+                        audio_client = device
+                            .get_iaudioclient()
+                            .map_err(|err| format!("重新创建AudioClient失败: {:?}", err))?;
+                        enable_raw_media_stream(&audio_client);
                     }
                 }
+            }
+
+            if audio_client_result.is_none() {
+                return Err(last_error.unwrap_or_else(|| {
+                    "初始化独占模式失败: 设备未接受任何独占缓冲区设置".to_string()
+                }));
+            }
+
+            if audio_client.get_sharemode() != Some(wasapi::ShareMode::Exclusive) {
+                return Err("WASAPI客户端未以独占模式启动，拒绝回退到共享混音器".to_string());
             }
         }
         ShareMode::Shared => {
@@ -262,9 +340,11 @@ fn run_render_loop(
 
     println!("✅ WASAPI{}流已启动", mode_str);
     println!(
-        "   设备: {} Hz, {} 声道, 缓冲 {} 帧 ({:.2}ms)",
+        "   设备: {} Hz, {} 声道, {} / {} bits, 缓冲 {} 帧 ({:.2}ms)",
         device_format.sample_rate,
         device_format.channels,
+        device_format.valid_bits_per_sample,
+        device_format.bits_per_sample,
         buffer_frame_count,
         buffer_frame_count as f64 / sample_rate as f64 * 1000.0
     );
@@ -420,32 +500,23 @@ fn run_render_loop(
                 *sample *= vol;
             }
 
-            // 根据设备格式转换数据
-            let byte_data: Vec<u8> = if is_float {
-                // Float32格式: 直接转换为字节
-                audio_data
-                    .iter()
-                    .flat_map(|&sample| sample.to_le_bytes())
-                    .collect()
-            } else {
-                // Int16格式: 使用抖动器进行高质量转换
-                if let Some(ref mut dither) = ditherer {
-                    let i16_samples = dither.convert_batch(&audio_data, channels);
-                    i16_samples
-                        .iter()
-                        .flat_map(|&sample| sample.to_le_bytes())
-                        .collect()
-                } else {
-                    // 回退方案
-                    audio_data
-                        .iter()
-                        .flat_map(|&sample| {
-                            let sample_i16 = (sample.clamp(-1.0, 1.0) * 32767.0) as i16;
-                            sample_i16.to_le_bytes()
-                        })
-                        .collect()
-                }
-            };
+            let byte_data = encode_samples_for_device(
+                &audio_data,
+                &device_format,
+                channels,
+                ditherer.as_mut(),
+            )?;
+
+            if byte_data.len()
+                != frames_available as usize * device_format.block_align as usize
+            {
+                stats.lock().render_errors += 1;
+                return Err(format!(
+                    "渲染数据大小不匹配: {} bytes，期望 {} bytes",
+                    byte_data.len(),
+                    frames_available as usize * device_format.block_align as usize
+                ));
+            }
 
             if let Err(e) =
                 render_client.write_to_device(frames_available as usize, &byte_data, None)
@@ -483,4 +554,156 @@ fn run_render_loop(
 
     let _ = audio_client.stop_stream();
     Ok(())
+}
+
+fn build_exclusive_period_candidates(
+    audio_client: &AudioClient,
+    wave_format: &WaveFormat,
+    requested_durations: &[i64],
+    default_period: i64,
+) -> Result<Vec<i64>, String> {
+    let mut candidates = Vec::new();
+    let requested = if requested_durations.is_empty() {
+        vec![default_period]
+    } else {
+        requested_durations.to_vec()
+    };
+
+    for duration in requested {
+        let aligned = audio_client
+            .calculate_aligned_period_near(duration, Some(128), wave_format)
+            .map_err(|e| format!("计算独占缓冲区周期失败: {:?}", e))?;
+        if !candidates.contains(&aligned) {
+            candidates.push(aligned);
+        }
+    }
+
+    let default_aligned = audio_client
+        .calculate_aligned_period_near(default_period, Some(128), wave_format)
+        .map_err(|e| format!("计算默认独占周期失败: {:?}", e))?;
+    if !candidates.contains(&default_aligned) {
+        candidates.push(default_aligned);
+    }
+
+    Ok(candidates)
+}
+
+fn enable_raw_media_stream(audio_client: &AudioClient) {
+    match audio_client.set_properties(
+        AudioClientProperties::new()
+            .set_category(StreamCategory::Media)
+            .set_option(StreamOption::Raw),
+    ) {
+        Ok(()) => println!("   ✅ 已请求WASAPI raw stream，减少系统音效处理"),
+        Err(e) => println!("   ⚠️ WASAPI raw stream属性不可用，继续使用独占模式: {:?}", e),
+    }
+}
+
+fn encode_samples_for_device(
+    samples: &[f32],
+    format: &AudioFormat,
+    channels: usize,
+    mut ditherer: Option<&mut Ditherer>,
+) -> Result<Vec<u8>, String> {
+    let bytes_per_sample = format.block_align as usize / channels;
+    if bytes_per_sample == 0 || format.block_align as usize % channels != 0 {
+        return Err(format!(
+            "设备格式块对齐无效: block_align={}, channels={}",
+            format.block_align, channels
+        ));
+    }
+
+    match format.sample_type {
+        SampleType::Float => encode_float_samples(samples, bytes_per_sample),
+        SampleType::Int => {
+            let mut bytes = Vec::with_capacity(samples.len() * bytes_per_sample);
+            for (index, &sample) in samples.iter().enumerate() {
+                let channel = index % channels;
+                let pcm = if let Some(ref mut dither) = ditherer {
+                    dither.float_to_pcm(sample, channel, format.valid_bits_per_sample)
+                } else {
+                    sample_to_pcm_without_dither(sample, format.valid_bits_per_sample)
+                };
+                write_pcm_sample(&mut bytes, pcm, bytes_per_sample, format.valid_bits_per_sample)?;
+            }
+            Ok(bytes)
+        }
+    }
+}
+
+fn encode_float_samples(samples: &[f32], bytes_per_sample: usize) -> Result<Vec<u8>, String> {
+    match bytes_per_sample {
+        4 => Ok(samples
+            .iter()
+            .flat_map(|&sample| sample.clamp(-1.0, 1.0).to_le_bytes())
+            .collect()),
+        unsupported => Err(format!("不支持的浮点WASAPI样本宽度: {} bytes", unsupported)),
+    }
+}
+
+fn sample_to_pcm_without_dither(sample: f32, valid_bits: u16) -> i32 {
+    let valid_bits = valid_bits.clamp(1, 31);
+    let max_value = ((1i64 << (valid_bits - 1)) - 1) as f32;
+    let min_value = (-(1i64 << (valid_bits - 1))) as f32;
+    (sample.clamp(-1.0, 1.0) * max_value)
+        .round()
+        .clamp(min_value, max_value) as i32
+}
+
+fn write_pcm_sample(
+    bytes: &mut Vec<u8>,
+    sample: i32,
+    bytes_per_sample: usize,
+    valid_bits: u16,
+) -> Result<(), String> {
+    match bytes_per_sample {
+        1 => bytes.push(sample as i8 as u8),
+        2 => bytes.extend_from_slice(&(sample as i16).to_le_bytes()),
+        3 => {
+            let shifted = if valid_bits < 24 {
+                sample << (24 - valid_bits)
+            } else {
+                sample
+            };
+            let sample_bytes = shifted.to_le_bytes();
+            bytes.extend_from_slice(&sample_bytes[..3]);
+        }
+        4 => {
+            let shifted = if valid_bits < 32 {
+                sample << (32 - valid_bits)
+            } else {
+                sample
+            };
+            bytes.extend_from_slice(&shifted.to_le_bytes());
+        }
+        unsupported => return Err(format!("不支持的PCM样本宽度: {} bytes", unsupported)),
+    }
+
+    Ok(())
+}
+
+fn describe_wasapi_error(prefix: &str, error: &WasapiError) -> String {
+    if let WasapiError::Windows(werr) = error {
+        let reason = match werr.code() {
+            E_INVALIDARG => "参数无效",
+            AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED => "缓冲区大小未按驱动要求对齐",
+            AUDCLNT_E_DEVICE_IN_USE => "设备已被其他独占流占用",
+            AUDCLNT_E_UNSUPPORTED_FORMAT => "设备不支持该独占格式",
+            AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED => {
+                "Windows声音设置不允许应用程序独占控制该设备"
+            }
+            AUDCLNT_E_ENDPOINT_CREATE_FAILED => "创建音频端点失败",
+            _ => "Windows WASAPI错误",
+        };
+        format!("{prefix}: {reason} (HRESULT 0x{:08X})", werr.code().0 as u32)
+    } else {
+        format!("{prefix}: {:?}", error)
+    }
+}
+
+fn is_buffer_alignment_error(error: &WasapiError) -> bool {
+    matches!(
+        error,
+        WasapiError::Windows(werr) if werr.code() == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED
+    )
 }

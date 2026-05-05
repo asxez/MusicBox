@@ -36,16 +36,27 @@ impl Ditherer {
 
     /// 将float32样本转换为int16，应用抖动
     pub fn float_to_i16(&mut self, sample: f32, channel: usize) -> i16 {
+        self.float_to_pcm(sample, channel, 16) as i16
+    }
+
+    /// 将float32样本转换为指定有效位深的有符号PCM整数，应用抖动
+    pub fn float_to_pcm(&mut self, sample: f32, channel: usize, valid_bits: u16) -> i32 {
+        let valid_bits = valid_bits.clamp(1, 31);
+        let max_value = ((1i64 << (valid_bits - 1)) - 1) as f32;
+        let min_value = (-(1i64 << (valid_bits - 1))) as f32;
+
         match self.dither_type {
             DitherType::None => {
                 // 直接量化，无抖动
-                (sample.clamp(-1.0, 1.0) * 32767.0) as i16
+                (sample.clamp(-1.0, 1.0) * max_value)
+                    .round()
+                    .clamp(min_value, max_value) as i32
             }
             DitherType::Rectangular => {
                 // RPDF抖动: 添加随机噪声 [-0.5, 0.5] LSB
                 let dither = self.rng.gen_range(-0.5..0.5);
-                let dithered = sample * 32767.0 + dither;
-                dithered.clamp(-32768.0, 32767.0) as i16
+                let dithered = sample * max_value + dither;
+                dithered.round().clamp(min_value, max_value) as i32
             }
             DitherType::Triangular => {
                 // TPDF抖动: 添加三角分布噪声 [-1, 1] LSB
@@ -53,13 +64,13 @@ impl Ditherer {
                 let r1 = self.rng.gen_range(-1.0..1.0);
                 let r2 = self.rng.gen_range(-1.0..1.0);
                 let dither = (r1 + r2) / 2.0;
-                let dithered = sample * 32767.0 + dither;
-                dithered.clamp(-32768.0, 32767.0) as i16
+                let dithered = sample * max_value + dither;
+                dithered.round().clamp(min_value, max_value) as i32
             }
             DitherType::NoiseShaped => {
                 // 简化的噪声整形 (1阶)
                 // 将量化误差推到高频段，人耳不敏感区域
-                let scaled = sample * 32767.0;
+                let scaled = sample * max_value;
 
                 // 添加TPDF抖动
                 let r1 = self.rng.gen_range(-1.0..1.0);
@@ -73,7 +84,7 @@ impl Ditherer {
                 // 保存误差用于下次整形
                 self.error_buffer[channel] = scaled - quantized;
 
-                quantized.clamp(-32768.0, 32767.0) as i16
+                quantized.clamp(min_value, max_value) as i32
             }
         }
     }

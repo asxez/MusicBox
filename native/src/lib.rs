@@ -54,10 +54,18 @@ impl NativeAudioEngine {
     }
 
     #[napi]
-    pub fn initialize(&mut self, mut env: Env) -> Result<JsObject> {
+    pub fn initialize(&mut self, mut env: Env, share_mode: Option<String>) -> Result<JsObject> {
         println!("🎵 NativeAudioEngine: 初始化WASAPI引擎");
 
         let mut engine = self.engine.lock();
+        if let Some(mode) = share_mode {
+            let share_mode = match ShareMode::from_str(&mode) {
+                Some(m) => m,
+                None => return create_error_response(&mut env, "无效的音频模式"),
+            };
+            engine.set_share_mode(share_mode);
+        }
+
         match engine.initialize() {
             Ok(_) => {
                 let mut response = create_success_response(&mut env)?;

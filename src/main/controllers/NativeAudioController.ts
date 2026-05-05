@@ -60,17 +60,31 @@ export class NativeAudioController extends BaseController {
     }
 
     @IpcHandle('native-audio:initialize')
-    async initialize(): Promise<any> {
+    async initialize(shareMode?: string): Promise<any> {
         try {
             if (!this.nativeAudioModule?.NativeAudioEngine) return {success: false, error: 'NativeAudioEngine类不存在'};
             if (this.engine) {
                 console.log('ℹ️ Native音频引擎已初始化，复用现有实例');
+                if (shareMode === 'exclusive' || shareMode === 'shared') {
+                    const currentModeResult = this.engine.getShareMode?.();
+                    const currentMode = typeof currentModeResult === 'string' ? currentModeResult : currentModeResult?.mode;
+                    if (currentMode && currentMode !== shareMode) {
+                        const switchResult = await this.engine.switchShareMode(shareMode);
+                        if (!switchResult?.success) return switchResult;
+                    }
+                }
                 this.startPolling();
                 return {success: true};
             }
 
             this.engine = new this.nativeAudioModule.NativeAudioEngine();
-            const result = await this.engine.initialize();
+            const result = await this.engine.initialize(shareMode);
+            if (!result?.success) {
+                this.engine = null;
+                this.stopPolling();
+                return result;
+            }
+
             this.startPolling();
             console.log('✅ Native音频引擎初始化成功');
             return result;
