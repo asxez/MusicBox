@@ -471,7 +471,10 @@ fn run_render_loop(
         // 检查来自解码器的消息
         while let Ok(message) = message_receiver.try_recv() {
             match message {
-                ThreadMessage::SeekRequest(command) => {
+                ThreadMessage::SeekRequest {
+                    command,
+                    ack_sender,
+                } => {
                     println!(
                         "🔄 渲染器: 收到跳转请求 {:.2}秒 (seek #{}), 清空缓冲区",
                         command.position, command.generation
@@ -486,6 +489,8 @@ fn run_render_loop(
                     if let Some(ref mut dither) = ditherer {
                         dither.reset();
                     }
+
+                    let _ = ack_sender.send(());
                 }
                 _ => {} // 忽略其他消息
             }

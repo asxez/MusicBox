@@ -11,7 +11,7 @@ use std::fs::File;
 use std::io::{Cursor, Read, Seek};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration as StdDuration, Instant};
 
 /// 组合 Read 和 Seek traits 的 trait，用于动态分发
@@ -24,7 +24,7 @@ const DIRECT_DECODE_BATCH_SAMPLES: usize = 2048;
 const RING_BUFFER_FULL_SLEEP_MS: u64 = 2;
 const PAUSED_SLEEP_MS: u64 = 5;
 const DECODER_THROTTLE_SLEEP_MS: u64 = 2;
-const DECODER_TARGET_BUFFER_MS: u64 = 250;
+const DECODER_TARGET_BUFFER_MS: u64 = 200;
 
 /// 创建解码器
 fn create_decoder(file_path: &str) -> Result<Decoder<Box<dyn ReadSeek>>, String> {
@@ -72,9 +72,7 @@ pub fn decode_direct(
                 seek.position, seek.generation
             );
 
-            // 通知渲染器清空缓冲区
-            let _ = error_sender.send(ThreadMessage::SeekRequest(seek));
-            println!("📣 解码: 已通知渲染器清空缓冲区");
+            notify_renderer_seek_clear(error_sender, seek, is_playing)?;
 
             sample_batch.clear();
             sample_count = seek_decoder(
@@ -121,6 +119,7 @@ pub fn decode_direct(
                 producer,
                 source_sample_rate,
                 source_channels,
+                sample_batch.len(),
                 is_playing,
                 is_paused,
             )?;
@@ -183,9 +182,7 @@ pub fn decode_with_resampling(
                 seek.position, seek.generation
             );
 
-            // 通知渲染器清空缓冲区
-            let _ = error_sender.send(ThreadMessage::SeekRequest(seek));
-            println!("📣 解码: 已通知渲染器清空缓冲区");
+            notify_renderer_seek_clear(error_sender, seek, is_playing)?;
 
             sample_count = seek_decoder(
                 &mut source,
@@ -246,6 +243,12 @@ pub fn decode_with_resampling(
                 producer,
                 device_sample_rate,
                 device_channels,
+                estimate_resampled_output_samples(
+                    chunk_size,
+                    source_sample_rate,
+                    device_sample_rate,
+                    device_channels,
+                ),
                 is_playing,
                 is_paused,
             )?;
@@ -480,14 +483,43 @@ fn is_current_seek(seek_generation: &Arc<AtomicU64>, generation: u64) -> bool {
     seek_generation.load(Ordering::SeqCst) == generation
 }
 
+fn notify_renderer_seek_clear(
+    message_sender: &Sender<ThreadMessage>,
+    seek: SeekCommand,
+    is_playing: &Arc<AtomicBool>,
+) -> Result<(), String> {
+    let (ack_sender, ack_receiver) = channel();
+    message_sender
+        .send(ThreadMessage::SeekRequest {
+            command: seek,
+            ack_sender,
+        })
+        .map_err(|e| format!("通知渲染器清空缓冲区失败: {}", e))?;
+    println!("📣 解码: 已通知渲染器清空缓冲区");
+
+    while is_playing.load(Ordering::SeqCst) {
+        if ack_receiver
+            .recv_timeout(StdDuration::from_millis(5))
+            .is_ok()
+        {
+            println!("✅ 解码: 渲染器已确认清空缓冲区");
+            return Ok(());
+        }
+    }
+
+    Ok(())
+}
+
 fn wait_for_decode_buffer_space(
     producer: &HeapProd<f32>,
     sample_rate: u32,
     channels: u16,
+    next_write_samples: usize,
     is_playing: &Arc<AtomicBool>,
     is_paused: &Arc<AtomicBool>,
 ) -> Result<(), String> {
-    let target_samples = decode_target_buffer_samples(producer, sample_rate, channels);
+    let target_samples =
+        decode_throttle_threshold_samples(producer, sample_rate, channels, next_write_samples);
 
     while producer.occupied_len() >= target_samples {
         if !is_playing.load(Ordering::SeqCst) {
@@ -507,15 +539,31 @@ fn wait_for_decode_buffer_space(
     Ok(())
 }
 
-fn decode_target_buffer_samples(
+fn decode_throttle_threshold_samples(
     producer: &HeapProd<f32>,
     sample_rate: u32,
     channels: u16,
+    next_write_samples: usize,
 ) -> usize {
     let capacity = producer.capacity().get();
-    let target_by_time =
-        sample_rate as usize * channels as usize * DECODER_TARGET_BUFFER_MS as usize / 1000;
-    target_by_time.clamp(capacity / 8, capacity.saturating_sub(1).max(1))
+    let target_by_time = decode_target_buffer_samples(sample_rate, channels);
+    let target_before_write = target_by_time.saturating_sub(next_write_samples);
+    target_before_write.clamp(capacity / 8, capacity.saturating_sub(1).max(1))
+}
+
+fn decode_target_buffer_samples(sample_rate: u32, channels: u16) -> usize {
+    sample_rate as usize * channels as usize * DECODER_TARGET_BUFFER_MS as usize / 1000
+}
+
+fn estimate_resampled_output_samples(
+    input_frames: usize,
+    source_sample_rate: u32,
+    device_sample_rate: u32,
+    device_channels: u16,
+) -> usize {
+    let estimated_frames =
+        (input_frames as u64 * device_sample_rate as u64).div_ceil(source_sample_rate as u64);
+    estimated_frames as usize * device_channels as usize
 }
 
 fn push_samples_blocking(

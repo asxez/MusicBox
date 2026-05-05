@@ -1,5 +1,7 @@
 //! 线程间通信消息
 
+use std::sync::mpsc::Sender;
+
 #[derive(Debug, Clone, Copy)]
 pub struct SeekCommand {
     pub generation: u64,
@@ -10,5 +12,8 @@ pub struct SeekCommand {
 pub enum ThreadMessage {
     Error(String),
     DecoderFinished,
-    SeekRequest(SeekCommand),
+    SeekRequest {
+        command: SeekCommand,
+        ack_sender: Sender<()>,
+    },
 }

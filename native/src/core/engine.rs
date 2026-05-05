@@ -33,6 +33,7 @@ impl<T: Read + Seek + Send + Sync> ReadSeek for T {}
 // Windows HRESULT 错误码常量
 const S_FALSE: i32 = 1;
 const RPC_E_CHANGED_MODE: i32 = 0x80010106u32 as i32;
+const PLAYBACK_PREFILL_MS: u64 = 160;
 
 type WaveFormatKey = (u32, u16, u16, u16, u32, u8);
 type UnsupportedFormatLogKey = (u32, u16, u16, u16, u8);
@@ -477,7 +478,11 @@ impl AudioEngine {
         self.start_decoder_thread(producer, error_sender.clone(), render_msg_sender)?;
 
         // 等待缓冲区预填充
-        let buffer_threshold = (self.buffer_size / 5).max(4800);
+        let buffer_threshold = playback_prefill_threshold_samples(
+            self.buffer_size,
+            self.device_sample_rate,
+            self.device_channels,
+        );
         let mut wait_count = 0;
         loop {
             let buffered = consumer.occupied_len();
@@ -1005,4 +1010,14 @@ impl AudioEngine {
         println!("✅ AudioEngine: 音频模式切换完成");
         Ok(())
     }
+}
+
+fn playback_prefill_threshold_samples(
+    buffer_size: usize,
+    sample_rate: u32,
+    channels: u16,
+) -> usize {
+    let threshold_by_time =
+        sample_rate as usize * channels as usize * PLAYBACK_PREFILL_MS as usize / 1000;
+    threshold_by_time.clamp(4800, buffer_size.saturating_sub(1).max(1))
 }
