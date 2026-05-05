@@ -220,8 +220,53 @@ function lifecycleDuration(data, suffix) {
     return Number(match?.durationMs || 0);
 }
 
+function inputWorkloadClass(audioFile, repeatLabel = '') {
+    if (!audioFile) return 'none';
+
+    const descriptor = `${path.basename(audioFile)} ${repeatLabel}`.toLowerCase();
+    if (descriptor.includes('wav_48k') || descriptor.includes('48k-stereo-180s.wav')) {
+        return 'pcm_48k_stereo_baseline';
+    }
+    if (descriptor.includes('loop-48k-stereo-30min')) {
+        return 'flac_48k_stereo_30min_long';
+    }
+    if (descriptor.includes('loop-48k-stereo-10min')) {
+        return 'flac_48k_stereo_10min_long';
+    }
+    if (descriptor.includes('flac_source_96k') || descriptor.includes('96k')) {
+        return 'flac_96k_decode_resample';
+    }
+    if (descriptor.includes('mp3_44k') || descriptor.endsWith('.mp3')) {
+        return 'mp3_44k_decode_resample';
+    }
+    if (descriptor.endsWith('.flac')) {
+        return 'flac_decode_workload';
+    }
+
+    return 'unknown';
+}
+
+function comparisonScope(backend) {
+    if (backend === 'none') return 'ipc_control_boundary';
+    if (backend === 'native') return 'direct_ipc_rust_wasapi_path';
+    if (backend === 'webaudio') return 'benchmark_webaudio_audiobuffer_path';
+    return 'unknown';
+}
+
+function renderStatsScope(data, backend) {
+    if (backend !== 'native') return 'not_applicable';
+    const note = String(data.metricsSemantics?.nativeFinalRenderStats || '').toLowerCase();
+    if (note.includes('after native.stop')) {
+        return 'final_after_stop_batched_sample_counters';
+    }
+    return 'native_final_stats_timing_unknown';
+}
+
 function qualityFlag(row) {
     if (row.backend === 'none') return 'ipc_only';
+    if (row.backend === 'native' && row.renderStatsScope === 'native_final_stats_timing_unknown') {
+        return 'native_stats_timing_unknown';
+    }
     if (row.sampleCoverage < 0.9) return 'low_sample_coverage';
     if (row.sampleGapMaxMs > row.sampleIntervalMs * 1.5) return 'wide_sample_gap';
     return 'ok';
@@ -234,6 +279,9 @@ const RUN_HEADER = [
     'repeatLabel',
     'backend',
     'shareMode',
+    'inputWorkloadClass',
+    'comparisonScope',
+    'renderStatsScope',
     'durationSec',
     'samples',
     'sampleCoverage',
@@ -288,6 +336,10 @@ const CONDITION_HEADER = [
     'audioFile',
     'backend',
     'shareMode',
+    'durationSec',
+    'inputWorkloadClass',
+    'comparisonScope',
+    'renderStatsScope',
     'runs',
     'okRuns',
     'lowQualityRuns',
@@ -353,6 +405,9 @@ function rowToCsvValues(row) {
         row.repeatLabel,
         row.backend,
         row.shareMode,
+        row.inputWorkloadClass,
+        row.comparisonScope,
+        row.renderStatsScope,
         row.durationSec,
         row.samples,
         formatNumber(row.sampleCoverage),
@@ -441,14 +496,19 @@ function parseRun(fullPath, rawDir) {
     const ipcByBytes = new Map((data.ipc || []).map(item => [item.bytes, item.latencyMs?.mean || 0]));
     const repeatLabel = data.config?.repeatLabel || '';
     const condition = repeatLabel.split('__')[0] || data.config?.backend || '';
+    const backend = data.config?.backend || '';
+    const audioFile = data.config?.audioFile || '';
 
     const row = {
         file,
         condition,
-        audioFile: data.config?.audioFile || '',
+        audioFile,
         repeatLabel,
-        backend: data.config?.backend || '',
+        backend,
         shareMode: data.config?.shareMode || '',
+        inputWorkloadClass: inputWorkloadClass(audioFile, repeatLabel),
+        comparisonScope: comparisonScope(backend),
+        renderStatsScope: renderStatsScope(data, backend),
         durationSec: Number(data.config?.durationSec || 0),
         sampleIntervalMs,
         samples: samples.length,
@@ -509,6 +569,10 @@ function conditionCsvValues(rows) {
         first.audioFile,
         first.backend,
         first.shareMode,
+        first.durationSec,
+        first.inputWorkloadClass,
+        first.comparisonScope,
+        first.renderStatsScope,
         rows.length,
         rows.length - lowQualityRuns,
         lowQualityRuns,

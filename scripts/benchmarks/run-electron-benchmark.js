@@ -166,9 +166,16 @@ function buildRendererScript(args) {
                 lifecycle: [],
                 samples: [],
                 finalNativeStats: null,
+                preStopNativeStats: null,
                 finalWebAudioStats: null,
                 seekEvents: [],
-                errors: []
+                errors: [],
+                metricsSemantics: {
+                    processSnapshot: 'Electron process metrics are sampled from the renderer-side benchmark loop and may include scheduler jitter.',
+                    nativeSampleRenderStats: 'Native per-sample render counters are read through IPC and may lag because the render thread flushes counters in batches.',
+                    nativeFinalRenderStats: 'Native final render counters are captured after native.stop so pending render-thread counters have been flushed.',
+                    webAudioStats: 'WebAudio uses a benchmark-local AudioBufferSourceNode path and does not expose native-style render callback or underrun counters.'
+                }
             };
             const mark = async (name, fn) => {
                 const start = now();
@@ -306,8 +313,9 @@ function buildRendererScript(args) {
                         (position) => window.electronAPI.nativeAudio.seek(position)
                     );
 
-                    result.finalNativeStats = await window.electronAPI.nativeAudio.getRenderStats();
+                    result.preStopNativeStats = await window.electronAPI.nativeAudio.getRenderStats();
                     await mark('native.stop', () => window.electronAPI.nativeAudio.stop());
+                    result.finalNativeStats = await window.electronAPI.nativeAudio.getRenderStats();
                 }
 
                 if (config.backend === 'webaudio') {

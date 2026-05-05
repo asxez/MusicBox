@@ -2,6 +2,10 @@
   "experimentName": "paper-main-matrix",
   "audioFiles": [
     {
+      "id": "wav_48k_180s",
+      "path": "F:\\WorkSpace\\MusicBox\\MusicBox\\scripts\\benchmarks\\audio\\open-goldberg-48k-stereo-180s.wav"
+    },
+    {
       "id": "flac_source_96k",
       "path": "F:\\WorkSpace\\MusicBox\\MusicBox\\scripts\\benchmarks\\audio\\open-goldberg-aria.flac"
     },
