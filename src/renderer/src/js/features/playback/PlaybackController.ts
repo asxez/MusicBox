@@ -113,6 +113,19 @@ class PlaybackController {
         return this.store.getState().currentTrack;
     }
 
+    getCurrentTrackSummary(): Pick<Track, 'title' | 'artist' | 'album'> | null {
+        const track = this.getCurrentTrackSnapshot();
+        if (!track) {
+            return null;
+        }
+
+        return {
+            title: track.title,
+            artist: track.artist,
+            album: track.album
+        };
+    }
+
     togglePlayMode(): PlayMode {
         return api.togglePlayMode();
     }
@@ -126,6 +139,10 @@ class PlaybackController {
         return () => {
             api.off(event, handler);
         };
+    }
+
+    setGaplessPlayback(enabled: boolean): void {
+        api.setGaplessPlayback(enabled);
     }
 
     private bindAPIEvents(): void {

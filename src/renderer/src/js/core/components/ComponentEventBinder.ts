@@ -1,5 +1,5 @@
-import {api} from "@api/api";
 import {updateAPI} from "@api/modules";
+import {playbackController} from "@js/features/playback";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
 import {settingsExtensionNavigationService} from "@services/settings/SettingsExtensionNavigationService";
 import type {Playlist} from "@api/types/playlist";
@@ -96,7 +96,7 @@ export class ComponentEventBinder {
         });
 
         components.player.on('toggleLyrics', async () => {
-            await components.lyrics.toggle(api.currentTrack);
+            await components.lyrics.toggle(playbackController.getCurrentTrackSnapshot());
         });
 
         components.player.on('trackIndexChanged', (index: number) => {
@@ -291,7 +291,7 @@ export class ComponentEventBinder {
         });
 
         components.settings.on('gaplessPlaybackEnabled', (enabled: boolean) => {
-            api.setGaplessPlayback(enabled);
+            playbackController.setGaplessPlayback(enabled);
         });
 
         this.setupComponentEvents();

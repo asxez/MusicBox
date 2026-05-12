@@ -3,8 +3,9 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {api} from "@api/api";
-import {fileAPI, libraryAPI, userDataAPI} from "@api/modules";
+import {fileAPI, userDataAPI} from "@api/modules";
+import {libraryController} from "@js/features/library";
+import {playbackController} from "@js/features/playback";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import type {Track} from "@api/types/library";
 
@@ -36,7 +37,7 @@ class HomePage extends Component {
 
         // 只有在没有tracks数据时才获取，避免重复调用
         if (!this.tracks || this.tracks.length === 0) {
-            this.tracks = await libraryAPI.getTracks();
+            this.tracks = await libraryController.getTracks();
             this._lastTracksHash = this._generateTracksHash(this.tracks);
         }
 
@@ -437,11 +438,12 @@ class HomePage extends Component {
     }
 
     async recordMood(mood: string): Promise<void> {
+        const currentTrack = playbackController.getCurrentTrackSummary();
         const moodData = {
             mood: mood,
-            currentTrack: api.currentTrack?.title || null,
-            artist: api.currentTrack?.artist || null,
-            album: api.currentTrack?.album || null
+            currentTrack: currentTrack?.title || null,
+            artist: currentTrack?.artist || null,
+            album: currentTrack?.album || null
         };
 
         await userDataAPI.saveMood(moodData as any);
@@ -453,11 +455,12 @@ class HomePage extends Component {
         const diaryInput = this.container.querySelector('.diary-input') as HTMLTextAreaElement | null;
         if (!diaryInput || !diaryInput.value.trim()) return;
 
+        const currentTrack = playbackController.getCurrentTrackSummary();
         const diaryEntry = {
             content: diaryInput.value.trim(),
-            currentTrack: api.currentTrack?.title || null,
-            artist: api.currentTrack?.artist || null,
-            album: api.currentTrack?.album || null
+            currentTrack: currentTrack?.title || null,
+            artist: currentTrack?.artist || null,
+            album: currentTrack?.album || null
         };
 
         await userDataAPI.saveDiary(diaryEntry as any);
@@ -656,9 +659,9 @@ class HomePage extends Component {
                 try {
                     const directory = await fileAPI.openDirectory();
                     if (directory) {
-                        const success = await api.scanDirectory(directory);
+                        const success = await libraryController.scanDirectory(directory);
                         if (success) {
-                            this.tracks = await libraryAPI.getTracks();
+                            this.tracks = await libraryController.getTracks();
                             this.render();
                         }
                     }
@@ -674,7 +677,7 @@ class HomePage extends Component {
             addFilesBtn.addEventListener('click', async () => {
                 try {
                     await appInteractionService.addMusicFiles();
-                    this.tracks = await libraryAPI.getTracks();
+                    this.tracks = await libraryController.getTracks();
                     this.render();
                 } catch (error) {
                     console.error('添加文件失败:', error);
