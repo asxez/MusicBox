@@ -4,6 +4,7 @@ import type {Track} from '@api/types/track';
 export interface PlaybackState {
     currentTrack: Track | null;
     currentIndex: number;
+    playlist: Track[];
     isPlaying: boolean;
     position: number;
     duration: number;
@@ -18,7 +19,8 @@ export type PlaybackStoreChange =
     | {type: 'positionChanged'; payload: number}
     | {type: 'durationChanged'; payload: number}
     | {type: 'volumeChanged'; payload: number}
-    | {type: 'playModeChanged'; payload: PlayMode};
+    | {type: 'playModeChanged'; payload: PlayMode}
+    | {type: 'playlistChanged'; payload: Track[]};
 
 export type PlaybackStoreListener = (
     state: Readonly<PlaybackState>,
@@ -52,6 +54,10 @@ export class PlaybackStore {
 
     setTrackIndex(index: number): void {
         this.patch({currentIndex: index}, {type: 'trackIndexChanged', payload: index});
+    }
+
+    setPlaylist(playlist: Track[]): void {
+        this.patch({playlist}, {type: 'playlistChanged', payload: playlist});
     }
 
     setPlaybackState(state: PlaybackStateName): void {

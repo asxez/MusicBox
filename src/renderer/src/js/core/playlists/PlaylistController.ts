@@ -1,4 +1,4 @@
-import {api} from "@api/api";
+import {playbackController} from "@js/features/playback";
 import type {Playlist} from '@api/types/playlist';
 import type {Track} from '@api/types/track';
 import type {RendererAppContext} from '@core/types/app';
@@ -29,18 +29,18 @@ export class PlaylistController {
             console.log('🔄 同步删除操作到API，剩余歌曲:', playlist.tracks.length);
 
             const currentIndex = playlist.currentTrackIndex;
-            await api.setPlaylist(playlist.tracks, currentIndex);
+            await playbackController.setPlaylist(playlist.tracks, currentIndex);
 
-            if (index === api.currentIndex) {
+            if (index === playbackController.getCurrentIndex()) {
                 console.log('⚠️ 删除的是当前播放歌曲，停止播放');
-                await api.pause();
+                await playbackController.pause();
             }
         }
     }
 
     async handlePlaylistCleared(): Promise<void> {
-        await api.setPlaylist([], -1);
-        await api.pause();
+        await playbackController.setPlaylist([], -1);
+        await playbackController.pause();
     }
 
     addToPlaylist(track: Track): void {

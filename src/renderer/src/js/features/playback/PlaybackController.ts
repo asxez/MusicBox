@@ -26,6 +26,7 @@ class PlaybackController {
         this.store = new PlaybackStore({
             currentTrack: api.currentTrack ?? null,
             currentIndex: api.currentIndex,
+            playlist: api.playlist,
             isPlaying: api.isPlaying,
             position: api.position,
             duration: api.duration,
@@ -72,6 +73,10 @@ class PlaybackController {
         return await api.pause();
     }
 
+    async loadTrack(filePath: string): Promise<boolean> {
+        return await api.loadTrack(filePath);
+    }
+
     async previousTrack(): Promise<boolean> {
         return await api.previousTrack();
     }
@@ -96,6 +101,14 @@ class PlaybackController {
         return await api.setVolume(Math.max(0, Math.min(1, volume)));
     }
 
+    async setPosition(position: number): Promise<boolean> {
+        return await api.setPosition(position);
+    }
+
+    async setPlaylist(tracks: Track[], startIndex = -1): Promise<boolean> {
+        return await api.setPlaylist(tracks, startIndex);
+    }
+
     async adjustVolume(delta: number): Promise<boolean> {
         return await this.setVolume(this.getVolume() + delta);
     }
@@ -114,6 +127,18 @@ class PlaybackController {
 
     getCurrentTrackSnapshot(): Track | null {
         return this.store.getState().currentTrack;
+    }
+
+    getCurrentIndex(): number {
+        return this.store.getState().currentIndex;
+    }
+
+    getPlaylist(): Track[] {
+        return this.store.getState().playlist;
+    }
+
+    getDuration(): number {
+        return this.store.getState().duration;
     }
 
     getCurrentTrackSummary(): Pick<Track, 'title' | 'artist' | 'album'> | null {
@@ -174,6 +199,9 @@ class PlaybackController {
         });
         api.on('trackIndexChanged', (index) => {
             this.store.setTrackIndex(index);
+        });
+        api.on('playlistChanged', (tracks) => {
+            this.store.setPlaylist(tracks);
         });
         api.on('playModeChanged', (mode) => {
             this.store.setPlayMode(mode);

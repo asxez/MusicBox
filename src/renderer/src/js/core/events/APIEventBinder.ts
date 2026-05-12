@@ -1,4 +1,5 @@
 import {api} from "@api/api";
+import {playbackController} from "@js/features/playback";
 import type {MusicBoxAPIEvents} from '@api/types/events';
 import type {ManagedAPIListener, RendererAppContext} from '@core/types/app';
 
@@ -40,7 +41,7 @@ export class APIEventBinder {
         this.addManagedAPIEventListener('playlistChanged', (tracks) => {
             console.log('🎵 API播放列表改变:', tracks.length, '首歌曲');
             if (app.components.playlist && tracks.length > 0) {
-                app.components.playlist.setTracks(tracks, api.currentIndex);
+                app.components.playlist.setTracks(tracks, playbackController.getCurrentIndex());
             }
         });
 
@@ -61,7 +62,8 @@ export class APIEventBinder {
 
         this.addManagedAPIEventListener('positionChanged', (position) => {
             if (app.components.lyrics && app.components.lyrics.isVisible) {
-                const duration = (api.currentTrack && api.currentTrack.duration) ? api.currentTrack.duration : api.duration;
+                const currentTrack = playbackController.getCurrentTrackSnapshot();
+                const duration = currentTrack?.duration || playbackController.getDuration();
                 app.components.lyrics.updateProgress(position, duration);
             }
         });
