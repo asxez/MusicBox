@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {api} from "@api/api";
+import {libraryController} from "@js/features/library";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import {coverAPI, fileAPI, libraryAPI} from "@api/modules";
@@ -367,7 +367,7 @@ class PlaylistDetailPage extends Component {
     async loadPlaylistCover(): Promise<void> {
         if (!this.currentPlaylist) return;
         try {
-            const result = await api.getPlaylistCover(this.currentPlaylist.id);
+            const result = await libraryController.getPlaylistCover(this.currentPlaylist.id);
             if (result.success && result.coverPath) {
                 this.currentPlaylist.coverImage = result.coverPath;
             } else {
@@ -1147,7 +1147,7 @@ class PlaylistDetailPage extends Component {
             }
 
             console.log(`🖼️ 设置歌单封面: ${this.currentPlaylist.id} -> ${imagePath}`);
-            const result = await api.updatePlaylistCover(this.currentPlaylist.id, imagePath);
+            const result = await libraryController.updatePlaylistCover(this.currentPlaylist.id, imagePath);
 
             if (result.success) {
                 // 更新当前歌单对象
@@ -1181,7 +1181,7 @@ class PlaylistDetailPage extends Component {
             }
 
             console.log(`🗑️ 移除歌单封面: ${this.currentPlaylist.id}`);
-            const result = await api.removePlaylistCover(this.currentPlaylist.id);
+            const result = await libraryController.removePlaylistCover(this.currentPlaylist.id);
 
             if (result.success) {
                 // 更新当前歌单对象

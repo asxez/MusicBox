@@ -1,5 +1,5 @@
-import {api} from "@api/api";
 import {libraryAPI} from "@api/modules";
+import {libraryController} from "@js/features/library";
 import {libraryGateway} from "@js/infrastructure/electron";
 import type {Result} from "@api/types/common";
 import type {CacheValidationResult} from "@api/types/events";
@@ -17,11 +17,11 @@ class CacheMaintenanceService {
     }
 
     validate(): Promise<CacheValidationResult | null> {
-        return api.validateCache();
+        return libraryController.validateCache();
     }
 
     clear(): Promise<boolean> {
-        return api.clearCache();
+        return libraryController.clearCache();
     }
 
     clearIgnoreList(): Promise<Result> {
