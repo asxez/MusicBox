@@ -1,9 +1,12 @@
 import {api} from '@api/api';
 import type {MusicBoxAPIEvents} from '@api/types/events';
 import type {PlayMode} from '@api/types/playback';
+import type {WasapiShareMode} from '@api/types/settings';
 import type {Track} from '@api/types/track';
 import {PlaybackStore} from './PlaybackStore';
 import type {PlaybackState, PlaybackStoreListener, Unsubscribe} from './PlaybackStore';
+
+type AudioEngineType = 'webaudio' | 'wasapi';
 
 type PlaybackEventName =
     | 'durationChanged'
@@ -145,6 +148,14 @@ class PlaybackController {
         api.setGaplessPlayback(enabled);
     }
 
+    async switchAudioEngine(engineType: AudioEngineType): Promise<boolean> {
+        return await api.switchAudioEngine(engineType);
+    }
+
+    async switchWasapiShareMode(mode: WasapiShareMode): Promise<boolean> {
+        return await api.switchWasapiShareMode(mode);
+    }
+
     private bindAPIEvents(): void {
         api.on('durationChanged', (duration) => {
             this.store.setDuration(duration);
@@ -171,6 +182,6 @@ class PlaybackController {
 }
 
 export const playbackController = new PlaybackController();
-export type {PlaybackEventHandler, PlaybackEventName};
+export type {AudioEngineType, PlaybackEventHandler, PlaybackEventName};
 export type {PlaybackState, PlaybackStoreChange, PlaybackStoreListener, Unsubscribe} from './PlaybackStore';
 export {PlaybackController};
