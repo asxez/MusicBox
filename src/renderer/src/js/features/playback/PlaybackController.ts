@@ -1,6 +1,6 @@
 import {api} from '@api/api';
 import type {MusicBoxAPIEvents} from '@api/types/events';
-import type {PlayMode} from '@api/types/playback';
+import type {PlaybackStateSnapshot, PlayMode} from '@api/types/playback';
 import type {WasapiShareMode} from '@api/types/settings';
 import type {Track} from '@api/types/track';
 import {PlaybackStore} from './PlaybackStore';
@@ -158,8 +158,25 @@ class PlaybackController {
         return api.togglePlayMode();
     }
 
+    setPlayMode(mode: PlayMode): boolean {
+        return api.setPlayMode(mode);
+    }
+
     getPlayMode(): PlayMode {
         return this.store.getState().playMode;
+    }
+
+    getPlaybackSnapshot(): PlaybackStateSnapshot {
+        const state = this.store.getState();
+        return {
+            currentTrack: state.currentTrack,
+            position: state.position,
+            isPlaying: state.isPlaying,
+            playlist: state.playlist,
+            currentIndex: state.currentIndex,
+            playMode: state.playMode,
+            timestamp: Date.now()
+        };
     }
 
     on<K extends PlaybackEventName>(event: K, handler: PlaybackEventHandler<K>): Unsubscribe {

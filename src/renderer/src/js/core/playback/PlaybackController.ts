@@ -1,7 +1,7 @@
 import {cacheManager} from "@services/CacheManager";
-import {api} from "@api/api";
-import {libraryAPI} from "@api/modules";
-import type {PlaybackStateSnapshot, PlayMode} from '@api/types/playback';
+import {libraryController} from "@js/features/library";
+import {playbackController} from "@js/features/playback";
+import type {PlaybackStateSnapshot} from '@api/types/playback';
 import type {MusicBoxSettings} from '@api/types/settings';
 import type {Track} from '@api/types/track';
 import type {RendererAppContext} from '@core/types/app';
@@ -25,7 +25,7 @@ export class PlaybackController {
         if (!tracks || tracks.length === 0) return;
 
         try {
-            await api.setPlaylist(tracks, 0);
+            await playbackController.setPlaylist(tracks, 0);
             if (app.components.playlist && app.components.playlist.setTracks) {
                 app.components.playlist.setTracks(tracks, 0);
             }
@@ -77,7 +77,7 @@ export class PlaybackController {
             }
         } else {
             console.warn('播放列表组件不存在，使用传统播放方式');
-            await api.setPlaylist([track], 0);
+            await playbackController.setPlaylist([track], 0);
         }
     }
 
@@ -96,14 +96,14 @@ export class PlaybackController {
             if (app.components.playlist && app.components.playlist.tracks.length > 0) {
                 console.log('🔄 同步播放列表到API:', app.components.playlist.tracks.length, '首歌曲');
 
-                const setPlaylistResult = await api.setPlaylist(app.components.playlist.tracks, index);
+                const setPlaylistResult = await playbackController.setPlaylist(app.components.playlist.tracks, index);
 
                 if (setPlaylistResult) {
                     app.components.playlist.setCurrentTrack(index);
 
-                    const loadResult = await api.loadTrack(track.filePath);
+                    const loadResult = await playbackController.loadTrack(track.filePath);
                     if (loadResult) {
-                        await api.play();
+                        await playbackController.play();
                         console.log(`✅ App: 播放成功 ${track.title || track.filePath}`);
                     } else {
                         console.error('❌ App: 加载歌曲失败');
@@ -144,7 +144,7 @@ export class PlaybackController {
                 const {currentTrack, position, playlist, currentIndex, playMode} = playbackState;
 
                 if (playMode) {
-                    api.setPlayMode(playMode);
+                    playbackController.setPlayMode(playMode);
                 }
 
                 if (playlist && playlist.length > 0) {
@@ -162,7 +162,7 @@ export class PlaybackController {
                     }
 
                     if (validTracks.length > 0) {
-                        await api.setPlaylist(validTracks, validCurrentIndex);
+                        await playbackController.setPlaylist(validTracks, validCurrentIndex);
 
                         if (app.components.playlist) {
                             app.components.playlist.setTracks(validTracks, validCurrentIndex);
@@ -170,16 +170,16 @@ export class PlaybackController {
 
                         if (validCurrentIndex >= 0 && validTracks[validCurrentIndex]) {
                             const trackToLoad = validTracks[validCurrentIndex];
-                            const loadResult = await api.loadTrack(trackToLoad.filePath);
+                            const loadResult = await playbackController.loadTrack(trackToLoad.filePath);
                             if (loadResult) {
                                 if (position > 0) {
-                                    const setPositionResult = await api.setPosition(position);
+                                    const setPositionResult = await playbackController.setPosition(position);
                                     console.log('App: setPosition 结果:', setPositionResult);
                                 }
 
                                 if (settings.autoplay) {
                                     setTimeout(async () => {
-                                        await api.play();
+                                        await playbackController.play();
                                     }, 1000);
                                 }
                             }
@@ -192,14 +192,14 @@ export class PlaybackController {
                     }
                 } else if (currentTrack) {
                     console.log('💾 App: 恢复单个歌曲（兼容模式）:', currentTrack.title);
-                    const loadResult = await api.loadTrack(currentTrack.filePath);
+                    const loadResult = await playbackController.loadTrack(currentTrack.filePath);
                     if (loadResult) {
                         if (position > 0) {
-                            await api.setPosition(position);
+                            await playbackController.setPosition(position);
                         }
                         if (settings.autoplay) {
                             setTimeout(async () => {
-                                await api.play();
+                                await playbackController.play();
                             }, 1000);
                         }
                     }
@@ -222,13 +222,13 @@ export class PlaybackController {
 
     async autoplayFirstTrack(): Promise<void> {
         setTimeout(async () => {
-            const tracks = await libraryAPI.getTracks();
+            const tracks = await libraryController.getTracks();
             if (tracks && tracks.length > 0) {
                 console.log('🎵 App: 加载第一首歌曲:', tracks[0].title);
-                const loadResult = await api.loadTrack(tracks[0].filePath);
+                const loadResult = await playbackController.loadTrack(tracks[0].filePath);
                 console.log('📂 App: 加载结果:', loadResult);
                 if (loadResult) {
-                    await api.play();
+                    await playbackController.play();
                 }
             } else {
                 console.warn('⚠️ App: 音乐库为空，无法自动播放');
@@ -240,15 +240,7 @@ export class PlaybackController {
         const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as MusicBoxSettings;
 
         if (settings.rememberPosition) {
-            const playbackState: PlaybackStateSnapshot = {
-                currentTrack: api.currentTrack,
-                position: api.position,
-                isPlaying: api.isPlaying,
-                playlist: api.playlist,
-                currentIndex: api.currentIndex,
-                playMode: api.playMode as PlayMode,
-                timestamp: Date.now()
-            };
+            const playbackState: PlaybackStateSnapshot = playbackController.getPlaybackSnapshot();
             cacheManager.setLocalCache('playback-state', playbackState);
         }
     }
