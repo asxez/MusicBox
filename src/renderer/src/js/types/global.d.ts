@@ -3,6 +3,43 @@
  * 定义 Electron API 和其他全局对象的类型
  */
 
+import type {
+    ElectronAudioAPI,
+    ElectronCoversAPI,
+    ElectronDesktopLyricsAPI,
+    ElectronGlobalShortcutsAPI,
+    ElectronLibraryAPI,
+    ElectronLyricsAPI,
+    ElectronNetworkDriveAPI,
+    ElectronNativeAudioAPI,
+    ElectronWindowAPI,
+    ElectronBenchmarkAPI
+} from '@api/types/electron';
+import type {Unsubscribe} from '@api/types/common';
+import type {createExtensionAPI} from '@extensions/api';
+
+interface ElectronSettingsAPI {
+    get<T = unknown>(key: string): Promise<T | null>;
+    set<T = unknown>(key: string, value: T): Promise<void>;
+    getAll(): Promise<Record<string, unknown>>;
+    reset(): Promise<unknown>;
+    getMusicFolders(): Promise<string[]>;
+    addMusicFolder(folderPath: string): Promise<unknown>;
+    removeMusicFolder(folderPath: string): Promise<unknown>;
+    getAutoScanSettings(): Promise<unknown>;
+    updateAutoScanSettings(settings: unknown): Promise<unknown>;
+    updateLastScanTime(timestamp: number): Promise<unknown>;
+}
+
+interface ElectronHardwareAccelerationAPI {
+    getSettings(): Promise<unknown>;
+    updateSettings(settings: unknown): Promise<unknown>;
+}
+
+interface ElectronAppAPI {
+    restart(): Promise<void>;
+}
+
 /**
  * Electron API 类型定义
  */
@@ -36,6 +73,15 @@ interface ElectronAPI {
 
     // 打开指定目录
     openPath: (path: string) => Promise<{ success: boolean, error?: string }>;
+
+    // 使用系统默认程序打开外部链接
+    openExternal: (url: string) => Promise<{ success: boolean, error?: string }>;
+
+    // 原生音频事件
+    onNativeAudioEvent: (eventName: string, callback: (data: unknown) => void) => Unsubscribe;
+
+    // 读取音频文件
+    readAudioFile: (filePath: string) => Promise<ArrayBuffer>;
 
     // 文件对话框
     // 通用目录选择对话框（返回字符串路径，用于音乐目录扫描等）
@@ -102,205 +148,21 @@ interface ElectronAPI {
     path: object;
 
     // WebAudio音频引擎
-    audio: {
-        init: () => Promise<boolean>;
-        play: () => Promise<boolean>;
-        pause: () => Promise<boolean>;
-        stop: () => Promise<boolean>;
-        seek: (position: number) => Promise<boolean>;
-        setVolume: (volume: number) => Promise<boolean>;
-
-        loadTrack: (filePath: string) => Promise<boolean>;
-        getCurrentTrack: () => Promise<object>;
-        getPosition: () => Promise<number>;
-        getDuration: () => Promise<number>;
-
-        setPlaylist: (tracks: object[]) => Promise<boolean>;
-        nextTrack: () => Promise<boolean>;
-        previousTrack: () => Promise<boolean>;
-
-        onTrackChanged: (callback: (event: any, track: any) => void) => void;
-        onPlaybackStateChanged: (callback: (event: any, state: string) => void) => void;
-        onPositionChanged: (callback: (event: any, position: number) => void) => void;
-    };
+    audio: ElectronAudioAPI;
 
     // 原生引擎
-    nativeAudio: {
-        initialize: () => Promise<object>;
-        loadTrack: (filePath: string) => Promise<object>;
-        play: () => Promise<object>;
-        pause: () => Promise<object>;
-        stop: () => Promise<object>;
-        seek: (position: number) => Promise<object>;
+    nativeAudio: ElectronNativeAudioAPI;
 
-        setVolume: (volume: number) => Promise<{
-            success: boolean,
-            error?: string
-        }>;
-        getPosition: () => Promise<object>;
-
-        setEqualizerEnabled: (enabled: boolean) => Promise<{
-            success: boolean,
-            error?: string
-        }>;
-        isEqualizerEnabled: () => Promise<{
-            success: boolean,
-            error?: string
-        }>;
-        setEqualizerPreamp: (gain: number) => Promise<{
-            success: boolean,
-            error?: string
-        }>;
-        getEqualizerPreamp: () => Promise<{
-            success: boolean,
-            preamp?: number,
-            error?: string
-        }>;
-        setEqualizerBandGain: (band: number, gain: number) => Promise<{
-            success: boolean,
-            error?: string
-        }>;
-        getEqualizerBandGain: (band: number) => Promise<{
-            success: boolean,
-            gain: number,
-            error?: string
-        }>;
-        // todo太多了，下次再写
-    };
+    // benchmark instrumentation
+    benchmark: ElectronBenchmarkAPI;
 
     // 音乐库
-    library: {
-        validateCache: () => Promise<{
-            valid: number,
-            invalid: number,
-            modified: number,
-            tracks: object[]
-        }>;
+    library: ElectronLibraryAPI;
 
-        scanDirectory: (path: string) => Promise<boolean>;
-        scanNetworkDrive: (driveId: string | number, relativePath: string) => Promise<boolean>;
-
-        // 扫描单个网络文件
-        scanSingleFile: (networkPath: string) => Promise<object>;
-        scanDirectoryForFiles: (path: string) => Promise<{
-            success: boolean,
-            files: object[],
-            error?: string
-        }>;
-        addTrackToLibrary: (audioFile: object) => Promise<{
-            success: boolean,
-            track?: {
-                fileId: string,
-            },
-            error?: string
-            isNew?: boolean
-        }>;
-
-        getTracks: (options?: any) => Promise<any[]>;
-        getPlaylists: () => Promise<any[]>;
-        search: (query: string) => Promise<any[]>;
-
-        getTrackMetadata: (filePath: string) => Promise<any>;
-        getCacheStatistics: () => Promise<any>;
-        clearCache: () => Promise<void>;
-
-        //
-        getPlaylistDetail: (playlistId: string) => Promise<{
-            success: boolean,
-            playlist?: {
-                trackIds: string[],
-                id: string,
-                name: string,
-                description: string,
-                createdAt: number,
-                updatedAt: number,
-                coverImage: any | null
-            },
-            tracks?: object[],
-            error?: string
-        }>;
-
-        // 添加歌曲到歌单
-        addToPlaylist: (playlistId: string, trackIds: string[]) => Promise<{
-            success: boolean,
-            error?: string
-        }>;
-
-        // 从歌单移除歌曲
-        removeFromPlaylist: (playlistId: string, trackIds: string[]) => Promise<{
-            success: boolean,
-            error?: string
-        }>;
-
-        // 清空忽略列表
-        clearIgnoreList: () => Promise<{
-            success: boolean,
-            error?: string
-        }>;
-
-        onLibraryUpdated: (callback: (event: any, data: any) => void) => () => void;
-        onScanProgress: (callback: (event: any, progress: any) => void) => () => void;
-
-        onCacheValidationProgress: (callback: (event: any, progress: any) => void) => function;
-
-        // todo
-    };
-
-    globalShortcuts: {
-        register: (shortcuts: any) => Promise<void>;
-        unregister: () => Promise<boolean>;
-    };
+    globalShortcuts: ElectronGlobalShortcutsAPI;
 
     // 窗口
-    window: {
-        getSize: () => Promise<[number, number]>;
-        setSize: (width: number, height: number) => Promise<{ success: boolean }>;
-        getPosition: () => Promise<[number, number]>;
-        getBounds: () => Promise<{
-            height: number;
-            width: number;
-            x: number;
-            y: number;
-        }>;
-        setBounds: (bounds: {
-            height: number;
-            width: number;
-            x: number;
-            y: number;
-        }) => Promise<{
-            success: boolean,
-            bounds?: {
-                height: number;
-                width: number;
-                x: number;
-                y: number;
-            }
-            error?: string
-        }>;
-        isMaximized: () => Promise<boolean>;
-        maximize: () => Promise<void>;
-        unmaximize: () => Promise<void>;
-        minimize: () => Promise<void>;
-        close: () => Promise<void>;
-        show: () => Promise<void>;
-        hide: () => Promise<void>;
-        focus: () => Promise<void>;
-        setFullScreen: (flag: boolean) => Promise<void>;
-        isFullScreen: () => Promise<boolean>;
-        setAlwaysOnTop: (flag: boolean) => Promise<boolean>;
-        onMaximizedChanged: (callback: (isMaximized: boolean) => void) => void;
-        setBackgroundThrottling: (allowed: boolean) => Promise<void>;
-        setPosition: (x: number, y: number) => Promise<{
-            success: boolean,
-            error?: string
-        }>;
-        // 设置是否可拖动窗口大小
-        setResizable: (resizable: boolean) => Promise<boolean>;
-        // 设置是否显示在任务栏
-        setSkipTaskbar: (skip: boolean) => Promise<boolean>;
-        // 设置窗口最小尺寸
-        setMinimumSize: (width: number, height) => Promise<boolean>;
-    };
+    window: ElectronWindowAPI;
 
     extensions: {
         selectPackage: () => Promise<string | null>;
@@ -357,21 +219,23 @@ interface ElectronAPI {
     };
 
     // 桌面歌词
-    desktopLyrics: {};
-    networkDrive: {};
+    desktopLyrics: ElectronDesktopLyricsAPI;
+    lyrics: ElectronLyricsAPI;
+    covers: ElectronCoversAPI;
+    networkDrive: ElectronNetworkDriveAPI;
 
     // 设置相关
-    settings: {};
-    hardwareAcceleration: {};
+    settings: ElectronSettingsAPI;
+    hardwareAcceleration: ElectronHardwareAccelerationAPI;
 
     // 应用控制
-    app: {};
+    app: ElectronAppAPI;
 }
 
 declare global {
     interface Window {
         electronAPI: ElectronAPI;
-        createExtensionAPI?: () => {};
+        createExtensionAPI?: typeof createExtensionAPI;
     }
 }
 

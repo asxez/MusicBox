@@ -1,6 +1,6 @@
 // 窗口控制器
 
-import { ipcMain } from 'electron';
+import { ipcMain, screen } from 'electron';
 import {BaseController, Controller, IpcHandle} from '../decorators/IpcHandler';
 import {WindowManager} from '../core/WindowManager';
 
@@ -119,6 +119,93 @@ export class WindowController extends BaseController {
             return true;
         }
         return false;
+    }
+
+    @IpcHandle('window:setMaximizable')
+    setMaximizable(maximizable: boolean): boolean {
+        const win = this.windowManager.getMainWindow();
+        if (win) {
+            win.setMaximizable(maximizable);
+            return true;
+        }
+        return false;
+    }
+
+    @IpcHandle('window:setMaximumSize')
+    setMaximumSize(width: number, height: number): boolean {
+        const win = this.windowManager.getMainWindow();
+        if (win) {
+            try {
+                win.setMaximumSize(width, height);
+                return true;
+            } catch {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    @IpcHandle('window:setMiniModeWindowState')
+    setMiniModeWindowState(options: {
+        enabled: boolean;
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+    }): { success: boolean; size?: number[]; minimumSize?: number[]; maximumSize?: number[]; error?: string } {
+        const win = this.windowManager.getMainWindow();
+        if (!win) {
+            return {success: false, error: '窗口不可用'};
+        }
+
+        try {
+            if (win.isMaximized()) {
+                win.unmaximize();
+            }
+
+            if (options.enabled) {
+                const x = Math.round(options.x ?? win.getBounds().x);
+                const y = Math.round(options.y ?? win.getBounds().y);
+                const width = 400;
+                const height = 145;
+
+                this.cachedOriginalSize = null;
+                win.setResizable(true);
+                win.setMaximizable(false);
+                win.setMinimumSize(width, height);
+                win.setMaximumSize(width, height);
+                win.setBounds({x, y, width, height});
+                win.setResizable(false);
+                win.setSkipTaskbar(true);
+                win.setAlwaysOnTop(true);
+            } else {
+                const display = screen.getDisplayMatching(win.getBounds());
+                const maxWidth = Math.max(3840, display.workAreaSize.width);
+                const maxHeight = Math.max(2160, display.workAreaSize.height);
+                const width = Math.max(1080, Math.min(maxWidth, Math.round(options.width ?? 1440)));
+                const height = Math.max(720, Math.min(maxHeight, Math.round(options.height ?? 900)));
+                const bounds = win.getBounds();
+
+                this.cachedOriginalSize = null;
+                win.setResizable(true);
+                win.setMaximizable(true);
+                win.setMinimumSize(1, 1);
+                win.setMaximumSize(maxWidth, maxHeight);
+                win.setMinimumSize(1080, 720);
+                win.setSkipTaskbar(false);
+                win.setAlwaysOnTop(false);
+                win.setBounds({x: bounds.x, y: bounds.y, width, height});
+            }
+
+            return {
+                success: true,
+                size: win.getSize(),
+                minimumSize: win.getMinimumSize(),
+                maximumSize: win.getMaximumSize()
+            };
+        } catch (error: any) {
+            return {success: false, error: error.message};
+        }
     }
 
     @IpcHandle('window:setPosition')

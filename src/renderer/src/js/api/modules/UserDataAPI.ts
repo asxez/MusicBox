@@ -4,6 +4,7 @@
  */
 
 
+import {userDataGateway} from '@js/infrastructure/electron';
 import {BaseAPI, Validator} from "@api/core";
 import {
     DeleteResult,
@@ -29,7 +30,7 @@ export class UserDataAPI extends BaseAPI {
      */
     async getMoodHistory(): Promise<MoodHistory> {
         return this.wrapIPC(async () => {
-            const history = await window.electronAPI.userdata.getMoodHistory();
+            const history = await userDataGateway.getMoodHistory();
             return history || [];
         }, 'userdata.getMoodHistory', []);
     }
@@ -45,7 +46,7 @@ export class UserDataAPI extends BaseAPI {
 
         try {
             const result = await this.wrapIPC(
-                () => window.electronAPI.userdata.saveMood(moodData),
+                () => userDataGateway.saveMood(moodData),
                 'userdata.saveMood'
             );
 
@@ -65,7 +66,7 @@ export class UserDataAPI extends BaseAPI {
      */
     async getDiaryHistory(): Promise<DiaryHistory> {
         return this.wrapIPC(async () => {
-            const history = await window.electronAPI.userdata.getDiaryHistory();
+            const history = await userDataGateway.getDiaryHistory();
             return history || [];
         }, 'userdata.getDiaryHistory', []);
     }
@@ -81,7 +82,7 @@ export class UserDataAPI extends BaseAPI {
 
         try {
             const result = await this.wrapIPC(
-                () => window.electronAPI.userdata.saveDiary(diaryData),
+                () => userDataGateway.saveDiary(diaryData),
                 'userdata.saveDiary'
             );
 
@@ -105,7 +106,7 @@ export class UserDataAPI extends BaseAPI {
 
         try {
             const result = await this.wrapIPC(
-                () => window.electronAPI.userdata.deleteMood(timestamp),
+                () => userDataGateway.deleteMood(timestamp),
                 'userdata.deleteMood'
             );
 
@@ -129,7 +130,7 @@ export class UserDataAPI extends BaseAPI {
 
         try {
             const result = await this.wrapIPC(
-                () => window.electronAPI.userdata.deleteDiary(timestamp),
+                () => userDataGateway.deleteDiary(timestamp),
                 'userdata.deleteDiary'
             );
 

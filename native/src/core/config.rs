@@ -1,7 +1,7 @@
 //! 音频引擎配置
 
-use crate::renderer::DitherType;
 use crate::decoder::ResamplingQuality;
+use crate::renderer::DitherType;
 
 /// WASAPI共享模式
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -123,16 +123,16 @@ impl AudioConfig {
     pub fn get_wasapi_buffer_durations(&self) -> Vec<i64> {
         match self.share_mode {
             ShareMode::Exclusive => {
-                // 独占模式：支持低延迟缓冲区
+                // 独占模式：0 表示使用设备默认周期，避免音乐播放默认进入过低延迟高回调模式。
                 if self.preferred_wasapi_buffer_ms > 0 {
                     vec![
                         (self.preferred_wasapi_buffer_ms as i64) * 10_000,
-                        5_000_000,
-                        10_000_000,
-                        20_000_000,
+                        5 * 10_000,
+                        10 * 10_000,
+                        20 * 10_000,
                     ]
                 } else {
-                    vec![3_000_000, 5_000_000, 10_000_000, 20_000_000]
+                    vec![]
                 }
             }
             ShareMode::Shared => {

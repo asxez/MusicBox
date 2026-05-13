@@ -5,10 +5,11 @@ use crate::equalizer::AudioEqualizer;
 use crate::equalizer::ParametricEqualizer;
 use parking_lot::Mutex;
 use rodio::{Decoder, Source};
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{Cursor, Read, Seek};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::Duration as StdDuration;
 use wasapi::*;
@@ -18,8 +19,9 @@ use ringbuf::{HeapProd, HeapRb};
 
 use crate::core::AudioFormat;
 use crate::decoder;
+use crate::renderer::{RenderStats, WasapiRenderer};
 use crate::utils::PlaybackTracker;
-use crate::renderer::WasapiRenderer;
+use crate::utils::SeekCommand;
 use crate::utils::ThreadMessage;
 
 /// 组合 Read 和 Seek traits 的 trait，用于动态分发
@@ -31,6 +33,10 @@ impl<T: Read + Seek + Send + Sync> ReadSeek for T {}
 // Windows HRESULT 错误码常量
 const S_FALSE: i32 = 1;
 const RPC_E_CHANGED_MODE: i32 = 0x80010106u32 as i32;
+const PLAYBACK_PREFILL_MS: u64 = 160;
+
+type WaveFormatKey = (u32, u16, u16, u16, u32, u8);
+type UnsupportedFormatLogKey = (u32, u16, u16, u16, u8);
 
 /// 均衡器模式
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,6 +45,66 @@ pub enum EqualizerMode {
     Graphic,
     /// 参量均衡器（可自定义频段）
     Parametric,
+}
+
+impl EqualizerMode {
+    pub(crate) fn as_atomic_value(self) -> u8 {
+        match self {
+            Self::Graphic => 0,
+            Self::Parametric => 1,
+        }
+    }
+
+    pub(crate) fn from_atomic_value(value: u8) -> Self {
+        match value {
+            1 => Self::Parametric,
+            _ => Self::Graphic,
+        }
+    }
+}
+
+fn push_unique_wave_format(
+    candidates: &mut Vec<WaveFormat>,
+    seen: &mut HashSet<WaveFormatKey>,
+    wave_format: WaveFormat,
+) {
+    let sample_type_key = match AudioFormat::from_wave_format(wave_format.clone()) {
+        Ok(format) => match format.sample_type {
+            SampleType::Float => 0,
+            SampleType::Int => 1,
+        },
+        Err(_) => u8::MAX,
+    };
+    let key = (
+        wave_format.get_samplespersec(),
+        wave_format.get_nchannels(),
+        wave_format.get_bitspersample(),
+        wave_format.get_validbitspersample(),
+        wave_format.get_dwchannelmask(),
+        sample_type_key,
+    );
+
+    if seen.insert(key) {
+        candidates.push(wave_format);
+    }
+}
+
+fn unsupported_format_log_key(wave_format: &WaveFormat) -> UnsupportedFormatLogKey {
+    let sample_type_key = match AudioFormat::from_wave_format(wave_format.clone()) {
+        Ok(format) => match format.sample_type {
+            SampleType::Float => 0,
+            SampleType::Int => 1,
+        },
+        Err(_) => u8::MAX,
+    };
+
+    (
+        wave_format.get_samplespersec(),
+        wave_format.get_nchannels(),
+        wave_format.get_bitspersample(),
+        wave_format.get_validbitspersample(),
+        sample_type_key,
+    )
 }
 
 /// 音频引擎状态
@@ -55,16 +121,19 @@ pub struct AudioEngine {
     is_playing: Arc<AtomicBool>,
     is_paused: Arc<AtomicBool>,
     tracker: Arc<Mutex<PlaybackTracker>>,
-    volume: Arc<Mutex<f32>>,
+    volume: Arc<AtomicU32>,
     buffer_size: usize,
     error_receiver: Option<Receiver<ThreadMessage>>,
-    seek_sender: Option<Sender<f64>>,
+    seek_sender: Option<Sender<SeekCommand>>,
+    seek_generation: Arc<AtomicU64>,
     initialized: bool,
     config: AudioConfig,
     // 均衡器
     equalizer: Arc<Mutex<Option<AudioEqualizer>>>,
     parametric_equalizer: Arc<Mutex<Option<ParametricEqualizer>>>,
-    equalizer_mode: Arc<Mutex<EqualizerMode>>,
+    equalizer_mode: Arc<AtomicU8>,
+    equalizer_enabled: Arc<AtomicBool>,
+    parametric_equalizer_enabled: Arc<AtomicBool>,
 }
 
 impl AudioEngine {
@@ -73,7 +142,7 @@ impl AudioEngine {
     }
 
     pub fn with_config(config: AudioConfig) -> Result<Self, String> {
-        // 使用配置的缓冲区大小
+        // 初始化前先使用常见设备格式估算，真正设备格式确定后会重新计算。
         let buffer_size = config.get_ring_buffer_size(48000, 2);
         println!("🎵 创建音频引擎，配置: {:?}", config);
 
@@ -90,15 +159,18 @@ impl AudioEngine {
             is_playing: Arc::new(AtomicBool::new(false)),
             is_paused: Arc::new(AtomicBool::new(false)),
             tracker: Arc::new(Mutex::new(PlaybackTracker::new())),
-            volume: Arc::new(Mutex::new(0.7)),
+            volume: Arc::new(AtomicU32::new(0.7f32.to_bits())),
             buffer_size,
             error_receiver: None,
             seek_sender: None,
+            seek_generation: Arc::new(AtomicU64::new(0)),
             initialized: false,
             config,
             equalizer: Arc::new(Mutex::new(None)),
             parametric_equalizer: Arc::new(Mutex::new(None)),
-            equalizer_mode: Arc::new(Mutex::new(EqualizerMode::Graphic)),
+            equalizer_mode: Arc::new(AtomicU8::new(EqualizerMode::Graphic.as_atomic_value())),
+            equalizer_enabled: Arc::new(AtomicBool::new(false)),
+            parametric_equalizer_enabled: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -141,29 +213,47 @@ impl AudioEngine {
         println!("     采样率: {} Hz", mix_format.get_samplespersec());
         println!("     声道数: {}", mix_format.get_nchannels());
         println!("     位深度: {} bits", mix_format.get_bitspersample());
+        println!("     块对齐: {} bytes", mix_format.get_blockalign());
 
         let supported_format = self.query_format(&mut audio_client, &mix_format)?;
 
         println!("   {}支持的格式:", mode_str);
         println!("     采样率: {} Hz", supported_format.sample_rate);
         println!("     声道数: {}", supported_format.channels);
-        println!("     位深度: {} bits", supported_format.bits_per_sample);
+        println!(
+            "     位深度: {} bits (有效 {} bits)",
+            supported_format.bits_per_sample, supported_format.valid_bits_per_sample
+        );
         println!("     样本类型: {:?}", supported_format.sample_type);
+        println!("     块对齐: {} bytes", supported_format.block_align);
+        println!("     声道掩码: 0x{:X}", supported_format.channel_mask);
 
         self.device_sample_rate = supported_format.sample_rate;
         self.device_channels = supported_format.channels;
+        self.buffer_size = self
+            .config
+            .get_ring_buffer_size(self.device_sample_rate, self.device_channels);
         self.device_format = Some(supported_format);
         self.initialized = true;
+        println!(
+            "   环形缓冲区: {} 样本 ({:.2}秒)",
+            self.buffer_size,
+            self.buffer_size as f32
+                / (self.device_sample_rate as f32 * self.device_channels as f32)
+        );
 
         // 创建图形均衡器实例
         let equalizer = AudioEqualizer::new(self.device_sample_rate, self.device_channels);
         *self.equalizer.lock() = Some(equalizer);
+        self.equalizer_enabled.store(false, Ordering::Relaxed);
         println!("🎛️ AudioEngine: 图形均衡器已初始化");
 
         // 创建参量均衡器实例
         let parametric_equalizer =
             ParametricEqualizer::new(self.device_sample_rate, self.device_channels);
         *self.parametric_equalizer.lock() = Some(parametric_equalizer);
+        self.parametric_equalizer_enabled
+            .store(false, Ordering::Relaxed);
         println!("🎚️ AudioEngine: 参量均衡器已初始化");
 
         println!(
@@ -186,16 +276,7 @@ impl AudioEngine {
             ShareMode::Shared => {
                 // 共享模式：使用系统混合格式
                 println!("   ✅ 使用系统混合格式（共享模式）");
-                Ok(AudioFormat::new(
-                    mix_format.get_samplespersec(),
-                    mix_format.get_nchannels(),
-                    mix_format.get_bitspersample(),
-                    if mix_format.get_bitspersample() == 32 {
-                        SampleType::Float
-                    } else {
-                        SampleType::Int
-                    },
-                ))
+                AudioFormat::from_wave_format(mix_format.clone())
             }
             ShareMode::Exclusive => {
                 // 独占模式：查询设备支持的格式
@@ -209,74 +290,106 @@ impl AudioEngine {
         audio_client: &mut AudioClient,
         mix_format: &WaveFormat,
     ) -> Result<AudioFormat, String> {
-        let sample_rate = mix_format.get_samplespersec();
         let channels = mix_format.get_nchannels();
-        let channelmask = make_channelmasks(channels as usize)
-            .first()
-            .copied()
-            .unwrap_or(0x3);
 
-        // 尝试 Float32
-        let float_format = WaveFormat::new(
-            32,
-            32,
-            &SampleType::Float,
-            sample_rate as usize,
-            channels as usize,
-            Some(channelmask),
-        );
+        let mut candidates = Vec::new();
+        let mut seen = HashSet::new();
+        push_unique_wave_format(&mut candidates, &mut seen, mix_format.clone());
 
-        match audio_client.is_supported(&float_format, &ShareMode::Exclusive) {
-            Ok(Some(_)) | Ok(None) => {
-                println!("   ✅ 设备支持 Float32 独占模式");
-                return Ok(AudioFormat::new(
-                    sample_rate,
-                    channels,
-                    32,
-                    SampleType::Float,
-                ));
-            }
-            Err(e) => {
-                println!("   ⚠️ Float32 不支持: {:?}", e);
-            }
-        }
+        let mix_sample_rate = mix_format.get_samplespersec();
+        let common_rates = [mix_sample_rate, 192000, 176400, 96000, 88200, 48000, 44100];
+        let bit_depths = [
+            (32, 32, SampleType::Float),
+            (32, 24, SampleType::Int),
+            (24, 24, SampleType::Int),
+            (16, 16, SampleType::Int),
+        ];
+        let channel_masks = make_channelmasks(channels as usize);
 
-        // 尝试 Int16
-        let int16_format = WaveFormat::new(
-            16,
-            16,
-            &SampleType::Int,
-            sample_rate as usize,
-            channels as usize,
-            Some(channelmask),
-        );
-
-        match audio_client.is_supported(&int16_format, &ShareMode::Exclusive) {
-            Ok(Some(_)) | Ok(None) => {
-                println!("   ✅ 设备支持 Int16 独占模式");
-                return Ok(AudioFormat::new(sample_rate, channels, 16, SampleType::Int));
-            }
-            Err(e) => {
-                println!("   ⚠️ Int16 不支持: {:?}", e);
+        for sample_rate in common_rates {
+            for (store_bits, valid_bits, sample_type) in bit_depths {
+                for &channel_mask in &channel_masks {
+                    push_unique_wave_format(
+                        &mut candidates,
+                        &mut seen,
+                        WaveFormat::new(
+                            store_bits,
+                            valid_bits,
+                            &sample_type,
+                            sample_rate as usize,
+                            channels as usize,
+                            Some(channel_mask),
+                        ),
+                    );
+                }
             }
         }
 
-        println!("   ⚠️ 使用混合格式参数作为回退");
-        Ok(AudioFormat::new(
-            sample_rate,
-            channels,
-            mix_format.get_bitspersample(),
-            if mix_format.get_bitspersample() == 32 {
-                SampleType::Float
-            } else {
-                SampleType::Int
-            },
-        ))
+        let mut unsupported_logged = HashSet::new();
+        let mut unsupported_suppressed = 0usize;
+
+        for candidate in candidates {
+            match audio_client.is_supported_exclusive_with_quirks(&candidate) {
+                Ok(supported) => {
+                    if unsupported_suppressed > 0 {
+                        println!(
+                            "   ℹ️ 已折叠 {} 条重复的独占格式不支持日志",
+                            unsupported_suppressed
+                        );
+                    }
+                    println!(
+                        "   ✅ 设备驱动确认支持独占格式: {} Hz, {} 声道, {} / {} bits, mask 0x{:X}",
+                        supported.get_samplespersec(),
+                        supported.get_nchannels(),
+                        supported.get_validbitspersample(),
+                        supported.get_bitspersample(),
+                        supported.get_dwchannelmask()
+                    );
+                    return AudioFormat::from_wave_format(supported);
+                }
+                Err(e) => {
+                    let log_key = unsupported_format_log_key(&candidate);
+                    if unsupported_logged.insert(log_key) {
+                        println!(
+                            "   ⚠️ 独占格式不支持: {} Hz, {} 声道, {} / {} bits ({:?})",
+                            candidate.get_samplespersec(),
+                            candidate.get_nchannels(),
+                            candidate.get_validbitspersample(),
+                            candidate.get_bitspersample(),
+                            e
+                        );
+                    } else {
+                        unsupported_suppressed += 1;
+                    }
+                }
+            }
+        }
+
+        if unsupported_suppressed > 0 {
+            println!(
+                "   ℹ️ 已折叠 {} 条重复的独占格式不支持日志",
+                unsupported_suppressed
+            );
+        }
+
+        Err("设备驱动未报告任何可用的WASAPI独占格式，请检查Windows声音设置中是否允许应用程序独占控制该设备".to_string())
     }
 
     pub fn load_track(&mut self, file_path: &str) -> Result<f64, String> {
         println!("🎵 AudioEngine: 加载音频文件: {}", file_path);
         let start = std::time::Instant::now();
+
+        if self.current_file.as_deref() == Some(file_path)
+            && self.duration > 0.0
+            && !self.is_playing.load(Ordering::SeqCst)
+            && !self.is_paused.load(Ordering::SeqCst)
+        {
+            println!(
+                "ℹ️ AudioEngine: 当前文件已加载，跳过重复探测，耗时: {:?}",
+                start.elapsed()
+            );
+            return Ok(self.duration);
+        }
 
         self.stop()?;
 
@@ -352,7 +465,6 @@ impl AudioEngine {
         println!("🔧 创建音频缓冲区，大小: {} 样本", self.buffer_size);
         let ring_buffer = HeapRb::<f32>::new(self.buffer_size);
         let (producer, consumer) = ring_buffer.split();
-        let consumer = Arc::new(Mutex::new(consumer));
 
         // 创建消息通道(用于解码器->渲染器的通信)
         let (error_sender, error_receiver) = channel();
@@ -366,10 +478,14 @@ impl AudioEngine {
         self.start_decoder_thread(producer, error_sender.clone(), render_msg_sender)?;
 
         // 等待缓冲区预填充
-        let buffer_threshold = (self.buffer_size / 5).max(4800);
+        let buffer_threshold = playback_prefill_threshold_samples(
+            self.buffer_size,
+            self.device_sample_rate,
+            self.device_channels,
+        );
         let mut wait_count = 0;
         loop {
-            let buffered = consumer.lock().occupied_len();
+            let buffered = consumer.occupied_len();
             if buffered >= buffer_threshold {
                 println!(
                     "✅ 缓冲区已填充 {} 样本（阈值: {}），开始播放",
@@ -379,6 +495,9 @@ impl AudioEngine {
             }
 
             if !self.is_playing.load(Ordering::SeqCst) {
+                if let Some(event) = self.poll_events() {
+                    return Err(format!("播放启动失败: {}", event));
+                }
                 return Err("播放被中断".to_string());
             }
 
@@ -406,6 +525,8 @@ impl AudioEngine {
             self.equalizer.clone(),
             self.parametric_equalizer.clone(),
             self.equalizer_mode.clone(),
+            self.equalizer_enabled.clone(),
+            self.parametric_equalizer_enabled.clone(),
         )?;
 
         self.tracker.lock().start();
@@ -422,13 +543,14 @@ impl AudioEngine {
         self.is_playing.store(false, Ordering::SeqCst);
         self.is_paused.store(false, Ordering::SeqCst);
         self.tracker.lock().reset();
+        self.seek_sender = None;
+
+        self.renderer.stop();
 
         if let Some(thread) = self.decoder_thread.take() {
             let _ = thread.join();
         }
 
-        self.renderer.stop();
-        self.seek_sender = None;
         Ok(())
     }
 
@@ -441,12 +563,20 @@ impl AudioEngine {
 
         let clamped_position = position.max(0.0).min(self.duration);
         if let Some(ref seek_sender) = self.seek_sender {
+            let generation = self.seek_generation.fetch_add(1, Ordering::SeqCst) + 1;
+            let command = SeekCommand {
+                generation,
+                position: clamped_position,
+            };
             seek_sender
-                .send(clamped_position)
+                .send(command)
                 .map_err(|e| format!("发送跳转请求失败: {}", e))?;
 
             self.tracker.lock().set_position(clamped_position);
-            println!("✅ AudioEngine: 已请求跳转到 {:.2}秒", clamped_position);
+            println!(
+                "✅ AudioEngine: 已请求跳转到 {:.2}秒 (seek #{})",
+                clamped_position, generation
+            );
         } else {
             return Err("跳转功能未就绪".to_string());
         }
@@ -456,7 +586,8 @@ impl AudioEngine {
 
     pub fn set_volume(&mut self, volume: f32) {
         let clamped_volume = volume.clamp(0.0, 1.0);
-        *self.volume.lock() = clamped_volume;
+        self.volume
+            .store(clamped_volume.to_bits(), Ordering::Relaxed);
     }
 
     pub fn get_position(&self) -> f64 {
@@ -491,6 +622,14 @@ impl AudioEngine {
         None
     }
 
+    pub fn get_render_stats(&self) -> RenderStats {
+        self.renderer.get_stats()
+    }
+
+    pub fn reset_render_stats(&self) {
+        self.renderer.reset_stats();
+    }
+
     fn start_decoder_thread(
         &mut self,
         mut producer: HeapProd<f32>,
@@ -505,6 +644,7 @@ impl AudioEngine {
         let source_sample_rate = self.source_sample_rate.ok_or("源采样率未设置")?;
         let source_channels = self.source_channels.ok_or("源声道数未设置")?;
         let resampling_quality = self.config.resampling_quality;
+        let seek_generation = self.seek_generation.clone();
 
         // 创建跳转通道
         let (seek_sender, seek_receiver) = channel();
@@ -527,6 +667,7 @@ impl AudioEngine {
                     &is_paused,
                     &seek_receiver,
                     &render_msg_sender,
+                    &seek_generation,
                     source_sample_rate,
                     source_channels,
                     device_sample_rate,
@@ -541,6 +682,7 @@ impl AudioEngine {
                     &is_paused,
                     &seek_receiver,
                     &render_msg_sender,
+                    &seek_generation,
                     source_sample_rate,
                     source_channels,
                 )
@@ -569,6 +711,7 @@ impl AudioEngine {
 
     /// 启用/禁用均衡器
     pub fn set_equalizer_enabled(&self, enabled: bool) {
+        self.equalizer_enabled.store(enabled, Ordering::Relaxed);
         if let Some(ref mut eq) = *self.equalizer.lock() {
             eq.set_enabled(enabled);
         }
@@ -576,16 +719,12 @@ impl AudioEngine {
 
     /// 获取均衡器启用状态
     pub fn is_equalizer_enabled(&self) -> bool {
-        if let Some(ref eq) = *self.equalizer.lock() {
-            eq.is_enabled()
-        } else {
-            false
-        }
+        self.equalizer_enabled.load(Ordering::Relaxed)
     }
 
     /// 设置前置增益
     pub fn set_equalizer_preamp(&self, gain: f32) {
-        if let Some(ref eq) = *self.equalizer.lock() {
+        if let Some(ref mut eq) = *self.equalizer.lock() {
             eq.set_preamp(gain);
         }
     }
@@ -676,17 +815,20 @@ impl AudioEngine {
 
     /// 设置均衡器模式（图形/参量）
     pub fn set_equalizer_mode(&self, mode: EqualizerMode) {
-        *self.equalizer_mode.lock() = mode;
-        println!("🎛️ AudioEngine: 均衡器模式切换为 {:?}", mode);
+        let new_mode = mode.as_atomic_value();
+        let old_mode = self.equalizer_mode.swap(new_mode, Ordering::Relaxed);
+        if old_mode != new_mode {
+            println!("🎛️ AudioEngine: 均衡器模式切换为 {:?}", mode);
+        }
     }
 
     /// 获取当前均衡器模式
     pub fn get_equalizer_mode(&self) -> EqualizerMode {
-        *self.equalizer_mode.lock()
+        EqualizerMode::from_atomic_value(self.equalizer_mode.load(Ordering::Relaxed))
     }
 
     /// 获取均衡器模式的克隆（用于renderer）
-    pub fn get_equalizer_mode_arc(&self) -> Arc<Mutex<EqualizerMode>> {
+    pub fn get_equalizer_mode_arc(&self) -> Arc<AtomicU8> {
         self.equalizer_mode.clone()
     }
 
@@ -795,7 +937,7 @@ impl AudioEngine {
 
     /// 设置参量均衡器前置增益
     pub fn parametric_set_preamp(&self, gain: f32) {
-        if let Some(ref peq) = *self.parametric_equalizer.lock() {
+        if let Some(ref mut peq) = *self.parametric_equalizer.lock() {
             peq.set_preamp(gain);
         }
     }
@@ -825,18 +967,16 @@ impl AudioEngine {
 
     /// 启用/禁用参量均衡器
     pub fn parametric_set_enabled(&self, enabled: bool) {
-        if let Some(ref peq) = *self.parametric_equalizer.lock() {
+        self.parametric_equalizer_enabled
+            .store(enabled, Ordering::Relaxed);
+        if let Some(ref mut peq) = *self.parametric_equalizer.lock() {
             peq.set_enabled(enabled);
         }
     }
 
     /// 检查参量均衡器是否启用
     pub fn parametric_is_enabled(&self) -> bool {
-        if let Some(ref peq) = *self.parametric_equalizer.lock() {
-            peq.is_enabled()
-        } else {
-            false
-        }
+        self.parametric_equalizer_enabled.load(Ordering::Relaxed)
     }
 
     // ==================== 音频模式切换 ====================
@@ -854,10 +994,7 @@ impl AudioEngine {
     }
 
     /// 切换音频模式并重新初始化
-    pub fn switch_share_mode(
-        &mut self,
-        mode: crate::core::ShareMode,
-    ) -> Result<(), String> {
+    pub fn switch_share_mode(&mut self, mode: crate::core::ShareMode) -> Result<(), String> {
         println!("🔄 AudioEngine: 切换音频模式到 {:?}", mode);
 
         // 停止当前播放
@@ -873,4 +1010,14 @@ impl AudioEngine {
         println!("✅ AudioEngine: 音频模式切换完成");
         Ok(())
     }
+}
+
+fn playback_prefill_threshold_samples(
+    buffer_size: usize,
+    sample_rate: u32,
+    channels: u16,
+) -> usize {
+    let threshold_by_time =
+        sample_rate as usize * channels as usize * PLAYBACK_PREFILL_MS as usize / 1000;
+    threshold_by_time.clamp(4800, buffer_size.saturating_sub(1).max(1))
 }

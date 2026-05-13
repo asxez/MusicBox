@@ -46,13 +46,40 @@ interface MetadataResult {
 export class MetadataHandler {
     private pythonPath: string | null = null;
     private scriptPath: string;
+    private scriptAvailable = false;
     private initialized = false;
     private useExecutable = false;
     private executablePath: string;
 
     constructor() {
-        this.scriptPath = path.join(__dirname, '../../metadata_editor.py');
+        this.scriptPath = this.getScriptPath();
         this.executablePath = this.getExecutablePath();
+    }
+
+    private getScriptPath(): string {
+        const candidates = [
+            path.join(__dirname, '../../metadata_editor.py'),
+            path.join(process.cwd(), 'src', 'main', 'metadata_editor.py')
+        ];
+
+        try {
+            candidates.push(path.join(app.getAppPath(), 'src', 'main', 'metadata_editor.py'));
+        } catch {
+        }
+
+        if (app.isPackaged) {
+            candidates.push(
+                path.join(process.resourcesPath, 'app.asar.unpacked', 'dist', 'main', 'metadata_editor.py')
+            );
+        }
+
+        for (const candidate of candidates) {
+            if (fs.existsSync(candidate)) {
+                return candidate;
+            }
+        }
+
+        return candidates[0];
     }
 
     private getExecutablePath(): string {
@@ -98,6 +125,7 @@ export class MetadataHandler {
 
             try {
                 await fs.promises.access(this.scriptPath);
+                this.scriptAvailable = true;
             } catch {
                 console.error('❌ Python元数据编辑脚本不存在:', this.scriptPath);
                 this.initialized = true;
@@ -212,6 +240,9 @@ export class MetadataHandler {
     private async updateWithMutagen(filePath: string, metadata: MetadataInput): Promise<MetadataResult> {
         if (!this.useExecutable && !this.pythonPath) {
             return {success: false, error: 'Python环境和可执行文件都不可用', errorType: 'no_processor_available'};
+        }
+        if (!this.useExecutable && !this.scriptAvailable) {
+            return {success: false, error: `Python元数据编辑脚本不存在: ${this.scriptPath}`, errorType: 'script_missing'};
         }
 
         let tempCoverFile: string | null = null;

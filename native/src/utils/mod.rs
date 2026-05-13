@@ -5,5 +5,5 @@
 mod message;
 mod tracker;
 
-pub use message::ThreadMessage;
+pub use message::{SeekCommand, ThreadMessage};
 pub use tracker::PlaybackTracker;

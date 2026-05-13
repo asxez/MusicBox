@@ -3,6 +3,7 @@
  * 提供窗口控制相关功能
  */
 
+import {windowGateway} from '@js/infrastructure/electron';
 import {ErrorUtils} from '@extensions/api/common/errors';
 import {Validator} from '@extensions/api/common/validation';
 import '@extensions/core/types';
@@ -16,37 +17,37 @@ export function createWindowAPI(_context: ExtensionContext): WindowAPI {
     return {
         async maximize(): Promise<void> {
             return ErrorUtils.wrapAsync(async () => {
-                return await window.electronAPI.window.maximize();
+                return await windowGateway.maximize();
             }, 'window.maximize');
         },
 
         async minimize(): Promise<void> {
             return ErrorUtils.wrapAsync(async () => {
-                return await window.electronAPI.window.minimize();
+                return await windowGateway.minimize();
             }, 'window.minimize');
         },
 
         async close(): Promise<void> {
             return ErrorUtils.wrapAsync(async () => {
-                return await window.electronAPI.window.close();
+                return await windowGateway.close();
             }, 'window.close');
         },
 
         async isMaximized(): Promise<boolean> {
             return ErrorUtils.wrapAsync(async () => {
-                return await window.electronAPI.window.isMaximized();
+                return await windowGateway.isMaximized();
             }, 'window.isMaximized');
         },
 
         async getPosition(): Promise<[number, number]> {
             return ErrorUtils.wrapAsync(async () => {
-                return await window.electronAPI.window.getPosition();
+                return await windowGateway.getPosition();
             }, 'window.getPosition');
         },
 
         async getSize(): Promise<[number, number]> {
             return ErrorUtils.wrapAsync(async () => {
-                return await window.electronAPI.window.getSize();
+                return await windowGateway.getSize();
             }, 'window.getSize');
         },
 
@@ -55,13 +56,13 @@ export function createWindowAPI(_context: ExtensionContext): WindowAPI {
             Validator.assertType(height, 'number', 'height');
 
             return ErrorUtils.wrapAsync(async () => {
-                return await window.electronAPI.window.setSize(width, height);
+                return await windowGateway.setSize(width, height);
             }, 'window.setSize');
         },
 
         async onMaximizedChanged(callback: (isMaximized: boolean) => void): Promise<void> {
             return ErrorUtils.wrapAsync(async () => {
-                await window.electronAPI.window.onMaximizedChanged((isMaximized: boolean) => {
+                windowGateway.onMaximizedChanged((isMaximized: boolean) => {
                     callback(isMaximized);
                 });
             }, 'window.onMaximizedChanged');

@@ -5,7 +5,8 @@
 
 
 import {BaseAPI, Validator} from "@api/core";
-import {CacheStatistics, GetTracksOptions, Track} from "@api/types";
+import {libraryGateway} from "@js/infrastructure/electron";
+import {CacheStatistics, GetTracksOptions, Playlist, Result, Track} from "@api/types";
 
 /**
  * 音乐库 API 类
@@ -22,7 +23,7 @@ export class LibraryAPI extends BaseAPI {
      */
     async getTracks(options: GetTracksOptions = {}): Promise<Track[]> {
         return this.wrapIPC(async () => {
-            const tracks = await window.electronAPI.library.getTracks(options);
+            const tracks = await libraryGateway.getTracks(options);
             return tracks || [];
         }, 'library.getTracks', []);
     }
@@ -36,7 +37,7 @@ export class LibraryAPI extends BaseAPI {
         Validator.assertString(query, 'query');
 
         return this.wrapIPC(async () => {
-            const results = await window.electronAPI.library.search(query);
+            const results = await libraryGateway.search(query);
             return results || [];
         }, 'library.search', []);
     }
@@ -50,9 +51,17 @@ export class LibraryAPI extends BaseAPI {
         Validator.assertFilePath(filePath, 'filePath');
 
         return this.wrapIPC(async () => {
-            const metadata = await window.electronAPI.library.getTrackMetadata(filePath);
+            const metadata = await libraryGateway.getTrackMetadata(filePath);
             return metadata || null;
         }, 'library.getTrackMetadata', null);
+    }
+
+    async updateTrackMetadata(data: unknown): Promise<Result & {updatedMetadata?: Track}> {
+        return this.wrapIPC(
+            () => libraryGateway.updateTrackMetadata(data),
+            'library.updateTrackMetadata',
+            {success: false, error: '更新歌曲信息失败'}
+        );
     }
 
     /**
@@ -62,7 +71,7 @@ export class LibraryAPI extends BaseAPI {
     async getCacheStatistics(): Promise<CacheStatistics | null> {
         try {
             const stats = await this.wrapIPC(
-                () => window.electronAPI.library.getCacheStatistics(),
+                () => libraryGateway.getCacheStatistics(),
                 'library.getCacheStatistics'
             );
 
@@ -93,10 +102,143 @@ export class LibraryAPI extends BaseAPI {
     /**
      * 清空音乐库缓存
      */
-    async clearCache(): Promise<void> {
+    async clearCache(): Promise<boolean> {
         return this.wrapIPC(
-            () => window.electronAPI.library.clearCache(),
+            () => libraryGateway.clearCache(),
             'library.clearCache'
+        );
+    }
+
+    async getPlaylists(): Promise<Playlist[]> {
+        return this.wrapIPC(async () => {
+            const playlists = await libraryGateway.getPlaylists();
+            return playlists || [];
+        }, 'library.getPlaylists', []);
+    }
+
+    async createPlaylist(name: string, description = ''): Promise<{success: boolean; playlist?: Playlist; error?: string}> {
+        Validator.assertNonEmptyString(name, 'name');
+
+        return this.wrapIPC(
+            () => libraryGateway.createPlaylist(name, description),
+            'library.createPlaylist',
+            {success: false, error: '创建歌单失败'}
+        );
+    }
+
+    async deletePlaylist(playlistId: string): Promise<Result> {
+        Validator.assertNonEmptyString(playlistId, 'playlistId');
+
+        return this.wrapIPC(
+            () => libraryGateway.deletePlaylist(playlistId),
+            'library.deletePlaylist',
+            {success: false, error: '删除歌单失败'}
+        );
+    }
+
+    async renamePlaylist(playlistId: string, newName: string): Promise<{success: boolean; playlist?: Playlist; error?: string}> {
+        Validator.assertNonEmptyString(playlistId, 'playlistId');
+        Validator.assertNonEmptyString(newName, 'newName');
+
+        return this.wrapIPC(
+            () => libraryGateway.renamePlaylist(playlistId, newName),
+            'library.renamePlaylist',
+            {success: false, error: '重命名歌单失败'}
+        );
+    }
+
+    async addToPlaylist(playlistId: string, trackIds: string | string[]): Promise<Result> {
+        Validator.assertNonEmptyString(playlistId, 'playlistId');
+
+        return this.wrapIPC(
+            () => libraryGateway.addToPlaylist(playlistId, trackIds),
+            'library.addToPlaylist',
+            {success: false, error: '添加到歌单失败'}
+        );
+    }
+
+    async removeTrack(trackFileId: string): Promise<Result> {
+        Validator.assertNonEmptyString(trackFileId, 'trackFileId');
+
+        return this.wrapIPC(
+            () => libraryGateway.removeTrack(trackFileId),
+            'library.removeTrack',
+            {success: false, error: '删除歌曲失败'}
+        );
+    }
+
+    async removeFromPlaylist(playlistId: string, trackIds: string | string[]): Promise<Result> {
+        Validator.assertNonEmptyString(playlistId, 'playlistId');
+
+        return this.wrapIPC(
+            () => libraryGateway.removeFromPlaylist(playlistId, trackIds),
+            'library.removeFromPlaylist',
+            {success: false, error: '从歌单移除失败'}
+        );
+    }
+
+    async getTracksByDrive(driveId: string): Promise<Track[]> {
+        Validator.assertNonEmptyString(driveId, 'driveId');
+
+        return this.wrapIPC(async () => {
+            const tracks = await libraryGateway.getTracksByDrive(driveId);
+            return tracks || [];
+        }, 'library.getTracksByDrive', []);
+    }
+
+    async removeTracksByDrive(driveId: string): Promise<Result> {
+        Validator.assertNonEmptyString(driveId, 'driveId');
+
+        return this.wrapIPC(
+            () => libraryGateway.removeTracksByDrive(driveId),
+            'library.removeTracksByDrive',
+            {success: false, error: '移除网络磁盘音乐失败'}
+        );
+    }
+
+    async scanNetworkDrive(driveId: string | number, relativePath = '/'): Promise<boolean> {
+        return this.wrapIPC(
+            () => libraryGateway.scanNetworkDrive(driveId, relativePath),
+            'library.scanNetworkDrive',
+            false
+        );
+    }
+
+    async scanSingleFile(networkPath: string): Promise<{success: boolean; track?: Track; error?: string; isNew?: boolean}> {
+        Validator.assertNonEmptyString(networkPath, 'networkPath');
+
+        return this.wrapIPC(
+            () => libraryGateway.scanSingleFile(networkPath),
+            'library.scanSingleFile',
+            {success: false, error: '扫描单个文件失败'}
+        );
+    }
+
+    async scanDirectoryForFiles(path: string): Promise<{success: boolean; files: unknown[]; error?: string}> {
+        Validator.assertNonEmptyString(path, 'path');
+
+        return this.wrapIPC(
+            () => libraryGateway.scanDirectoryForFiles(path),
+            'library.scanDirectoryForFiles',
+            {success: false, files: [], error: '扫描目录失败'}
+        );
+    }
+
+    async addTrackToLibrary(audioFile: Partial<Track> | unknown): Promise<{success: boolean; track?: Track; error?: string; isNew?: boolean}> {
+        return this.wrapIPC(
+            () => libraryGateway.addTrackToLibrary(audioFile),
+            'library.addTrackToLibrary',
+            {success: false, error: '添加歌曲到音乐库失败'}
+        );
+    }
+
+    async getPlaylistDetail(playlistId: string): Promise<{success: boolean; playlist?: Playlist; tracks?: Track[]; error?: string}> {
+        Validator.assertNonEmptyString(playlistId, 'playlistId');
+
+        return this.wrapIPC(
+            () => libraryGateway.getPlaylistDetail(playlistId),
+            'library.getPlaylistDetail',
+            {success: false, error: '获取歌单详情失败'}
         );
     }
 

@@ -34,7 +34,7 @@ api/
 
 ```javascript
 function activate(context) {
-    const api = createExtensionAPI(context);
+    const api = context.api;
     
     // 使用播放器 API
     const track = api.player.getCurrentTrack();

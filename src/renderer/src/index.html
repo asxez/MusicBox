@@ -740,11 +740,11 @@
                     <div class="settings-section" data-section="audio">
                         <h2 class="section-title">音频</h2>
 
-                        <!-- 音频独占模式 (WASAPI) -->
+                        <!-- WASAPI 音频引擎 -->
                         <div class="settings-item" id="exclusive-mode-item">
                             <div class="item-info">
                                 <label class="item-label">启用 WASAPI 引擎</label>
-                                <p class="item-description">启用Windows WASAPI音频引擎以获得更高音质、更低延迟以及参量均衡器的使用（启用此功能可以大幅降低应用内存占用）</p>
+                                <p class="item-description">启用 Windows WASAPI 音频引擎，使用本机流式播放路径和原生音频处理能力</p>
                             </div>
                             <div class="item-control">
                                 <div class="toggle-switch">
@@ -758,7 +758,7 @@
                         <div class="settings-item" id="wasapi-share-mode-item" style="display: none;">
                             <div class="item-info">
                                 <label class="item-label">WASAPI 模式</label>
-                                <p class="item-description">独占模式：独占音频设备，最低延迟和最高音质；共享模式：与其他应用共享音频设备，兼容性更好</p>
+                                <p class="item-description">独占模式会请求独占音频设备，共享模式与其他应用共享设备，兼容性更好</p>
                             </div>
                             <div class="item-control">
                                 <select class="settings-select" id="wasapi-share-mode-select">
@@ -1843,6 +1843,6 @@
         </div>
     </div>
 
-    <script type="module" src="./js/core/main.js"></script>
+    <script type="module" src="./js/core/main.ts"></script>
 </body>
 </html>

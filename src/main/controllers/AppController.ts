@@ -66,6 +66,22 @@ export class AppController extends BaseController {
         }
     }
 
+    @IpcHandle('app:openExternal')
+    async openExternal(url: string): Promise<{ success: boolean; error?: string }> {
+        try {
+            const parsedUrl = new URL(url);
+            if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+                return {success: false, error: '不支持的外部链接协议'};
+            }
+
+            await shell.openExternal(parsedUrl.toString());
+            return {success: true};
+        } catch (error: any) {
+            console.error('❌ 打开外部链接失败:', error);
+            return {success: false, error: error.message};
+        }
+    }
+
     @IpcHandle('app:getDefaultCoverCachePath')
     getDefaultCoverCachePath(): { success: boolean; path?: string; error?: string } {
         try {

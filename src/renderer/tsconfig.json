@@ -16,7 +16,8 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "baseUrl": "./",
     "paths": {
       "@/*": ["src/*"],
       "@js/*": ["src/js/*"],
@@ -24,8 +25,7 @@
       "@services/*": ["src/js/services/*"],
       "@utils/*": ["src/js/utils/*"],
       "@api/*": ["src/js/api/*"],
-      "@pages/*": ["src/js/pages/*"],
-      "@components/*": ["src/js/components/*"],
+      "@ui/*": ["src/js/ui/*"],
       "@extensions/*": ["src/js/extensions/*"],
       "@styles/*": ["src/styles/*"],
       "@assets/*": ["src/assets/*"]
@@ -38,6 +38,7 @@
   ],
   "exclude": [
     "node_modules",
-    "public"
+    "public",
+    "src/js - 副本"
   ]
 }

@@ -1,0 +1,97 @@
+{
+  "generatedAt": "2026-05-04T14:12:59.067Z",
+  "source": "scripts\\benchmarks\\audio\\open-goldberg-aria.flac",
+  "shortDurationSec": 180,
+  "mediumDurationSec": 660,
+  "longDurationSec": 1860,
+  "fixtures": [
+    {
+      "id": "wav_48k_180s",
+      "source": "scripts\\benchmarks\\audio\\open-goldberg-aria.flac",
+      "path": "scripts\\benchmarks\\audio\\open-goldberg-48k-stereo-180s.wav",
+      "bytes": 34560302,
+      "ffmpegArgs": [
+        "-y",
+        "-i",
+        "scripts\\benchmarks\\audio\\open-goldberg-aria.flac",
+        "-t",
+        "180",
+        "-ar",
+        "48000",
+        "-ac",
+        "2",
+        "-c:a",
+        "pcm_s16le",
+        "scripts\\benchmarks\\audio\\open-goldberg-48k-stereo-180s.wav"
+      ]
+    },
+    {
+      "id": "flac_96k_180s",
+      "source": "scripts\\benchmarks\\audio\\open-goldberg-aria.flac",
+      "path": "scripts\\benchmarks\\audio\\open-goldberg-96k-stereo-180s.flac",
+      "bytes": 47358023,
+      "ffmpegArgs": [
+        "-y",
+        "-i",
+        "scripts\\benchmarks\\audio\\open-goldberg-aria.flac",
+        "-t",
+        "180",
+        "-ar",
+        "96000",
+        "-ac",
+        "2",
+        "-compression_level",
+        "8",
+        "scripts\\benchmarks\\audio\\open-goldberg-96k-stereo-180s.flac"
+      ]
+    },
+    {
+      "id": "goldberg_loop_flac_48k_10min",
+      "source": "scripts\\benchmarks\\audio\\open-goldberg-aria.flac",
+      "path": "scripts\\benchmarks\\audio\\open-goldberg-loop-48k-stereo-10min.flac",
+      "bytes": 90311809,
+      "ffmpegArgs": [
+        "-y",
+        "-stream_loop",
+        "-1",
+        "-i",
+        "scripts\\benchmarks\\audio\\open-goldberg-aria.flac",
+        "-t",
+        "660",
+        "-ar",
+        "48000",
+        "-ac",
+        "2",
+        "-c:a",
+        "flac",
+        "-compression_level",
+        "8",
+        "scripts\\benchmarks\\audio\\open-goldberg-loop-48k-stereo-10min.flac"
+      ]
+    },
+    {
+      "id": "goldberg_loop_flac_48k_30min",
+      "source": "scripts\\benchmarks\\audio\\open-goldberg-aria.flac",
+      "path": "scripts\\benchmarks\\audio\\open-goldberg-loop-48k-stereo-30min.flac",
+      "bytes": 254530305,
+      "ffmpegArgs": [
+        "-y",
+        "-stream_loop",
+        "-1",
+        "-i",
+        "scripts\\benchmarks\\audio\\open-goldberg-aria.flac",
+        "-t",
+        "1860",
+        "-ar",
+        "48000",
+        "-ac",
+        "2",
+        "-c:a",
+        "flac",
+        "-compression_level",
+        "8",
+        "scripts\\benchmarks\\audio\\open-goldberg-loop-48k-stereo-30min.flac"
+      ]
+    }
+  ]
+}

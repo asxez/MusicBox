@@ -1,24 +1,21 @@
 # Dependencies
 node_modules/
-src/renderer/node_modules/
-src/renderer/public/
 
 # Build outputs
 dist/
-src/renderer/dist/
-src/main/metadata_editor.exe
-src/main/NativeAudio.node
 build/pyinstaller/
 test-files/
-
-# dotenv environment variables file
-.env
 
 # IDE files
 .vscode/
 .idea/
 .vs/
 
-# Electron
-out/
-app/
+tmp/
+
+.claude
+.codex
+dosdel.bat
+*.docx
+*.doc
+README - 副本.md

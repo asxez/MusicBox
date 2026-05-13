@@ -13,6 +13,11 @@ export interface Result<T = void> {
 }
 
 /**
+ * 事件取消订阅函数
+ */
+export type Unsubscribe = () => void;
+
+/**
  * 选项结果
  */
 export interface OptionResult<T = void> {

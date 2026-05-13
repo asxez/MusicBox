@@ -3,6 +3,10 @@
  * 演示 MusicBox 插件系统的高级功能
  */
 
+function getExtensionAPI(context) {
+    return context.api || createExtensionAPI(context);
+}
+
 // 扩展状态
 let statusBarItem = null;
 let refreshTimer = null;
@@ -24,7 +28,7 @@ function activate(context) {
         settings,
         commands,
         network
-    } = createExtensionAPI(context);
+    } = getExtensionAPI(context);
 
     // 读取配置
     const config = loadConfiguration(settings);
@@ -106,7 +110,7 @@ function loadConfiguration(settings) {
  * 初始化扩展
  */
 async function initializeExtension(context, config) {
-    const {storage, ui} = createExtensionAPI(context);
+    const {storage, ui} = getExtensionAPI(context);
 
     try {
         // 从存储恢复状态
@@ -128,7 +132,7 @@ async function initializeExtension(context, config) {
  * 注册命令
  */
 function registerCommands(context, config) {
-    const {commands, ui, storage, network} = createExtensionAPI(context);
+    const {commands, ui, storage, network} = getExtensionAPI(context);
 
     // Hello 命令
     const helloCommand = commands.registerCommand(
@@ -192,7 +196,7 @@ function registerCommands(context, config) {
  * 设置播放器监听器
  */
 function setupPlayerListeners(context, config) {
-    const {player, ui, storage, window} = createExtensionAPI(context);
+    const {player, ui, storage, window} = getExtensionAPI(context);
 
     // 监听播放状态变化
     const stateListener = player.onPlaybackStateChanged(async (state) => {
@@ -225,7 +229,7 @@ function setupPlayerListeners(context, config) {
  * 设置配置监听器
  */
 function setupConfigurationListener(context) {
-    const {settings, ui} = createExtensionAPI(context);
+    const {settings, ui} = getExtensionAPI(context);
 
     const configListener = settings.onDidChange((event) => {
         if (event.key.startsWith('advancedExample.')) {
@@ -291,7 +295,7 @@ function setupRefreshTimer(context, config) {
  * 刷新数据
  */
 async function refreshData(context, config) {
-    const {player, storage} = createExtensionAPI(context);
+    const {player, storage} = getExtensionAPI(context);
 
     try {
         const state = await player.getState();
@@ -313,7 +317,7 @@ async function refreshData(context, config) {
  * 获取统计信息
  */
 async function getStatistics(context) {
-    const {library, storage} = createExtensionAPI(context);
+    const {library, storage} = getExtensionAPI(context);
 
     try {
         const tracks = await library.getTracks();

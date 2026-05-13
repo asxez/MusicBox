@@ -95,7 +95,7 @@ export class ExtensionInstaller {
                 version: manifest.version,
                 description: manifest.description,
                 author: manifest.author,
-                main: manifest.main,
+                main: this._normalizeManifestMain(manifest.main, manifest.id, prefix),
                 extensionLocation: `userData://extensions/${manifest.id}`,
                 activationEvents: manifest.activationEvents || [],
                 contributes: manifest.contributes || {},
@@ -200,13 +200,30 @@ export class ExtensionInstaller {
         const info = registry.extensions[extensionId];
         if (!info) throw new Error(`扩展 ${extensionId} 未安装`);
 
-        const fullPath = path.join(info.installPath, filePath);
+        const normalizedFilePath = this._normalizeManifestMain(filePath, extensionId);
+        const fullPath = path.join(info.installPath, normalizedFilePath);
         const normalizedPath = path.normalize(fullPath);
         const normalizedInstallPath = path.normalize(info.installPath);
         if (!normalizedPath.startsWith(normalizedInstallPath)) throw new Error(`非法的文件路径: ${filePath}`);
         if (!fs.existsSync(fullPath)) throw new Error(`文件不存在: ${filePath}`);
 
         return fs.readFileSync(fullPath, 'utf-8');
+    }
+
+    private _normalizeManifestMain(main: string, extensionId: string, zipPrefix = ''): string {
+        let normalized = main.replace(/\\/g, '/').replace(/^\/+/, '');
+        const normalizedPrefix = zipPrefix.replace(/\\/g, '/').replace(/^\/+/, '');
+
+        if (normalizedPrefix && normalized.startsWith(normalizedPrefix)) {
+            normalized = normalized.slice(normalizedPrefix.length);
+        }
+
+        const idPrefix = `${extensionId}/`;
+        if (normalized.startsWith(idPrefix)) {
+            normalized = normalized.slice(idPrefix.length);
+        }
+
+        return normalized || main;
     }
 
     private _validateManifest(manifest: any): void {

@@ -1,6 +1,6 @@
 //! MusicBox Native Audio Engine
 //!
-//! 提供WASAPI独占模式音频播放支持
+//! 提供WASAPI共享/独占模式音频播放支持
 
 #[macro_use]
 extern crate napi_derive;
@@ -12,12 +12,12 @@ use std::sync::Arc;
 // 模块声明
 mod core;
 mod decoder;
-mod renderer;
 mod equalizer;
+mod renderer;
 mod utils;
 
 // 重新导出核心类型
-use core::{AudioEngine, ShareMode, EqualizerMode};
+use core::{AudioEngine, EqualizerMode, ShareMode};
 
 /// 创建成功响应对象
 fn create_success_response(env: &mut Env) -> Result<JsObject> {
@@ -54,10 +54,18 @@ impl NativeAudioEngine {
     }
 
     #[napi]
-    pub fn initialize(&mut self, mut env: Env) -> Result<JsObject> {
+    pub fn initialize(&mut self, mut env: Env, share_mode: Option<String>) -> Result<JsObject> {
         println!("🎵 NativeAudioEngine: 初始化WASAPI引擎");
 
         let mut engine = self.engine.lock();
+        if let Some(mode) = share_mode {
+            let share_mode = match ShareMode::from_str(&mode) {
+                Some(m) => m,
+                None => return create_error_response(&mut env, "无效的音频模式"),
+            };
+            engine.set_share_mode(share_mode);
+        }
+
         match engine.initialize() {
             Ok(_) => {
                 let mut response = create_success_response(&mut env)?;
@@ -133,6 +141,45 @@ impl NativeAudioEngine {
         let mut response = create_success_response(&mut env)?;
         response.set_named_property("position", env.create_double(position)?)?;
         Ok(response)
+    }
+
+    #[napi]
+    pub fn get_render_stats(&self, mut env: Env) -> Result<JsObject> {
+        let engine = self.engine.lock();
+        let stats = engine.get_render_stats();
+
+        let mut response = create_success_response(&mut env)?;
+        response.set_named_property("callbacks", env.create_int64(stats.callbacks as i64)?)?;
+        response.set_named_property("underruns", env.create_int64(stats.underruns as i64)?)?;
+        response.set_named_property(
+            "framesWritten",
+            env.create_int64(stats.frames_written as i64)?,
+        )?;
+        response.set_named_property(
+            "samplesWritten",
+            env.create_int64(stats.samples_written as i64)?,
+        )?;
+        response.set_named_property(
+            "bufferMinSamples",
+            env.create_int64(stats.buffer_min_samples as i64)?,
+        )?;
+        response.set_named_property(
+            "bufferMaxSamples",
+            env.create_int64(stats.buffer_max_samples as i64)?,
+        )?;
+        response.set_named_property(
+            "renderErrors",
+            env.create_int64(stats.render_errors as i64)?,
+        )?;
+        response.set_named_property("seekClears", env.create_int64(stats.seek_clears as i64)?)?;
+        Ok(response)
+    }
+
+    #[napi]
+    pub fn reset_render_stats(&self, mut env: Env) -> Result<JsObject> {
+        let engine = self.engine.lock();
+        engine.reset_render_stats();
+        create_success_response(&mut env)
     }
 
     #[napi]

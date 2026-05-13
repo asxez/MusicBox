@@ -3,9 +3,11 @@
  * 提供快捷键注册、管理、执行等功能
  */
 
+import {globalShortcutsGateway} from '@js/infrastructure/electron';
 import {Validator} from '@extensions/api/common/validation';
 import {ErrorUtils, NotFoundError} from '@extensions/api/common/errors';
 import {ExtensionContext, IDisposable, toDisposable} from '@extensions/core';
+import {extensionHostService} from "@services/plugins/ExtensionHostService";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import '@extensions/core/types';
 import {
@@ -128,7 +130,19 @@ export function createKeybindingsAPI(context: ExtensionContext): KeybindingsAPI 
 
                     // 如果是全局快捷键，通知主进程注销
                     if (scope === KeybindingScope.GLOBAL) {
-                        await window.electronAPI.globalShortcuts.unregister();
+                        const shortcutId = Array.from(extensionGlobalShortcutsConfig.entries())
+                            .find(([_id, config]) => config.key === normalizedKey)?.[0];
+
+                        if (shortcutId) {
+                            extensionGlobalShortcutsConfig.delete(shortcutId);
+                        }
+
+                        if (keybindingInfo.globalEventHandler) {
+                            window.removeEventListener('globalShortcutTriggered', keybindingInfo.globalEventHandler as EventListener);
+                        }
+                        await syncGlobalShortcuts();
+                    } else {
+                        disposeLocalKeybindingListenerIfUnused();
                     }
                 }
             }, 'keybindings.unregisterKeybinding');
@@ -277,6 +291,10 @@ async function registerKeybindingInternal(
         // 检查是否已注册
         if (registry.has(normalizedKey)) {
             console.warn(`⚠️ 快捷键 ${normalizedKey} 已注册，将被覆盖`);
+            const existingKeybindingInfo = registry.get(normalizedKey);
+            if (existingKeybindingInfo?.globalEventHandler) {
+                window.removeEventListener('globalShortcutTriggered', existingKeybindingInfo.globalEventHandler as EventListener);
+            }
         }
 
         const keybindingInfo: KeybindingInfo = {
@@ -347,6 +365,8 @@ async function registerKeybindingInternal(
                     // 重新注册所有全局快捷键
                     await syncGlobalShortcuts();
                 }
+            } else {
+                disposeLocalKeybindingListenerIfUnused();
             }
         });
     }, 'keybindings.registerKeybindingInternal');
@@ -370,7 +390,7 @@ async function syncGlobalShortcuts(): Promise<void> {
         });
 
         // 注册所有快捷键
-        await window.electronAPI.globalShortcuts.register(allShortcuts);
+        await globalShortcutsGateway.register(allShortcuts);
     } catch (error) {
         console.error('❌ 同步全局快捷键失败:', error);
     }
@@ -491,19 +511,15 @@ function shouldExecuteKeybinding(keybindingInfo: KeybindingInfo): boolean {
         return true;
     }
 
-    // 获取应用状态（需要从全局访问）
-    const app = (window as any).app;
-    if (!app) {
-        return true; // 如果无法获取应用状态，默认允许执行
-    }
+    const playbackContext = extensionHostService.getPlaybackContext();
 
     switch (when) {
         case KeybindingWhen.PLAYER_PLAYING:
-            return app.isPlaying && app.isPlaying();
+            return playbackContext.isPlaying;
         case KeybindingWhen.PLAYER_PAUSED:
-            return app.isPlaying && !app.isPlaying();
+            return !playbackContext.isPlaying;
         case KeybindingWhen.TRACK_LOADED:
-            return app.currentTrack !== null && app.currentTrack !== undefined;
+            return playbackContext.currentTrack !== null && playbackContext.currentTrack !== undefined;
         case KeybindingWhen.SEARCH_FOCUSED:
             return !!document.activeElement?.classList?.contains('search-input');
         case KeybindingWhen.LYRICS_VISIBLE:
@@ -521,6 +537,12 @@ export function disposeKeybindingListener(): void {
         document.removeEventListener('keydown', keybindingListener);
         keybindingListener = null;
         console.log('🗑️ 局部快捷键监听器已清理');
+    }
+}
+
+function disposeLocalKeybindingListenerIfUnused(): void {
+    if (localKeybindingsRegistry.size === 0) {
+        disposeKeybindingListener();
     }
 }
 

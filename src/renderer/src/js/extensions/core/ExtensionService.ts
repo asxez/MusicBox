@@ -3,7 +3,12 @@
  * 参考 VSCode 的 ExtensionService,提供扩展管理的核心功能
  */
 
-import {ExtensionActivationReason, ExtensionActivator} from '@extensions/core/ExtensionActivator';
+import {extensionsGateway} from '@js/infrastructure/electron';
+import {
+    ExtensionActivationReason,
+    ExtensionActivator,
+    type ExtensionExports
+} from '@extensions/core/ExtensionActivator';
 import {Emitter} from '@extensions/core/Event';
 import {createDecorator, InstantiationService} from '@extensions/core/Instantiation';
 import {
@@ -155,7 +160,7 @@ class ExtensionService extends Disposable {
         try {
             console.log('🔄 ExtensionService: 同步主进程扩展列表');
 
-            const result = await window.electronAPI.extensions.getInstalled();
+            const result = await extensionsGateway.getInstalled();
 
             if (!result.success) {
                 console.warn('⚠️ ExtensionService: 获取主进程扩展列表失败:', result.error);
@@ -489,7 +494,7 @@ class ExtensionService extends Disposable {
         return this._registry.getExtension(extensionId);
     }
 
-    getExtensionExports(extensionId: string): any {
+    getExtensionExports(extensionId: string): ExtensionExports | undefined {
         return this._activator?.getExtensionExports(extensionId);
     }
 
@@ -497,7 +502,7 @@ class ExtensionService extends Disposable {
         try {
             console.log('📦 ExtensionService: 从文件安装扩展', filePath);
 
-            const result = await window.electronAPI.extensions.installFromFile(filePath);
+            const result = await extensionsGateway.installFromFile(filePath);
 
             if (!result.success) {
                 throw new Error(result.error || '安装失败');
@@ -552,7 +557,7 @@ class ExtensionService extends Disposable {
 
             await this._activator!.deactivateExtension(extensionId);
 
-            const result = await window.electronAPI.extensions.uninstall(extensionId, keepData);
+            const result = await extensionsGateway.uninstall(extensionId, keepData);
 
             if (!result.success) {
                 throw new Error(result.error || '卸载失败');
@@ -596,7 +601,7 @@ class ExtensionService extends Disposable {
             if (!descriptor.isBuiltin) {
                 try {
                     console.log(`   ⏳ 同步到主进程...`);
-                    const result = await window.electronAPI.extensions.enable(extensionId);
+                    const result = await extensionsGateway.enable(extensionId);
                     if (result.success) {
                         console.log(`   ✓ 已同步到主进程`);
                     } else {
@@ -643,7 +648,7 @@ class ExtensionService extends Disposable {
             if (!descriptor.isBuiltin) {
                 try {
                     console.log(`   ⏳ 同步到主进程...`);
-                    const result = await window.electronAPI.extensions.disable(extensionId);
+                    const result = await extensionsGateway.disable(extensionId);
                     if (result.success) {
                         console.log(`   ✓ 已同步到主进程`);
                     } else {
@@ -702,7 +707,7 @@ class ExtensionService extends Disposable {
 
     async getInstalledExtensions(): Promise<ExtensionInfo[]> {
         try {
-            const result = await window.electronAPI.extensions.getInstalled();
+            const result = await extensionsGateway.getInstalled();
 
             if (!result.success) {
                 throw new Error(result.error || '获取扩展列表失败');

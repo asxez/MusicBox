@@ -1,0 +1,35 @@
+{
+  "experimentName": "paper-sanity-matrix",
+  "executionOrder": "round_robin",
+  "audioFiles": [
+    {
+      "id": "flac_source_96k",
+      "path": "F:\\WorkSpace\\MusicBox\\MusicBox\\scripts\\benchmarks\\audio\\open-goldberg-aria.flac"
+    },
+    {
+      "id": "mp3_44k",
+      "path": "F:\\WorkSpace\\MusicBox\\MusicBox\\scripts\\benchmarks\\audio\\open-goldberg-aria.mp3"
+    }
+  ],
+  "repetitions": 1,
+  "durationSec": 5,
+  "sampleIntervalMs": 1000,
+  "ipcIterations": 0,
+  "payloadBytes": [],
+  "conditions": [
+    {
+      "id": "webaudio",
+      "backend": "webaudio"
+    },
+    {
+      "id": "wasapi_shared",
+      "backend": "native",
+      "shareMode": "shared"
+    },
+    {
+      "id": "wasapi_exclusive",
+      "backend": "native",
+      "shareMode": "exclusive"
+    }
+  ]
+}

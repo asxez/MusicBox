@@ -3,12 +3,33 @@
  * 参考 VSCode 的扩展激活机制，管理扩展的生命周期
  */
 
+import {extensionsGateway} from '@js/infrastructure/electron';
 import {cacheManager} from '@services/CacheManager';
 import {Disposable, DisposableStore} from '@extensions/core/Lifecycle';
-import {createExtensionAPI} from '@extensions/api/index.js';
+import {createExtensionAPI, type ExtensionAPI} from '@extensions/api/index.js';
 import {ExtensionDescriptor, ExtensionsRegistry} from '@extensions/core/ExtensionsRegistry';
 import {InstantiationService} from '@extensions/core/Instantiation';
+import type {PermissionManager} from '@extensions/core/ExtensionPermissions';
 import './types';
+
+export type ExtensionExports = Record<string, unknown> | object | null;
+
+interface ExtensionModuleClass {
+    new(context: ExtensionContext): {
+        activate?: () => Promise<void> | void;
+        deactivate?: () => Promise<void> | void;
+    };
+}
+
+interface ExtensionModule {
+    activate?: (context: ExtensionContext) => Promise<ExtensionExports> | ExtensionExports;
+    deactivate?: () => Promise<void> | void;
+    default?: ExtensionModuleClass;
+}
+
+interface DeactivatableExtensionExports {
+    deactivate: () => Promise<void> | void;
+}
 
 export class ExtensionActivationTimes {
     readonly startup: boolean;
@@ -41,15 +62,15 @@ export class ExtensionActivationReason {
 export class ActivatedExtension {
     readonly activationFailed: boolean;
     readonly activationTimes: ExtensionActivationTimes;
-    readonly module: any;
-    readonly exports: any;
+    readonly module: ExtensionModule | null;
+    readonly exports: ExtensionExports;
     readonly subscriptions: DisposableStore;
 
     constructor(
         activationFailed: boolean,
         activationTimes: ExtensionActivationTimes,
-        module: any,
-        exports: any,
+        module: ExtensionModule | null,
+        exports: ExtensionExports,
         subscriptions: DisposableStore
     ) {
         this.activationFailed = activationFailed;
@@ -90,12 +111,12 @@ export interface ExtensionContext {
     storageUri: string;
     globalStoragePath: string;
     globalStorageUri: string;
-    api: any;
+    api: ExtensionAPI;
 }
 
 export class ExtensionActivator extends Disposable {
     private _registry: ExtensionsRegistry;
-    private _permissionManager: any;
+    private _permissionManager: PermissionManager | null;
     private _activatedExtensions = new Map<string, ActivatedExtension>();
     private _activatingExtensions = new Map<string, Promise<ActivatedExtension>>();
     private _alreadyActivatedEvents: Record<string, boolean> = {};
@@ -103,15 +124,15 @@ export class ExtensionActivator extends Disposable {
     constructor(
         registry: ExtensionsRegistry,
         _instantiationService: InstantiationService,
-        permissionManager: any = null,
-        _configurationManager: any = null
+        permissionManager: PermissionManager | null = null,
+        _configurationManager: unknown = null
     ) {
         super();
         this._registry = registry;
         this._permissionManager = permissionManager;
 
         if (!window.createExtensionAPI) {
-            // @ts-ignore
+            // Compatibility bridge for legacy script-style extensions. Bundled extensions should use context.api.
             window.createExtensionAPI = createExtensionAPI;
         }
     }
@@ -183,7 +204,7 @@ export class ExtensionActivator extends Disposable {
             const context = this._createExtensionContext(descriptor);
 
             const activateCallStart = Date.now();
-            let exports = null;
+            let exports: ExtensionExports = null;
 
             if (module && typeof module.activate === 'function') {
                 exports = await module.activate(context);
@@ -229,7 +250,7 @@ export class ExtensionActivator extends Disposable {
         }
     }
 
-    private async _loadExtensionModule(descriptor: ExtensionDescriptor): Promise<any> {
+    private async _loadExtensionModule(descriptor: ExtensionDescriptor): Promise<ExtensionModule | null> {
         if (!descriptor.main) {
             return null;
         }
@@ -241,9 +262,10 @@ export class ExtensionActivator extends Disposable {
             console.log(`   - isBuiltin: ${descriptor.isBuiltin}`);
 
             const moduleVarName = this._pathToModuleVarName(descriptor.id);
-            if ((window as any)[moduleVarName]) {
+            const existingModule = this._getWindowExtensionModule(moduleVarName);
+            if (existingModule) {
                 console.log(`✅ ExtensionActivator: 从 window.${moduleVarName} 加载扩展模块`);
-                return (window as any)[moduleVarName];
+                return existingModule;
             }
 
             const fullPath = this._resolveExtensionPath(descriptor);
@@ -256,9 +278,10 @@ export class ExtensionActivator extends Disposable {
                 await this._loadScript(fullPath);
             }
 
-            if ((window as any)[moduleVarName]) {
+            const loadedModule = this._getWindowExtensionModule(moduleVarName);
+            if (loadedModule) {
                 console.log(`✅ ExtensionActivator: 动态加载后从 window.${moduleVarName} 获取模块`);
-                return (window as any)[moduleVarName];
+                return loadedModule;
             }
 
             console.warn(`⚠️ ExtensionActivator: 未找到模块 window.${moduleVarName}`);
@@ -272,7 +295,8 @@ export class ExtensionActivator extends Disposable {
 
     private async _loadExternalExtensionModule(descriptor: ExtensionDescriptor, _moduleVarName: string): Promise<void> {
         try {
-            const result = await window.electronAPI.extensions.readExtensionFile(descriptor.id, descriptor.main || '');
+            const filePath = this._normalizeExternalExtensionMainPath(descriptor);
+            const result = await extensionsGateway.readExtensionFile(descriptor.id, filePath);
 
             if (!result.success) {
                 throw new Error(result.error || '读取扩展文件失败');
@@ -287,7 +311,7 @@ export class ExtensionActivator extends Disposable {
                 })();
             `;
 
-            eval(wrappedCode);
+            globalThis.eval(wrappedCode);
 
             console.log(`✅ ExtensionActivator: 外部插件代码执行完成 ${descriptor.id}`);
 
@@ -295,6 +319,19 @@ export class ExtensionActivator extends Disposable {
             console.error(`❌ ExtensionActivator: 加载外部插件失败 ${descriptor.id}:`, error);
             throw error;
         }
+    }
+
+    private _normalizeExternalExtensionMainPath(descriptor: ExtensionDescriptor): string {
+        const main = (descriptor.main || '').replace(/\\/g, '/').replace(/^\/+/, '');
+        const idPrefix = `${descriptor.id}/`;
+
+        if (main.startsWith(idPrefix)) {
+            const normalized = main.slice(idPrefix.length);
+            console.log(`🔧 ExtensionActivator: 归一化外部插件入口 ${main} -> ${normalized}`);
+            return normalized;
+        }
+
+        return main;
     }
 
     private _resolveExtensionPath(descriptor: ExtensionDescriptor): string | null {
@@ -324,6 +361,21 @@ export class ExtensionActivator extends Disposable {
         return extensionId.replace(/-([a-z])/g, (g) => g[1].toUpperCase()) + 'Extension';
     }
 
+    private _getWindowExtensionModule(moduleVarName: string): ExtensionModule | null {
+        const moduleCandidate = (window as unknown as Record<string, unknown>)[moduleVarName];
+        if (!moduleCandidate || typeof moduleCandidate !== 'object') {
+            return null;
+        }
+
+        return moduleCandidate as ExtensionModule;
+    }
+
+    private _isDeactivatableExports(exports: ExtensionExports | undefined): exports is DeactivatableExtensionExports {
+        return !!exports
+            && typeof exports === 'object'
+            && typeof (exports as Partial<DeactivatableExtensionExports>).deactivate === 'function';
+    }
+
     private _loadScript(src: string): Promise<void> {
         return new Promise((resolve, reject) => {
             const existingScript = document.querySelector(`script[src="${src}"]`);
@@ -349,7 +401,6 @@ export class ExtensionActivator extends Disposable {
             enableLogging: false
         };
 
-        // @ts-ignore
         const context: ExtensionContext = {
             extension: {
                 id: descriptor.id,
@@ -380,18 +431,10 @@ export class ExtensionActivator extends Disposable {
             globalStoragePath: '',
             globalStorageUri: '',
 
-            api: createExtensionAPI(
-                {
-                    // @ts-ignore
-                    extension: {
-                        id: descriptor.id,
-                        name: descriptor.name,
-                        version: descriptor.version,
-                    },
-                },
-                apiOptions
-            )
+            api: null as unknown as ExtensionAPI
         };
+
+        context.api = createExtensionAPI(context, apiOptions);
 
         return context;
     }
@@ -437,7 +480,7 @@ export class ExtensionActivator extends Disposable {
         return this._activatedExtensions.get(extensionId);
     }
 
-    getExtensionExports(extensionId: string): any {
+    getExtensionExports(extensionId: string): ExtensionExports | undefined {
         const activated = this._activatedExtensions.get(extensionId);
         return activated ? activated.exports : undefined;
     }
@@ -451,7 +494,7 @@ export class ExtensionActivator extends Disposable {
         try {
             if (activated.module && typeof activated.module.deactivate === 'function') {
                 await activated.module.deactivate();
-            } else if (activated.exports && typeof activated.exports.deactivate === 'function') {
+            } else if (this._isDeactivatableExports(activated.exports)) {
                 await activated.exports.deactivate();
             }
 

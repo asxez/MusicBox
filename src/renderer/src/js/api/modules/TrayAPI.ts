@@ -3,6 +3,7 @@
  * 提供系统托盘管理功能
  */
 
+import {trayGateway} from '@js/infrastructure/electron';
 import {cacheManager} from '@services/CacheManager';
 import {BaseAPI} from "@api/core";
 
@@ -37,7 +38,7 @@ export class TrayAPI extends BaseAPI {
 
                 // 创建托盘
                 await this.wrapIPC(
-                    () => window.electronAPI.tray.create(),
+                    () => trayGateway.create(),
                     'tray.create'
                 );
 
@@ -53,7 +54,7 @@ export class TrayAPI extends BaseAPI {
                 };
 
                 await this.wrapIPC(
-                    () => window.electronAPI.tray.updateSettings(traySettings),
+                    () => trayGateway.updateSettings(traySettings),
                     'tray.updateSettings'
                 );
 
@@ -72,7 +73,7 @@ export class TrayAPI extends BaseAPI {
     private setupTrayEventListeners(): void {
         try {
             // 退出应用
-            window.electronAPI.tray.onQuit(() => {
+            trayGateway.onQuit(() => {
                 this.log('托盘退出事件触发');
                 window.close();
             });
@@ -86,7 +87,7 @@ export class TrayAPI extends BaseAPI {
      */
     async create(): Promise<void> {
         return this.wrapIPC(
-            () => window.electronAPI.tray.create(),
+            () => trayGateway.create(),
             'tray.create'
         );
     }
@@ -96,7 +97,7 @@ export class TrayAPI extends BaseAPI {
      */
     async destroy(): Promise<void> {
         return this.wrapIPC(
-            () => window.electronAPI.tray.destroy(),
+            () => trayGateway.destroy(),
             'tray.destroy'
         );
     }
@@ -107,7 +108,7 @@ export class TrayAPI extends BaseAPI {
      */
     async updateSettings(settings: Partial<TraySettings>): Promise<void> {
         return this.wrapIPC(
-            () => window.electronAPI.tray.updateSettings(settings),
+            () => trayGateway.updateSettings(settings),
             'tray.updateSettings'
         );
     }

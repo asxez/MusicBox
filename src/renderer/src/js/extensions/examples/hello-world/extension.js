@@ -3,6 +3,10 @@
  * 一个简单的示例扩展，演示如何使用新的插件系统
  */
 
+function getExtensionAPI(context) {
+    return context.api || createExtensionAPI(context);
+}
+
 /**
  * 扩展激活函数
  * @param {Object} context 扩展上下文
@@ -11,7 +15,7 @@ async function activate(context) {
     console.log('🎉 Hello World Extension 已激活!');
 
     // 获取 API
-    const api = createExtensionAPI(context);
+    const api = getExtensionAPI(context);
 
     // 显示欢迎通知
     api.ui.showNotification('Hello World Extension 已加载！', 'success');
