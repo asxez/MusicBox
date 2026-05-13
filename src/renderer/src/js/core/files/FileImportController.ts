@@ -1,6 +1,7 @@
 import {showToast} from '@utils/index.js';
-import {api} from "@api/api";
-import {fileAPI, libraryAPI} from "@api/modules";
+import {fileAPI} from "@api/modules";
+import {libraryController} from "@js/features/library";
+import {playbackController} from "@js/features/playback";
 import type {RendererAppContext} from '@core/types/app';
 
 interface FileImportControllerOptions {
@@ -23,7 +24,7 @@ export class FileImportController {
             const folderPath = await fileAPI.openDirectory();
             if (folderPath) {
                 this.app.showScanProgress();
-                const success = await api.scanDirectory(folderPath);
+                const success = await libraryController.scanDirectory(folderPath);
                 if (success) {
                     showToast('音乐目录扫描成功', 'success');
                 } else {
@@ -41,9 +42,9 @@ export class FileImportController {
             if (filePaths.length > 0) {
                 let successCount = 0;
                 for (const filePath of filePaths) {
-                    const metadata = await libraryAPI.getTrackMetadata(filePath);
+                    const metadata = await libraryController.getTrackMetadata(filePath);
                     if (metadata) {
-                        const result = await api.addTrackToLibrary(metadata);
+                        const result = await libraryController.addTrackToLibrary(metadata);
                         if (result && result.success) {
                             successCount++;
                             console.log('🎉 [App] 文件添加成功:', metadata.title);
@@ -112,9 +113,9 @@ export class FileImportController {
 
     async loadAndPlayFile(filePath: string): Promise<void> {
         try {
-            const success = await api.loadTrack(filePath);
+            const success = await playbackController.loadTrack(filePath);
             if (success) {
-                await api.play();
+                await playbackController.play();
                 this.app.showSuccess(`正常播放: ${filePath.split(/[/\\]/).pop()}`);
             } else {
                 this.app.showError(`无法加载文件: ${filePath}`);
@@ -143,7 +144,7 @@ export class FileImportController {
     async scanDirectory(directoryPath: string): Promise<void> {
         try {
             this.app.showInfo('扫描音乐文件...');
-            const success = await api.scanDirectory(directoryPath);
+            const success = await libraryController.scanDirectory(directoryPath);
             if (success) {
                 this.app.showSuccess('音乐目录扫描完成');
             } else {

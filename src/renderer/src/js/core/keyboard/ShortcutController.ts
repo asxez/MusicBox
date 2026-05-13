@@ -193,15 +193,13 @@ export class ShortcutController {
 
     async handleSystemShortcuts(e: KeyboardEvent): Promise<void> {
         if (e.ctrlKey || e.metaKey) {
-            switch (e.key) {
-                case 'o':
-                    e.preventDefault();
-                    await this.app.addMusicFiles();
-                    break;
-                case 'O':
-                    e.preventDefault();
+            if (e.key.toLowerCase() === 'o') {
+                e.preventDefault();
+                if (e.shiftKey) {
                     await this.app.openDirectoryDialog();
-                    break;
+                } else {
+                    await this.app.addMusicFiles();
+                }
             }
         }
     }

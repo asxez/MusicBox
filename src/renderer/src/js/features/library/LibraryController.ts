@@ -4,6 +4,13 @@ import type {Result} from '@api/types/common';
 import type {CacheValidationResult} from '@api/types/events';
 import type {Track} from '@api/types/library';
 
+export type AddTrackResult = {
+    success: boolean;
+    track?: Track;
+    error?: string;
+    isNew?: boolean;
+};
+
 export type PlaylistCoverResult = {
     success: boolean;
     coverPath?: string;
@@ -17,6 +24,14 @@ class LibraryController {
 
     async scanDirectory(directoryPath: string): Promise<boolean> {
         return await api.scanDirectory(directoryPath);
+    }
+
+    async getTrackMetadata(filePath: string): Promise<Partial<Track> | null> {
+        return await libraryAPI.getTrackMetadata(filePath);
+    }
+
+    async addTrackToLibrary(track: Partial<Track> | unknown): Promise<AddTrackResult> {
+        return await api.addTrackToLibrary(track);
     }
 
     async validateCache(): Promise<CacheValidationResult | null> {
