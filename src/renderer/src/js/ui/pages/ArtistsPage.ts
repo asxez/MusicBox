@@ -4,7 +4,8 @@
 
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@ui/base/Component";
-import {coverAPI, libraryAPI} from "@api/modules";
+import {coverAPI} from "@api/modules";
+import {libraryController} from "@js/features/library";
 import type {Track} from "@api/types/track";
 
 type ArtistViewMode = 'constellation' | 'galaxy';
@@ -79,7 +80,7 @@ class ArtistsPage extends Component {
 
         // 只有在没有tracks数据时才获取，避免重复调用
         if (!this.tracks || this.tracks.length === 0) {
-            this.tracks = await libraryAPI.getTracks() as Track[];
+            this.tracks = await libraryController.getTracks() as Track[];
             this.processArtists();
         }
 

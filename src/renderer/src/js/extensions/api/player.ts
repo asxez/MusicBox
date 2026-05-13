@@ -6,8 +6,8 @@
 import {validate, Validator} from '@extensions/api/common/validation';
 import {ErrorUtils, NotAvailableError} from '@extensions/api/common/errors';
 import {ExtensionContext, IDisposable, toDisposable} from '@extensions/core';
-import {api} from '@api/api';
 import {extensionHostService} from "@services/plugins/ExtensionHostService";
+import {playbackController} from "@js/features/playback";
 import {PlaybackStateType, PlayerAPI, PlayerState, PlayModeType, Track} from "@extensions/api/types/player";
 import type {Track as ApiTrack} from '@api/types/track';
 
@@ -39,11 +39,7 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
     return {
         async play(): Promise<boolean> {
             return ErrorUtils.wrapAsync(async () => {
-                if (typeof api.play === 'function') {
-                    return await api.play();
-                } else {
-                    throw new NotAvailableError('player.play', 'API 未初始化');
-                }
+                return await playbackController.play();
             }, 'player.play');
         },
 
@@ -61,41 +57,25 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
 
         async pause(): Promise<boolean> {
             return ErrorUtils.wrapAsync(async () => {
-                if (typeof api.pause === 'function') {
-                    return await api.pause();
-                } else {
-                    throw new NotAvailableError('player.pause', 'API 未初始化');
-                }
+                return await playbackController.pause();
             }, 'player.pause');
         },
 
         async stop(): Promise<boolean> {
             return ErrorUtils.wrapAsync(async () => {
-                if (typeof api.stop === 'function') {
-                    return await api.stop();
-                } else {
-                    throw new NotAvailableError('player.stop', 'API 未初始化');
-                }
+                return await playbackController.stop();
             }, 'player.stop');
         },
 
         async nextTrack(): Promise<boolean> {
             return ErrorUtils.wrapAsync(async () => {
-                if (typeof api.nextTrack === 'function') {
-                    return await api.nextTrack();
-                } else {
-                    throw new NotAvailableError('player.nextTrack', 'API 未初始化');
-                }
+                return await playbackController.nextTrack();
             }, 'player.nextTrack');
         },
 
         async previousTrack(): Promise<boolean> {
             return ErrorUtils.wrapAsync(async () => {
-                if (typeof api.previousTrack === 'function') {
-                    return await api.previousTrack();
-                } else {
-                    throw new NotAvailableError('player.previousTrack', 'API 未初始化');
-                }
+                return await playbackController.previousTrack();
             }, 'player.previousTrack');
         },
 
@@ -103,44 +83,32 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
             validate.volume(volume);
 
             await ErrorUtils.wrapAsync(async () => {
-                if (typeof api.setVolume === 'function') {
-                    await api.setVolume(volume);
-                } else {
-                    throw new NotAvailableError('player.setVolume', 'API 未初始化');
-                }
+                await playbackController.setVolume(volume);
             }, 'player.setVolume');
         },
 
         getVolume(): number {
             return ErrorUtils.wrapSync(() => {
-                if (typeof api.volume !== 'undefined') {
-                    return api.volume;
-                }
-                return 0.7; // 默认音量
+                return playbackController.getVolume();
             }, 'player.getVolume');
         },
 
         getState(): PlayerState {
             return ErrorUtils.wrapSync(() => {
+                const state = playbackController.getState();
                 return {
-                    isPlaying: api.isPlaying || false,
-                    currentTrack: api.currentTrack || null,
-                    position: api.position || 0,
-                    duration: api.duration || 0,
-                    volume: api.volume || 0.7
+                    isPlaying: state.isPlaying,
+                    currentTrack: state.currentTrack as unknown as Track | null,
+                    position: state.position,
+                    duration: state.duration,
+                    volume: state.volume
                 };
             }, 'player.getState');
         },
 
         getCurrentTrack(): Track | null {
             return ErrorUtils.wrapSync(() => {
-                if (typeof api.getCurrentTrack === 'function') {
-                    return api.getCurrentTrack();
-                }
-                if (api.currentTrack) {
-                    return api.currentTrack;
-                }
-                return null;
+                return playbackController.getCurrentTrackSnapshot() as unknown as Track | null;
             }, 'player.getCurrentTrack');
         },
 
@@ -148,29 +116,19 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
             validate.time(time);
 
             return ErrorUtils.wrapAsync(async () => {
-                if (typeof api.seek === 'function') {
-                    return await api.seek(time);
-                } else {
-                    throw new NotAvailableError('player.seek', 'API 未初始化');
-                }
+                return await playbackController.seek(time);
             }, 'player.seek');
         },
 
         async getPosition(): Promise<number> {
             return await ErrorUtils.wrapAsync(async () => {
-                if (typeof api.getPosition === 'function') {
-                    return await api.getPosition();
-                }
-                return 0;
+                return await playbackController.getPosition();
             }, 'player.getPosition');
         },
 
         getDuration(): number {
             return ErrorUtils.wrapSync(() => {
-                if (typeof api.getDuration === 'function') {
-                    return api.getDuration();
-                }
-                return 0;
+                return playbackController.getDuration();
             }, 'player.getDuration');
         },
 
@@ -181,20 +139,13 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
             }
 
             return ErrorUtils.wrapAsync(async () => {
-                if (typeof api.setPlaylist === 'function') {
-                    return await api.setPlaylist(tracks as unknown as ApiTrack[], startIndex);
-                } else {
-                    throw new NotAvailableError('player.setPlaylist', 'API 未初始化');
-                }
+                return await playbackController.setPlaylist(tracks as unknown as ApiTrack[], startIndex);
             }, 'player.setPlaylist');
         },
 
         getPlaylist(): Track[] {
             return ErrorUtils.wrapSync(() => {
-                if (Array.isArray(api.playlist)) {
-                    return [...api.playlist] as unknown as Track[];
-                }
-                return [];
+                return [...playbackController.getPlaylist()] as unknown as Track[];
             }, 'player.getPlaylist');
         },
 
@@ -206,18 +157,13 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
             );
 
             ErrorUtils.wrapSync(() => {
-                if (typeof api.setPlayMode === 'function') {
-                    api.setPlayMode(mode);
-                } else api.playMode = mode;
+                playbackController.setPlayMode(mode);
             }, 'player.setPlayMode');
         },
 
         getPlayMode(): PlayModeType {
             return ErrorUtils.wrapSync(() => {
-                if (api.playMode) {
-                    return api.playMode as PlayModeType;
-                }
-                return PlayMode.SEQUENCE;
+                return playbackController.getPlayMode() as PlayModeType || PlayMode.SEQUENCE;
             }, 'player.getPlayMode');
         },
 
@@ -225,16 +171,8 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
             Validator.assertFunction(callback, 'callback');
 
             return ErrorUtils.wrapSync(() => {
-                if (typeof api.on === 'function') {
-                    api.on('trackChanged', callback);
-                    return toDisposable(() => {
-                        if (api && typeof api.off === 'function') {
-                            api.off('trackChanged', callback);
-                        }
-                    });
-                }
-                return toDisposable(() => {
-                });
+                const unsubscribe = playbackController.on('trackChanged', callback as any);
+                return toDisposable(unsubscribe);
             }, 'player.onTrackChanged');
         },
 
@@ -242,16 +180,8 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
             Validator.assertFunction(callback, 'callback');
 
             return ErrorUtils.wrapSync(() => {
-                if (typeof api.on === 'function') {
-                    api.on('playbackStateChanged', callback);
-                    return toDisposable(() => {
-                        if (api && typeof api.off === 'function') {
-                            api.off('playbackStateChanged', callback);
-                        }
-                    });
-                }
-                return toDisposable(() => {
-                });
+                const unsubscribe = playbackController.on('playbackStateChanged', callback as any);
+                return toDisposable(unsubscribe);
             }, 'player.onPlaybackStateChanged');
         }
     };

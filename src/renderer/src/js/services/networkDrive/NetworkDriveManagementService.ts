@@ -1,4 +1,4 @@
-import {libraryAPI} from "@api/modules";
+import {libraryController} from "@js/features/library";
 import {libraryGateway, networkDriveGateway} from "@js/infrastructure/electron";
 import type {Unsubscribe} from "@api/types/common";
 import type {ScanProgress} from "@api/types/events";
@@ -26,7 +26,7 @@ class NetworkDriveManagementService {
     }
 
     scanNetworkDrive(driveId: string, relativePath = '/'): Promise<boolean> {
-        return libraryAPI.scanNetworkDrive(driveId, relativePath);
+        return libraryController.scanNetworkDrive(driveId, relativePath);
     }
 
     unmount(driveId: string): Promise<boolean> {

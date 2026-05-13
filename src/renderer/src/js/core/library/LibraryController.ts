@@ -1,7 +1,7 @@
 import {cacheManager} from "@services/CacheManager";
 import {localCoverManager} from "@services/cover/LocalCoverManager";
-import {api} from "@api/api";
-import {libraryAPI} from "@api/modules";
+import {libraryController as libraryFeatureController} from "@js/features/library";
+import {playbackController} from "@js/features/playback";
 import type {MusicBoxAPIEvents} from "@api/types/events";
 import type {Track} from "@api/types/track";
 import type {RendererAppContext} from "@core/types/app";
@@ -28,11 +28,11 @@ export class LibraryController {
         const app = this.app;
 
         try {
-            const hasCachedLibrary = await libraryAPI.hasCachedLibrary();
+            const hasCachedLibrary = await libraryFeatureController.hasCachedLibrary();
             if (hasCachedLibrary) {
                 app.showCacheLoadingStatus();
 
-                app.library = await api.loadCachedTracks();
+                app.library = await libraryFeatureController.loadCachedTracks();
                 if (app.library.length > 0) {
                     app.filteredLibrary = [...app.library];
                     if (app.currentView === 'library') {
@@ -46,7 +46,7 @@ export class LibraryController {
                 }
             }
 
-            app.library = await libraryAPI.getTracks();
+            app.library = await libraryFeatureController.getTracks();
             if (app.library.length === 0) {
                 app.showWelcomeScreen();
             } else {
@@ -108,7 +108,7 @@ export class LibraryController {
                 console.warn('⚠️ 后台缓存验证失败:', error);
             });
 
-            await api.validateCache();
+            await libraryFeatureController.validateCache();
         } catch (error) {
             console.warn('⚠️ 后台缓存验证失败:', error);
         }
@@ -118,7 +118,7 @@ export class LibraryController {
         const app = this.app;
 
         try {
-            app.library = await libraryAPI.getTracks();
+            app.library = await libraryFeatureController.getTracks();
             app.filteredLibrary = [...app.library];
             app.updateTrackList('refresh');
         } catch (error) {
@@ -200,7 +200,7 @@ export class LibraryController {
         }
 
         try {
-            const result = await libraryAPI.removeTrack(track.fileId as string);
+            const result = await libraryFeatureController.removeTrack(track.fileId as string);
             if (result.success) {
                 const libraryIndex = app.library.findIndex(t => t.fileId === track.fileId);
                 if (libraryIndex !== -1) {
@@ -220,7 +220,7 @@ export class LibraryController {
                 }
 
                 this.updateTrackList('track-deleted');
-                api.emit('libraryUpdated');
+                libraryFeatureController.emitLibraryUpdated();
                 app.showInfo(`已从音乐库删除 "${track.title}"`);
             } else {
                 app.showError(result.error || '删除失败');
@@ -261,7 +261,7 @@ export class LibraryController {
             const t = app.filteredLibrary[i];
             if (!t) continue;
             try {
-                const result = await libraryAPI.removeTrack(t.fileId as string);
+                const result = await libraryFeatureController.removeTrack(t.fileId as string);
                 if (result.success) {
                     successCount++;
                     const libIdx = app.library.findIndex(x => x.fileId === t.fileId);
@@ -278,7 +278,7 @@ export class LibraryController {
         app.components.trackList.lastSelectedIndex = -1;
 
         this.updateTrackList('track-deleted');
-        api.emit('libraryUpdated');
+        libraryFeatureController.emitLibraryUpdated();
         app.showInfo(`已从音乐库删除 ${successCount} 首歌曲`);
     }
 
@@ -330,8 +330,9 @@ export class LibraryController {
                 }
             }
 
-            if (api.currentTrack && api.currentTrack.filePath === track.filePath) {
-                Object.assign(api.currentTrack, {
+            const currentTrack = playbackController.getCurrentTrackSnapshot();
+            if (currentTrack && currentTrack.filePath === track.filePath) {
+                Object.assign(currentTrack, {
                     title: updatedData.title,
                     artist: updatedData.artist,
                     album: updatedData.album,
@@ -340,7 +341,7 @@ export class LibraryController {
                     cover: updatedData.cover
                 });
                 if (app.components.player) {
-                    await app.components.player.updateTrackInfo(api.currentTrack);
+                    await app.components.player.updateTrackInfo(currentTrack);
                 }
             }
 

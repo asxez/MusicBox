@@ -1,4 +1,4 @@
-import {api} from "@api/api";
+import {appEventController} from "@js/features/events";
 import {playbackController} from "@js/features/playback";
 import type {MusicBoxAPIEvents} from '@api/types/events';
 import type {ManagedAPIListener, RendererAppContext} from '@core/types/app';
@@ -18,14 +18,14 @@ export class APIEventBinder {
         event: K,
         handler: (payload: MusicBoxAPIEvents[K]) => void | Promise<void>
     ): void {
-        api.on(event, handler);
+        appEventController.on(event, handler);
         this.apiEventListeners.push({event, handler} as ManagedAPIListener);
     }
 
     dispose(): void {
         this.apiEventListeners.forEach(({event, handler}) => {
             try {
-                api.off(event, handler);
+                appEventController.off(event, handler as any);
             } catch (error) {
                 console.warn('Failed to remove API event listener:', error);
             }

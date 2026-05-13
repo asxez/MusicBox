@@ -1,4 +1,5 @@
-import {libraryAPI, windowAPI} from "@api/modules";
+import {windowAPI} from "@api/modules";
+import {libraryController} from "@js/features/library";
 import {libraryGateway, networkDriveGateway} from "@js/infrastructure/electron";
 import type {Result, Unsubscribe} from "@api/types/common";
 import type {MountedNetworkDrive} from "@api/types/electron";
@@ -38,11 +39,11 @@ class NavigationDataService {
     }
 
     async getPlaylists(): Promise<Playlist[]> {
-        return libraryAPI.getPlaylists();
+        return libraryController.getPlaylists();
     }
 
     async deletePlaylist(playlistId: string): Promise<Result> {
-        return libraryAPI.deletePlaylist(playlistId);
+        return libraryController.deletePlaylist(playlistId);
     }
 
     async getMountedNetworkDrives(): Promise<MountedNetworkDrive[]> {

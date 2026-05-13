@@ -18,6 +18,10 @@ export interface CacheValidationResult {
     tracks?: Track[];
 }
 
+export interface AudioEngineChangedEvent {
+    engineType?: string;
+}
+
 export interface MusicBoxAPIEvents {
     trackChanged: Track | null;
     trackIndexChanged: number;
@@ -27,6 +31,7 @@ export interface MusicBoxAPIEvents {
     volumeChanged: number;
     playlistChanged: Track[];
     playModeChanged: PlayMode;
+    audioEngineChanged: AudioEngineChangedEvent;
     libraryUpdated: Track[] | undefined;
     scanProgress: ScanProgress;
     cacheValidationProgress: ScanProgress;

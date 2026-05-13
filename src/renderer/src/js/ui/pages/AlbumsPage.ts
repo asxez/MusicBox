@@ -5,7 +5,8 @@
 
 import {formatTime} from "@utils/index.js";
 import {Component} from "@ui/base/Component";
-import {coverAPI, libraryAPI} from "@api/modules";
+import {coverAPI} from "@api/modules";
+import {libraryController} from "@js/features/library";
 import type {Track} from "@api/types/library";
 
 type AlbumViewSize = 's' | 'm' | 'l';
@@ -86,7 +87,7 @@ class AlbumsPage extends Component {
 
         // 只有在没有tracks数据时才获取，避免重复调用
         if (!this.tracks || this.tracks.length === 0) {
-            this.tracks = await libraryAPI.getTracks();
+            this.tracks = await libraryController.getTracks();
             this._lastTracksHash = this._generateTracksHash(this.tracks);
             this.processAlbums();
         }

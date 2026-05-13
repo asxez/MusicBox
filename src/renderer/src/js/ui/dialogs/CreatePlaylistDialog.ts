@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {libraryAPI} from "@api/modules";
+import {libraryController} from "@js/features/library";
 
 interface TrackToAdd {
     fileId?: string;
@@ -146,12 +146,12 @@ class CreatePlaylistDialog extends Component {
             // 显示加载状态
             this.confirmBtn.disabled = true;
             this.confirmBtn.textContent = '创建中...';
-            const result = await libraryAPI.createPlaylist(name, description) as PlaylistResult;
+            const result = await libraryController.createPlaylist(name, description) as PlaylistResult;
             if (result.success && result.playlist) {
                 // 如果有要添加的歌曲，立即添加
                 if (this.currentTrackToAdd?.fileId) {
                     try {
-                        await libraryAPI.addToPlaylist(
+                        await libraryController.addToPlaylist(
                             result.playlist.id,
                             this.currentTrackToAdd.fileId
                         );

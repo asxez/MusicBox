@@ -15,7 +15,7 @@ import {PlaylistController} from './playlists/PlaylistController';
 import {cacheManager} from "@services/CacheManager";
 import {extensionHostService} from "@services/plugins/ExtensionHostService";
 import {appInteractionService} from "@services/ui/AppInteractionService";
-import {api} from "@api/api";
+import {playbackController as playbackFeatureController} from "@js/features/playback";
 
 import {updateAPI} from "@api/modules";
 import type {MusicBoxAPIEvents, ScanProgress} from "@api/types/events";
@@ -112,7 +112,7 @@ export class MusicBoxApp extends EventEmitter {
             // 恢复音量
             const savedVolume = cacheManager.getLocalCache('volume');
             if (savedVolume !== null) {
-                await api.setVolume(savedVolume);
+                await playbackFeatureController.setVolume(savedVolume);
                 await this.components.player.updateUI();
             }
 
@@ -140,8 +140,8 @@ export class MusicBoxApp extends EventEmitter {
     }
 
     async initializeAPI(): Promise<void> {
-        api.setPlayMode(cacheManager.getLocalCache('playMode') as any);
-        const success = await api.initializeAudio();
+        playbackFeatureController.setPlayMode(cacheManager.getLocalCache('playMode') as any);
+        const success = await playbackFeatureController.initializeAudio();
         if (!success) {
             throw new Error('Failed to initialize audio engine');
         }

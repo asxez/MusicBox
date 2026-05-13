@@ -6,7 +6,7 @@ import {Component} from "@ui/base/Component";
 import {libraryController} from "@js/features/library";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
 import {appInteractionService} from "@services/ui/AppInteractionService";
-import {coverAPI, fileAPI, libraryAPI} from "@api/modules";
+import {coverAPI, fileAPI} from "@api/modules";
 import type {Unsubscribe} from "@api/types/common";
 import type {Playlist, Track} from "@api/types/library";
 
@@ -382,7 +382,7 @@ class PlaylistDetailPage extends Component {
     async loadPlaylistTracks(): Promise<void> {
         if (!this.currentPlaylist) return;
         try {
-            const result = await libraryAPI.getPlaylistDetail(this.currentPlaylist.id);
+            const result = await libraryController.getPlaylistDetail(this.currentPlaylist.id);
             if (result.success) {
                 this.tracks = (result.tracks || result.playlist?.tracks || []) as PlaylistDetailTrack[];
 
@@ -696,7 +696,7 @@ class PlaylistDetailPage extends Component {
         try {
             // 批量移除所有歌曲
             const trackIds = this.tracks.map((track) => track.fileId).filter((fileId): fileId is string => Boolean(fileId));
-            const result = await libraryAPI.removeFromPlaylist(
+            const result = await libraryController.removeFromPlaylist(
                 this.currentPlaylist.id,
                 trackIds
             );
@@ -817,7 +817,7 @@ class PlaylistDetailPage extends Component {
                 const track = this.tracks[index];
                 if (track) {
                     try {
-                        const result = await libraryAPI.removeFromPlaylist(
+                        const result = await libraryController.removeFromPlaylist(
                             this.currentPlaylist!.id,
                             track.fileId ? [track.fileId] : []
                         );
@@ -872,7 +872,7 @@ class PlaylistDetailPage extends Component {
         }
 
         try {
-            const result = await libraryAPI.removeFromPlaylist(
+            const result = await libraryController.removeFromPlaylist(
                 this.currentPlaylist!.id,
                 track.fileId ? [track.fileId] : []
             );
@@ -1227,7 +1227,7 @@ class PlaylistDetailPage extends Component {
     // 扫描文件夹中的音频文件
     async scanFolderForAudioFiles(folderPath: string): Promise<any[]> {
         try {
-            const result = await libraryAPI.scanDirectoryForFiles(folderPath);
+            const result = await libraryController.scanDirectoryForFiles(folderPath);
             if (result && result.success && result.files) {
                 return result.files;
             } else {
@@ -1255,10 +1255,10 @@ class PlaylistDetailPage extends Component {
             for (const audioFile of audioFiles) {
                 try {
                     // 首先确保文件在音乐库中
-                    const addToLibraryResult = await libraryAPI.addTrackToLibrary(audioFile);
+                    const addToLibraryResult = await libraryController.addTrackToLibrary(audioFile);
                     if (addToLibraryResult && addToLibraryResult.success && addToLibraryResult.track) {
                         // 添加到歌单
-                        const addToPlaylistResult = await libraryAPI.addToPlaylist(
+                        const addToPlaylistResult = await libraryController.addToPlaylist(
                             this.currentPlaylist.id,
                             addToLibraryResult.track.fileId ? [addToLibraryResult.track.fileId] : []
                         );

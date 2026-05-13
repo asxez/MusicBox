@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {libraryAPI} from "@api/modules";
+import {libraryController} from "@js/features/library";
 import type {Playlist, Track} from "@api/types/library";
 
 class AddToPlaylistDialog extends Component {
@@ -87,7 +87,7 @@ class AddToPlaylistDialog extends Component {
 
     async loadPlaylists(): Promise<void> {
         try {
-            this.playlists = await libraryAPI.getPlaylists();
+            this.playlists = await libraryController.getPlaylists();
             this.renderPlaylistList();
         } catch (error) {
             console.error('❌ 加载歌单列表失败:', error);
@@ -136,7 +136,7 @@ class AddToPlaylistDialog extends Component {
         }
 
         try {
-            const result = await libraryAPI.addToPlaylist(
+            const result = await libraryController.addToPlaylist(
                 playlistId,
                 this.currentTrack.fileId
             );

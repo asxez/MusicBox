@@ -3,7 +3,8 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {coverAPI, fileAPI, libraryAPI} from "@api/modules";
+import {coverAPI, fileAPI} from "@api/modules";
+import {libraryController} from "@js/features/library";
 import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import type {Track} from "@api/types/library";
@@ -892,7 +893,7 @@ class EditTrackInfoDialog extends Component {
             console.log('📝 EditTrackInfoDialog: 开始保存歌曲信息', updatedData.title);
 
             // 调用主进程保存更改
-            const result = await libraryAPI.updateTrackMetadata(updatedData) as MetadataUpdateResult;
+            const result = await libraryController.updateTrackMetadata(updatedData) as MetadataUpdateResult;
 
             if (result.success) {
                 console.log('✅ EditTrackInfoDialog: 歌曲信息保存成功');

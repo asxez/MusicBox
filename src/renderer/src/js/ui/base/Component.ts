@@ -1,5 +1,6 @@
 import {EventEmitter} from '@utils/index.js';
-import {api} from "@api/api";
+import {appEventController} from "@js/features/events";
+import type {KnownEventName} from "@js/features/events";
 
 type ManagedEventTarget = EventTarget & {
     addEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean): void;
@@ -14,7 +15,7 @@ interface ManagedDOMListener {
 }
 
 interface ManagedAPIListener {
-    event: string;
+    event: KnownEventName;
     handler: (...args: any[]) => void;
 }
 
@@ -66,15 +67,15 @@ class Component extends EventEmitter {
     }
 
     // 添加API事件监听器
-    addAPIEventListenerManaged(event: string, handler: (...args: any[]) => void): () => void {
-        api.on(event, handler);
+    addAPIEventListenerManaged(event: KnownEventName, handler: (...args: any[]) => void): () => void {
+        appEventController.on(event, handler as any);
         this.apiEventListeners.push({event, handler});
         return () => this.removeAPIEventListenerManaged(event, handler);
     }
 
     // 移除特定API事件监听器
-    removeAPIEventListenerManaged(event: string, handler: (...args: any[]) => void): void {
-        api.off(event, handler);
+    removeAPIEventListenerManaged(event: KnownEventName, handler: (...args: any[]) => void): void {
+        appEventController.off(event, handler as any);
         this.apiEventListeners = this.apiEventListeners.filter(
             (listener) => !(listener.event === event && listener.handler === handler)
         );
@@ -109,10 +110,8 @@ class Component extends EventEmitter {
         console.log(`🗑️ Component: 移除 ${this.apiEventListeners.length} 个API事件监听器`);
         this.apiEventListeners.forEach(({event, handler}) => {
             try {
-                if (typeof api !== 'undefined' && api && api.off) {
-                    console.log(`🗑️ Component: 移除API事件监听器 ${event}`);
-                    api.off(event, handler);
-                }
+                console.log(`🗑️ Component: 移除API事件监听器 ${event}`);
+                appEventController.off(event, handler as any);
             } catch (error) {
                 console.warn('⚠️ Failed to remove API event listener:', error);
             }

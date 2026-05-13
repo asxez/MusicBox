@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {libraryAPI} from "@api/modules";
+import {libraryController} from "@js/features/library";
 
 interface PlaylistLike {
     id: string;
@@ -140,7 +140,7 @@ class RenamePlaylistDialog extends Component {
         try {
             this.confirmBtn.disabled = true;
             this.confirmBtn.textContent = '重命名中...';
-            const result = await libraryAPI.renamePlaylist(this.currentPlaylist.id, newName) as RenamePlaylistResult;
+            const result = await libraryController.renamePlaylist(this.currentPlaylist.id, newName) as RenamePlaylistResult;
 
             if (result.success) {
                 // 触发重命名成功事件

@@ -4,7 +4,8 @@
 
 import {cacheManager} from "@services/CacheManager";
 import {Component} from "@ui/base/Component";
-import {libraryAPI, userDataAPI} from "@api/modules";
+import {userDataAPI} from "@api/modules";
+import {libraryController} from "@js/features/library";
 import type {Track} from "@api/types/library";
 import type {DiaryData, MoodData} from "@api/types/userdata";
 
@@ -88,7 +89,7 @@ class StatisticsPage extends Component {
         if (this.element) {
             (this.element as HTMLElement).style.display = 'block';
         }
-        this.tracks = await libraryAPI.getTracks();
+        this.tracks = await libraryController.getTracks();
         this.loadPlayHistory();
         this.moodHistory = await userDataAPI.getMoodHistory();
         this.diaryHistory = await userDataAPI.getDiaryHistory() as DiaryEntry[];

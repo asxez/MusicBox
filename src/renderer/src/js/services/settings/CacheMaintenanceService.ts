@@ -1,4 +1,3 @@
-import {libraryAPI} from "@api/modules";
 import {libraryController} from "@js/features/library";
 import {libraryGateway} from "@js/infrastructure/electron";
 import type {Result} from "@api/types/common";
@@ -13,7 +12,7 @@ export interface CacheStatisticsView {
 
 class CacheMaintenanceService {
     getStatistics(): Promise<CacheStatisticsView | null> {
-        return libraryAPI.getCacheStatistics() as Promise<CacheStatisticsView | null>;
+        return libraryController.getCacheStatistics() as Promise<CacheStatisticsView | null>;
     }
 
     validate(): Promise<CacheValidationResult | null> {

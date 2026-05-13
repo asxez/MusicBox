@@ -14,7 +14,8 @@ type PlaybackEventName =
     | 'playbackStateChanged'
     | 'volumeChanged'
     | 'trackChanged'
-    | 'trackIndexChanged';
+    | 'trackIndexChanged'
+    | 'audioEngineChanged';
 
 type PlaybackEventHandler<K extends PlaybackEventName> = (payload: MusicBoxAPIEvents[K]) => void;
 
@@ -73,6 +74,14 @@ class PlaybackController {
         return await api.pause();
     }
 
+    async stop(): Promise<boolean> {
+        return await api.stop();
+    }
+
+    async initializeAudio(): Promise<boolean> {
+        return await api.initializeAudio();
+    }
+
     async loadTrack(filePath: string): Promise<boolean> {
         return await api.loadTrack(filePath);
     }
@@ -121,6 +130,14 @@ class PlaybackController {
         return this.store.getState().volume;
     }
 
+    isPlaying(): boolean {
+        return this.store.getState().isPlaying;
+    }
+
+    async getPosition(): Promise<number> {
+        return await api.getPosition();
+    }
+
     getCurrentTrack(): Track | null {
         return api.getCurrentTrack?.() ?? null;
     }
@@ -138,6 +155,10 @@ class PlaybackController {
     }
 
     getDuration(): number {
+        return this.store.getState().duration;
+    }
+
+    getDurationSnapshot(): number {
         return this.store.getState().duration;
     }
 

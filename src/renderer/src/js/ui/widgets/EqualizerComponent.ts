@@ -5,7 +5,7 @@
 import {cacheManager} from "@services/CacheManager";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import {Component} from "@ui/base/Component";
-import {api} from "@api/api";
+import {equalizerController} from "@js/features/equalizer";
 
 interface EqualizerFrequencyPoint {
     frequency: number;
@@ -235,20 +235,14 @@ class EqualizerComponent extends Component {
 
     async initializeEqualizer(): Promise<void> {
         // 等待API初始化
-        if (api.getEqualizer) {
-            this.equalizer = api.getEqualizer() as EqualizerBridge | null;
-            if (this.equalizer) {
-                if (cacheManager) {
-                    this.reloadConfig();
-                } else {
-                    this.loadSettings();
-                    this.updatePresetSelect();
-                }
-                // console.log('✅ 均衡器组件初始化成功');
+        const equalizer = equalizerController.getEqualizer<EqualizerBridge>();
+        if (equalizer) {
+            this.equalizer = equalizer;
+            if (cacheManager) {
+                this.reloadConfig();
             } else {
-                // console.log('⏳ 均衡器实例为空，延迟重试...');
-                // 延迟初始化
-                setTimeout(() => this.initializeEqualizer(), 100);
+                this.loadSettings();
+                this.updatePresetSelect();
             }
         } else {
             setTimeout(() => this.initializeEqualizer(), 100);
@@ -256,11 +250,7 @@ class EqualizerComponent extends Component {
     }
 
     async refreshEqualizerReference(): Promise<boolean> {
-        if (!api.getEqualizer) {
-            return false;
-        }
-
-        const latestEqualizer = api.getEqualizer() as EqualizerBridge | null;
+        const latestEqualizer = equalizerController.getEqualizer<EqualizerBridge>();
         if (!latestEqualizer) {
             return false;
         }
@@ -290,7 +280,7 @@ class EqualizerComponent extends Component {
         this.isEnabled = enabled;
 
         // 更新音频引擎
-        api.setEqualizerEnabled(enabled);
+        equalizerController.setEqualizerEnabled(enabled);
         // console.log(`🎛️ 音频引擎均衡器状态已更新: ${enabled}`);
 
         // 更新UI状态（避免触发change事件）
@@ -469,9 +459,7 @@ class EqualizerComponent extends Component {
             }
 
             // 直接更新音频引擎状态，不通过setEnabled避免递归
-            if (api && api.setEqualizerEnabled) {
-                api.setEqualizerEnabled(this.isEnabled);
-            }
+            equalizerController.setEqualizerEnabled(this.isEnabled);
 
             // 更新UI状态
             if (this.equalizerSettings) {
@@ -555,7 +543,7 @@ class EqualizerComponent extends Component {
             this.equalizerSettings.classList.add('disabled');
         }
 
-        api.setEqualizerEnabled(false);
+        equalizerController.setEqualizerEnabled(false);
     }
 
     saveSettings(): void {

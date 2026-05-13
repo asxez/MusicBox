@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {libraryAPI} from "@api/modules";
+import {libraryController} from "@js/features/library";
 import type {Playlist, Track} from "@api/types/library";
 
 type PlaylistWithTrackIds = Playlist & {trackIds?: string[]};
@@ -116,7 +116,7 @@ class MusicLibrarySelectionDialog extends Component {
             `;
 
             // 获取所有音乐
-            const tracks = await libraryAPI.getTracks();
+            const tracks = await libraryController.getTracks();
             this.allTracks = tracks || [];
 
             // 过滤掉已在歌单中的歌曲
@@ -308,7 +308,7 @@ class MusicLibrarySelectionDialog extends Component {
             // 批量添加歌曲
             for (const trackId of selectedTrackIds) {
                 try {
-                    const result = await libraryAPI.addToPlaylist(
+                    const result = await libraryController.addToPlaylist(
                         this.currentPlaylist.id,
                         trackId
                     );

@@ -2,13 +2,14 @@
  * 参量均衡器UI组件
  */
 
-import {api} from "@api/api";
+import {equalizerController} from "@js/features/equalizer";
 import type {AudioEngineManagerBridge} from "@api/audio/AudioEngineAdapter";
 import {Component} from "@ui/base/Component";
 import {showInputDialog} from "@js/utils/InputDialog";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import type ParametricEqualizer from "@services/audio/ParametricEqualizer";
 import type {ParametricFilterType} from "@services/audio/ParametricEqualizerPresets";
+import type {AudioEngineChangedEvent} from "@api/types/events";
 
 type ParametricBand = ReturnType<ParametricEqualizer["getBands"]>[number];
 
@@ -25,10 +26,6 @@ interface ParametricEngineBridge {
 interface ParametricAudioEngine extends AudioEngineManagerBridge {
     engineType?: string;
     currentEngine?: (AudioEngineManagerBridge["currentEngine"] & Partial<ParametricEngineBridge>) | null;
-}
-
-interface AudioEngineChangedEvent {
-    engineType?: string;
 }
 
 class ParametricEqualizerComponent extends Component {
@@ -230,7 +227,7 @@ class ParametricEqualizerComponent extends Component {
             return this.equalizer !== null;
         }
 
-        const audioEngine = api.audioEngine as ParametricAudioEngine | null;
+        const audioEngine = equalizerController.getAudioEngine<ParametricAudioEngine>();
         if (audioEngine?.currentEngine) {
             const engineType = typeof audioEngine.getEngineType === 'function'
                 ? audioEngine.getEngineType()
