@@ -5,7 +5,7 @@
 
 import {validate} from '@extensions/api/common/validation';
 import {ErrorUtils, NotAvailableError} from '@extensions/api/common/errors';
-import {app} from '@core/app';
+import {extensionHostService} from "@services/plugins/ExtensionHostService";
 import {ExtensionContext} from "@extensions/core";
 import {NavigationAPI} from "@extensions/api/types/navigation";
 
@@ -20,9 +20,9 @@ export function createNavigationAPI(_context: ExtensionContext): NavigationAPI {
             validate.viewId(viewId);
 
             return ErrorUtils.wrapSync(() => {
-                if (app && app.components && app.components.navigation) {
-                    app.components.navigation.navigateToView(viewId);
-                } else {
+                try {
+                    extensionHostService.navigateToView(viewId);
+                } catch (_error) {
                     throw new NotAvailableError('navigation.navigateTo', '导航组件不可用');
                 }
             }, 'navigation.navigateTo');
@@ -44,10 +44,7 @@ export function createNavigationAPI(_context: ExtensionContext): NavigationAPI {
 
         getCurrentView(): string | null {
             return ErrorUtils.wrapSync(() => {
-                if (app && app.currentView) {
-                    return app.currentView;
-                }
-                return null;
+                return extensionHostService.getCurrentView();
             }, 'navigation.getCurrentView');
         }
     };

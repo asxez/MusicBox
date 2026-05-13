@@ -4,6 +4,7 @@
  */
 
 import {app} from 'electron';
+import * as fs from 'fs';
 import {ServiceContainer} from './ServiceContainer';
 import {WindowManager} from './WindowManager';
 import {ConfigManager} from './ConfigManager';
@@ -48,12 +49,14 @@ export class Application {
     private configManager: ConfigManager;
     private controllers: BaseController[] = [];
     private isInitialized = false;
+    private isConfigured = false;
     private perfTimer = new PerformanceTimer();
 
     constructor() {
         this.container = new ServiceContainer();
         this.configManager = new ConfigManager();
         this.windowManager = new WindowManager();
+        this.applyConfiguration();
     }
 
     /**
@@ -93,18 +96,45 @@ export class Application {
             console.log('✅ 应用窗口已显示');
             console.log(`📊 启动性能: ${windowTime}ms`);
 
-            // 5. 后台注册其余控制器
-            this.registerNonCriticalControllers().catch(e => console.error('❌ 非关键控制器注册失败:', e));
+            if (!this.isBenchmarkMode()) {
+                // 5. 后台注册其余控制器
+                this.registerNonCriticalControllers().catch(e => console.error('❌ 非关键控制器注册失败:', e));
 
-            // 6. 后台初始化重型服务
-            this.initializeHeavyServices().catch(e => console.error('❌ 后台服务初始化失败:', e));
+                // 6. 后台初始化重型服务
+                this.initializeHeavyServices().catch(e => console.error('❌ 后台服务初始化失败:', e));
 
-            // 7. 启动自动扫描调度器
-            this.startAutoScanner().catch(e => console.error('❌ 自动扫描调度器启动失败:', e));
+                // 7. 启动自动扫描调度器
+                this.startAutoScanner().catch(e => console.error('❌ 自动扫描调度器启动失败:', e));
+            }
+
+            this.runBenchmarkScriptIfRequested().catch(e => console.error('❌ Benchmark脚本执行失败:', e));
         } catch (error) {
             console.error('❌ 应用启动失败:', error);
             throw error;
         }
+    }
+
+    private isBenchmarkMode(): boolean {
+        return Boolean(
+            process.env.MUSICBOX_BENCHMARK_SCRIPT ||
+            process.argv.some(arg => arg.startsWith('--benchmark-script='))
+        );
+    }
+
+    private async runBenchmarkScriptIfRequested(): Promise<void> {
+        const scriptArg = process.argv.find(arg => arg.startsWith('--benchmark-script='));
+        const scriptPath = scriptArg ? scriptArg.slice('--benchmark-script='.length) : process.env.MUSICBOX_BENCHMARK_SCRIPT;
+        if (!scriptPath) return;
+
+        const win = this.windowManager.getMainWindow();
+        if (!win || win.isDestroyed()) {
+            throw new Error('主窗口不可用，无法执行benchmark脚本');
+        }
+
+        const script = await fs.promises.readFile(scriptPath, 'utf8');
+        await win.webContents.executeJavaScript('new Promise(resolve => setTimeout(resolve, 1000))');
+        const result = await win.webContents.executeJavaScript(script, true);
+        console.log(`__MUSICBOX_BENCHMARK_RESULT__${JSON.stringify(result)}`);
     }
 
     private async startAutoScanner(): Promise<void> {
@@ -143,19 +173,28 @@ export class Application {
      * 应用配置
      */
     private applyConfiguration(): void {
+        if (this.isConfigured) {
+            return;
+        }
+
         console.log('🔧 应用配置...');
 
         // 硬件加速设置
         const hardwareAcceleration = this.configManager.loadHardwareAccelerationSettings();
         if (!hardwareAcceleration) {
             console.log('🔧 禁用硬件加速');
-            app.disableHardwareAcceleration();
+            if (app.isReady()) {
+                console.warn('⚠️ 硬件加速只能在 app ready 前禁用，本次启动已跳过');
+            } else {
+                app.disableHardwareAcceleration();
+            }
         } else {
             console.log('✅ 硬件加速已启用');
         }
 
         // GC 标志
         app.commandLine.appendSwitch('js-flags', '--expose-gc');
+        this.isConfigured = true;
     }
 
     /**
@@ -251,6 +290,8 @@ export class Application {
         const {DialogController} = await import('../controllers/DialogController');
         const {AudioController} = await import('../controllers/AudioController');
         const {NativeAudioController} = await import('../controllers/NativeAudioController');
+        const {BenchmarkController} = await import('../controllers/BenchmarkController');
+        const {FileController} = await import('../controllers/FileController');
         const {parseMetadata} = await import('../utils/metadata');
 
         // 获取必需的服务（轻量级）
@@ -272,7 +313,9 @@ export class Application {
             new AppController(this.windowManager),
             new DialogController(this.windowManager),
             new AudioController(boundParseMetadata),
-            new NativeAudioController(nativeAudioModule, this.windowManager, networkFileAdapter)
+            new NativeAudioController(nativeAudioModule, this.windowManager, networkFileAdapter),
+            new FileController(networkFileAdapter),
+            new BenchmarkController()
         ];
 
         for (const controller of criticalControllers) {

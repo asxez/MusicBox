@@ -6,11 +6,11 @@
 import {Validator} from '@extensions/api/common/validation';
 import {ErrorUtils} from '@extensions/api/common/errors';
 import {IDisposable, toDisposable} from '@extensions/core/Lifecycle';
-import {showToast, theme} from '@js/utils';
-import {app} from "@core/app";
+import {onDOMReady, showToast, theme} from '@js/utils';
+import {appInteractionService} from "@services/ui/AppInteractionService";
+import {settingsExtensionNavigationService} from "@services/settings/SettingsExtensionNavigationService";
 import {ExtensionContext} from "@extensions/core";
 import {
-    App,
     ButtonSettingOptions,
     ConfirmDialogOptions,
     InputBoxOptions,
@@ -139,7 +139,7 @@ class SettingsManagerClass {
             e.preventDefault();
             e.stopPropagation();
             const target = e.currentTarget as HTMLButtonElement;
-            (window as any).settings?.switchToSection(target.dataset.section!);
+            settingsExtensionNavigationService.navigateToSection(target.dataset.section!);
         });
     }
 
@@ -467,13 +467,7 @@ class SettingsManagerClass {
 const SettingsManager = new SettingsManagerClass();
 
 // 初始化设置页管理器
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        SettingsManager.initialize();
-    });
-} else {
-    SettingsManager.initialize();
-}
+onDOMReady(() => SettingsManager.initialize());
 
 /**
  * 创建 UI API
@@ -515,9 +509,11 @@ export function createUIAPI(_context: ExtensionContext): UIAPI {
                 const title = options.title || '确认';
                 const confirmText = options.confirmText || '确定';
                 const cancelText = options.cancelText || '取消';
-                const type = options.type || 'default';
+                const type = options.type === 'warning' || options.type === 'danger' || options.type === 'default'
+                    ? options.type
+                    : 'default';
 
-                return await (app as unknown as App).confirm({
+                return await appInteractionService.confirm({
                     title: title,
                     message: message,
                     confirmText: confirmText,

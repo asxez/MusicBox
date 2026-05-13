@@ -5,32 +5,25 @@
 
 import {showToast} from '@js/utils';
 import {BaseAPI, Logger} from "@api/core";
+import {type GitHubRelease, updateService} from "@services/update/UpdateService";
 
-/**
- * GitHub Release 响应类型
- */
-interface GitHubRelease {
-    tag_name: string;
-    name: string;
-    body: string;
-    published_at: string;
-    html_url: string;
-    assets: Array<{
-        name: string;
-        browser_download_url: string;
-        size: number;
-    }>;
-}
+type ShowUpdateDetailsHandler = () => void;
 
 /**
  * 更新 API 类
  */
 export class UpdateAPI extends BaseAPI {
-    private readonly GITHUB_REPO = 'asxez/MusicBox';
-    private readonly GITHUB_API_URL = `https://api.github.com/repos/${this.GITHUB_REPO}/releases/latest`;
+    private readonly showUpdateDetailsHandlers = new Set<ShowUpdateDetailsHandler>();
 
     constructor() {
         super('UpdateAPI');
+    }
+
+    onShowUpdateDetails(handler: ShowUpdateDetailsHandler): () => void {
+        this.showUpdateDetailsHandlers.add(handler);
+        return () => {
+            this.showUpdateDetailsHandlers.delete(handler);
+        };
     }
 
     /**
@@ -56,15 +49,12 @@ export class UpdateAPI extends BaseAPI {
         try {
             this.log('开始检查更新');
 
-            // 获取版本信息
-            const currentVersion = await this.getCurrentVersion();
-            const releaseInfo = await this.getLatestRelease();
-            const latestVersion = releaseInfo.tag_name.replace(/^v/, ''); // 移除v前缀
+            const {currentVersion, latestVersion, releaseInfo, hasUpdate} = await updateService.checkForUpdates();
 
             this.log(`当前版本: v${currentVersion}, 最新版本: v${latestVersion}`);
 
             // 比较版本
-            if (this.isNewerVersion(latestVersion, currentVersion)) {
+            if (hasUpdate) {
                 Logger.success('发现新版本');
                 this.showUpdateNotification(currentVersion, latestVersion, releaseInfo);
             } else {
@@ -82,9 +72,7 @@ export class UpdateAPI extends BaseAPI {
      */
     async getCurrentVersion(): Promise<string> {
         try {
-            const response = await fetch('../../../package.json');
-            const packageInfo = await response.json();
-            return packageInfo.version;
+            return await updateService.getCurrentVersion();
         } catch (error) {
             this.logError('获取当前版本失败', error as Error);
             throw error;
@@ -97,11 +85,7 @@ export class UpdateAPI extends BaseAPI {
      */
     async getLatestRelease(): Promise<GitHubRelease> {
         try {
-            const response = await fetch(this.GITHUB_API_URL);
-            if (!response.ok) {
-                throw new Error(`GitHub API请求失败: ${response.status} ${response.statusText}`);
-            }
-            return await response.json();
+            return await updateService.getLatestRelease();
         } catch (error) {
             this.logError('获取最新版本失败', error as Error);
             throw error;
@@ -115,23 +99,7 @@ export class UpdateAPI extends BaseAPI {
      * @returns 是否有更新
      */
     isNewerVersion(latest: string, current: string): boolean {
-        const parseVersion = (version: string): number[] => {
-            const parts = version.replace(/-(alpha|beta|rc).*$/, '').split('.');
-            return parts.map(part => parseInt(part, 10));
-        };
-
-        const latestParts = parseVersion(latest);
-        const currentParts = parseVersion(current);
-
-        for (let i = 0; i < Math.max(latestParts.length, currentParts.length); i++) {
-            const latestPart = latestParts[i] || 0;
-            const currentPart = currentParts[i] || 0;
-
-            if (latestPart > currentPart) return true;
-            if (latestPart < currentPart) return false;
-        }
-
-        return false;
+        return updateService.isNewerVersion(latest, current);
     }
 
     /**
@@ -193,13 +161,14 @@ export class UpdateAPI extends BaseAPI {
         closeBtn?.addEventListener('click', removeToast);
         laterBtn?.addEventListener('click', removeToast);
         detailBtn?.addEventListener('click', () => {
-            // 触发更新模态框（假设有 updateModal 对象）
-            if ((window as any).updateModal) {
-                (window as any).updateModal.show();
+            if (this.showUpdateDetailsHandlers.size > 0) {
+                this.showUpdateDetailsHandlers.forEach(handler => handler());
             } else {
                 // 如果没有模态框，直接打开 GitHub 发布页
                 if (releaseInfo) {
-                    window.open(releaseInfo.html_url, '_blank');
+                    updateService.openReleasePage(releaseInfo.html_url).catch(error => {
+                        this.logError('打开 Release 页面失败', error as Error);
+                    });
                 }
             }
             removeToast();
@@ -223,8 +192,8 @@ export class UpdateAPI extends BaseAPI {
      * 打开下载页面
      * @param url - 下载链接
      */
-    openDownloadPage(url: string): void {
-        window.open(url, '_blank');
+    async openDownloadPage(url: string): Promise<{success: boolean; error?: string}> {
+        return await updateService.openReleasePage(url);
     }
 
     /**
@@ -233,11 +202,11 @@ export class UpdateAPI extends BaseAPI {
     async openReleasePage(): Promise<void> {
         try {
             const releaseInfo = await this.getLatestRelease();
-            this.openDownloadPage(releaseInfo.html_url);
+            await this.openDownloadPage(releaseInfo.html_url || updateService.getFallbackReleaseUrl());
         } catch (error) {
             this.logError('打开 Release 页面失败', error as Error);
             // 回退到仓库页面
-            window.open(`https://github.com/${this.GITHUB_REPO}/releases`, '_blank');
+            await updateService.openReleasePage();
         }
     }
 }

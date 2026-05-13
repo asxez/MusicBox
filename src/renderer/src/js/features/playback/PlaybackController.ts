@@ -1,0 +1,232 @@
+import {api} from '@api/api';
+import type {MusicBoxAPIEvents} from '@api/types/events';
+import type {PlaybackStateSnapshot, PlayMode} from '@api/types/playback';
+import type {WasapiShareMode} from '@api/types/settings';
+import type {Track} from '@api/types/track';
+import {PlaybackStore} from './PlaybackStore';
+import type {PlaybackState, PlaybackStoreListener, Unsubscribe} from './PlaybackStore';
+
+type AudioEngineType = 'webaudio' | 'wasapi';
+
+type PlaybackEventName =
+    | 'durationChanged'
+    | 'positionChanged'
+    | 'playbackStateChanged'
+    | 'volumeChanged'
+    | 'trackChanged'
+    | 'trackIndexChanged';
+
+type PlaybackEventHandler<K extends PlaybackEventName> = (payload: MusicBoxAPIEvents[K]) => void;
+
+class PlaybackController {
+    private readonly store: PlaybackStore;
+    private toggleInProgress = false;
+
+    constructor() {
+        this.store = new PlaybackStore({
+            currentTrack: api.currentTrack ?? null,
+            currentIndex: api.currentIndex,
+            playlist: api.playlist,
+            isPlaying: api.isPlaying,
+            position: api.position,
+            duration: api.duration,
+            volume: api.volume,
+            playMode: api.getPlayMode()
+        });
+        this.bindAPIEvents();
+    }
+
+    getState(): Readonly<PlaybackState> {
+        return this.store.getState();
+    }
+
+    subscribe(listener: PlaybackStoreListener): Unsubscribe {
+        return this.store.subscribe(listener);
+    }
+
+    async togglePlayPause(isPlaying: boolean): Promise<boolean> {
+        return isPlaying ? await this.pause() : await this.play();
+    }
+
+    async toggleCurrentPlayback(): Promise<boolean> {
+        if (this.toggleInProgress) {
+            console.log('🚫 PlaybackController: 播放状态切换正在进行中，忽略重复调用');
+            return false;
+        }
+
+        this.toggleInProgress = true;
+
+        try {
+            return await this.togglePlayPause(api.isPlaying);
+        } finally {
+            setTimeout(() => {
+                this.toggleInProgress = false;
+            }, 100);
+        }
+    }
+
+    async play(): Promise<boolean> {
+        return await api.play();
+    }
+
+    async pause(): Promise<boolean> {
+        return await api.pause();
+    }
+
+    async loadTrack(filePath: string): Promise<boolean> {
+        return await api.loadTrack(filePath);
+    }
+
+    async previousTrack(): Promise<boolean> {
+        return await api.previousTrack();
+    }
+
+    async nextTrack(): Promise<boolean> {
+        return await api.nextTrack();
+    }
+
+    async seek(position: number): Promise<boolean> {
+        return await api.seek(position);
+    }
+
+    async seekForward(seconds = 10): Promise<boolean> {
+        return await api.seekForward(seconds);
+    }
+
+    async seekBackward(seconds = 10): Promise<boolean> {
+        return await api.seekBackward(seconds);
+    }
+
+    async setVolume(volume: number): Promise<boolean> {
+        return await api.setVolume(Math.max(0, Math.min(1, volume)));
+    }
+
+    async setPosition(position: number): Promise<boolean> {
+        return await api.setPosition(position);
+    }
+
+    async setPlaylist(tracks: Track[], startIndex = -1): Promise<boolean> {
+        return await api.setPlaylist(tracks, startIndex);
+    }
+
+    async adjustVolume(delta: number): Promise<boolean> {
+        return await this.setVolume(this.getVolume() + delta);
+    }
+
+    async toggleMute(currentVolume: number, fallbackVolume: number): Promise<boolean> {
+        return await this.setVolume(currentVolume > 0 ? 0 : fallbackVolume);
+    }
+
+    getVolume(): number {
+        return this.store.getState().volume;
+    }
+
+    getCurrentTrack(): Track | null {
+        return api.getCurrentTrack?.() ?? null;
+    }
+
+    getCurrentTrackSnapshot(): Track | null {
+        return this.store.getState().currentTrack;
+    }
+
+    getCurrentIndex(): number {
+        return this.store.getState().currentIndex;
+    }
+
+    getPlaylist(): Track[] {
+        return this.store.getState().playlist;
+    }
+
+    getDuration(): number {
+        return this.store.getState().duration;
+    }
+
+    getCurrentTrackSummary(): Pick<Track, 'title' | 'artist' | 'album'> | null {
+        const track = this.getCurrentTrackSnapshot();
+        if (!track) {
+            return null;
+        }
+
+        return {
+            title: track.title,
+            artist: track.artist,
+            album: track.album
+        };
+    }
+
+    togglePlayMode(): PlayMode {
+        return api.togglePlayMode();
+    }
+
+    setPlayMode(mode: PlayMode): boolean {
+        return api.setPlayMode(mode);
+    }
+
+    getPlayMode(): PlayMode {
+        return this.store.getState().playMode;
+    }
+
+    getPlaybackSnapshot(): PlaybackStateSnapshot {
+        const state = this.store.getState();
+        return {
+            currentTrack: state.currentTrack,
+            position: state.position,
+            isPlaying: state.isPlaying,
+            playlist: state.playlist,
+            currentIndex: state.currentIndex,
+            playMode: state.playMode,
+            timestamp: Date.now()
+        };
+    }
+
+    on<K extends PlaybackEventName>(event: K, handler: PlaybackEventHandler<K>): Unsubscribe {
+        api.on(event, handler);
+        return () => {
+            api.off(event, handler);
+        };
+    }
+
+    setGaplessPlayback(enabled: boolean): void {
+        api.setGaplessPlayback(enabled);
+    }
+
+    async switchAudioEngine(engineType: AudioEngineType): Promise<boolean> {
+        return await api.switchAudioEngine(engineType);
+    }
+
+    async switchWasapiShareMode(mode: WasapiShareMode): Promise<boolean> {
+        return await api.switchWasapiShareMode(mode);
+    }
+
+    private bindAPIEvents(): void {
+        api.on('durationChanged', (duration) => {
+            this.store.setDuration(duration);
+        });
+        api.on('positionChanged', (position) => {
+            this.store.setPosition(position);
+        });
+        api.on('playbackStateChanged', (state) => {
+            this.store.setPlaybackState(state);
+        });
+        api.on('volumeChanged', (volume) => {
+            this.store.setVolume(volume);
+        });
+        api.on('trackChanged', (track) => {
+            this.store.setTrack(track);
+        });
+        api.on('trackIndexChanged', (index) => {
+            this.store.setTrackIndex(index);
+        });
+        api.on('playlistChanged', (tracks) => {
+            this.store.setPlaylist(tracks);
+        });
+        api.on('playModeChanged', (mode) => {
+            this.store.setPlayMode(mode);
+        });
+    }
+}
+
+export const playbackController = new PlaybackController();
+export type {AudioEngineType, PlaybackEventHandler, PlaybackEventName};
+export type {PlaybackState, PlaybackStoreChange, PlaybackStoreListener, Unsubscribe} from './PlaybackStore';
+export {PlaybackController};

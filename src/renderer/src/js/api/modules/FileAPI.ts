@@ -5,6 +5,7 @@
 
 
 import {BaseAPI} from "@api/core";
+import {fileGateway} from "@js/infrastructure/electron";
 import {DirectoryResult, ImageFileResult} from "@api/types";
 
 /**
@@ -21,7 +22,7 @@ export class FileAPI extends BaseAPI {
      */
     async openDirectory(): Promise<string | null> {
         return this.wrapIPC(async () => {
-            const result = await window.electronAPI.openDirectory();
+            const result = await fileGateway.openDirectory();
             return result || null;
         }, 'openDirectory', null);
     }
@@ -40,7 +41,7 @@ export class FileAPI extends BaseAPI {
      */
     async openFiles(): Promise<string[]> {
         return this.wrapIPC(async () => {
-            const result = await window.electronAPI.openFiles();
+            const result = await fileGateway.openFiles();
             return result || [];
         }, 'openFiles', []);
     }
@@ -52,7 +53,7 @@ export class FileAPI extends BaseAPI {
     async selectMusicFolder(): Promise<DirectoryResult> {
         try {
             const result = await this.wrapIPC(
-                () => window.electronAPI.selectFolder(),
+                () => fileGateway.selectFolder(),
                 'selectFolder'
             );
 
@@ -77,7 +78,7 @@ export class FileAPI extends BaseAPI {
     async selectImageFile(): Promise<ImageFileResult> {
         try {
             const imagePath = await this.wrapIPC(
-                () => window.electronAPI.openImageFile(),
+                () => fileGateway.openImageFile(),
                 'openImageFile'
             );
             if (imagePath) {
@@ -91,6 +92,29 @@ export class FileAPI extends BaseAPI {
                 error: (error as Error).message
             };
         }
+    }
+
+    async readFile(filePath: string, encoding: string | null = null): Promise<string | ArrayLike<number>> {
+        return this.wrapIPC(
+            () => fileGateway.readFile(filePath, encoding),
+            'fs.readFile',
+            ''
+        );
+    }
+
+    async stat(filePath: string): Promise<{size: number; mtime: unknown; isFile: boolean; isDirectory: boolean}> {
+        return this.wrapIPC(
+            () => fileGateway.stat(filePath),
+            'fs.stat'
+        );
+    }
+
+    async showOpenDialog(options: Record<string, unknown>): Promise<{canceled: boolean; filePaths: string[]; bookmarks?: string[]}> {
+        return this.wrapIPC(
+            () => fileGateway.showOpenDialog(options),
+            'dialog.showOpenDialog',
+            {canceled: true, filePaths: []}
+        );
     }
 }
 

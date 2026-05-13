@@ -3,6 +3,10 @@
  * 演示如何使用快捷键 API 的示例扩展
  */
 
+function getExtensionAPI(context) {
+    return context.api || createExtensionAPI(context);
+}
+
 /**
  * 扩展激活函数
  * @param {Object} context 扩展上下文
@@ -11,7 +15,7 @@ async function activate(context) {
     console.log('🎹 Keybindings Demo Extension 已激活!');
 
     // 获取 API
-    const api = createExtensionAPI(context);
+    const api = getExtensionAPI(context);
 
     // 显示激活通知
     api.ui.showNotification('快捷键演示扩展已加载！', 'success');

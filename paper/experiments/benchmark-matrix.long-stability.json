@@ -1,0 +1,31 @@
+{
+  "experimentName": "paper-long-stability",
+  "executionOrder": "round_robin",
+  "audioFiles": [
+    {
+      "id": "goldberg_loop_flac_48k_30min",
+      "path": "F:\\WorkSpace\\MusicBox\\MusicBox\\scripts\\benchmarks\\audio\\open-goldberg-loop-48k-stereo-30min.flac"
+    }
+  ],
+  "repetitions": 3,
+  "durationSec": 1800,
+  "sampleIntervalMs": 5000,
+  "ipcIterations": 0,
+  "payloadBytes": [],
+  "conditions": [
+    {
+      "id": "webaudio_long_30min",
+      "backend": "webaudio"
+    },
+    {
+      "id": "wasapi_shared_long_30min",
+      "backend": "native",
+      "shareMode": "shared"
+    },
+    {
+      "id": "wasapi_exclusive_long_30min",
+      "backend": "native",
+      "shareMode": "exclusive"
+    }
+  ]
+}

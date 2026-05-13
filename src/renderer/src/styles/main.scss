@@ -6566,18 +6566,19 @@ a {
 }
 
 // 深色主题下的背景脉动
+@keyframes backgroundPulseDark {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.25;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.35;
+  }
+}
+
 [data-theme='dark'] {
   .lyrics-background {
-    @keyframes backgroundPulseDark {
-      0%, 100% {
-        transform: scale(1);
-        opacity: 0.25;
-      }
-      50% {
-        transform: scale(1.05);
-        opacity: 0.35;
-      }
-    }
     animation: backgroundPulseDark 20s ease-in-out infinite;
   }
 }

@@ -5,10 +5,7 @@
 
 import {Validator} from '@extensions/api/common/validation';
 import {ErrorUtils, NotAvailableError} from '@extensions/api/common/errors';
-import {cacheManager} from '@services/CacheManager';
-import {app} from '@core/app';
-import {libraryAPI} from "@js/api";
-import {api} from "@api/api";
+import {extensionHostService} from "@services/plugins/ExtensionHostService";
 import {ExtensionContext} from "@extensions/core";
 import {Album, Artist, LibraryAPI, Playlist} from "@extensions/api/types/library";
 import {Track} from "@extensions/api/types/player";
@@ -22,10 +19,7 @@ export function createLibraryAPI(_context: ExtensionContext): LibraryAPI {
     return {
         getAllTracks(): Track[] {
             return ErrorUtils.wrapSync(() => {
-                if (app && app.library) {
-                    return [...app.library];
-                }
-                return [];
+                return extensionHostService.getLibraryTracks() as Track[];
             }, 'library.getAllTracks');
         },
 
@@ -33,12 +27,7 @@ export function createLibraryAPI(_context: ExtensionContext): LibraryAPI {
             Validator.assertNonEmptyString(trackId, 'trackId');
 
             return ErrorUtils.wrapSync(() => {
-                if (app && app.library) {
-                    return app.library.find((track: Track) =>
-                        track.fileId === trackId || track.id === trackId
-                    ) || null;
-                }
-                return null;
+                return extensionHostService.getTrackById(trackId) as Track | null;
             }, 'library.getTrackById');
         },
 
@@ -46,21 +35,7 @@ export function createLibraryAPI(_context: ExtensionContext): LibraryAPI {
             Validator.assertString(query, 'query');
 
             return await ErrorUtils.wrapAsync(async () => {
-                if (typeof libraryAPI.searchLibrary === 'function') {
-                    return await libraryAPI.searchLibrary(query);
-                }
-                // 简单的搜索实现
-                if (app.library) {
-                    const lowerQuery = query.toLowerCase();
-                    return app.library.filter((track: Track) => {
-                        return (
-                            track.title?.toLowerCase().includes(lowerQuery) ||
-                            track.artist?.toLowerCase().includes(lowerQuery) ||
-                            track.album?.toLowerCase().includes(lowerQuery)
-                        );
-                    });
-                }
-                return [];
+                return await extensionHostService.searchTracks(query) as Track[];
             }, 'library.searchTracks');
         },
 
@@ -68,11 +43,12 @@ export function createLibraryAPI(_context: ExtensionContext): LibraryAPI {
             Validator.assertObject(track, 'track');
 
             return ErrorUtils.wrapAsync(async () => {
-                if (api && typeof api.addTrackToLibrary === 'function') {
-                    await api.addTrackToLibrary(track);
+                try {
+                    await extensionHostService.addTrack(track);
                     return true;
+                } catch (_error) {
+                    throw new NotAvailableError('library.addTrack', 'API 未实现');
                 }
-                throw new NotAvailableError('library.addTrack', 'API 未实现');
             }, 'library.addTrack');
         },
 
@@ -81,7 +57,7 @@ export function createLibraryAPI(_context: ExtensionContext): LibraryAPI {
             Validator.assertType(index, 'number', 'index');
 
             return ErrorUtils.wrapAsync(async () => {
-                await app.handleDeleteTrack(track, index);
+                await extensionHostService.removeTrack(track, index);
             }, 'library.removeTrack');
         },
 
@@ -90,43 +66,13 @@ export function createLibraryAPI(_context: ExtensionContext): LibraryAPI {
             Validator.assertObject(updates, 'updates');
 
             return ErrorUtils.wrapAsync(async () => {
-                if (app && app.library) {
-                    const track = app.library.find((t: Track) =>
-                        t.fileId === trackId || t.id === trackId
-                    );
-                    if (track) {
-                        Object.assign(track, updates);
-                        // 触发更新事件
-                        if (app.emit) {
-                            app.emit('libraryUpdated');
-                        }
-                        return true;
-                    }
-                }
-                return false;
+                return extensionHostService.updateTrack(trackId, updates);
             }, 'library.updateTrack');
         },
 
         getAlbums(): Album[] {
             return ErrorUtils.wrapSync(() => {
-                if (app && app.library) {
-                    const albumsMap = new Map<string, Album>();
-                    app.library.forEach((track: Track) => {
-                        if (track.album) {
-                            if (!albumsMap.has(track.album)) {
-                                albumsMap.set(track.album, {
-                                    name: track.album,
-                                    artist: track.artist || '未知艺术家',
-                                    cover: track.cover || null,
-                                    tracks: []
-                                });
-                            }
-                            albumsMap.get(track.album)!.tracks.push(track);
-                        }
-                    });
-                    return Array.from(albumsMap.values());
-                }
-                return [];
+                return extensionHostService.getAlbums() as Album[];
             }, 'library.getAlbums');
         },
 
@@ -141,21 +87,7 @@ export function createLibraryAPI(_context: ExtensionContext): LibraryAPI {
 
         getArtists(): Artist[] {
             return ErrorUtils.wrapSync(() => {
-                if (app && app.library) {
-                    const artistsMap = new Map<string, Artist>();
-                    app.library.forEach((track: Track) => {
-                        const artistName = track.artist || '未知艺术家';
-                        if (!artistsMap.has(artistName)) {
-                            artistsMap.set(artistName, {
-                                name: artistName,
-                                tracks: []
-                            });
-                        }
-                        artistsMap.get(artistName)!.tracks.push(track);
-                    });
-                    return Array.from(artistsMap.values());
-                }
-                return [];
+                return extensionHostService.getArtists() as Artist[];
             }, 'library.getArtists');
         },
 
@@ -170,10 +102,7 @@ export function createLibraryAPI(_context: ExtensionContext): LibraryAPI {
 
         getPlaylists(): Playlist[] {
             return ErrorUtils.wrapSync(() => {
-                if (cacheManager && typeof cacheManager.getLocalCache === 'function') {
-                    return cacheManager.getLocalCache('playlists') || [];
-                }
-                return [];
+                return extensionHostService.getPlaylists() as Playlist[];
             }, 'library.getPlaylists');
         },
 
@@ -202,9 +131,7 @@ export function createLibraryAPI(_context: ExtensionContext): LibraryAPI {
                 const playlists = this.getPlaylists();
                 playlists.push(playlist);
 
-                if (cacheManager && typeof cacheManager.setLocalCache === 'function') {
-                    cacheManager.setLocalCache('playlists', playlists);
-                }
+                extensionHostService.savePlaylists(playlists);
 
                 return playlist;
             }, 'library.createPlaylist');
@@ -222,9 +149,7 @@ export function createLibraryAPI(_context: ExtensionContext): LibraryAPI {
                     Object.assign(playlist, updates);
                     playlist.updatedAt = Date.now();
 
-                    if (cacheManager && typeof cacheManager.setLocalCache === 'function') {
-                        cacheManager.setLocalCache('playlists', playlists);
-                    }
+                    extensionHostService.savePlaylists(playlists);
                     return true;
                 }
                 return false;
@@ -241,9 +166,7 @@ export function createLibraryAPI(_context: ExtensionContext): LibraryAPI {
                 if (index !== -1) {
                     playlists.splice(index, 1);
 
-                    if (cacheManager && typeof cacheManager.setLocalCache === 'function') {
-                        cacheManager.setLocalCache('playlists', playlists);
-                    }
+                    extensionHostService.savePlaylists(playlists);
                     return true;
                 }
                 return false;

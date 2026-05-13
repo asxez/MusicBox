@@ -3,6 +3,10 @@
  * 提供多种预设主题和自定义主题功能
  */
 
+function getExtensionAPI(context) {
+    return context.api || createExtensionAPI(context);
+}
+
 // 插件状态
 let config = {};
 let currentTheme = 'light';
@@ -83,7 +87,7 @@ const PRESET_THEMES = {
  */
 async function activate(context) {
     // 获取 API
-    const api = createExtensionAPI(context);
+    const api = getExtensionAPI(context);
 
     // 加载配置
     config = loadConfiguration(api.settings);

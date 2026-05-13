@@ -3,9 +3,11 @@
  * 提供窗口状态管理功能
  */
 
+import {windowGateway} from '@js/infrastructure/electron';
 import {cacheManager} from '@services/CacheManager';
 import {BaseAPI, Validator} from "@api/core";
 import {WindowBounds, WindowSize} from "@api/types";
+import type {Unsubscribe} from "@api/types/common";
 
 /**
  * 窗口尺寸数据
@@ -18,9 +20,13 @@ interface WindowSizeData extends WindowSize {
  * 窗口 API 类
  */
 export class WindowAPI extends BaseAPI {
-    private resizeTimeout: NodeJS.Timeout | null = null;
+    private resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+    private resizeHandler: (() => void) | null = null;
+    private maximizedChangedUnsubscribe: Unsubscribe | null = null;
     private readonly MIN_WIDTH = 440;
     private readonly MIN_HEIGHT = 120;
+    private readonly NORMAL_MIN_WIDTH = 1080;
+    private readonly NORMAL_MIN_HEIGHT = 720;
     private readonly MAX_WIDTH = 3840;
     private readonly MAX_HEIGHT = 2160;
 
@@ -32,10 +38,15 @@ export class WindowAPI extends BaseAPI {
      * 初始化窗口状态管理
      */
     initWindowStateManagement(): void {
+        if (this.resizeHandler || this.maximizedChangedUnsubscribe) {
+            this.log('窗口状态管理已初始化，跳过重复绑定');
+            return;
+        }
+
         this.log('初始化窗口状态管理');
 
         // 窗口尺寸变化监听
-        window.addEventListener('resize', () => {
+        this.resizeHandler = () => {
             if (this.resizeTimeout) {
                 clearTimeout(this.resizeTimeout);
             }
@@ -43,10 +54,11 @@ export class WindowAPI extends BaseAPI {
             this.resizeTimeout = setTimeout(async () => {
                 await this.saveWindowSize();
             }, 1500);
-        });
+        };
+        window.addEventListener('resize', this.resizeHandler);
 
         // 窗口最大化状态变化监听
-        window.electronAPI.window.onMaximizedChanged((isMaximized: boolean) => {
+        this.maximizedChangedUnsubscribe = windowGateway.onMaximizedChanged((isMaximized: boolean) => {
             if (!isMaximized) {
                 setTimeout(async () => {
                     await this.restoreWindowSize();
@@ -57,11 +69,33 @@ export class WindowAPI extends BaseAPI {
         this.log('窗口状态管理初始化完成');
     }
 
+    disposeWindowStateManagement(): void {
+        if (this.resizeHandler) {
+            window.removeEventListener('resize', this.resizeHandler);
+            this.resizeHandler = null;
+        }
+
+        if (this.resizeTimeout) {
+            clearTimeout(this.resizeTimeout);
+            this.resizeTimeout = null;
+            void this.saveWindowSize();
+        }
+
+        if (this.maximizedChangedUnsubscribe) {
+            this.maximizedChangedUnsubscribe();
+            this.maximizedChangedUnsubscribe = null;
+        }
+    }
+
     /**
      * 保存窗口尺寸
      */
     async saveWindowSize(): Promise<void> {
         try {
+            if (document.body.classList.contains('mini-mode')) {
+                return;
+            }
+
             const isMaximized = await this.isMaximized();
             if (isMaximized) {
                 return;
@@ -70,7 +104,7 @@ export class WindowAPI extends BaseAPI {
             const size = await this.getSize();
             if (size && Array.isArray(size) && size.length === 2) {
                 const [width, height] = size;
-                if (this.isValidWindowSize(width, height)) {
+                if (this.isValidNormalWindowSize(width, height)) {
                     const sizeData: WindowSizeData = {
                         width,
                         height,
@@ -96,7 +130,7 @@ export class WindowAPI extends BaseAPI {
             }
 
             const {width, height} = savedSize;
-            if (this.isValidWindowSize(width, height)) {
+            if (this.isValidNormalWindowSize(width, height)) {
                 const result = await this.setSize(width, height);
                 if (!result || !result.success) {
                     cacheManager.removeLocalCache('mainWindow-size');
@@ -128,13 +162,22 @@ export class WindowAPI extends BaseAPI {
         );
     }
 
+    isValidNormalWindowSize(width: number, height: number): boolean {
+        return (
+            width >= this.NORMAL_MIN_WIDTH &&
+            width <= this.MAX_WIDTH &&
+            height >= this.NORMAL_MIN_HEIGHT &&
+            height <= this.MAX_HEIGHT
+        );
+    }
+
     /**
      * 获取窗口尺寸
      * @returns 窗口尺寸 [width, height]
      */
     async getSize(): Promise<[number, number] | null> {
         return this.wrapIPC(
-            () => window.electronAPI.window.getSize(),
+            () => windowGateway.getSize(),
             'window.getSize',
             null
         );
@@ -155,7 +198,7 @@ export class WindowAPI extends BaseAPI {
         }
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setSize(width, height),
+            () => windowGateway.setSize(width, height),
             'window.setSize'
         );
     }
@@ -166,7 +209,7 @@ export class WindowAPI extends BaseAPI {
      */
     async getBounds(): Promise<{ height: number, width: number, x: number, y: number } | null> {
         return this.wrapIPC(
-            () => window.electronAPI.window.getBounds(),
+            () => windowGateway.getBounds(),
             'window.getBounds',
             null
         );
@@ -189,7 +232,7 @@ export class WindowAPI extends BaseAPI {
         Validator.assertObject(bounds, 'bounds');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setBounds(bounds),
+            () => windowGateway.setBounds(bounds),
             'window.setBounds'
         );
     }
@@ -200,7 +243,7 @@ export class WindowAPI extends BaseAPI {
      */
     async isMaximized(): Promise<boolean> {
         return this.wrapIPC(
-            () => window.electronAPI.window.isMaximized(),
+            () => windowGateway.isMaximized(),
             'window.isMaximized',
             false
         );
@@ -211,7 +254,7 @@ export class WindowAPI extends BaseAPI {
      */
     async maximize(): Promise<void> {
         return this.wrapIPC(
-            () => window.electronAPI.window.maximize(),
+            () => windowGateway.maximize(),
             'window.maximize'
         );
     }
@@ -221,7 +264,7 @@ export class WindowAPI extends BaseAPI {
      */
     async unmaximize(): Promise<void> {
         return this.wrapIPC(
-            () => window.electronAPI.window.unmaximize(),
+            () => windowGateway.unmaximize(),
             'window.unmaximize'
         );
     }
@@ -231,7 +274,7 @@ export class WindowAPI extends BaseAPI {
      */
     async minimize(): Promise<void> {
         return this.wrapIPC(
-            () => window.electronAPI.window.minimize(),
+            () => windowGateway.minimize(),
             'window.minimize'
         );
     }
@@ -241,9 +284,13 @@ export class WindowAPI extends BaseAPI {
      */
     async close(): Promise<void> {
         return this.wrapIPC(
-            () => window.electronAPI.window.close(),
+            () => windowGateway.close(),
             'window.close'
         );
+    }
+
+    onMaximizedChanged(handler: (isMaximized: boolean) => void): Unsubscribe {
+        return windowGateway.onMaximizedChanged(handler);
     }
 
     /**
@@ -254,7 +301,7 @@ export class WindowAPI extends BaseAPI {
         Validator.assertBoolean(flag, 'flag');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setAlwaysOnTop(flag),
+            () => windowGateway.setAlwaysOnTop(flag),
             'window.setAlwaysOnTop'
         );
     }
@@ -267,7 +314,7 @@ export class WindowAPI extends BaseAPI {
         Validator.assertBoolean(allowed, 'allowed');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setBackgroundThrottling(allowed),
+            () => windowGateway.setBackgroundThrottling(allowed),
             'window.setBackgroundThrottling'
         );
     }
@@ -276,8 +323,42 @@ export class WindowAPI extends BaseAPI {
         Validator.assertBoolean(resizable, 'resizable');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setResizable(resizable),
+            () => windowGateway.setResizable(resizable),
             'window.setResizable'
+        );
+    }
+
+    async setMaximizable(maximizable: boolean): Promise<boolean> {
+        Validator.assertBoolean(maximizable, 'maximizable');
+
+        return this.wrapIPC(
+            () => windowGateway.setMaximizable(maximizable),
+            'window.setMaximizable'
+        );
+    }
+
+    async setMaximumSize(width: number, height: number): Promise<boolean> {
+        Validator.assertNumber(width, 'width');
+        Validator.assertNumber(height, 'height');
+
+        return this.wrapIPC(
+            () => windowGateway.setMaximumSize(width, height),
+            'window.setMaximumSize'
+        );
+    }
+
+    async setMiniModeWindowState(options: {
+        enabled: boolean;
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+    }): Promise<{success: boolean; data?: {size?: number[]; minimumSize?: number[]; maximumSize?: number[]}; error?: string}> {
+        Validator.assertBoolean(options.enabled, 'enabled');
+
+        return this.wrapIPC(
+            () => windowGateway.setMiniModeWindowState(options),
+            'window.setMiniModeWindowState'
         );
     }
 
@@ -285,7 +366,7 @@ export class WindowAPI extends BaseAPI {
         Validator.assertBoolean(skip, 'skip');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setSkipTaskbar(skip),
+            () => windowGateway.setSkipTaskbar(skip),
             'window.setSkipTaskbar'
         );
     }
@@ -295,7 +376,7 @@ export class WindowAPI extends BaseAPI {
         Validator.assertNumber(height, 'height');
 
         return this.wrapIPC(
-            () => window.electronAPI.window.setMinimumSize(width, height),
+            () => windowGateway.setMinimumSize(width, height),
             'window.setMinimumSize'
         );
     }

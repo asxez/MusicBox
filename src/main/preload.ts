@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ensureDirectoryExists: (dirPath: string) => ipcRenderer.invoke('app:ensureDirectoryExists', dirPath),
     openDevTools: () => ipcRenderer.invoke('app:openDevTools'),
     openPath: (path: string) => ipcRenderer.invoke('app:openPath', path),
+    openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
 
     // 文件对话框
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
@@ -142,10 +143,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
         }
     },
 
-    // Native音频引擎（WASAPI独占模式）
+    // Native音频引擎（WASAPI shared/exclusive）
     nativeAudio: {
         // 初始化Native音频引擎
-        initialize: () => ipcRenderer.invoke('native-audio:initialize'),
+        initialize: (shareMode?: string) => ipcRenderer.invoke('native-audio:initialize', shareMode),
 
         // 播放控制
         loadTrack: (filePath: string) => ipcRenderer.invoke('native-audio:load-track', filePath),
@@ -159,6 +160,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
         // 播放状态查询
         getPosition: () => ipcRenderer.invoke('native-audio:get-position'),
+        getRenderStats: () => ipcRenderer.invoke('native-audio:get-render-stats'),
+        resetRenderStats: () => ipcRenderer.invoke('native-audio:reset-render-stats'),
 
         // 均衡器控制
         setEqualizerEnabled: (enabled: boolean) => ipcRenderer.invoke('native-audio:set-equalizer-enabled', enabled),
@@ -197,6 +200,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
         // 销毁引擎
         destroy: () => ipcRenderer.invoke('native-audio:destroy'),
+    },
+
+    benchmark: {
+        ping: (payload: unknown) => ipcRenderer.invoke('benchmark:ping', payload),
+        getProcessSnapshot: () => ipcRenderer.invoke('benchmark:getProcessSnapshot'),
+        forceGc: () => ipcRenderer.invoke('benchmark:forceGc'),
     },
 
     // Native音频引擎事件监听
@@ -384,6 +393,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
         setBounds: (bounds: any) => ipcRenderer.invoke('window:setBounds', bounds),
         getBounds: () => ipcRenderer.invoke('window:getBounds'),
         setResizable: (resizable: boolean) => ipcRenderer.invoke('window:setResizable', resizable),
+        setMaximizable: (maximizable: boolean) => ipcRenderer.invoke('window:setMaximizable', maximizable),
+        setMaximumSize: (width: number, height: number) => ipcRenderer.invoke('window:setMaximumSize', width, height),
+        setMiniModeWindowState: (options: any) => ipcRenderer.invoke('window:setMiniModeWindowState', options),
         setPosition: (x: number, y: number) => ipcRenderer.invoke('window:setPosition', x, y),
         setSkipTaskbar: (skip: boolean) => ipcRenderer.invoke('window:setSkipTaskbar', skip),
         setMinimumSize: (width: number, height: number) => ipcRenderer.invoke('window:setMinimumSize', width, height),

@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, normalizePath } from 'vite';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import path from 'path';
 
@@ -67,8 +67,8 @@ export default defineConfig({
             return 'extensions';
           }
 
-          // 组件
-          if (id.includes('components/') || id.includes('WasapiEngine')) {
+          // UI 组件
+          if (id.includes('ui/') || id.includes('WasapiEngine')) {
             return 'components';
           }
         }
@@ -89,8 +89,7 @@ export default defineConfig({
       '@services': path.resolve(__dirname, 'src/js/services'),
       '@utils': path.resolve(__dirname, 'src/js/utils'),
       '@api': path.resolve(__dirname, 'src/js/api'),
-      '@pages': path.resolve(__dirname, 'src/js/pages'),
-      '@components': path.resolve(__dirname, 'src/js/components'),
+      '@ui': path.resolve(__dirname, 'src/js/ui'),
       '@extensions': path.resolve(__dirname, 'src/js/extensions'),
       '@styles': path.resolve(__dirname, 'src/styles'),
       '@assets': path.resolve(__dirname, 'src/assets'),
@@ -115,7 +114,7 @@ export default defineConfig({
         // 复制内置插件
         {
           src: 'js/extensions/builtin',
-          dest: 'js/extensions'
+          dest: '.'
         },
         // 复制 favicon
         {
@@ -124,7 +123,7 @@ export default defineConfig({
         },
         {
           src: 'assets/images/favicon.ico',
-          dest: './assets/images'
+          dest: '.'
         }
       ]
     })

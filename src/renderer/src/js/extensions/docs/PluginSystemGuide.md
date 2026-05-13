@@ -113,7 +113,7 @@ async function activate(context) {
     console.log('扩展已激活');
 
     // 获取 API
-    const api = createExtensionAPI(context);
+    const api = context.api;
 
     // 注册命令
     const disposable = api.commands.registerCommand('myExtension.doSomething', () => {

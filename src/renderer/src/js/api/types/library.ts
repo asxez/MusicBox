@@ -4,6 +4,7 @@
 
 
 import {FilePath, QueryOptions} from "@api/types/common";
+import {LyricLine} from "@api/types/lyrics";
 
 /**
  * 音乐元数据
@@ -35,8 +36,11 @@ export interface Track {
     lastPlayedAt?: number;
     rating?: number;
     favorite?: boolean;
-    lyrics?: string;
-    cover?: string;
+    lyrics?: string | LyricLine[];
+    lrcText?: string;
+    lyricsContent?: string;
+    lyricsFormat?: string;
+    cover?: string | null;
 
     [key: string]: any;
 }

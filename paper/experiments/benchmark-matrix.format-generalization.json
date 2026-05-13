@@ -1,0 +1,41 @@
+{
+  "experimentName": "paper-format-generalization",
+  "executionOrder": "round_robin",
+  "warmupRepetitions": 1,
+  "warmupDurationSec": 10,
+  "audioFiles": [
+    {
+      "id": "wav_48k_180s",
+      "path": "F:\\WorkSpace\\MusicBox\\MusicBox\\scripts\\benchmarks\\audio\\open-goldberg-48k-stereo-180s.wav"
+    },
+    {
+      "id": "flac_96k_180s",
+      "path": "F:\\WorkSpace\\MusicBox\\MusicBox\\scripts\\benchmarks\\audio\\open-goldberg-96k-stereo-180s.flac"
+    },
+    {
+      "id": "mp3_44k",
+      "path": "F:\\WorkSpace\\MusicBox\\MusicBox\\scripts\\benchmarks\\audio\\open-goldberg-aria.mp3"
+    }
+  ],
+  "repetitions": 3,
+  "durationSec": 60,
+  "sampleIntervalMs": 1000,
+  "ipcIterations": 0,
+  "payloadBytes": [],
+  "conditions": [
+    {
+      "id": "webaudio_format",
+      "backend": "webaudio"
+    },
+    {
+      "id": "wasapi_shared_format",
+      "backend": "native",
+      "shareMode": "shared"
+    },
+    {
+      "id": "wasapi_exclusive_format",
+      "backend": "native",
+      "shareMode": "exclusive"
+    }
+  ]
+}

@@ -234,6 +234,8 @@ pub struct ParametricEqualizer {
     config: Arc<RwLock<ParametricEqualizerConfig>>,
     sample_rate: f64,
     channels: usize,
+    enabled: bool,
+    preamp_linear: f32,
 }
 
 impl ParametricEqualizer {
@@ -260,6 +262,8 @@ impl ParametricEqualizer {
             config: Arc::new(RwLock::new(config)),
             sample_rate,
             channels,
+            enabled: false,
+            preamp_linear: 1.0,
         }
     }
 
@@ -269,21 +273,24 @@ impl ParametricEqualizer {
     }
 
     /// 启用/禁用均衡器
-    pub fn set_enabled(&self, enabled: bool) {
+    pub fn set_enabled(&mut self, enabled: bool) {
         let mut config = self.config.write();
         config.enabled = enabled;
+        self.enabled = enabled;
         println!("🎚️ 参量均衡器: {}", if enabled { "启用" } else { "禁用" });
     }
 
     /// 检查是否启用
     pub fn is_enabled(&self) -> bool {
-        self.config.read().enabled
+        self.enabled
     }
 
     /// 设置前置增益（dB）
-    pub fn set_preamp(&self, gain: f32) {
+    pub fn set_preamp(&mut self, gain: f32) {
+        let gain = gain.clamp(-12.0, 12.0);
         let mut config = self.config.write();
-        config.preamp = gain.clamp(-12.0, 12.0);
+        config.preamp = gain;
+        self.preamp_linear = 10.0_f32.powf(gain / 20.0);
     }
 
     /// 获取前置增益
@@ -464,15 +471,11 @@ impl ParametricEqualizer {
     /// 处理交错音频样本块（就地处理）
     #[inline]
     pub fn process_interleaved(&mut self, samples: &mut [f32]) {
-        let config = self.config.read();
-
-        if !config.enabled {
+        if !self.enabled {
             return;
         }
 
-        let preamp_linear = 10.0_f32.powf(config.preamp / 20.0);
-        drop(config);
-
+        let preamp_linear = self.preamp_linear;
         let channels = self.channels;
         let frame_count = samples.len() / channels;
 
@@ -495,15 +498,11 @@ impl ParametricEqualizer {
 
     /// 处理分离声道音频样本块
     pub fn process_deinterleaved(&mut self, waves: &mut [Vec<f32>]) {
-        let config = self.config.read();
-
-        if !config.enabled {
+        if !self.enabled {
             return;
         }
 
-        let preamp_linear = 10.0_f32.powf(config.preamp / 20.0);
-        drop(config);
-
+        let preamp_linear = self.preamp_linear;
         let frame_count = waves.get(0).map(|w| w.len()).unwrap_or(0);
 
         for frame in 0..frame_count {

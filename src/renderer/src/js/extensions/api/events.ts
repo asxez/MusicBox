@@ -6,7 +6,7 @@
 import {Validator} from '@extensions/api/common/validation';
 import {ErrorUtils} from '@extensions/api/common/errors';
 import {IDisposable, toDisposable} from '@extensions/core/Lifecycle';
-import {app} from '@core/app';
+import {extensionHostService} from "@services/plugins/ExtensionHostService";
 import {ExtensionContext} from "@extensions/core";
 import {EventCallback, EventsAPI} from "@extensions/api/types/events";
 
@@ -22,11 +22,9 @@ export function createEventsAPI(_context: ExtensionContext): EventsAPI {
             Validator.assertFunction(callback, 'callback');
 
             return ErrorUtils.wrapSync(() => {
-                app.on(eventName, callback);
+                extensionHostService.on(eventName, callback);
                 return toDisposable(() => {
-                    if (app && typeof app.off === 'function') {
-                        app.off(eventName, callback);
-                    }
+                    extensionHostService.off(eventName, callback);
                 });
             }, 'events.on');
         },
@@ -54,7 +52,7 @@ export function createEventsAPI(_context: ExtensionContext): EventsAPI {
             Validator.assertNonEmptyString(eventName, 'eventName');
 
             return ErrorUtils.wrapSync(() => {
-                app.emit(eventName, data);
+                extensionHostService.emit(eventName, data);
             }, 'events.emit');
         },
 
@@ -63,7 +61,7 @@ export function createEventsAPI(_context: ExtensionContext): EventsAPI {
             Validator.assertFunction(callback, 'callback');
 
             return ErrorUtils.wrapSync(() => {
-                app.off(eventName, callback);
+                extensionHostService.off(eventName, callback);
             }, 'events.off');
         },
 
@@ -73,7 +71,7 @@ export function createEventsAPI(_context: ExtensionContext): EventsAPI {
             }
 
             return ErrorUtils.wrapSync(() => {
-                app.removeAllListeners(eventName);
+                extensionHostService.removeAllListeners(eventName);
             }, 'events.removeAllListeners');
         }
     };
