@@ -13,6 +13,8 @@ import {
     type TrackSource
 } from '@services/audio/domain';
 import WebAudioEqualizer from "@services/audio/WebAudioEqualizer";
+import {webAudioChain} from "@services/audio/WebAudioChain";
+import WebAudioPreloadCoordinator from "@services/audio/WebAudioPreloadCoordinator";
 import {embeddedCoverManager} from "@services/cover/EmbeddedCoverManager";
 
 interface WebAudioTrack extends AudioTrack {
@@ -78,10 +80,7 @@ class WebAudioEngine {
     private progressTimer: ReturnType<typeof setInterval> | null;
     private coverObjectUrls: Set<string>;
     private gaplessPlaybackEnabled: boolean;
-    private nextAudioBuffer: any;
-    private nextTrackInfo: any;
-    private isPreloading: boolean;
-    private preloadPromise: Promise<boolean> | null;
+    private preloadCoordinator: WebAudioPreloadCoordinator | null;
     private isWindowVisible: boolean;
     private memoryCleanupTimer: ReturnType<typeof setTimeout> | null;
     private visibilityChangeListener: EventListener | null;
@@ -126,10 +125,7 @@ class WebAudioEngine {
 
         // 无间隙播放相关属性
         this.gaplessPlaybackEnabled = true; // 默认启用无间隙播放
-        this.nextAudioBuffer = null; // 下一首歌曲的音频缓冲区
-        this.nextTrackInfo = null; // 下一首歌曲信息
-        this.isPreloading = false; // 是否正在预加载
-        this.preloadPromise = null; // 预加载Promise
+        this.preloadCoordinator = null;
 
         // 窗口可见性监听和内存管理
         this.isWindowVisible = true;
@@ -147,6 +143,7 @@ class WebAudioEngine {
             this.gainNode = this.audioContext.createGain();
             this.gainNode.connect(this.audioContext.destination);
             this.gainNode.gain.value = this.volume;
+            this.preloadCoordinator = new WebAudioPreloadCoordinator(this.audioContext);
             this.initializeEqualizer();
             return true;
         } catch (error) {
@@ -612,14 +609,11 @@ class WebAudioEngine {
 
     // 清理下一首歌曲的缓冲区
     clearNextTrackBuffer(): void {
-        if (this.nextAudioBuffer) {
-            this.nextAudioBuffer = null;
-            this.nextTrackInfo = null;
+        this.preloadCoordinator?.clear();
 
-            // 在窗口隐藏时强制垃圾回收
-            if (!this.isWindowVisible) {
-                setTimeout(() => this.forceGarbageCollection(), 0);
-            }
+        // 在窗口隐藏时强制垃圾回收
+        if (!this.isWindowVisible) {
+            setTimeout(() => this.forceGarbageCollection(), 0);
         }
     }
 
@@ -627,11 +621,6 @@ class WebAudioEngine {
     async preloadNextTrack(nextIndex: number | null = null): Promise<boolean> {
         if (!this.gaplessPlaybackEnabled || this.playlist.length <= 1) {
             return false;
-        }
-
-        // 如果已经在预加载，等待完成
-        if (this.isPreloading && this.preloadPromise) {
-            return await this.preloadPromise;
         }
 
         // 计算下一首歌曲的索引：优先使用提供的nextIndex，其次使用回调函数，最后使用顺序播放逻辑
@@ -654,45 +643,16 @@ class WebAudioEngine {
             return false;
         }
 
-        // 若已预加载了相同歌曲，直接返回
-        if (this.nextTrackInfo && getTrackFilePath(this.nextTrackInfo) === filePath && this.nextAudioBuffer) {
-            console.log('✅ 下一首歌曲已预加载:', getTrackTitle(nextTrackInfo) || filePath);
-            return true;
-        }
-
-        this.isPreloading = true;
-        this.preloadPromise = this.loadNextTrackBuffer(filePath, nextTrackInfo);
-        try {
-            return await this.preloadPromise;
-        } finally {
-            this.isPreloading = false;
-            this.preloadPromise = null;
-        }
+        return await this.loadNextTrackBuffer(filePath, nextTrackInfo);
     }
 
     // 加载下一首歌曲的音频缓冲区
     async loadNextTrackBuffer(filePath: string, trackInfo: TrackSource): Promise<boolean> {
-        try {
-            console.log(`🔄 预加载下一首歌曲: ${getTrackTitle(trackInfo) || filePath}`);
-
-            let arrayBuffer: ArrayBuffer | null = await mediaController.readAudioFile(filePath);
-            this.nextAudioBuffer = await this.audioContext.decodeAudioData(arrayBuffer); // 解码
-
-            // 清理arrayBuffer引用以释放内存
-            arrayBuffer = null;
-            this.nextTrackInfo = {
-                ...(typeof trackInfo === 'string' ? {} : trackInfo),
-                filePath: filePath,
-                duration: this.nextAudioBuffer.duration
-            };
-
-            console.log(`✅ 下一首歌曲预加载完成: ${getTrackTitle(trackInfo) || filePath}`);
-            return true;
-        } catch (error) {
-            console.error('❌ 预加载下一首歌曲失败:', error);
-            this.clearNextTrackBuffer();
+        if (!this.preloadCoordinator) {
             return false;
         }
+
+        return await this.preloadCoordinator.preload(filePath, trackInfo);
     }
 
     // 播放下一首
@@ -737,19 +697,21 @@ class WebAudioEngine {
 
         // 若启用无间隙播放且已预加载，检查预加载的歌曲是否与当前要播放的歌曲一致
         const canUsePreloadedBuffer = this.gaplessPlaybackEnabled &&
-            this.nextAudioBuffer &&
-            this.nextTrackInfo &&
-            getTrackFilePath(this.nextTrackInfo) === filePath;
+            this.preloadCoordinator?.hasPreloaded(filePath);
 
         if (canUsePreloadedBuffer) {
             console.log('🎵 使用预加载的音频缓冲区进行无间隙播放');
             this.stop();
             this.audioBuffer = null;
+            const preloadedTrack = this.preloadCoordinator?.getPreloaded();
+            if (!preloadedTrack) {
+                return false;
+            }
 
             // 使用预加载的缓冲区
-            this.audioBuffer = this.nextAudioBuffer;
-            this.duration = getTrackDuration(this.nextTrackInfo) || this.nextAudioBuffer.duration;
-            this.currentTrack = normalizeTrack(this.nextTrackInfo, filePath, this.duration);
+            this.audioBuffer = preloadedTrack.buffer;
+            this.duration = getTrackDuration(preloadedTrack.trackInfo) || preloadedTrack.buffer.duration || 0;
+            this.currentTrack = normalizeTrack(preloadedTrack.trackInfo, filePath, this.duration);
 
             // 清理预加载的资源
             this.clearNextTrackBuffer();
@@ -771,7 +733,7 @@ class WebAudioEngine {
             return playResult;
         } else {
             // 普通加载方式（预加载不可用或预加载的歌曲不匹配）
-            if (this.nextAudioBuffer && this.nextTrackInfo && getTrackFilePath(this.nextTrackInfo) !== filePath) {
+            if (this.preloadCoordinator?.getPreloaded() && !this.preloadCoordinator.hasPreloaded(filePath)) {
                 console.log('⚠️ 预加载的歌曲与目标歌曲不一致，清理预加载缓冲区');
                 this.clearNextTrackBuffer();
             }
@@ -949,134 +911,34 @@ class WebAudioEngine {
 
     // 连接音频源到音频链
     connectSourceToChain(): void {
-        console.log('🔗 开始连接音频源到音频链...');
-        if (!this.sourceNode) {
+        if (!this.audioContext || !this.sourceNode || !this.gainNode) {
             console.warn('⚠️ sourceNode不存在，无法连接音频链');
             return;
         }
 
-        // 确保gainNode连接到destination
-        try {
-            // 检查gainNode是否已连接到destination，如果没有则连接
-            this.gainNode?.disconnect();
-            this.gainNode?.connect(this.audioContext!.destination);
-            console.log('✅ gainNode -> destination 连接确保');
-        } catch (error) {
-            console.warn('⚠️ gainNode连接确保失败:', error);
-        }
-
-        if (this.equalizer && this.equalizerEnabled) {
-            console.log('🔗 使用均衡器路径: sourceNode -> equalizer.input -> [滤波器链] -> equalizer.output -> gainNode -> destination');
-
-            try {
-                // 确保均衡器输出连接到gainNode
-                this.equalizer.output.disconnect();
-                this.equalizer.output.connect(this.gainNode!);
-                console.log('✅ equalizer.output -> gainNode 连接确保');
-
-                // 音频源 -> 均衡器输入
-                this.sourceNode.connect(this.equalizer.input);
-                console.log('✅ sourceNode -> equalizer.input 连接成功');
-
-            } catch (error) {
-                console.error('❌ 均衡器音频链连接失败:', error);
-                // 回退到直接连接
-                try {
-                    this.sourceNode.connect(this.gainNode!);
-                    console.log('🔄 回退到直接连接: sourceNode -> gainNode');
-                } catch (fallbackError) {
-                    console.error('❌ 回退连接也失败:', fallbackError);
-                }
-            }
-        } else {
-            console.log('🔗 使用直接路径: sourceNode -> gainNode -> destination');
-            try {
-                // 音频源 -> 增益节点
-                this.sourceNode.connect(this.gainNode!);
-                console.log('✅ sourceNode -> gainNode 连接成功');
-            } catch (error) {
-                console.error('❌ 直接音频链连接失败:', error);
-            }
-        }
+        webAudioChain.connect({
+            audioContext: this.audioContext,
+            sourceNode: this.sourceNode,
+            gainNode: this.gainNode,
+            equalizer: this.equalizer,
+            equalizerEnabled: this.equalizerEnabled
+        });
     }
 
     // 重新连接音频链 - 支持实时切换
     reconnectAudioChain(): boolean {
-        console.log('🔄 开始重新连接音频链（实时切换模式）...');
-
-        if (!this.audioContext || !this.gainNode) {
-            console.warn('⚠️ audioContext或gainNode不存在，无法重新连接音频链');
-            return false;
-        }
-
-        if (!this.sourceNode) {
+        if (!this.audioContext || !this.sourceNode || !this.gainNode) {
             console.warn('⚠️ sourceNode不存在，无法重新连接音频链');
             return false;
         }
 
-        console.log('🔄 断开所有现有连接...');
-
-        // 只断开必要的连接，避免破坏基础连接
-        try {
-            if (this.sourceNode) {
-                this.sourceNode.disconnect();
-            }
-        } catch (error) {
-            console.warn('⚠️ sourceNode断开失败:', error);
-        }
-
-        try {
-            if (this.equalizer && this.equalizer.output) {
-                this.equalizer.output.disconnect();
-            }
-        } catch (error) {
-            console.warn('⚠️ equalizer.output断开失败:', error);
-        }
-
-        // 断开gainNode的输入连接，但保持到destination的连接
-        try {
-            // 先断开所有连接，然后重新建立到destination的连接
-            this.gainNode.disconnect();
-                this.gainNode.connect(this.audioContext.destination);
-        } catch (error) {
-            console.warn('⚠️ gainNode重连失败:', error);
-        }
-
-        // 重新连接音频路径
-        try {
-            if (this.equalizer && this.equalizerEnabled) {
-                console.log('🔗 使用均衡器路径: sourceNode -> equalizer -> gainNode -> destination');
-
-                // 均衡器输出 -> 增益节点
-                this.equalizer.output.connect(this.gainNode);
-                console.log('✅ equalizer.output -> gainNode 重新连接成功');
-
-                // 音频源 -> 均衡器输入
-                this.sourceNode.connect(this.equalizer.input);
-                console.log('✅ sourceNode -> equalizer.input 重新连接成功');
-
-            } else {
-                console.log('🔗 使用直接路径: sourceNode -> gainNode -> destination');
-
-                // 音频源 -> 增益节点
-                this.sourceNode.connect(this.gainNode);
-                console.log('✅ sourceNode -> gainNode 直接重新连接成功');
-            }
-            return true;
-
-        } catch (error) {
-            console.error('❌ 音频链重新连接失败:', error);
-
-            // 尝试恢复基本连接
-            try {
-                this.sourceNode.disconnect();
-                this.sourceNode.connect(this.gainNode);
-                return true;
-            } catch (recoveryError) {
-                console.error('❌ 恢复基本连接也失败:', recoveryError);
-                return false;
-            }
-        }
+        return webAudioChain.reconnect({
+            audioContext: this.audioContext,
+            sourceNode: this.sourceNode,
+            gainNode: this.gainNode,
+            equalizer: this.equalizer,
+            equalizerEnabled: this.equalizerEnabled
+        });
     }
 
     // 初始化窗口可见性监听
