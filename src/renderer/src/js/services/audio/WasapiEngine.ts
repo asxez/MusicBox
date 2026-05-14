@@ -5,6 +5,7 @@
 import {audioDriverController} from "@js/features/audioDriver";
 import {libraryController} from "@js/features/library";
 import {cacheManager} from "@services/CacheManager";
+import {getTrackFilePath, type AudioTrack, type TrackSource} from "@services/audio/domain";
 import ParametricEqualizer from "@services/audio/ParametricEqualizer";
 import WasapiEqualizer from "@services/audio/WasapiEqualizer";
 import type {MusicBoxSettings} from "@api/types/settings";
@@ -13,18 +14,7 @@ type WasapiShareMode = 'exclusive' | 'shared';
 type EqualizerMode = 'graphic' | 'parametric';
 type NativeResult<T extends Record<string, unknown> = Record<string, unknown>> = {success?: boolean; error?: string} & T;
 
-type TrackSource = string | {
-    filePath?: string;
-    path?: string;
-    title?: string;
-    artist?: string;
-    album?: string;
-    duration?: number;
-    cover?: unknown;
-    [key: string]: unknown;
-};
-
-interface WasapiTrack {
+interface WasapiTrack extends AudioTrack {
     filePath: string;
     title: string;
     artist: string;
@@ -590,14 +580,6 @@ class WasapiEngine {
             return 'graphic';
         }
     }
-}
-
-function getTrackFilePath(track: TrackSource): string | null {
-    if (typeof track === 'string') {
-        return track;
-    }
-
-    return track.filePath || track.path || null;
 }
 
 export default WasapiEngine;

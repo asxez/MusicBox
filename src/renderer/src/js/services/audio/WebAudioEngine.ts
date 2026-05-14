@@ -4,22 +4,17 @@
 
 import {libraryController} from "@js/features/library";
 import {mediaController} from "@js/features/media";
+import {
+    getTrackDuration,
+    getTrackFilePath,
+    getTrackTitle,
+    normalizeTrack,
+    type AudioTrack,
+    type TrackSource
+} from '@services/audio/domain';
 import {embeddedCoverManager} from "@services/cover/EmbeddedCoverManager";
 
-type TrackSource = any;
-
-interface TrackSourceShape {
-    filePath?: string;
-    path?: string;
-    title?: string;
-    artist?: string;
-    album?: string;
-    duration?: number;
-    cover?: unknown;
-    [key: string]: unknown;
-}
-
-interface WebAudioTrack {
+interface WebAudioTrack extends AudioTrack {
     filePath: string;
     title?: string;
     artist?: string;
@@ -54,42 +49,6 @@ interface TrackMetadata {
     disc?: number;
     cover?: unknown;
     [key: string]: unknown;
-}
-
-function getTrackFilePath(track: TrackSource | null): string | null {
-    if (!track) {
-        return null;
-    }
-
-    if (typeof track === 'string') {
-        return track;
-    }
-
-    const trackObject = track as TrackSourceShape;
-    return trackObject.filePath || trackObject.path || null;
-}
-
-function getTrackTitle(track: TrackSource): string | undefined {
-    return typeof track === 'string' ? undefined : (track as TrackSourceShape).title;
-}
-
-function getTrackDuration(track: TrackSource): number | undefined {
-    return typeof track === 'string' ? undefined : (track as TrackSourceShape).duration;
-}
-
-function normalizeTrack(track: TrackSource, filePath: string, duration: number): WebAudioTrack {
-    if (typeof track === 'string') {
-        return {
-            filePath,
-            duration
-        };
-    }
-
-    return {
-        ...(typeof track === 'string' ? {} : track),
-        filePath,
-        duration
-    };
 }
 
 class WebAudioEngine {
@@ -622,15 +581,16 @@ class WebAudioEngine {
 
         console.log(`📋 播放列表设置: ${tracks.length}首歌曲，起始索引: ${startIndex}`);
         if (tracks.length > 0) {
+            const firstTrack = tracks[0];
             console.log('📋 第一首歌曲信息:', tracks[0]);
             if (startIndex >= 0 && startIndex < tracks.length) {
                 console.log('📋 当前选中歌曲:', tracks[startIndex]);
             }
             console.log('📋 歌曲数据结构:', {
-                hasFilePath: !!tracks[0].filePath,
-                hasTitle: !!tracks[0].title,
-                hasArtist: !!tracks[0].artist,
-                keys: Object.keys(tracks[0])
+                hasFilePath: !!getTrackFilePath(firstTrack),
+                hasTitle: !!getTrackTitle(firstTrack),
+                hasArtist: typeof firstTrack !== 'string' && !!firstTrack.artist,
+                keys: typeof firstTrack === 'string' ? [] : Object.keys(firstTrack)
             });
         }
 
@@ -720,7 +680,7 @@ class WebAudioEngine {
             // 清理arrayBuffer引用以释放内存
             arrayBuffer = null;
             this.nextTrackInfo = {
-                ...trackInfo,
+                ...(typeof trackInfo === 'string' ? {} : trackInfo),
                 filePath: filePath,
                 duration: this.nextAudioBuffer.duration
             };

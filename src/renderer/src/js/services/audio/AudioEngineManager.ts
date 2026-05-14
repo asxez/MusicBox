@@ -1,74 +1,23 @@
 /**
  * 音频引擎管理器
- * 负责在WebAudioEngine和WasapiEngine之间切换
+ * 负责音频引擎生命周期、切换和状态恢复
  */
 
-import {audioDriverController} from "@js/features/audioDriver";
-import {WebAudioEngine} from '@services/audio/WebAudioEngine';
+import {
+    audioEngineFactory,
+    audioEngineStateStore,
+    getTrackFilePath,
+    type AudioEngineBridge,
+    type AudioEngineState,
+    type AudioEngineType,
+    type TrackSource
+} from '@services/audio/domain';
 
-export type AudioEngineType = 'webaudio' | 'wasapi';
-
-type TrackLike = string | {
-    filePath?: string;
-    path?: string;
-    [key: string]: unknown;
-};
-
-interface AudioEngineState {
-    volume: number;
-    playlist: TrackLike[];
-    currentIndex: number;
-    position: number;
-    isPlaying: boolean;
-    gaplessEnabled: boolean;
-    currentTrack?: unknown;
-}
-
-interface AudioEngineBridge {
-    nativeEngine?: {
-        getShareMode?(): Promise<unknown>;
-        setShareMode?(mode: unknown): Promise<unknown>;
-    };
-    isPlaying: boolean;
-    isPaused?: boolean;
-    duration?: number;
-    currentTrack?: unknown;
-    playlist?: TrackLike[];
-    currentIndex?: number;
-    onTrackChanged: ((track: unknown) => void | Promise<void>) | null;
-    onPlaybackStateChanged: ((isPlaying: boolean) => void | Promise<void>) | null;
-    onPositionChanged: ((position: number) => void | Promise<void>) | null;
-    onVolumeChanged: ((volume: number) => void) | null;
-    getNextTrackIndex: (() => number) | null;
-    getPreviousTrackIndex: (() => number) | null;
-    initialize(): Promise<boolean>;
-    destroy(): void;
-    loadTrack(filePath: string): Promise<boolean>;
-    play(): Promise<boolean>;
-    pause(): Promise<boolean>;
-    stop(): Promise<boolean> | boolean;
-    seek(position: number): Promise<boolean>;
-    setVolume(volume: number): boolean;
-    getVolume(): number;
-    getPosition(): Promise<number>;
-    getDuration(): number;
-    getCurrentTrack(): unknown;
-    getEqualizer(): unknown;
-    setEqualizerEnabled(enabled: boolean): unknown;
-    setPlaylist(tracks: TrackLike[], startIndex?: number): boolean;
-    nextTrack(nextIndex?: number | null): Promise<boolean>;
-    previousTrack(prevIndex?: number | null): Promise<boolean>;
-    setGaplessPlayback(enabled: boolean): void;
-    getGaplessPlayback(): boolean;
-    switchShareMode?(mode: unknown): Promise<boolean>;
-}
-
-type AudioEngineConstructor = new () => AudioEngineBridge;
+export type {AudioEngineType};
 
 class AudioEngineManager {
     public currentEngine: AudioEngineBridge | null;
     public engineType: AudioEngineType;
-    private WasapiEngine: AudioEngineConstructor | null;
     private savedState: AudioEngineState;
     public onTrackChanged: ((track: unknown) => void | Promise<void>) | null;
     public onPlaybackStateChanged: ((isPlaying: boolean) => void | Promise<void>) | null;
@@ -80,17 +29,9 @@ class AudioEngineManager {
     constructor() {
         this.currentEngine = null;
         this.engineType = 'webaudio'; // 'webaudio' 或 'wasapi'
-        this.WasapiEngine = null; // 延迟加载
 
         // 保存的状态，用于引擎切换时恢复
-        this.savedState = {
-            volume: 0.7,
-            playlist: [],
-            currentIndex: -1,
-            position: 0,
-            isPlaying: false,
-            gaplessEnabled: true
-        };
+        this.savedState = audioEngineStateStore.createDefaultState();
 
         // 事件回调（代理到当前引擎）
         this.onTrackChanged = null;
@@ -130,21 +71,7 @@ class AudioEngineManager {
      * @returns {Promise<boolean>}
      */
     async checkWasapiAvailability(): Promise<boolean> {
-        try {
-            const {default: WasapiEngine} = await import('./WasapiEngine.js') as {default: AudioEngineConstructor};
-            this.WasapiEngine = WasapiEngine;
-
-            // 检查Native模块是否可用
-            if (!audioDriverController.isNativeAudioAvailable()) {
-                console.warn('⚠️ Native音频模块未加载');
-                return false;
-            }
-
-            return true;
-        } catch (error) {
-            console.error('❌ WASAPI引擎检查失败:', error);
-            return false;
-        }
+        return await audioEngineFactory.ensureWasapiAvailable();
     }
 
     /**
@@ -154,22 +81,7 @@ class AudioEngineManager {
      */
     async createEngine(engineType: AudioEngineType): Promise<boolean> {
         try {
-            let engine: AudioEngineBridge;
-
-            if (engineType === 'wasapi' && this.WasapiEngine) {
-                console.log('🎵 创建WASAPI独占引擎');
-                engine = new this.WasapiEngine();
-            } else {
-                console.log('🎵 创建WebAudio引擎');
-                engine = new WebAudioEngine() as AudioEngineBridge;
-            }
-
-            const initialized = await engine.initialize();
-            if (!initialized) {
-                throw new Error('引擎初始化失败');
-            }
-
-            this.currentEngine = engine;
+            this.currentEngine = await audioEngineFactory.create(engineType);
             this.setupEngineCallbacks();
             console.log(`✅ ${engineType === 'wasapi' ? 'WASAPI' : 'WebAudio'}引擎初始化成功`);
             return true;
@@ -259,15 +171,7 @@ class AudioEngineManager {
         if (!this.currentEngine) return;
 
         try {
-            this.savedState = {
-                volume: this.currentEngine.getVolume(),
-                playlist: this.currentEngine.playlist || [],
-                currentIndex: this.currentEngine.currentIndex || -1,
-                position: await this.currentEngine.getPosition(),
-                isPlaying: this.currentEngine.isPlaying,
-                gaplessEnabled: this.currentEngine.getGaplessPlayback(),
-                currentTrack: this.currentEngine.getCurrentTrack()
-            };
+            this.savedState = await audioEngineStateStore.capture(this.currentEngine);
 
             console.log('💾 已保存引擎状态:', this.savedState);
         } catch (error) {
@@ -282,16 +186,10 @@ class AudioEngineManager {
         if (!this.currentEngine) return;
 
         try {
-            // 恢复音量
-            this.currentEngine.setVolume(this.savedState.volume);
-
-            // 恢复无间隙播放设置
-            this.currentEngine.setGaplessPlayback(this.savedState.gaplessEnabled);
+            await audioEngineStateStore.apply(this.currentEngine, this.savedState);
 
             // 恢复播放列表
             if (this.savedState.playlist.length > 0) {
-                this.currentEngine.setPlaylist(this.savedState.playlist, this.savedState.currentIndex);
-
                 // 如果之前在播放，重新加载并播放
                 if (this.savedState.currentIndex >= 0) {
                     const track = this.savedState.playlist[this.savedState.currentIndex];
@@ -378,7 +276,7 @@ class AudioEngineManager {
         return this.currentEngine?.setEqualizerEnabled(enabled);
     }
 
-    setPlaylist(tracks: TrackLike[], startIndex = 0): boolean {
+    setPlaylist(tracks: TrackSource[], startIndex = 0): boolean {
         return this.currentEngine?.setPlaylist(tracks, startIndex) || false;
     }
 
@@ -424,7 +322,7 @@ class AudioEngineManager {
         }
     }
 
-    get playlist(): TrackLike[] {
+    get playlist(): TrackSource[] {
         return this.currentEngine?.playlist || [];
     }
 
@@ -435,14 +333,6 @@ class AudioEngineManager {
     get currentTrack(): unknown {
         return this.currentEngine?.currentTrack || null;
     }
-}
-
-function getTrackFilePath(track: TrackLike): string | null {
-    if (typeof track === 'string') {
-        return track;
-    }
-
-    return track.filePath || track.path || null;
 }
 
 export default AudioEngineManager;
