@@ -3,9 +3,10 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {fileAPI, userDataAPI} from "@api/modules";
 import {libraryController} from "@js/features/library";
+import {mediaController} from "@js/features/media";
 import {playbackController} from "@js/features/playback";
+import {userDataController} from "@js/features/userData";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import type {Track} from "@api/types/library";
 
@@ -446,7 +447,7 @@ class HomePage extends Component {
             album: currentTrack?.album || null
         };
 
-        await userDataAPI.saveMood(moodData as any);
+        await userDataController.saveMood(moodData as any);
     }
 
     async saveMusicDiary(): Promise<void> {
@@ -463,7 +464,7 @@ class HomePage extends Component {
             album: currentTrack?.album || null
         };
 
-        await userDataAPI.saveDiary(diaryEntry as any);
+        await userDataController.saveDiary(diaryEntry as any);
 
         // 清空输入框并显示保存成功提示
         diaryInput.value = '';
@@ -657,7 +658,7 @@ class HomePage extends Component {
         if (scanBtn) {
             scanBtn.addEventListener('click', async () => {
                 try {
-                    const directory = await fileAPI.openDirectory();
+                    const directory = await mediaController.openDirectory();
                     if (directory) {
                         const success = await libraryController.scanDirectory(directory);
                         if (success) {

@@ -5,8 +5,8 @@
 
 import {formatTime} from "@utils/index.js";
 import {Component} from "@ui/base/Component";
-import {coverAPI} from "@api/modules";
 import {libraryController} from "@js/features/library";
+import {mediaController} from "@js/features/media";
 import type {Track} from "@api/types/library";
 
 type AlbumViewSize = 's' | 'm' | 'l';
@@ -234,7 +234,7 @@ class AlbumsPage extends Component {
             }
             // 显示加载态
             this._setAlbumCardLoading(album.key, true);
-            const result = await coverAPI.getCover('', artist, name, null, false);
+            const result = await mediaController.getCover('', artist, name, null, false);
             if (result && result.success && result.imageUrl) {
                 // 更新专辑数据
                 album.cover = result.imageUrl;

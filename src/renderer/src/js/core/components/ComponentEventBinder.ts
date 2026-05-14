@@ -1,4 +1,4 @@
-import {updateAPI} from "@api/modules";
+import {appShellController} from "@js/features/appShell";
 import {playbackController} from "@js/features/playback";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
 import {settingsExtensionNavigationService} from "@services/settings/SettingsExtensionNavigationService";
@@ -213,7 +213,7 @@ export class ComponentEventBinder {
             components.updateModal.show();
         });
 
-        updateAPI.onShowUpdateDetails(() => {
+        appShellController.onShowUpdateDetails(() => {
             components.updateModal.show();
         });
 

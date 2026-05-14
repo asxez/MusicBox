@@ -1,4 +1,4 @@
-import {trayAPI, windowAPI} from "@api/modules";
+import {appShellController} from "@js/features/appShell";
 import type {ManagedDOMListener, RendererAppContext} from '@core/types/app';
 
 interface DOMEventBinderOptions {
@@ -23,7 +23,7 @@ export class DOMEventBinder {
     }
 
     dispose(): void {
-        windowAPI.disposeWindowStateManagement();
+        appShellController.disposeWindowStateManagement();
 
         this.eventListeners.forEach(({element, event, handler}) => {
             try {
@@ -40,8 +40,8 @@ export class DOMEventBinder {
             await app.cleanup();
         });
 
-        windowAPI.initWindowStateManagement();
-        await trayAPI.initSystemTray();
+        appShellController.initWindowStateManagement();
+        await appShellController.initSystemTray();
 
         app.initKeyboardShortcuts();
         await app.initGlobalShortcuts();

@@ -4,8 +4,8 @@
 
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@ui/base/Component";
-import {coverAPI, fileAPI, lyricsAPI} from "@api/modules";
 import {desktopLyricsController} from "@js/features/desktopLyrics";
+import {mediaController} from "@js/features/media";
 import {playbackController} from "@js/features/playback";
 import type {PlaybackState, PlaybackStoreChange, Unsubscribe} from "@js/features/playback";
 import type {LyricLine} from "@api/types/lyrics";
@@ -627,7 +627,7 @@ class Lyrics extends Component {
             if (Array.isArray(track.lyrics)) {
                 this.lyrics = track.lyrics as RenderLyricLine[];
             } else {
-                const parsedLyrics = lyricsAPI.parse(String(track.lyrics), track.lyricsFormat as any);
+                const parsedLyrics = mediaController.parseLyrics(String(track.lyrics), track.lyricsFormat as any);
                 this.lyrics = parsedLyrics as RenderLyricLine[];
             }
             this.renderLyrics();
@@ -641,16 +641,16 @@ class Lyrics extends Component {
         this.showLoading();
 
         try {
-            const lyricsResult = await lyricsAPI.getLyrics(track.title, track.artist, track.album, track.filePath);
+            const lyricsResult = await mediaController.getLyrics(track.title, track.artist, track.album, track.filePath);
             if (lyricsResult.success) {
                 let parsedLyrics: RenderLyricLine[] | undefined;
 
                 if (lyricsResult.format === 'ttml' && lyricsResult.content) {
-                    parsedLyrics = lyricsAPI.parseTTML(lyricsResult.content);
+                    parsedLyrics = mediaController.parseTTML(lyricsResult.content);
                 } else if (lyricsResult.lrc) {
-                    parsedLyrics = lyricsAPI.parseLRC(lyricsResult.lrc);
+                    parsedLyrics = mediaController.parseLRC(lyricsResult.lrc);
                 } else if (lyricsResult.content) {
-                    parsedLyrics = lyricsAPI.parse(lyricsResult.content, lyricsResult.format);
+                    parsedLyrics = mediaController.parseLyrics(lyricsResult.content, lyricsResult.format);
                 }
 
                 if (parsedLyrics && parsedLyrics.length > 0) {
@@ -693,7 +693,7 @@ class Lyrics extends Component {
             let finalImageUrl = null;
             if (track.title && track.artist) {
                 // 添加forceRefresh参数以确保首次播放时能正确获取封面，特别是网络磁盘文件
-                const coverResult = await coverAPI.getCover(track.title, track.artist, track.album, track.filePath, true);
+                const coverResult = await mediaController.getCover(track.title, track.artist, track.album, track.filePath, true);
                 if (coverResult.success && coverResult.imageUrl) {
                     // 验证URL格式
                     if (typeof coverResult.imageUrl === 'string') {
@@ -789,7 +789,7 @@ class Lyrics extends Component {
     async convertLocalPathToBlobUrl(filePath: string): Promise<string | null> {
         try {
             // 读取文件数据
-            const fileData = await fileAPI.readFile(filePath);
+            const fileData = await mediaController.readFile(filePath);
             if (!fileData || fileData.length === 0) {
                 console.error('❌ Lyrics: 文件数据为空');
                 return null;

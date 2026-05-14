@@ -4,9 +4,9 @@
 
 import {Component} from "@ui/base/Component";
 import {libraryController} from "@js/features/library";
+import {mediaController} from "@js/features/media";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
 import {appInteractionService} from "@services/ui/AppInteractionService";
-import {coverAPI, fileAPI} from "@api/modules";
 import type {Unsubscribe} from "@api/types/common";
 import type {Playlist, Track} from "@api/types/library";
 
@@ -635,7 +635,7 @@ class PlaylistDetailPage extends Component {
             appInteractionService.showInfo('正在选择文件夹...');
 
             // 打开文件夹选择对话框
-            const folderPath = await fileAPI.openDirectory();
+            const folderPath = await mediaController.openDirectory();
             if (!folderPath) {
                 return;
             }
@@ -942,7 +942,7 @@ class PlaylistDetailPage extends Component {
         try {
             // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
             const loadCover = async () => {
-                const coverResult = await coverAPI.getCover(
+                const coverResult = await mediaController.getCover(
                     track.title, track.artist, track.album, track.filePath
                 ) as CoverResult;
 
@@ -1128,7 +1128,7 @@ class PlaylistDetailPage extends Component {
     // 选择并设置封面
     async selectAndSetCover(): Promise<void> {
         try {
-            const result = await fileAPI.selectImageFile();
+            const result = await mediaController.selectImageFile();
             if (result.success && result.path) {
                 console.log('✅ 选择的图片路径:', result.path);
                 await this.setCover(result.path);

@@ -1,4 +1,4 @@
-import {windowAPI} from "@api/modules";
+import {appShellController} from "@js/features/appShell";
 import {libraryController} from "@js/features/library";
 import {libraryGateway, networkDriveGateway} from "@js/infrastructure/electron";
 import type {Result, Unsubscribe} from "@api/types/common";
@@ -11,7 +11,7 @@ class NavigationDataService {
     }
 
     onWindowMaximizedChanged(handler: (isMaximized: boolean) => void): Unsubscribe {
-        return windowAPI.onMaximizedChanged(handler);
+        return appShellController.onWindowMaximizedChanged(handler);
     }
 
     onNetworkDriveConnected(handler: () => void | Promise<void>): Unsubscribe {
@@ -23,19 +23,19 @@ class NavigationDataService {
     }
 
     async minimizeWindow(): Promise<void> {
-        await windowAPI.minimize();
+        await appShellController.minimizeWindow();
     }
 
     async toggleMaximizeWindow(): Promise<void> {
-        await windowAPI.maximize();
+        await appShellController.toggleMaximizeWindow();
     }
 
     async closeWindow(): Promise<void> {
-        await windowAPI.close();
+        await appShellController.closeWindow();
     }
 
     async isWindowMaximized(): Promise<boolean> {
-        return windowAPI.isMaximized();
+        return appShellController.isWindowMaximized();
     }
 
     async getPlaylists(): Promise<Playlist[]> {

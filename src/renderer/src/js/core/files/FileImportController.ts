@@ -1,5 +1,5 @@
 import {showToast} from '@utils/index.js';
-import {fileAPI} from "@api/modules";
+import {mediaController} from "@js/features/media";
 import {libraryController} from "@js/features/library";
 import {playbackController} from "@js/features/playback";
 import type {RendererAppContext} from '@core/types/app';
@@ -21,7 +21,7 @@ export class FileImportController {
 
     async scanMusicFolder(): Promise<void> {
         try {
-            const folderPath = await fileAPI.openDirectory();
+            const folderPath = await mediaController.openDirectory();
             if (folderPath) {
                 this.app.showScanProgress();
                 const success = await libraryController.scanDirectory(folderPath);
@@ -38,7 +38,7 @@ export class FileImportController {
 
     async addMusicFiles(): Promise<void> {
         try {
-            const filePaths = await fileAPI.openFiles();
+            const filePaths = await mediaController.openFiles();
             if (filePaths.length > 0) {
                 let successCount = 0;
                 for (const filePath of filePaths) {
@@ -102,7 +102,7 @@ export class FileImportController {
 
     async openDirectoryDialog(): Promise<void> {
         try {
-            const directory = await fileAPI.openDirectoryDialog();
+            const directory = await mediaController.openDirectoryDialog();
             if (directory) {
                 await this.scanDirectory(directory);
             }

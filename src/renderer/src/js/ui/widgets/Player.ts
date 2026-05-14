@@ -5,8 +5,9 @@ import {cacheManager} from "@services/CacheManager";
 import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@ui/base/Component";
-import {coverAPI, windowAPI, lyricsAPI} from "@api/modules";
+import {appShellController} from "@js/features/appShell";
 import {desktopLyricsController} from "@js/features/desktopLyrics";
+import {mediaController} from "@js/features/media";
 import {playbackController} from "@js/features/playback";
 import type {PlaybackState, PlaybackStoreChange, Unsubscribe} from "@js/features/playback";
 import type {PlayMode} from "@api/types/playback";
@@ -505,7 +506,7 @@ class Player extends Component {
         try {
             // 获取封面
             if (track.title && track.artist) {
-                const coverResult = await coverAPI.getCover(track.title, track.artist, track.album, track.filePath, true);
+                const coverResult = await mediaController.getCover(track.title, track.artist, track.album, track.filePath, true);
                 if (coverResult.success && coverResult.imageUrl) {
                     if (typeof coverResult.imageUrl === 'string') {
                         // 使用安全的图片设置方法
@@ -675,8 +676,8 @@ class Player extends Component {
 
     async enterMiniMode(): Promise<void> {
         // 调整窗口大小
-        const currentBounds = await windowAPI.getBounds();
-        const result = await windowAPI.setMiniModeWindowState({
+        const currentBounds = await appShellController.getWindowBounds();
+        const result = await appShellController.setMiniModeWindowState({
             enabled: true,
             x: currentBounds?.x ?? 0,
             y: currentBounds?.y ?? 0
@@ -750,7 +751,7 @@ class Player extends Component {
 
         // 恢复窗口
         const {width, height} = this.getRestoredMainWindowSize();
-        const restoreResult = await windowAPI.setMiniModeWindowState({
+        const restoreResult = await appShellController.setMiniModeWindowState({
             enabled: false,
             width,
             height
@@ -1090,15 +1091,15 @@ class Player extends Component {
         }
 
         try {
-            if (await windowAPI.isMaximized()) {
-                await windowAPI.unmaximize();
+            if (await appShellController.isWindowMaximized()) {
+                await appShellController.unmaximizeWindow();
             }
 
-            const bounds = await windowAPI.getBounds();
+            const bounds = await appShellController.getWindowBounds();
             const x = bounds?.x ?? 0;
             const y = bounds?.y ?? 0;
             if (!bounds || bounds.width !== 400 || bounds.height !== 145) {
-                await windowAPI.setBounds({x, y, width: 400, height: 145});
+                await appShellController.setWindowBounds({x, y, width: 400, height: 145});
             }
         } catch (error) {
             console.warn('⚠️ Player: 迷你模式窗口尺寸守卫失败:', error);
@@ -1191,14 +1192,14 @@ class Player extends Component {
                 parsedLyrics = Array.isArray(track.lyrics) ? track.lyrics as MiniModeLyricLine[] : null;
             } else {
                 // 从API获取歌词
-                const lyricsResult = await lyricsAPI.getLyrics(track.title, track.artist, track.album, track.filePath);
+                const lyricsResult = await mediaController.getLyrics(track.title, track.artist, track.album, track.filePath);
                 if (lyricsResult.success) {
                     if (lyricsResult.format === 'ttml' && lyricsResult.content) {
-                        parsedLyrics = lyricsAPI.parseTTML(lyricsResult.content);
+                        parsedLyrics = mediaController.parseTTML(lyricsResult.content);
                     } else if (lyricsResult.lrc) {
-                        parsedLyrics = lyricsAPI.parseLRC(lyricsResult.lrc);
+                        parsedLyrics = mediaController.parseLRC(lyricsResult.lrc);
                     } else if (lyricsResult.content) {
-                        parsedLyrics = lyricsAPI.parse(lyricsResult.content, lyricsResult.format);
+                        parsedLyrics = mediaController.parseLyrics(lyricsResult.content, lyricsResult.format);
                     }
                 }
             }

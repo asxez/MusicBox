@@ -15,9 +15,8 @@ import {PlaylistController} from './playlists/PlaylistController';
 import {cacheManager} from "@services/CacheManager";
 import {extensionHostService} from "@services/plugins/ExtensionHostService";
 import {appInteractionService} from "@services/ui/AppInteractionService";
+import {appShellController} from "@js/features/appShell";
 import {playbackController as playbackFeatureController} from "@js/features/playback";
-
-import {updateAPI} from "@api/modules";
 import type {MusicBoxAPIEvents, ScanProgress} from "@api/types/events";
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
@@ -125,7 +124,7 @@ export class MusicBoxApp extends EventEmitter {
 
             // 自动检查更新
             setTimeout(() => {
-                updateAPI.autoCheckForUpdates();
+                appShellController.autoCheckForUpdates();
             }, 2000);
             return {
                 status: true
