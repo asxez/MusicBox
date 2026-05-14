@@ -1,4 +1,4 @@
-import {settingsSystemGateway} from "@js/infrastructure/electron";
+import {appShellController} from "@js/features/appShell";
 import {localCoverManager} from "@services/cover/LocalCoverManager";
 import {localLyricsManager} from "@services/lyrics/LocalLyricsManager";
 
@@ -16,7 +16,7 @@ interface DirectoryResult {
 
 class MediaDirectorySettingsService {
     async selectDirectory(): Promise<string | null> {
-        const result = await settingsSystemGateway.selectFolder();
+        const result = await appShellController.selectFolder();
         if (!result || !result.filePaths || result.filePaths.length === 0) {
             return null;
         }
@@ -37,7 +37,7 @@ class MediaDirectorySettingsService {
             return {directory: savedDirectory, shouldPersist: false};
         }
 
-        const defaultPathResult = await settingsSystemGateway.getDefaultCoverCachePath() as PathResult;
+        const defaultPathResult = await appShellController.getDefaultCoverCachePath() as PathResult;
         if (!defaultPathResult.success || !defaultPathResult.path) {
             return {
                 directory: null,
@@ -46,7 +46,7 @@ class MediaDirectorySettingsService {
             };
         }
 
-        const ensureResult = await settingsSystemGateway.ensureDirectoryExists(defaultPathResult.path) as PathResult;
+        const ensureResult = await appShellController.ensureDirectoryExists(defaultPathResult.path) as PathResult;
         if (!ensureResult.success) {
             return {
                 directory: null,

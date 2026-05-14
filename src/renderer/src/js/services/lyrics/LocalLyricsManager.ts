@@ -3,7 +3,7 @@
  * 负责本地歌词文件的搜索、匹配和读取逻辑
  */
 
-import {lyricsGateway} from "@js/infrastructure/electron";
+import {mediaAssetsController} from "@js/features/mediaAssets";
 
 type LyricsFormat = 'lrc' | 'ttml';
 
@@ -66,12 +66,12 @@ class LocalLyricsManager {
             console.log(`🔍 LocalLyricsManager: 搜索本地歌词 - ${title} by ${artist}`);
 
             // 优先搜索TTML格式歌词
-            const ttmlResult = await lyricsGateway.searchLocalFiles(
+            const ttmlResult = await mediaAssetsController.searchLocalLyrics(
                 this.lyricsDirectory, title, artist, album, '.ttml'
             );
 
             if (ttmlResult.success) {
-                const readResult = await lyricsGateway.readLocalFile(ttmlResult.filePath!);
+                const readResult = await mediaAssetsController.readLocalLyricsFile(ttmlResult.filePath!);
                 if (readResult.success) {
                     const ttmlContent = this.validateAndCleanLyrics(readResult.content);
                     const result: LocalLyricsResult = {
@@ -89,7 +89,7 @@ class LocalLyricsManager {
             }
 
             // 回退到LRC格式
-            const lrcResult = await lyricsGateway.searchLocalFiles(
+            const lrcResult = await mediaAssetsController.searchLocalLyrics(
                 this.lyricsDirectory, title, artist, album, '.lrc'
             );
 
@@ -100,7 +100,7 @@ class LocalLyricsManager {
             }
 
             // 读取歌词文件内容
-            const readResult = await lyricsGateway.readLocalFile(lrcResult.filePath!);
+            const readResult = await mediaAssetsController.readLocalLyricsFile(lrcResult.filePath!);
             if (!readResult.success) {
                 const result: LocalLyricsResult = {success: false, error: readResult.error};
                 this.setCache(cacheKey, result);
@@ -202,7 +202,7 @@ class LocalLyricsManager {
 
             console.log(`💾 LocalLyricsManager: 保存歌词到本地 - ${title} by ${artist} (格式: ${format})`);
 
-            const result = await lyricsGateway.saveToLocal(
+            const result = await mediaAssetsController.saveLyricsToLocal(
                 this.lyricsDirectory,
                 title,
                 artist,

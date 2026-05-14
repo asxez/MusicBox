@@ -3,7 +3,7 @@
  * 提供系统信息和环境变量访问功能
  */
 
-import {systemGateway} from '@js/infrastructure/electron';
+import {appShellController} from '@js/features/appShell';
 import {ErrorUtils} from '@extensions/api/common/errors';
 import '@extensions/core/types';
 import {ExtensionContext} from "@extensions/core";
@@ -19,13 +19,13 @@ export function createSystemAPI(_context: ExtensionContext): SystemAPI {
     return {
         async getVersion(): Promise<string> {
             return ErrorUtils.wrapAsync(async () => {
-                return await systemGateway.getVersion();
+                return await appShellController.getVersion();
             }, 'system.getVersion');
         },
 
         async getPlatform(): Promise<string> {
             return ErrorUtils.wrapAsync(async () => {
-                return await systemGateway.getPlatform();
+                return await appShellController.getPlatform();
             }, 'system.getPlatform');
         },
 
@@ -42,19 +42,19 @@ export function createSystemAPI(_context: ExtensionContext): SystemAPI {
 
         async getAppPath(): Promise<string> {
             return ErrorUtils.wrapAsync(async () => {
-                return await systemGateway.getAppPath();
+                return await appShellController.getAppPath();
             }, 'system.getAppPath');
         },
 
         async getUserDataPath(): Promise<string> {
             return ErrorUtils.wrapAsync(async () => {
-                return await systemGateway.getUserDataPath();
+                return await appShellController.getUserDataPath();
             }, 'system.getUserDataPath');
         },
 
         async getTempPath(): Promise<string> {
             return ErrorUtils.wrapAsync(async () => {
-                return await systemGateway.getTempPath();
+                return await appShellController.getTempPath();
             }, 'system.getTempPath');
         },
 
@@ -72,7 +72,7 @@ export function createSystemAPI(_context: ExtensionContext): SystemAPI {
 
         async showItemInFolder(filePath: string): Promise<void> {
             return ErrorUtils.wrapAsync(async () => {
-                await systemGateway.openPath(filePath);
+                await appShellController.openPath(filePath);
             }, 'system.showItemInFolder');
         },
 

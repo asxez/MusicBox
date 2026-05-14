@@ -1,13 +1,12 @@
 import {appShellController} from "@js/features/appShell";
 import {libraryController} from "@js/features/library";
-import {libraryGateway, networkDriveGateway} from "@js/infrastructure/electron";
 import type {Result, Unsubscribe} from "@api/types/common";
-import type {MountedNetworkDrive} from "@api/types/electron";
+import type {MountedNetworkDrive, NetworkDriveConfig} from "@api/types/electron";
 import type {Playlist, Track} from "@api/types/library";
 
 class NavigationDataService {
     onLibraryUpdated(handler: (tracks: Track[]) => void | Promise<void>): Unsubscribe {
-        return libraryGateway.onLibraryUpdated(handler);
+        return libraryController.onLibraryUpdated(handler);
     }
 
     onWindowMaximizedChanged(handler: (isMaximized: boolean) => void): Unsubscribe {
@@ -15,11 +14,11 @@ class NavigationDataService {
     }
 
     onNetworkDriveConnected(handler: () => void | Promise<void>): Unsubscribe {
-        return networkDriveGateway.onConnected(handler);
+        return appShellController.onNetworkDriveConnected(handler as (driveId: string, config: NetworkDriveConfig) => void | Promise<void>);
     }
 
     onNetworkDriveDisconnected(handler: () => void | Promise<void>): Unsubscribe {
-        return networkDriveGateway.onDisconnected(handler);
+        return appShellController.onNetworkDriveDisconnected(handler as (driveId: string, config: NetworkDriveConfig) => void | Promise<void>);
     }
 
     async minimizeWindow(): Promise<void> {
@@ -47,11 +46,11 @@ class NavigationDataService {
     }
 
     async getMountedNetworkDrives(): Promise<MountedNetworkDrive[]> {
-        return networkDriveGateway.getMountedDrives();
+        return appShellController.getMountedNetworkDrives();
     }
 
     async refreshNetworkDrive(driveId: string): Promise<boolean> {
-        return networkDriveGateway.refreshConnection(driveId);
+        return appShellController.refreshNetworkDriveConnection(driveId);
     }
 }
 

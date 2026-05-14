@@ -3,7 +3,7 @@
  * 参考 VSCode 的 ExtensionService,提供扩展管理的核心功能
  */
 
-import {extensionsGateway} from '@js/infrastructure/electron';
+import {extensionsController} from '@js/features/extensions';
 import {
     ExtensionActivationReason,
     ExtensionActivator,
@@ -160,7 +160,7 @@ class ExtensionService extends Disposable {
         try {
             console.log('🔄 ExtensionService: 同步主进程扩展列表');
 
-            const result = await extensionsGateway.getInstalled();
+            const result = await extensionsController.getInstalled();
 
             if (!result.success) {
                 console.warn('⚠️ ExtensionService: 获取主进程扩展列表失败:', result.error);
@@ -502,7 +502,7 @@ class ExtensionService extends Disposable {
         try {
             console.log('📦 ExtensionService: 从文件安装扩展', filePath);
 
-            const result = await extensionsGateway.installFromFile(filePath);
+            const result = await extensionsController.installFromFile(filePath);
 
             if (!result.success) {
                 throw new Error(result.error || '安装失败');
@@ -557,7 +557,7 @@ class ExtensionService extends Disposable {
 
             await this._activator!.deactivateExtension(extensionId);
 
-            const result = await extensionsGateway.uninstall(extensionId, keepData);
+            const result = await extensionsController.uninstall(extensionId, keepData);
 
             if (!result.success) {
                 throw new Error(result.error || '卸载失败');
@@ -601,7 +601,7 @@ class ExtensionService extends Disposable {
             if (!descriptor.isBuiltin) {
                 try {
                     console.log(`   ⏳ 同步到主进程...`);
-                    const result = await extensionsGateway.enable(extensionId);
+                    const result = await extensionsController.enable(extensionId);
                     if (result.success) {
                         console.log(`   ✓ 已同步到主进程`);
                     } else {
@@ -648,7 +648,7 @@ class ExtensionService extends Disposable {
             if (!descriptor.isBuiltin) {
                 try {
                     console.log(`   ⏳ 同步到主进程...`);
-                    const result = await extensionsGateway.disable(extensionId);
+                    const result = await extensionsController.disable(extensionId);
                     if (result.success) {
                         console.log(`   ✓ 已同步到主进程`);
                     } else {
@@ -707,7 +707,7 @@ class ExtensionService extends Disposable {
 
     async getInstalledExtensions(): Promise<ExtensionInfo[]> {
         try {
-            const result = await extensionsGateway.getInstalled();
+            const result = await extensionsController.getInstalled();
 
             if (!result.success) {
                 throw new Error(result.error || '获取扩展列表失败');

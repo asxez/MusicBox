@@ -1,4 +1,4 @@
-import {settingsSystemGateway} from "@js/infrastructure/electron";
+import {appShellController} from "@js/features/appShell";
 
 interface HardwareAccelerationSettingsResult {
     success?: boolean;
@@ -15,7 +15,7 @@ interface OperationResult {
 
 class HardwareAccelerationSettingsService {
     async getEnabled(): Promise<boolean> {
-        const result = await settingsSystemGateway.hardwareAcceleration.getSettings() as HardwareAccelerationSettingsResult;
+        const result = await appShellController.getHardwareAccelerationSettings() as HardwareAccelerationSettingsResult;
         if (!result.success) {
             return true;
         }
@@ -24,19 +24,19 @@ class HardwareAccelerationSettingsService {
     }
 
     updateEnabled(enabled: boolean): Promise<OperationResult> {
-        return settingsSystemGateway.hardwareAcceleration.updateSettings({enabled}) as Promise<OperationResult>;
+        return appShellController.updateHardwareAccelerationSettings(enabled) as Promise<OperationResult>;
     }
 
     restartApplication(): Promise<void> {
-        return settingsSystemGateway.app.restart();
+        return appShellController.restartApplication();
     }
 
     openUserDataFolder(): Promise<OperationResult> {
-        return settingsSystemGateway.openUserDataFolder() as Promise<OperationResult>;
+        return appShellController.openUserDataFolder() as Promise<OperationResult>;
     }
 
     openDevTools(): Promise<OperationResult> {
-        return settingsSystemGateway.openDevTools() as Promise<OperationResult>;
+        return appShellController.openDevTools() as Promise<OperationResult>;
     }
 }
 

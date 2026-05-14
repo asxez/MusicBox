@@ -1,4 +1,4 @@
-import {settingsSystemGateway} from "@js/infrastructure/electron";
+import {mediaController} from "@js/features/media";
 import {embeddedLyricsManager} from "@services/lyrics/EmbeddedLyricsManager";
 
 interface DebugEmbeddedLyricsResult {
@@ -32,7 +32,7 @@ export interface EmbeddedLyricsDiagnosticsReport {
 
 class EmbeddedLyricsDiagnosticsService {
     async chooseFileAndBuildReport(): Promise<EmbeddedLyricsDiagnosticsReport> {
-        const filePaths = await settingsSystemGateway.openFiles();
+        const filePaths = await mediaController.openFiles();
         if (!filePaths || filePaths.length === 0) {
             return {selected: false, foundLyrics: false};
         }

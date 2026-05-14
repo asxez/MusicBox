@@ -3,7 +3,8 @@
  * 提供对原生参量均衡器的前端接口封装
  */
 
-import {fileGateway, settingsSystemGateway} from "@js/infrastructure/electron";
+import {appShellController} from "@js/features/appShell";
+import {mediaController} from "@js/features/media";
 import ParametricEqualizerPresets, {
     ParametricFilterType,
     ParametricPreset,
@@ -431,7 +432,7 @@ class ParametricEqualizer {
             const jsonString = this.presets.exportPreset(preset);
 
             // 使用文件对话框保存
-            const result = await fileGateway.saveFile({
+            const result = await mediaController.saveFile({
                 title: '导出参量均衡器设置',
                 defaultPath: `${name}.peq.json`,
                 filters: [
@@ -441,7 +442,7 @@ class ParametricEqualizer {
             });
 
             if (result.success && result.filePath) {
-                await fileGateway.writeFile(result.filePath, jsonString);
+                await mediaController.writeFile(result.filePath, jsonString);
                 console.log('✅ 导出设置成功:', result.filePath);
                 return {success: true, filePath: result.filePath};
             }
@@ -458,7 +459,7 @@ class ParametricEqualizer {
      */
     async importSettings(): Promise<{success: boolean; preset?: ParametricPreset; cancelled?: boolean; error?: string}> {
         try {
-            const result = await fileGateway.openFile({
+            const result = await mediaController.openFile({
                 title: '导入参量均衡器设置',
                 filters: [
                     {name: '参量均衡器预设', extensions: ['peq.json', 'json']},
@@ -469,7 +470,7 @@ class ParametricEqualizer {
 
             if (result.success && result.filePaths && result.filePaths.length > 0) {
                 const filePath = result.filePaths[0];
-                const jsonString = await fileGateway.readFile(filePath, 'utf-8');
+                const jsonString = await mediaController.readFile(filePath, 'utf-8');
                 if (typeof jsonString !== 'string') {
                     return {success: false, error: '无法读取预设文件内容'};
                 }
@@ -521,7 +522,7 @@ class ParametricEqualizer {
     async saveCustomPresets(): Promise<void> {
         try {
             const customPresets = this.presets.getCustomPresets();
-            await getSettingsApi().set('parametric-equalizer.custom-presets', customPresets);
+            await appShellController.setSetting('parametric-equalizer.custom-presets', customPresets);
         } catch (error) {
             console.error('❌ 保存自定义预设到本地存储失败:', error);
         }
@@ -532,7 +533,7 @@ class ParametricEqualizer {
      */
     async loadCustomPresets(): Promise<void> {
         try {
-            const customPresets = await getSettingsApi().get('parametric-equalizer.custom-presets');
+            const customPresets = await appShellController.getSetting('parametric-equalizer.custom-presets');
             if (customPresets) {
                 this.presets.loadCustomPresets(customPresets);
                 console.log('🎚️ 加载自定义预设:', Object.keys(customPresets).length, '个');
@@ -558,7 +559,7 @@ class ParametricEqualizer {
                 currentPresetIsCustom: this.currentPresetIsCustom
             };
 
-            await getSettingsApi().set('parametric-equalizer.state', state);
+            await appShellController.setSetting('parametric-equalizer.state', state);
             console.log('💾 保存参量均衡器状态');
         } catch (error) {
             console.error('❌ 保存参量均衡器状态失败:', error);
@@ -570,7 +571,7 @@ class ParametricEqualizer {
      */
     async loadSavedState(): Promise<boolean> {
         try {
-            const state = await getSettingsApi().get<ParametricEqualizerState>('parametric-equalizer.state');
+            const state = await appShellController.getSetting<ParametricEqualizerState>('parametric-equalizer.state');
             if (!state) {
                 console.log('💡 没有保存的参量均衡器状态');
                 return false;
@@ -645,10 +646,6 @@ interface ParametricEqualizerState {
     bands?: ParametricBand[];
     currentPresetId?: string | null;
     currentPresetIsCustom?: boolean;
-}
-
-function getSettingsApi(): typeof settingsSystemGateway.settings {
-    return settingsSystemGateway.settings;
 }
 
 function getErrorMessage(error: unknown): string {

@@ -116,6 +116,37 @@ export class FileAPI extends BaseAPI {
             {canceled: true, filePaths: []}
         );
     }
+
+    async openFile(options: Record<string, unknown>): Promise<{success: boolean; filePaths: string[]; canceled: boolean}> {
+        return this.wrapIPC(
+            () => fileGateway.openFile(options),
+            'dialog.openFile',
+            {success: false, filePaths: [], canceled: true}
+        );
+    }
+
+    async saveFile(options: Record<string, unknown>): Promise<{success: boolean; filePath?: string; canceled?: boolean; cancelled?: boolean}> {
+        return this.wrapIPC(
+            () => fileGateway.saveFile(options),
+            'dialog.saveFile',
+            {success: false, canceled: true}
+        );
+    }
+
+    async writeFile(filePath: string, data: string, encoding: string | null = null): Promise<boolean> {
+        return this.wrapIPC(
+            () => fileGateway.writeFile(filePath, data, encoding),
+            'fs.writeFile',
+            false
+        );
+    }
+
+    async readAudioFile(filePath: string): Promise<ArrayBuffer> {
+        return this.wrapIPC(
+            () => fileGateway.readAudioFile(filePath),
+            'readAudioFile'
+        );
+    }
 }
 
 export const fileAPI = new FileAPI();

@@ -2,7 +2,8 @@
  * WASAPI独占模式音频引擎（Rust实现的JS包装器）
  */
 
-import {libraryGateway, nativeAudioGateway} from "@js/infrastructure/electron";
+import {nativeAudioGateway} from "@js/infrastructure/electron";
+import {libraryController} from "@js/features/library";
 import {cacheManager} from "@services/CacheManager";
 import ParametricEqualizer from "@services/audio/ParametricEqualizer";
 import type {MusicBoxSettings} from "@api/types/settings";
@@ -150,7 +151,7 @@ class WasapiEngine {
             }
 
             // 获取音频元数据
-            const metadata = await libraryGateway.getTrackMetadata(filePath);
+            const metadata = await libraryController.getTrackMetadata(filePath);
             this.duration = metadata?.duration || result.duration || 0;
 
             this.currentTrack = {

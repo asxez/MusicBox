@@ -3,12 +3,12 @@
  * 提供窗口控制相关功能
  */
 
-import {windowGateway} from '@js/infrastructure/electron';
 import {ErrorUtils} from '@extensions/api/common/errors';
 import {Validator} from '@extensions/api/common/validation';
 import '@extensions/core/types';
 import {ExtensionContext} from "@extensions/core";
 import {WindowAPI} from "@extensions/api/types/window";
+import {appShellController} from "@js/features/appShell";
 
 /**
  * 创建窗口 API
@@ -17,37 +17,37 @@ export function createWindowAPI(_context: ExtensionContext): WindowAPI {
     return {
         async maximize(): Promise<void> {
             return ErrorUtils.wrapAsync(async () => {
-                return await windowGateway.maximize();
+                return await appShellController.toggleMaximizeWindow();
             }, 'window.maximize');
         },
 
         async minimize(): Promise<void> {
             return ErrorUtils.wrapAsync(async () => {
-                return await windowGateway.minimize();
+                return await appShellController.minimizeWindow();
             }, 'window.minimize');
         },
 
         async close(): Promise<void> {
             return ErrorUtils.wrapAsync(async () => {
-                return await windowGateway.close();
+                return await appShellController.closeWindow();
             }, 'window.close');
         },
 
         async isMaximized(): Promise<boolean> {
             return ErrorUtils.wrapAsync(async () => {
-                return await windowGateway.isMaximized();
+                return await appShellController.isWindowMaximized();
             }, 'window.isMaximized');
         },
 
         async getPosition(): Promise<[number, number]> {
             return ErrorUtils.wrapAsync(async () => {
-                return await windowGateway.getPosition();
+                return await appShellController.getWindowPosition();
             }, 'window.getPosition');
         },
 
         async getSize(): Promise<[number, number]> {
             return ErrorUtils.wrapAsync(async () => {
-                return await windowGateway.getSize();
+                return await appShellController.getWindowSize();
             }, 'window.getSize');
         },
 
@@ -56,13 +56,13 @@ export function createWindowAPI(_context: ExtensionContext): WindowAPI {
             Validator.assertType(height, 'number', 'height');
 
             return ErrorUtils.wrapAsync(async () => {
-                return await windowGateway.setSize(width, height);
+                return await appShellController.setWindowSize(width, height);
             }, 'window.setSize');
         },
 
         async onMaximizedChanged(callback: (isMaximized: boolean) => void): Promise<void> {
             return ErrorUtils.wrapAsync(async () => {
-                windowGateway.onMaximizedChanged((isMaximized: boolean) => {
+                appShellController.onWindowMaximizedChanged((isMaximized: boolean) => {
                     callback(isMaximized);
                 });
             }, 'window.onMaximizedChanged');

@@ -1,4 +1,4 @@
-import {extensionsGateway} from "@js/infrastructure/electron";
+import {extensionsController} from "@js/features/extensions";
 import type {ExtensionDescriptor} from "@extensions/core/ExtensionsRegistry";
 
 export type PluginExtension = ExtensionDescriptor & {
@@ -30,7 +30,7 @@ class PluginManagerService {
 
     async selectAndInstallExtension(): Promise<void> {
         const extensionService = this.requireExtensionService();
-        const filePath = await extensionsGateway.selectPackage();
+        const filePath = await extensionsController.selectPackage();
         if (!filePath) {
             return;
         }

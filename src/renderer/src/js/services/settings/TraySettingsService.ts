@@ -1,18 +1,18 @@
-import {trayGateway} from "@js/infrastructure/electron";
+import {appShellController} from "@js/features/appShell";
 
 class TraySettingsService {
     updateEnabled(enabled: boolean): Promise<void> {
-        return trayGateway.updateSettings({enabled});
+        return appShellController.updateTraySettings({enabled});
     }
 
     updateCloseBehavior(behavior: string): Promise<void> {
-        return trayGateway.updateSettings({
+        return appShellController.updateTraySettings({
             closeToTray: behavior === 'minimize'
         });
     }
 
     updateStartMinimized(startMinimized: boolean): Promise<void> {
-        return trayGateway.updateSettings({startMinimized});
+        return appShellController.updateTraySettings({startMinimized});
     }
 }
 

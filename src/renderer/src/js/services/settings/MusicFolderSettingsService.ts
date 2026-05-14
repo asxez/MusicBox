@@ -1,4 +1,5 @@
-import {libraryGateway, settingsSystemGateway} from "@js/infrastructure/electron";
+import {appShellController} from "@js/features/appShell";
+import {libraryController} from "@js/features/library";
 
 export interface AutoScanSettingsView {
     enabled: boolean;
@@ -28,16 +29,16 @@ export interface MusicFoldersUpdateResult {
 
 class MusicFolderSettingsService {
     async getMusicFolders(): Promise<string[]> {
-        return settingsSystemGateway.settings.getMusicFolders();
+        return appShellController.getMusicFolders();
     }
 
     async getAutoScanSettings(): Promise<AutoScanSettingsView> {
-        const settings = await settingsSystemGateway.settings.getAutoScanSettings() as MainSettingsPayload;
+        const settings = await appShellController.getAutoScanSettings() as MainSettingsPayload;
         return this.normalizeAutoScanSettings(settings);
     }
 
     async selectMusicFolder(): Promise<string | null> {
-        const result = await settingsSystemGateway.selectFolder();
+        const result = await appShellController.selectFolder();
         if (!result || !result.filePaths || result.filePaths.length === 0) {
             return null;
         }
@@ -46,31 +47,31 @@ class MusicFolderSettingsService {
     }
 
     async addMusicFolder(folderPath: string): Promise<MusicFoldersUpdateResult> {
-        const result = await settingsSystemGateway.settings.addMusicFolder(folderPath) as SettingsUpdateResult;
+        const result = await appShellController.addMusicFolder(folderPath) as SettingsUpdateResult;
         return this.normalizeFoldersResult(result);
     }
 
     async removeMusicFolder(folderPath: string): Promise<MusicFoldersUpdateResult> {
-        const result = await settingsSystemGateway.settings.removeMusicFolder(folderPath) as SettingsUpdateResult;
+        const result = await appShellController.removeMusicFolder(folderPath) as SettingsUpdateResult;
         return this.normalizeFoldersResult(result);
     }
 
     async updateAutoScanEnabled(enabled: boolean): Promise<SettingsUpdateResult> {
-        return settingsSystemGateway.settings.updateAutoScanSettings({
+        return appShellController.updateAutoScanSettings({
             autoScanEnabled: enabled,
             enabled
         }) as Promise<SettingsUpdateResult>;
     }
 
     async updateScanFrequency(frequency: string): Promise<SettingsUpdateResult> {
-        return settingsSystemGateway.settings.updateAutoScanSettings({
+        return appShellController.updateAutoScanSettings({
             scanFrequency: frequency,
             frequency
         }) as Promise<SettingsUpdateResult>;
     }
 
     scanDirectory(folderPath: string): Promise<boolean> {
-        return libraryGateway.scanDirectory(folderPath);
+        return libraryController.scanDirectory(folderPath);
     }
 
     private normalizeAutoScanSettings(settings: MainSettingsPayload | null | undefined): AutoScanSettingsView {

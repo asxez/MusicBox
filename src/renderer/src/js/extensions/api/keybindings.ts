@@ -3,7 +3,7 @@
  * 提供快捷键注册、管理、执行等功能
  */
 
-import {globalShortcutsGateway} from '@js/infrastructure/electron';
+import {extensionsController} from '@js/features/extensions';
 import {Validator} from '@extensions/api/common/validation';
 import {ErrorUtils, NotFoundError} from '@extensions/api/common/errors';
 import {ExtensionContext, IDisposable, toDisposable} from '@extensions/core';
@@ -390,7 +390,7 @@ async function syncGlobalShortcuts(): Promise<void> {
         });
 
         // 注册所有快捷键
-        await globalShortcutsGateway.register(allShortcuts);
+        await extensionsController.registerGlobalShortcuts(allShortcuts);
     } catch (error) {
         console.error('❌ 同步全局快捷键失败:', error);
     }

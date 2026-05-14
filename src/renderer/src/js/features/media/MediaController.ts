@@ -10,6 +10,19 @@ type OpenDialogResult = {
     bookmarks?: string[];
 };
 
+type OpenFileResult = {
+    success: boolean;
+    filePaths: string[];
+    canceled: boolean;
+};
+
+type SaveFileResult = {
+    success: boolean;
+    filePath?: string;
+    canceled?: boolean;
+    cancelled?: boolean;
+};
+
 type FileStatResult = {
     size: number;
     mtime: unknown;
@@ -80,8 +93,24 @@ class MediaController {
     async showOpenDialog(options: Record<string, unknown>): Promise<OpenDialogResult> {
         return await fileAPI.showOpenDialog(options);
     }
+
+    async openFile(options: Record<string, unknown>): Promise<OpenFileResult> {
+        return await fileAPI.openFile(options);
+    }
+
+    async saveFile(options: Record<string, unknown>): Promise<SaveFileResult> {
+        return await fileAPI.saveFile(options);
+    }
+
+    async writeFile(filePath: string, data: string, encoding: string | null = null): Promise<boolean> {
+        return await fileAPI.writeFile(filePath, data, encoding);
+    }
+
+    async readAudioFile(filePath: string): Promise<ArrayBuffer> {
+        return await fileAPI.readAudioFile(filePath);
+    }
 }
 
 export const mediaController = new MediaController();
 export {MediaController};
-export type {FileStatResult, OpenDialogResult};
+export type {FileStatResult, OpenDialogResult, OpenFileResult, SaveFileResult};

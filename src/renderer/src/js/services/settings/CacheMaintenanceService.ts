@@ -1,5 +1,4 @@
 import {libraryController} from "@js/features/library";
-import {libraryGateway} from "@js/infrastructure/electron";
 import type {Result} from "@api/types/common";
 import type {CacheValidationResult} from "@api/types/events";
 
@@ -24,7 +23,7 @@ class CacheMaintenanceService {
     }
 
     clearIgnoreList(): Promise<Result> {
-        return libraryGateway.clearIgnoreList();
+        return libraryController.clearIgnoreList();
     }
 }
 

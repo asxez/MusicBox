@@ -1,7 +1,8 @@
 import {api} from '@api/api';
+import {libraryGateway} from '@js/infrastructure/electron';
 import {libraryAPI} from '@api/modules';
 import type {Result} from '@api/types/common';
-import type {CacheValidationResult} from '@api/types/events';
+import type {CacheValidationResult, ScanProgress} from '@api/types/events';
 import type {CacheStatistics, GetTracksOptions, Playlist} from '@api/types/library';
 import type {Track} from '@api/types/library';
 
@@ -17,6 +18,11 @@ export type PlaylistCoverResult = {
     coverPath?: string;
     error?: string;
 };
+
+type LibraryUpdatedHandler = (tracks: Track[]) => void | Promise<void>;
+type ScanProgressHandler = (progress: ScanProgress) => void;
+type CoverUpdatedHandler = (data: unknown) => void | Promise<void>;
+type Unsubscribe = () => void;
 
 class LibraryController {
     async getTracks(options: GetTracksOptions = {}): Promise<Track[]> {
@@ -43,6 +49,18 @@ class LibraryController {
         return await api.scanDirectory(directoryPath);
     }
 
+    onLibraryUpdated(handler: LibraryUpdatedHandler): Unsubscribe {
+        return libraryGateway.onLibraryUpdated(handler);
+    }
+
+    onScanProgress(handler: ScanProgressHandler): Unsubscribe {
+        return libraryGateway.onScanProgress(handler);
+    }
+
+    onCoverUpdated(handler: CoverUpdatedHandler): Unsubscribe {
+        return libraryGateway.onCoverUpdated(handler);
+    }
+
     async getTrackMetadata(filePath: string): Promise<Partial<Track> | null> {
         return await libraryAPI.getTrackMetadata(filePath);
     }
@@ -61,6 +79,10 @@ class LibraryController {
 
     async clearCache(): Promise<boolean> {
         return await api.clearCache();
+    }
+
+    async clearIgnoreList(): Promise<Result> {
+        return await libraryGateway.clearIgnoreList();
     }
 
     emitLibraryUpdated(tracks?: Track[]): void {

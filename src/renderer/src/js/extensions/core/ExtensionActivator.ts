@@ -3,7 +3,7 @@
  * 参考 VSCode 的扩展激活机制，管理扩展的生命周期
  */
 
-import {extensionsGateway} from '@js/infrastructure/electron';
+import {extensionsController} from '@js/features/extensions';
 import {cacheManager} from '@services/CacheManager';
 import {Disposable, DisposableStore} from '@extensions/core/Lifecycle';
 import {createExtensionAPI, type ExtensionAPI} from '@extensions/api/index.js';
@@ -296,7 +296,7 @@ export class ExtensionActivator extends Disposable {
     private async _loadExternalExtensionModule(descriptor: ExtensionDescriptor, _moduleVarName: string): Promise<void> {
         try {
             const filePath = this._normalizeExternalExtensionMainPath(descriptor);
-            const result = await extensionsGateway.readExtensionFile(descriptor.id, filePath);
+            const result = await extensionsController.readExtensionFile(descriptor.id, filePath);
 
             if (!result.success) {
                 throw new Error(result.error || '读取扩展文件失败');

@@ -1,4 +1,4 @@
-import {systemGateway} from "@js/infrastructure/electron/SystemGateway";
+import {appShellController} from "@js/features/appShell";
 import {updateService} from "@services/update/UpdateService";
 
 class AppInfoSettingsService {
@@ -15,7 +15,7 @@ class AppInfoSettingsService {
     }
 
     async openRepository(): Promise<{success: boolean; error?: string}> {
-        return await systemGateway.openExternal(this.repositoryUrl);
+        return await appShellController.openExternal(this.repositoryUrl);
     }
 }
 

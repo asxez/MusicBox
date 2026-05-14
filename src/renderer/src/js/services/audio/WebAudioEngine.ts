@@ -2,7 +2,8 @@
  * 基于 Web Audio API 的音频引擎
  */
 
-import {fileGateway, libraryGateway} from "@js/infrastructure/electron";
+import {libraryController} from "@js/features/library";
+import {mediaController} from "@js/features/media";
 import {embeddedCoverManager} from "@services/cover/EmbeddedCoverManager";
 
 type TrackSource = any;
@@ -203,7 +204,7 @@ class WebAudioEngine {
 
             let arrayBuffer: ArrayBuffer | null;
             try {
-                arrayBuffer = await fileGateway.readAudioFile(filePath);
+                arrayBuffer = await mediaController.readAudioFile(filePath);
             } catch {
                 const fileUrl = filePath.startsWith('file://') ? filePath : `file:///${filePath.replace(/\\/g, '/')}`;
                 const response = await fetch(fileUrl);
@@ -713,7 +714,7 @@ class WebAudioEngine {
         try {
             console.log(`🔄 预加载下一首歌曲: ${getTrackTitle(trackInfo) || filePath}`);
 
-            let arrayBuffer: ArrayBuffer | null = await fileGateway.readAudioFile(filePath);
+            let arrayBuffer: ArrayBuffer | null = await mediaController.readAudioFile(filePath);
             this.nextAudioBuffer = await this.audioContext.decodeAudioData(arrayBuffer); // 解码
 
             // 清理arrayBuffer引用以释放内存
@@ -891,7 +892,7 @@ class WebAudioEngine {
 
     async getTrackMetadata(filePath: string): Promise<TrackMetadata> {
         // console.log('🔄 从主进程获取音频元数据...');
-        const metadata = await libraryGateway.getTrackMetadata(filePath);
+        const metadata = await libraryController.getTrackMetadata(filePath);
         if (metadata) {
             // console.log(`✅ 成功获取元数据: ${metadata.title} - ${metadata.artist}`);
             return {
