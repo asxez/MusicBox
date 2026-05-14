@@ -3,16 +3,15 @@
  */
 
 import {
-    getTrackDuration,
     getTrackFilePath,
     getTrackTitle,
-    normalizeTrack,
     type TrackSource
 } from '@services/audio/domain';
 import WebAudioEqualizer from "@services/audio/WebAudioEqualizer";
 import {webAudioChain} from "@services/audio/WebAudioChain";
 import {forceWebAudioGarbageCollection} from "@services/audio/WebAudioGarbageCollector";
 import WebAudioObjectUrlStore from "@services/audio/WebAudioObjectUrlStore";
+import WebAudioPlaylistCoordinator from "@services/audio/WebAudioPlaylistCoordinator";
 import WebAudioPreloadCoordinator from "@services/audio/WebAudioPreloadCoordinator";
 import WebAudioProgressTicker from "@services/audio/WebAudioProgressTicker";
 import WebAudioTrackLoader from "@services/audio/WebAudioTrackLoader";
@@ -44,6 +43,7 @@ class WebAudioEngine {
     public getPreviousTrackIndex: (() => number) | null;
     private gaplessPlaybackEnabled: boolean;
     private preloadCoordinator: WebAudioPreloadCoordinator | null;
+    private readonly playlistCoordinator: WebAudioPlaylistCoordinator;
     private readonly coverUrlStore: WebAudioObjectUrlStore;
     private readonly progressTicker: WebAudioProgressTicker;
     private visibilityCoordinator: WebAudioVisibilityCoordinator | null;
@@ -82,6 +82,35 @@ class WebAudioEngine {
         // 无间隙播放相关属性
         this.gaplessPlaybackEnabled = true; // 默认启用无间隙播放
         this.preloadCoordinator = null;
+        this.playlistCoordinator = new WebAudioPlaylistCoordinator({
+            getState: () => ({
+                playlist: this.playlist,
+                currentIndex: this.currentIndex,
+                gaplessPlaybackEnabled: this.gaplessPlaybackEnabled,
+                preloadCoordinator: this.preloadCoordinator,
+                getNextTrackIndex: this.getNextTrackIndex,
+                getPreviousTrackIndex: this.getPreviousTrackIndex,
+                currentTrack: this.currentTrack
+            }),
+            setCurrentIndex: (index) => {
+                this.currentIndex = index;
+            },
+            setCurrentBuffer: (buffer) => {
+                this.audioBuffer = buffer;
+            },
+            setDuration: (duration) => {
+                this.duration = duration;
+            },
+            setCurrentTrack: (track) => {
+                this.currentTrack = track;
+            },
+            clearCurrentAudioBuffer: () => this.clearCurrentAudioBuffer(),
+            clearNextTrackBuffer: () => this.clearNextTrackBuffer(),
+            stop: () => this.stop(),
+            loadTrack: (filePath) => this.loadTrack(filePath),
+            play: () => this.play(),
+            notifyTrackChanged: () => this.notifyTrackChanged()
+        });
 
         this.coverUrlStore = new WebAudioObjectUrlStore();
         this.progressTicker = new WebAudioProgressTicker();
@@ -130,9 +159,7 @@ class WebAudioEngine {
             this.currentTrack = loadedTrack.track;
 
             // 触发事件
-            if (this.onTrackChanged) {
-                this.onTrackChanged(this.currentTrack);
-            }
+            this.notifyTrackChanged();
 
             // 若启用无间隙播放，预加载下一首歌曲
             if (this.gaplessPlaybackEnabled && this.playlist.length > 1) {
@@ -509,198 +536,22 @@ class WebAudioEngine {
 
     // 预加载下一首歌曲
     async preloadNextTrack(nextIndex: number | null = null): Promise<boolean> {
-        if (!this.gaplessPlaybackEnabled || this.playlist.length <= 1) {
-            return false;
-        }
-
-        // 计算下一首歌曲的索引：优先使用提供的nextIndex，其次使用回调函数，最后使用顺序播放逻辑
-        if (nextIndex === null || nextIndex < 0 || nextIndex >= this.playlist.length) {
-            if (typeof this.getNextTrackIndex === 'function') {
-                nextIndex = this.getNextTrackIndex();
-            } else {
-                nextIndex = (this.currentIndex + 1) % this.playlist.length;
-            }
-        }
-        const nextTrackInfo = this.playlist[nextIndex];
-
-        if (!nextTrackInfo) {
-            return false;
-        }
-
-        const filePath = getTrackFilePath(nextTrackInfo);
-        if (!filePath) {
-            console.warn('⚠️ 下一首歌曲文件路径为空');
-            return false;
-        }
-
-        return await this.loadNextTrackBuffer(filePath, nextTrackInfo);
+        return await this.playlistCoordinator.preloadNextTrack(nextIndex);
     }
 
     // 加载下一首歌曲的音频缓冲区
     async loadNextTrackBuffer(filePath: string, trackInfo: TrackSource): Promise<boolean> {
-        if (!this.preloadCoordinator) {
-            return false;
-        }
-
-        return await this.preloadCoordinator.preload(filePath, trackInfo);
+        return await this.playlistCoordinator.loadNextTrackBuffer(filePath, trackInfo);
     }
 
     // 播放下一首
     async nextTrack(nextIndex: number | null = null): Promise<boolean> {
-        if (this.playlist.length === 0) {
-            console.log('⚠️ 播放列表为空');
-            return false;
-        }
-
-        // 如果当前索引为-1，说明还没有开始播放，这种情况不应该发生
-        if (this.currentIndex === -1) {
-            console.warn('⚠️ 当前索引为-1，无法切换到下一首');
-            return false;
-        }
-
-        // 在切换歌曲前，主动清理当前音频资源和预加载资源
-        this.clearCurrentAudioBuffer();
-        this.clearNextTrackBuffer();
-
-        // 停止当前播放，确保音频资源完全释放
-        this.stop();
-
-        // 切换到下一首：优先使用提供的nextIndex，其次使用回调函数，最后使用顺序播放逻辑
-        if (nextIndex !== null && nextIndex >= 0 && nextIndex < this.playlist.length) {
-            this.currentIndex = nextIndex;
-        } else if (typeof this.getNextTrackIndex === 'function') {
-            this.currentIndex = this.getNextTrackIndex();
-        } else {
-            this.currentIndex = (this.currentIndex + 1) % this.playlist.length;
-        }
-        const nextTrack = this.playlist[this.currentIndex];
-
-        // 获取文件路径，支持多种数据结构
-        const filePath = getTrackFilePath(nextTrack);
-
-        if (!filePath) {
-            console.error('❌ 下一首歌曲文件路径为空:', nextTrack);
-            return false;
-        }
-
-        console.log(`⏭️ 切换到下一首 (索引 ${this.currentIndex}): ${getTrackTitle(nextTrack) || filePath}`);
-
-        // 若启用无间隙播放且已预加载，检查预加载的歌曲是否与当前要播放的歌曲一致
-        const canUsePreloadedBuffer = this.gaplessPlaybackEnabled &&
-            this.preloadCoordinator?.hasPreloaded(filePath);
-
-        if (canUsePreloadedBuffer) {
-            console.log('🎵 使用预加载的音频缓冲区进行无间隙播放');
-            this.stop();
-            this.audioBuffer = null;
-            const preloadedTrack = this.preloadCoordinator?.getPreloaded();
-            if (!preloadedTrack) {
-                return false;
-            }
-
-            // 使用预加载的缓冲区
-            this.audioBuffer = preloadedTrack.buffer;
-            this.duration = getTrackDuration(preloadedTrack.trackInfo) || preloadedTrack.buffer.duration || 0;
-            this.currentTrack = normalizeTrack(preloadedTrack.trackInfo, filePath, this.duration);
-
-            // 清理预加载的资源
-            this.clearNextTrackBuffer();
-
-            // 播放
-            const playResult = await this.play();
-
-            // 只有在播放成功后才触发歌曲变更事件，确保UI与实际播放同步
-            if (playResult && this.onTrackChanged) {
-                this.onTrackChanged(this.currentTrack);
-            }
-
-            // 预加载下一首
-            // 无间隙播放模式下
-            if (playResult && this.gaplessPlaybackEnabled) {
-                setTimeout(() => this.preloadNextTrack(), 1000);
-            }
-
-            return playResult;
-        } else {
-            // 普通加载方式（预加载不可用或预加载的歌曲不匹配）
-            if (this.preloadCoordinator?.getPreloaded() && !this.preloadCoordinator.hasPreloaded(filePath)) {
-                console.log('⚠️ 预加载的歌曲与目标歌曲不一致，清理预加载缓冲区');
-                this.clearNextTrackBuffer();
-            }
-
-            const loadResult = await this.loadTrack(filePath);
-            if (loadResult) {
-                // 播放
-                const playResult = await this.play();
-
-                // 只有在播放成功后才触发歌曲变更事件，确保UI与实际播放同步
-                if (playResult && this.onTrackChanged) {
-                    this.onTrackChanged(this.currentTrack);
-                }
-
-                // 无间隙播放模式下预加载下一首歌曲
-                if (playResult && this.gaplessPlaybackEnabled) {
-                    setTimeout(() => this.preloadNextTrack(), 1000);
-                }
-                return playResult;
-            }
-            return false;
-        }
+        return await this.playlistCoordinator.nextTrack(nextIndex);
     }
 
     // 播放上一首
     async previousTrack(prevIndex: number | null = null): Promise<boolean> {
-        if (this.playlist.length === 0) {
-            console.log('⚠️ 播放列表为空');
-            return false;
-        }
-
-        // 如果当前索引为-1，说明还没有开始播放，这种情况不应该发生
-        if (this.currentIndex === -1) {
-            console.warn('⚠️ 当前索引为-1，无法切换到上一首');
-            return false;
-        }
-
-        // 在切换歌曲前，主动清理当前音频资源和预加载资源
-        this.clearCurrentAudioBuffer();
-        this.clearNextTrackBuffer();
-
-        // 停止当前播放，确保音频资源完全释放
-        this.stop();
-
-        // 切换到上一首：优先使用提供的prevIndex，其次使用回调函数，最后使用顺序播放逻辑
-        if (prevIndex !== null && prevIndex >= 0 && prevIndex < this.playlist.length) {
-            this.currentIndex = prevIndex;
-        } else if (typeof this.getPreviousTrackIndex === 'function') {
-            this.currentIndex = this.getPreviousTrackIndex();
-        } else {
-            this.currentIndex = this.currentIndex > 0 ? this.currentIndex - 1 : this.playlist.length - 1;
-        }
-        const prevTrack = this.playlist[this.currentIndex];
-
-        // 获取文件路径，支持多种数据结构
-        const filePath = getTrackFilePath(prevTrack);
-
-        if (!filePath) {
-            console.error('❌ 上一首歌曲文件路径为空:', prevTrack);
-            return false;
-        }
-
-        console.log(`⏮️ 切换到上一首 (索引 ${this.currentIndex}): ${getTrackTitle(prevTrack) || filePath}`);
-
-        const loadResult = await this.loadTrack(filePath);
-        if (loadResult) {
-            // 自动开始播放
-            const playResult = await this.play();
-
-            // 只有在播放成功后才触发歌曲变更事件，确保UI与实际播放同步
-            if (playResult && this.onTrackChanged) {
-                this.onTrackChanged(this.currentTrack);
-            }
-
-            return playResult;
-        }
-        return false;
+        return await this.playlistCoordinator.previousTrack(prevIndex);
     }
 
     // 歌曲播放结束处理
@@ -722,6 +573,12 @@ class WebAudioEngine {
                     await this.nextTrack();
                 }, 500);
             }
+        }
+    }
+
+    notifyTrackChanged(): void {
+        if (this.onTrackChanged) {
+            this.onTrackChanged(this.currentTrack);
         }
     }
 
