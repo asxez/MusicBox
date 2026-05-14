@@ -2,57 +2,22 @@
  * 基于 Web Audio API 的音频引擎
  */
 
-import {libraryController} from "@js/features/library";
-import {mediaController} from "@js/features/media";
 import {
     getTrackDuration,
     getTrackFilePath,
     getTrackTitle,
     normalizeTrack,
-    type AudioTrack,
     type TrackSource
 } from '@services/audio/domain';
 import WebAudioEqualizer from "@services/audio/WebAudioEqualizer";
 import {webAudioChain} from "@services/audio/WebAudioChain";
+import {forceWebAudioGarbageCollection} from "@services/audio/WebAudioGarbageCollector";
+import WebAudioObjectUrlStore from "@services/audio/WebAudioObjectUrlStore";
 import WebAudioPreloadCoordinator from "@services/audio/WebAudioPreloadCoordinator";
-import {embeddedCoverManager} from "@services/cover/EmbeddedCoverManager";
-
-interface WebAudioTrack extends AudioTrack {
-    filePath: string;
-    title?: string;
-    artist?: string;
-    album?: string;
-    duration: number;
-    bitrate?: number;
-    sampleRate?: number;
-    year?: number;
-    genre?: string;
-    track?: number;
-    disc?: number;
-    cover?: unknown;
-    [key: string]: unknown;
-}
-
-interface CoverData {
-    data?: BlobPart;
-    format?: string;
-    [key: string]: unknown;
-}
-
-interface TrackMetadata {
-    title?: string;
-    artist?: string;
-    album?: string;
-    duration?: number;
-    bitrate?: number;
-    sampleRate?: number;
-    year?: number;
-    genre?: string;
-    track?: number;
-    disc?: number;
-    cover?: unknown;
-    [key: string]: unknown;
-}
+import WebAudioProgressTicker from "@services/audio/WebAudioProgressTicker";
+import WebAudioTrackLoader from "@services/audio/WebAudioTrackLoader";
+import type {WebAudioTrack} from "@services/audio/WebAudioTypes";
+import WebAudioVisibilityCoordinator from "@services/audio/WebAudioVisibilityCoordinator";
 
 class WebAudioEngine {
     public audioContext: any;
@@ -77,15 +42,12 @@ class WebAudioEngine {
     public onVolumeChanged: ((volume: number) => void) | null;
     public getNextTrackIndex: (() => number) | null;
     public getPreviousTrackIndex: (() => number) | null;
-    private progressTimer: ReturnType<typeof setInterval> | null;
-    private coverObjectUrls: Set<string>;
     private gaplessPlaybackEnabled: boolean;
     private preloadCoordinator: WebAudioPreloadCoordinator | null;
-    private isWindowVisible: boolean;
-    private memoryCleanupTimer: ReturnType<typeof setTimeout> | null;
-    private visibilityChangeListener: EventListener | null;
-    private windowFocusListener: EventListener | null;
-    private windowBlurListener: EventListener | null;
+    private readonly coverUrlStore: WebAudioObjectUrlStore;
+    private readonly progressTicker: WebAudioProgressTicker;
+    private visibilityCoordinator: WebAudioVisibilityCoordinator | null;
+    private trackLoader: WebAudioTrackLoader | null;
 
     constructor() {
         this.audioContext = null;
@@ -117,32 +79,31 @@ class WebAudioEngine {
         this.getNextTrackIndex = null;
         this.getPreviousTrackIndex = null;
 
-        // 进度更新定时器
-        this.progressTimer = null;
-
-        // 封面对象URL管理
-        this.coverObjectUrls = new Set();
-
         // 无间隙播放相关属性
         this.gaplessPlaybackEnabled = true; // 默认启用无间隙播放
         this.preloadCoordinator = null;
 
-        // 窗口可见性监听和内存管理
-        this.isWindowVisible = true;
-        this.memoryCleanupTimer = null;
-        this.visibilityChangeListener = null;
-        this.windowFocusListener = null;
-        this.windowBlurListener = null;
+        this.coverUrlStore = new WebAudioObjectUrlStore();
+        this.progressTicker = new WebAudioProgressTicker();
+        this.visibilityCoordinator = null;
+        this.trackLoader = null;
     }
 
     async initialize(): Promise<boolean> {
         try {
             // 初始化窗口可见性监听
-            this.initVisibilityListener();
+            this.visibilityCoordinator = new WebAudioVisibilityCoordinator({
+                onHiddenCleanup: async () => {
+                    this.coverUrlStore.cleanup();
+                },
+                forceGarbageCollection: forceWebAudioGarbageCollection
+            });
+            this.visibilityCoordinator.start();
             this.audioContext = new window.AudioContext();
             this.gainNode = this.audioContext.createGain();
             this.gainNode.connect(this.audioContext.destination);
             this.gainNode.gain.value = this.volume;
+            this.trackLoader = new WebAudioTrackLoader(this.audioContext, this.coverUrlStore);
             this.preloadCoordinator = new WebAudioPreloadCoordinator(this.audioContext);
             this.initializeEqualizer();
             return true;
@@ -159,71 +120,14 @@ class WebAudioEngine {
             // 清理旧的音频缓冲区以释放内存
             this.clearCurrentAudioBuffer();
 
-            let arrayBuffer: ArrayBuffer | null;
-            try {
-                arrayBuffer = await mediaController.readAudioFile(filePath);
-            } catch {
-                const fileUrl = filePath.startsWith('file://') ? filePath : `file:///${filePath.replace(/\\/g, '/')}`;
-                const response = await fetch(fileUrl);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch audio file: ${response.status}`);
-                }
-                arrayBuffer = await response.arrayBuffer();
+            if (!this.trackLoader) {
+                throw new Error('Web Audio track loader is not initialized');
             }
 
-            // 解码音频数据
-            this.audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-            const webAudioDuration = this.audioBuffer.duration;
-
-            // 清理arrayBuffer引用以释放内存
-            arrayBuffer = null;
-            const metadata = await this.getTrackMetadata(filePath);
-            this.duration = (metadata.duration && metadata.duration > 0) ? metadata.duration : webAudioDuration;
-
-            // 处理内嵌封面
-            let coverUrl: string | null = null;
-            const embeddedCover = metadata.cover as CoverData | undefined;
-            if (embeddedCover?.data) {
-                try {
-                    if (embeddedCoverManager) {
-                        const coverResult = embeddedCoverManager.convertCoverToUrl(embeddedCover as any);
-                        if (coverResult.success && typeof coverResult.url === 'string') {
-                            coverUrl = coverResult.url;
-                            this.coverObjectUrls.add(coverUrl);
-                        }
-                    } else {
-                        // 直接处理封面数据
-                        const coverBlob = new Blob([embeddedCover.data], {
-                            type: `image/${(embeddedCover.format || 'jpeg').toLowerCase()}`
-                        });
-                        coverUrl = URL.createObjectURL(coverBlob);
-                        this.coverObjectUrls.add(coverUrl);
-                    }
-                } catch (error) {
-                    console.error('封面处理失败:', error);
-                }
-            }
-
-            // 验证封面URL格式
-            if (coverUrl && typeof coverUrl !== 'string') {
-                coverUrl = null;
-            }
-
-            // 更新当前歌曲信息
-            this.currentTrack = {
-                filePath: filePath,
-                title: metadata.title,
-                artist: metadata.artist,
-                album: metadata.album,
-                duration: this.duration,
-                bitrate: metadata.bitrate,
-                sampleRate: metadata.sampleRate,
-                year: metadata.year,
-                genre: metadata.genre,
-                track: metadata.track,
-                disc: metadata.disc,
-                cover: coverUrl
-            };
+            const loadedTrack = await this.trackLoader.load(filePath);
+            this.audioBuffer = loadedTrack.buffer;
+            this.duration = loadedTrack.duration;
+            this.currentTrack = loadedTrack.track;
 
             // 触发事件
             if (this.onTrackChanged) {
@@ -326,7 +230,11 @@ class WebAudioEngine {
             this.isPaused = false;
 
             // 开始进度更新
-            this.startProgressTimer();
+            this.progressTicker.start({
+                isPlaying: () => this.isPlaying,
+                getPosition: () => this.getPosition(),
+                getPositionChangedCallback: () => this.onPositionChanged
+            });
 
             if (this.onPlaybackStateChanged) {
                 this.onPlaybackStateChanged(true);
@@ -379,7 +287,7 @@ class WebAudioEngine {
             this.isPaused = true;
 
             // 停止进度更新
-            this.stopProgressTimer();
+            this.progressTicker.stop();
             console.log(`⏸️ 暂停播放，位置: ${this.pauseTime.toFixed(2)}s`);
 
             // 触发事件
@@ -417,9 +325,9 @@ class WebAudioEngine {
             this.pauseTime = 0;
 
             // 停止进度更新
-            this.stopProgressTimer();
-            if (!this.isWindowVisible) {
-                this.cleanupCoverUrls();
+            this.progressTicker.stop();
+            if (!this.visibilityCoordinator?.isVisible()) {
+                this.coverUrlStore.cleanup();
                 this.clearCurrentAudioBuffer();
             }
 
@@ -434,9 +342,7 @@ class WebAudioEngine {
             }
 
             // 在窗口隐藏时执行内存清理
-            if (!this.isWindowVisible) {
-                setTimeout(() => this.performMemoryCleanup(), 0);
-            }
+            this.visibilityCoordinator?.requestMemoryCleanupIfHidden();
 
             console.log('⏹️ 停止播放');
             return true;
@@ -444,18 +350,6 @@ class WebAudioEngine {
             console.error('❌ 停止失败:', error);
             return false;
         }
-    }
-
-    // 清理封面对象URL
-    cleanupCoverUrls(): void {
-        for (const url of this.coverObjectUrls) {
-            try {
-                URL.revokeObjectURL(url);
-            } catch (error) {
-                console.warn('⚠️ 清理封面URL失败:', error);
-            }
-        }
-        this.coverObjectUrls.clear();
     }
 
     // 跳转到指定位置
@@ -480,7 +374,7 @@ class WebAudioEngine {
             }
 
             // 停止进度更新
-            this.stopProgressTimer();
+            this.progressTicker.stop();
 
             // 设置新位置
             this.pauseTime = Math.max(0, Math.min(position, this.duration));
@@ -601,9 +495,7 @@ class WebAudioEngine {
             this.audioBuffer = null;
 
             // 在窗口隐藏时强制垃圾回收
-            if (!this.isWindowVisible) {
-                setTimeout(() => this.forceGarbageCollection(), 0);
-            }
+            this.visibilityCoordinator?.requestGarbageCollectionIfHidden();
         }
     }
 
@@ -612,9 +504,7 @@ class WebAudioEngine {
         this.preloadCoordinator?.clear();
 
         // 在窗口隐藏时强制垃圾回收
-        if (!this.isWindowVisible) {
-            setTimeout(() => this.forceGarbageCollection(), 0);
-        }
+        this.visibilityCoordinator?.requestGarbageCollectionIfHidden();
     }
 
     // 预加载下一首歌曲
@@ -813,28 +703,6 @@ class WebAudioEngine {
         return false;
     }
 
-    async getTrackMetadata(filePath: string): Promise<TrackMetadata> {
-        // console.log('🔄 从主进程获取音频元数据...');
-        const metadata = await libraryController.getTrackMetadata(filePath);
-        if (metadata) {
-            // console.log(`✅ 成功获取元数据: ${metadata.title} - ${metadata.artist}`);
-            return {
-                title: metadata.title || '未知标题',
-                artist: metadata.artist || '未知艺术家',
-                album: metadata.album || '未知专辑',
-                duration: metadata.duration || 0,
-                bitrate: metadata.bitrate || 0,
-                sampleRate: metadata.sampleRate || 0,
-                year: metadata.year,
-                genre: metadata.genre,
-                track: metadata.track,
-                disc: metadata.disc,
-                cover: metadata.cover
-            };
-        }
-        return {};
-    }
-
     // 歌曲播放结束处理
     onTrackEnded(): void {
         // console.log('🔚 歌曲播放结束');
@@ -854,24 +722,6 @@ class WebAudioEngine {
                     await this.nextTrack();
                 }, 500);
             }
-        }
-    }
-
-    // 开始进度更新定时器
-    startProgressTimer(): void {
-        this.stopProgressTimer();
-        this.progressTimer = setInterval(async () => {
-            if (this.isPlaying && this.onPositionChanged) {
-                this.onPositionChanged(await this.getPosition());
-            }
-        }, 50);
-    }
-
-    // 停止进度更新定时器
-    stopProgressTimer(): void {
-        if (this.progressTimer) {
-            clearInterval(this.progressTimer);
-            this.progressTimer = null;
         }
     }
 
@@ -941,111 +791,14 @@ class WebAudioEngine {
         });
     }
 
-    // 初始化窗口可见性监听
-    initVisibilityListener(): void {
-        try {
-            if (this.visibilityChangeListener || this.windowFocusListener || this.windowBlurListener) {
-                return;
-            }
-
-            this.visibilityChangeListener = () => {
-                void this.handleVisibilityChange();
-            };
-            this.windowFocusListener = () => {
-                this.isWindowVisible = true;
-                void this.handleWindowVisible();
-            };
-            this.windowBlurListener = () => {
-                this.isWindowVisible = false;
-                this.handleWindowHidden();
-            };
-
-            // 监听页面可见性变化
-            document.addEventListener('visibilitychange', this.visibilityChangeListener);
-
-            // 监听窗口焦点变化
-            window.addEventListener('focus', this.windowFocusListener);
-
-            window.addEventListener('blur', this.windowBlurListener);
-        } catch (error) {
-            console.error('❌ WebAudioEngine: 初始化窗口可见性监听失败:', error);
-        }
-    }
-
-    // 处理窗口可见性变化
-    async handleVisibilityChange(): Promise<void> {
-        if (document.hidden) {
-            this.isWindowVisible = false;
-            this.handleWindowHidden();
-        } else {
-            this.isWindowVisible = true;
-            await this.handleWindowVisible();
-        }
-    }
-
-    // 处理窗口隐藏（最小化或隐藏到托盘）
-    handleWindowHidden(): void {
-        this.scheduleMemoryCleanup();
-    }
-
-    // 处理窗口显示
-    async handleWindowVisible(): Promise<void> {
-        this.cancelScheduledMemoryCleanup();
-        await this.forceGarbageCollection();
-    }
-
-    // 调度内存清理
-    scheduleMemoryCleanup(): void {
-        // 取消之前的清理任务
-        this.cancelScheduledMemoryCleanup();
-
-        // 5秒后执行内存清理，给窗口恢复留出时间
-        this.memoryCleanupTimer = setTimeout(async () => {
-            await this.performMemoryCleanup();
-        }, 5000);
-    }
-
-    // 取消调度的内存清理
-    cancelScheduledMemoryCleanup(): void {
-        if (this.memoryCleanupTimer) {
-            clearTimeout(this.memoryCleanupTimer);
-            this.memoryCleanupTimer = null;
-        }
-    }
-
-    // 执行内存清理
-    async performMemoryCleanup(): Promise<void> {
-        if (this.isWindowVisible) {
-            return;
-        }
-        try {
-            // 清理封面URL
-            this.cleanupCoverUrls();
-
-            // 强制垃圾回收
-            await this.forceGarbageCollection();
-        } catch (error) {
-            console.error('❌ WebAudioEngine: 内存清理失败:', error);
-        }
-    }
-
-    // 强制垃圾回收
-    async forceGarbageCollection(): Promise<void> {
-        const maybeWindowWithGc = window as Window & {gc?: () => void};
-        if (typeof maybeWindowWithGc.gc === 'function') {
-            maybeWindowWithGc.gc();
-        }
-    }
-
     destroy(): void {
         this.stop();
-        this.stopProgressTimer();
-
-        // 取消内存清理任务
-        this.cancelScheduledMemoryCleanup();
+        this.progressTicker.stop();
+        this.visibilityCoordinator?.destroy();
+        this.visibilityCoordinator = null;
 
         // 清理封面URL
-        this.cleanupCoverUrls();
+        this.coverUrlStore.cleanup();
 
         // 清理所有音频缓冲区
         this.clearCurrentAudioBuffer();
@@ -1058,25 +811,6 @@ class WebAudioEngine {
 
         if (this.audioContext) {
             this.audioContext.close();
-        }
-
-        this.removeVisibilityListeners();
-    }
-
-    removeVisibilityListeners(): void {
-        if (this.visibilityChangeListener) {
-            document.removeEventListener('visibilitychange', this.visibilityChangeListener);
-            this.visibilityChangeListener = null;
-        }
-
-        if (this.windowFocusListener) {
-            window.removeEventListener('focus', this.windowFocusListener);
-            this.windowFocusListener = null;
-        }
-
-        if (this.windowBlurListener) {
-            window.removeEventListener('blur', this.windowBlurListener);
-            this.windowBlurListener = null;
         }
     }
 }
