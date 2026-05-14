@@ -3,7 +3,7 @@
  * 负责在WebAudioEngine和WasapiEngine之间切换
  */
 
-import {nativeAudioGateway} from "@js/infrastructure/electron";
+import {audioDriverController} from "@js/features/audioDriver";
 import {WebAudioEngine} from '@services/audio/WebAudioEngine';
 
 export type AudioEngineType = 'webaudio' | 'wasapi';
@@ -135,7 +135,7 @@ class AudioEngineManager {
             this.WasapiEngine = WasapiEngine;
 
             // 检查Native模块是否可用
-            if (!nativeAudioGateway.isAvailable()) {
+            if (!audioDriverController.isNativeAudioAvailable()) {
                 console.warn('⚠️ Native音频模块未加载');
                 return false;
             }

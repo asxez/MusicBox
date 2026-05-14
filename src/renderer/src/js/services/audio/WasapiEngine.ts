@@ -2,7 +2,7 @@
  * WASAPI独占模式音频引擎（Rust实现的JS包装器）
  */
 
-import {nativeAudioGateway} from "@js/infrastructure/electron";
+import {audioDriverController} from "@js/features/audioDriver";
 import {libraryController} from "@js/features/library";
 import {cacheManager} from "@services/CacheManager";
 import ParametricEqualizer from "@services/audio/ParametricEqualizer";
@@ -91,11 +91,11 @@ class WasapiEngine {
 
     async initialize(): Promise<boolean> {
         try {
-            if (!nativeAudioGateway.isAvailable()) {
+            if (!audioDriverController.isNativeAudioAvailable()) {
                 throw new Error('Native音频模块未加载');
             }
 
-            const nativeAudio = nativeAudioGateway.api;
+            const nativeAudio = audioDriverController.getNativeAudio();
             const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as MusicBoxSettings;
             const shareMode: WasapiShareMode = settings.wasapiShareMode === 'shared' ? 'shared' : 'exclusive';
 
@@ -123,12 +123,12 @@ class WasapiEngine {
 
     setupEventListeners(): void {
         // 监听播放结束事件
-        nativeAudioGateway.onNativeAudioEvent('track-ended', () => {
+        audioDriverController.onNativeAudioEvent('track-ended', () => {
             this.onTrackEnded();
         });
 
         // 监听错误事件
-        nativeAudioGateway.onNativeAudioEvent('error', (errorMsg: unknown) => {
+        audioDriverController.onNativeAudioEvent('error', (errorMsg: unknown) => {
             console.error('❌ Native音频错误:', errorMsg);
             this.isPlaying = false;
             this.isPaused = false;
