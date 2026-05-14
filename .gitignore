@@ -12,6 +12,7 @@ test-files/
 .vs/
 
 tmp/
+output/
 
 .claude
 .codex
@@ -19,3 +20,4 @@ dosdel.bat
 *.docx
 *.doc
 README - 副本.md
+package-lock.json

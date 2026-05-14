@@ -6,6 +6,7 @@ Cargo.lock
 # Node.js
 node_modules/
 *.node
+package-lock.json
 
 # Build artifacts
 *.dll
