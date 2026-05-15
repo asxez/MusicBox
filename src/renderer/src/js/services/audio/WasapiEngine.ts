@@ -5,7 +5,7 @@
 import {audioDriverController} from "@js/features/audioDriver";
 import {libraryController} from "@js/features/library";
 import {cacheManager} from "@services/CacheManager";
-import {getTrackFilePath, type AudioTrack, type TrackSource} from "@services/audio/domain";
+import {getTrackFilePath, type AudioEngineState, type AudioTrack, type TrackSource} from "@services/audio/domain";
 import ParametricEqualizer from "@services/audio/ParametricEqualizer";
 import WasapiEqualizer from "@services/audio/WasapiEqualizer";
 import type {MusicBoxSettings} from "@api/types/settings";
@@ -321,6 +321,19 @@ class WasapiEngine {
 
     getCurrentTrack(): WasapiTrack | null {
         return this.currentTrack;
+    }
+
+    async getStateSnapshot(): Promise<AudioEngineState> {
+        return {
+            volume: this.getVolume(),
+            playlist: this.playlist,
+            currentIndex: this.currentIndex,
+            position: await this.getPosition(),
+            duration: this.getDuration(),
+            isPlaying: this.isPlaying,
+            gaplessEnabled: this.getGaplessPlayback(),
+            currentTrack: this.getCurrentTrack()
+        };
     }
 
     setPlaylist(tracks: TrackSource[], startIndex = 0): boolean {

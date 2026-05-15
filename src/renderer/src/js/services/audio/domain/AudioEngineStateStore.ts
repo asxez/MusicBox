@@ -5,6 +5,7 @@ export const DEFAULT_AUDIO_ENGINE_STATE: AudioEngineState = {
     playlist: [],
     currentIndex: -1,
     position: 0,
+    duration: 0,
     isPlaying: false,
     gaplessEnabled: true
 };
@@ -18,11 +19,16 @@ class AudioEngineStateStore {
     }
 
     async capture(engine: AudioEngineBridge): Promise<AudioEngineState> {
+        if (typeof engine.getStateSnapshot === 'function') {
+            return await engine.getStateSnapshot();
+        }
+
         return {
             volume: engine.getVolume(),
             playlist: engine.playlist || [],
             currentIndex: engine.currentIndex || -1,
             position: await engine.getPosition(),
+            duration: engine.getDuration(),
             isPlaying: engine.isPlaying,
             gaplessEnabled: engine.getGaplessPlayback(),
             currentTrack: engine.getCurrentTrack()

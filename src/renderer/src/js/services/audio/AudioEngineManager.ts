@@ -260,6 +260,14 @@ class AudioEngineManager {
         return await this.currentEngine?.getPosition() || 0;
     }
 
+    async getStateSnapshot(): Promise<AudioEngineState> {
+        if (!this.currentEngine) {
+            return audioEngineStateStore.createDefaultState();
+        }
+
+        return await audioEngineStateStore.capture(this.currentEngine);
+    }
+
     getDuration(): number {
         return this.currentEngine?.getDuration() || 0;
     }
@@ -327,11 +335,11 @@ class AudioEngineManager {
     }
 
     get duration(): number {
-        return this.currentEngine?.duration || 0;
+        return this.getDuration();
     }
 
     get currentTrack(): unknown {
-        return this.currentEngine?.currentTrack || null;
+        return this.getCurrentTrack();
     }
 }
 

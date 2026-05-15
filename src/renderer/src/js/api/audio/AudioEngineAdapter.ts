@@ -1,6 +1,7 @@
 import {cacheManager} from "@services/CacheManager";
 import AudioEngineManager from "@services/audio/AudioEngineManager";
 import type {MusicBoxSettings, WasapiShareMode} from '@api/types/settings';
+import type {AudioEngineState} from '@services/audio/domain';
 
 export type AudioEngineType = 'webaudio' | 'wasapi';
 
@@ -23,6 +24,7 @@ export interface AudioEngineManagerBridge {
     seek(position: number): Promise<boolean>;
     setVolume(volume: number): boolean;
     getPosition(): Promise<number>;
+    getStateSnapshot(): Promise<AudioEngineState>;
     getDuration(): number;
     getCurrentTrack(): unknown;
     setPlaylist(tracks: unknown[], startIndex?: number): boolean;

@@ -5,6 +5,7 @@
 import {
     getTrackFilePath,
     getTrackTitle,
+    type AudioEngineState,
     type TrackSource
 } from '@services/audio/domain';
 import WebAudioEqualizer from "@services/audio/WebAudioEqualizer";
@@ -256,6 +257,19 @@ class WebAudioEngine {
     // 获取当前歌曲信息
     getCurrentTrack(): WebAudioTrack | null {
         return this.currentTrackStore.getTrack();
+    }
+
+    async getStateSnapshot(): Promise<AudioEngineState> {
+        return {
+            volume: this.getVolume(),
+            playlist: this.playlist,
+            currentIndex: this.currentIndex,
+            position: await this.getPosition(),
+            duration: this.getDuration(),
+            isPlaying: this.isPlaying,
+            gaplessEnabled: this.getGaplessPlayback(),
+            currentTrack: this.getCurrentTrack()
+        };
     }
 
     // 设置播放列表

@@ -7,6 +7,7 @@ export interface AudioEngineState {
     playlist: TrackSource[];
     currentIndex: number;
     position: number;
+    duration: number;
     isPlaying: boolean;
     gaplessEnabled: boolean;
     currentTrack?: unknown;
@@ -41,6 +42,7 @@ export interface AudioEngineBridge {
     getPosition(): Promise<number>;
     getDuration(): number;
     getCurrentTrack(): unknown;
+    getStateSnapshot?(): Promise<AudioEngineState>;
     getEqualizer(): unknown;
     setEqualizerEnabled(enabled: boolean): unknown;
     setPlaylist(tracks: TrackSource[], startIndex?: number): boolean;
