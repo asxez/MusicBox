@@ -8,6 +8,7 @@ import {
     type TrackSource
 } from '@services/audio/domain';
 import WebAudioEqualizer from "@services/audio/WebAudioEqualizer";
+import WebAudioCurrentTrackStore from "@services/audio/WebAudioCurrentTrackStore";
 import {forceWebAudioGarbageCollection} from "@services/audio/WebAudioGarbageCollector";
 import WebAudioMixerController from "@services/audio/WebAudioMixerController";
 import WebAudioObjectUrlStore from "@services/audio/WebAudioObjectUrlStore";
@@ -19,10 +20,7 @@ import type {WebAudioTrack} from "@services/audio/WebAudioTypes";
 import WebAudioVisibilityCoordinator from "@services/audio/WebAudioVisibilityCoordinator";
 
 class WebAudioEngine {
-    public audioContext: any;
-    private audioBuffer: any;
-    public duration: number;
-    public currentTrack: WebAudioTrack | null;
+    public audioContext: AudioContext | null;
     public playlist: TrackSource[];
     public currentIndex: number;
     private onEqualizerChanged: ((state: {enabled: boolean}) => void) | null;
@@ -34,6 +32,7 @@ class WebAudioEngine {
     public getPreviousTrackIndex: (() => number) | null;
     private gaplessPlaybackEnabled: boolean;
     private preloadCoordinator: WebAudioPreloadCoordinator | null;
+    private readonly currentTrackStore: WebAudioCurrentTrackStore;
     private readonly mixerController: WebAudioMixerController;
     private readonly transportController: WebAudioTransportController;
     private readonly playlistCoordinator: WebAudioPlaylistCoordinator;
@@ -43,9 +42,6 @@ class WebAudioEngine {
 
     constructor() {
         this.audioContext = null;
-        this.audioBuffer = null;
-        this.duration = 0;
-        this.currentTrack = null;
         this.playlist = [];
         this.currentIndex = -1;
 
@@ -65,14 +61,15 @@ class WebAudioEngine {
         // 无间隙播放相关属性
         this.gaplessPlaybackEnabled = true; // 默认启用无间隙播放
         this.preloadCoordinator = null;
+        this.currentTrackStore = new WebAudioCurrentTrackStore();
         this.mixerController = new WebAudioMixerController({
             getVolumeChangedCallback: () => this.onVolumeChanged,
             getEqualizerChangedCallback: () => this.onEqualizerChanged
         });
         this.transportController = new WebAudioTransportController({
             getAudioContext: () => this.audioContext,
-            getAudioBuffer: () => this.audioBuffer,
-            getDuration: () => this.duration,
+            getAudioBuffer: () => this.currentTrackStore.getBuffer(),
+            getDuration: () => this.currentTrackStore.getDuration(),
             connectSourceToChain: (sourceNode) => this.mixerController.connectSource(sourceNode),
             onTrackEnded: () => this.onTrackEnded(),
             getPlaybackStateChangedCallback: () => this.onPlaybackStateChanged,
@@ -92,13 +89,13 @@ class WebAudioEngine {
                 this.currentIndex = index;
             },
             setCurrentBuffer: (buffer) => {
-                this.audioBuffer = buffer;
+                this.currentTrackStore.setBuffer(buffer);
             },
             setDuration: (duration) => {
-                this.duration = duration;
+                this.currentTrackStore.setDuration(duration);
             },
             setCurrentTrack: (track) => {
-                this.currentTrack = track;
+                this.currentTrackStore.setTrack(track);
             },
             clearCurrentAudioBuffer: () => this.clearCurrentAudioBuffer(),
             clearNextTrackBuffer: () => this.clearNextTrackBuffer(),
@@ -146,9 +143,7 @@ class WebAudioEngine {
             }
 
             const loadedTrack = await this.trackLoader.load(filePath);
-            this.audioBuffer = loadedTrack.buffer;
-            this.duration = loadedTrack.duration;
-            this.currentTrack = loadedTrack.track;
+            this.currentTrackStore.setLoadedTrack(loadedTrack);
 
             // 触发事件
             this.notifyTrackChanged();
@@ -220,6 +215,14 @@ class WebAudioEngine {
         return this.gaplessPlaybackEnabled;
     }
 
+    get duration(): number {
+        return this.currentTrackStore.getDuration();
+    }
+
+    get currentTrack(): WebAudioTrack | null {
+        return this.currentTrackStore.getTrack();
+    }
+
     get isPlaying(): boolean {
         return this.transportController.isPlaying();
     }
@@ -235,12 +238,12 @@ class WebAudioEngine {
 
     // 获取音频时长
     getDuration(): number {
-        return this.duration;
+        return this.currentTrackStore.getDuration();
     }
 
     // 获取当前歌曲信息
     getCurrentTrack(): WebAudioTrack | null {
-        return this.currentTrack;
+        return this.currentTrackStore.getTrack();
     }
 
     // 设置播放列表
@@ -268,9 +271,7 @@ class WebAudioEngine {
 
     // 清理当前音频缓冲区
     clearCurrentAudioBuffer(): void {
-        if (this.audioBuffer) {
-            this.audioBuffer = null;
-
+        if (this.currentTrackStore.clearBuffer()) {
             // 在窗口隐藏时强制垃圾回收
             this.visibilityCoordinator?.requestGarbageCollectionIfHidden();
         }
@@ -354,7 +355,7 @@ class WebAudioEngine {
         this.coverUrlStore.cleanup();
 
         // 清理所有音频缓冲区
-        this.clearCurrentAudioBuffer();
+        this.currentTrackStore.clear();
         this.clearNextTrackBuffer();
 
         this.mixerController.destroy();
