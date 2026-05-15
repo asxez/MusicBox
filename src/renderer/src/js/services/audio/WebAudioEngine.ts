@@ -8,8 +8,8 @@ import {
     type TrackSource
 } from '@services/audio/domain';
 import WebAudioEqualizer from "@services/audio/WebAudioEqualizer";
-import {webAudioChain} from "@services/audio/WebAudioChain";
 import {forceWebAudioGarbageCollection} from "@services/audio/WebAudioGarbageCollector";
+import WebAudioMixerController from "@services/audio/WebAudioMixerController";
 import WebAudioObjectUrlStore from "@services/audio/WebAudioObjectUrlStore";
 import WebAudioPlaylistCoordinator from "@services/audio/WebAudioPlaylistCoordinator";
 import WebAudioPreloadCoordinator from "@services/audio/WebAudioPreloadCoordinator";
@@ -21,14 +21,10 @@ import WebAudioVisibilityCoordinator from "@services/audio/WebAudioVisibilityCoo
 class WebAudioEngine {
     public audioContext: any;
     private audioBuffer: any;
-    private gainNode: any;
     public duration: number;
-    private volume: number;
     public currentTrack: WebAudioTrack | null;
     public playlist: TrackSource[];
     public currentIndex: number;
-    private equalizer: any;
-    private equalizerEnabled: boolean;
     private onEqualizerChanged: ((state: {enabled: boolean}) => void) | null;
     public onTrackChanged: ((track: WebAudioTrack | null) => void | Promise<void>) | null;
     public onPlaybackStateChanged: ((isPlaying: boolean) => void | Promise<void>) | null;
@@ -38,6 +34,7 @@ class WebAudioEngine {
     public getPreviousTrackIndex: (() => number) | null;
     private gaplessPlaybackEnabled: boolean;
     private preloadCoordinator: WebAudioPreloadCoordinator | null;
+    private readonly mixerController: WebAudioMixerController;
     private readonly transportController: WebAudioTransportController;
     private readonly playlistCoordinator: WebAudioPlaylistCoordinator;
     private readonly coverUrlStore: WebAudioObjectUrlStore;
@@ -47,16 +44,12 @@ class WebAudioEngine {
     constructor() {
         this.audioContext = null;
         this.audioBuffer = null;
-        this.gainNode = null;
         this.duration = 0;
-        this.volume = 0.7;
         this.currentTrack = null;
         this.playlist = [];
         this.currentIndex = -1;
 
         // 均衡器相关属性
-        this.equalizer = null;
-        this.equalizerEnabled = false;
         this.onEqualizerChanged = null;
 
         // 事件回调
@@ -72,11 +65,15 @@ class WebAudioEngine {
         // 无间隙播放相关属性
         this.gaplessPlaybackEnabled = true; // 默认启用无间隙播放
         this.preloadCoordinator = null;
+        this.mixerController = new WebAudioMixerController({
+            getVolumeChangedCallback: () => this.onVolumeChanged,
+            getEqualizerChangedCallback: () => this.onEqualizerChanged
+        });
         this.transportController = new WebAudioTransportController({
             getAudioContext: () => this.audioContext,
             getAudioBuffer: () => this.audioBuffer,
             getDuration: () => this.duration,
-            connectSourceToChain: (sourceNode) => this.connectSourceToChain(sourceNode),
+            connectSourceToChain: (sourceNode) => this.mixerController.connectSource(sourceNode),
             onTrackEnded: () => this.onTrackEnded(),
             getPlaybackStateChangedCallback: () => this.onPlaybackStateChanged,
             getPositionChangedCallback: () => this.onPositionChanged
@@ -127,12 +124,9 @@ class WebAudioEngine {
             });
             this.visibilityCoordinator.start();
             this.audioContext = new window.AudioContext();
-            this.gainNode = this.audioContext.createGain();
-            this.gainNode.connect(this.audioContext.destination);
-            this.gainNode.gain.value = this.volume;
+            this.mixerController.initialize(this.audioContext);
             this.trackLoader = new WebAudioTrackLoader(this.audioContext, this.coverUrlStore);
             this.preloadCoordinator = new WebAudioPreloadCoordinator(this.audioContext);
-            this.initializeEqualizer();
             return true;
         } catch (error) {
             console.error('❌ Web Audio Engine 初始化失败:', error);
@@ -202,31 +196,12 @@ class WebAudioEngine {
 
     // 设置音量
     setVolume(volume: number): boolean {
-        try {
-            this.volume = Math.max(0, Math.min(1, volume));
-
-            if (this.gainNode) {
-                // 使用线性渐变避免音量突变
-                this.gainNode.gain.setValueAtTime(this.volume, this.audioContext.currentTime);
-            }
-
-            console.log(`🔊 音量设置为: ${(this.volume * 100).toFixed(0)}%`);
-
-            // 触发事件
-            if (this.onVolumeChanged) {
-                this.onVolumeChanged(this.volume);
-            }
-
-            return true;
-        } catch (error) {
-            console.error('❌ 音量设置失败:', error);
-            return false;
-        }
+        return this.mixerController.setVolume(volume);
     }
 
     // 获取当前音量
     getVolume(): number {
-        return this.volume;
+        return this.mixerController.getVolume();
     }
 
     // 设置无间隙播放状态
@@ -355,71 +330,18 @@ class WebAudioEngine {
         }
     }
 
-    // 初始化均衡器
-    initializeEqualizer(): void {
-        if (!this.audioContext) {
-            console.error('❌ 音频上下文未初始化，无法创建均衡器');
-            return;
-        }
-        this.equalizer = new WebAudioEqualizer(this.audioContext);
-    }
-
     // 获取均衡器实例
     getEqualizer(): WebAudioEqualizer | null {
-        return this.equalizer;
+        return this.mixerController.getEqualizer();
     }
 
     // 启用/禁用均衡器
     setEqualizerEnabled(enabled: boolean): void {
-        // 如果状态没有变化，直接返回
-        if (this.equalizerEnabled === enabled) {
-            return;
-        }
-
-        this.equalizerEnabled = enabled;
-
-        // 如果音频正在播放且sourceNode存在，立即重新连接音频链
-        if (this.transportController.hasSourceNode() && this.isPlaying) {
-            // console.log('🔄 音频正在播放，立即重新连接音频链以应用均衡器状态变化');
-            this.reconnectAudioChain();
-        }
-
-        if (this.onEqualizerChanged) {
-            this.onEqualizerChanged({enabled});
-        }
-    }
-
-    // 连接音频源到音频链
-    connectSourceToChain(sourceNode: AudioBufferSourceNode): void {
-        if (!this.audioContext || !sourceNode || !this.gainNode) {
-            console.warn('⚠️ sourceNode不存在，无法连接音频链');
-            return;
-        }
-
-        webAudioChain.connect({
-            audioContext: this.audioContext,
-            sourceNode,
-            gainNode: this.gainNode,
-            equalizer: this.equalizer,
-            equalizerEnabled: this.equalizerEnabled
-        });
-    }
-
-    // 重新连接音频链 - 支持实时切换
-    reconnectAudioChain(): boolean {
-        const sourceNode = this.transportController.getSourceNode();
-        if (!this.audioContext || !sourceNode || !this.gainNode) {
-            console.warn('⚠️ sourceNode不存在，无法重新连接音频链');
-            return false;
-        }
-
-        return webAudioChain.reconnect({
-            audioContext: this.audioContext,
-            sourceNode,
-            gainNode: this.gainNode,
-            equalizer: this.equalizer,
-            equalizerEnabled: this.equalizerEnabled
-        });
+        this.mixerController.setEqualizerEnabled(
+            enabled,
+            this.transportController.getSourceNode(),
+            this.isPlaying
+        );
     }
 
     destroy(): void {
@@ -435,10 +357,7 @@ class WebAudioEngine {
         this.clearCurrentAudioBuffer();
         this.clearNextTrackBuffer();
 
-        if (this.equalizer) {
-            this.equalizer.destroy();
-            this.equalizer = null;
-        }
+        this.mixerController.destroy();
 
         if (this.audioContext) {
             this.audioContext.close();
