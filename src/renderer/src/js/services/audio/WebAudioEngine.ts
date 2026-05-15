@@ -13,20 +13,15 @@ import {forceWebAudioGarbageCollection} from "@services/audio/WebAudioGarbageCol
 import WebAudioObjectUrlStore from "@services/audio/WebAudioObjectUrlStore";
 import WebAudioPlaylistCoordinator from "@services/audio/WebAudioPlaylistCoordinator";
 import WebAudioPreloadCoordinator from "@services/audio/WebAudioPreloadCoordinator";
-import WebAudioProgressTicker from "@services/audio/WebAudioProgressTicker";
 import WebAudioTrackLoader from "@services/audio/WebAudioTrackLoader";
+import WebAudioTransportController from "@services/audio/WebAudioTransportController";
 import type {WebAudioTrack} from "@services/audio/WebAudioTypes";
 import WebAudioVisibilityCoordinator from "@services/audio/WebAudioVisibilityCoordinator";
 
 class WebAudioEngine {
     public audioContext: any;
     private audioBuffer: any;
-    private sourceNode: any;
     private gainNode: any;
-    public isPlaying: boolean;
-    public isPaused: boolean;
-    private startTime: number;
-    private pauseTime: number;
     public duration: number;
     private volume: number;
     public currentTrack: WebAudioTrack | null;
@@ -43,21 +38,16 @@ class WebAudioEngine {
     public getPreviousTrackIndex: (() => number) | null;
     private gaplessPlaybackEnabled: boolean;
     private preloadCoordinator: WebAudioPreloadCoordinator | null;
+    private readonly transportController: WebAudioTransportController;
     private readonly playlistCoordinator: WebAudioPlaylistCoordinator;
     private readonly coverUrlStore: WebAudioObjectUrlStore;
-    private readonly progressTicker: WebAudioProgressTicker;
     private visibilityCoordinator: WebAudioVisibilityCoordinator | null;
     private trackLoader: WebAudioTrackLoader | null;
 
     constructor() {
         this.audioContext = null;
         this.audioBuffer = null;
-        this.sourceNode = null;
         this.gainNode = null;
-        this.isPlaying = false;
-        this.isPaused = false;
-        this.startTime = 0;
-        this.pauseTime = 0;
         this.duration = 0;
         this.volume = 0.7;
         this.currentTrack = null;
@@ -82,6 +72,15 @@ class WebAudioEngine {
         // 无间隙播放相关属性
         this.gaplessPlaybackEnabled = true; // 默认启用无间隙播放
         this.preloadCoordinator = null;
+        this.transportController = new WebAudioTransportController({
+            getAudioContext: () => this.audioContext,
+            getAudioBuffer: () => this.audioBuffer,
+            getDuration: () => this.duration,
+            connectSourceToChain: (sourceNode) => this.connectSourceToChain(sourceNode),
+            onTrackEnded: () => this.onTrackEnded(),
+            getPlaybackStateChangedCallback: () => this.onPlaybackStateChanged,
+            getPositionChangedCallback: () => this.onPositionChanged
+        });
         this.playlistCoordinator = new WebAudioPlaylistCoordinator({
             getState: () => ({
                 playlist: this.playlist,
@@ -113,7 +112,6 @@ class WebAudioEngine {
         });
 
         this.coverUrlStore = new WebAudioObjectUrlStore();
-        this.progressTicker = new WebAudioProgressTicker();
         this.visibilityCoordinator = null;
         this.trackLoader = null;
     }
@@ -174,255 +172,32 @@ class WebAudioEngine {
 
     // 播放音频
     async play(): Promise<boolean> {
-        try {
-            if (!this.audioBuffer) {
-                return false;
-            }
-
-            // 恢复音频上下文（用户交互后需要）
-            if (this.audioContext.state === 'suspended') {
-                await this.audioContext.resume();
-            }
-
-            // 如果已经在播放且未暂停，不重复播放
-            if (this.isPlaying && !this.isPaused) {
-                return true;
-            }
-
-            // 停止当前播放
-            if (this.sourceNode) {
-                try {
-                    this.sourceNode.onended = null; // 移除回调避免意外触发
-                    this.sourceNode.stop();
-                    this.sourceNode.disconnect();
-                } catch (e) {
-                    // 忽略已停止的错误
-                }
-                this.sourceNode = null;
-            }
-
-            // 创建新的音频源
-            this.sourceNode = this.audioContext.createBufferSource();
-            this.sourceNode.buffer = this.audioBuffer;
-
-            // 连接到音频链
-            this.connectSourceToChain();
-
-            // 设置播放结束回调
-            this.sourceNode.onended = () => {
-                if (this.isPlaying) {
-                    this.onTrackEnded();
-                }
-            };
-
-            // 开始播放
-            const offset = this.isPaused ? this.pauseTime : 0;
-
-            // 确保偏移量在有效范围内
-            const validOffset = Math.max(0, Math.min(offset, this.duration - 0.1));
-            console.log(`▶️ 开始播放，原始偏移量: ${offset.toFixed(2)}s, 有效偏移量: ${validOffset.toFixed(2)}s, 音频时长: ${this.duration.toFixed(2)}s`);
-
-            try {
-                this.sourceNode.start(0, validOffset);
-                this.startTime = this.audioContext.currentTime - validOffset;
-
-                // 如果偏移量被调整了，更新pauseTime
-                if (validOffset !== offset) {
-                    this.pauseTime = validOffset;
-
-                }
-            } catch (startError) {
-                console.error('❌ 音频源启动失败:', startError);
-
-
-                // 重新创建音频源并从头开始
-                this.sourceNode = this.audioContext.createBufferSource();
-                this.sourceNode.buffer = this.audioBuffer;
-
-                // 连接到音频链
-                this.connectSourceToChain();
-                this.sourceNode.onended = () => {
-                    if (this.isPlaying) {
-                        this.onTrackEnded();
-                    }
-                };
-
-                this.sourceNode.start(0, 0);
-                this.startTime = this.audioContext.currentTime;
-                this.pauseTime = 0;
-                this.isPaused = false;
-            }
-
-            this.isPlaying = true;
-            this.isPaused = false;
-
-            // 开始进度更新
-            this.progressTicker.start({
-                isPlaying: () => this.isPlaying,
-                getPosition: () => this.getPosition(),
-                getPositionChangedCallback: () => this.onPositionChanged
-            });
-
-            if (this.onPlaybackStateChanged) {
-                this.onPlaybackStateChanged(true);
-            }
-
-            return true;
-        } catch (error) {
-            console.error('❌ 播放失败:', error);
-            return false;
-        }
+        return await this.transportController.play();
     }
 
     // 暂停播放
     async pause(): Promise<boolean> {
-        try {
-            if (!this.isPlaying && !this.sourceNode) {
-                console.log('⚠️ 音频未在播放且无音频源，无法暂停');
-                return false;
-            }
-
-            if (!this.isPlaying) {
-                console.log('⚠️ 状态显示未播放，但仍尝试暂停');
-            }
-
-            // 记录暂停位置
-            const currentPosition = this.audioContext.currentTime - this.startTime;
-            this.pauseTime = Math.max(0, Math.min(currentPosition, this.duration - 0.1));
-            console.log(`🔄 暂停位置计算: currentTime=${this.audioContext.currentTime.toFixed(2)}, startTime=${this.startTime.toFixed(2)}, 计算位置=${currentPosition.toFixed(2)}, 最终位置=${this.pauseTime.toFixed(2)}`);
-
-            // 如果计算出的位置异常，使用当前进度
-            if (this.pauseTime < 0 || this.pauseTime >= this.duration) {
-                const fallbackPosition = await this.getPosition();
-                console.log(`⚠️ 暂停位置异常，使用备用位置: ${fallbackPosition.toFixed(2)}s`);
-                this.pauseTime = Math.max(0, Math.min(fallbackPosition, this.duration - 0.1));
-            }
-
-            // 停止音频源（不触发onended事件）
-            if (this.sourceNode) {
-                try {
-                    // 移除onended回调，避免触发自动播放下一首
-                    this.sourceNode.onended = null;
-                    this.sourceNode.stop();
-                    this.sourceNode.disconnect();
-                } catch (e) {
-                }
-                this.sourceNode = null;
-            }
-
-            this.isPlaying = false;
-            this.isPaused = true;
-
-            // 停止进度更新
-            this.progressTicker.stop();
-            console.log(`⏸️ 暂停播放，位置: ${this.pauseTime.toFixed(2)}s`);
-
-            // 触发事件
-            if (this.onPlaybackStateChanged) {
-                console.log('🔄 Web Audio Engine: 触发暂停状态变化事件');
-                this.onPlaybackStateChanged(false);
-            } else {
-                console.warn('⚠️ Web Audio Engine: onPlaybackStateChanged 回调未设置');
-            }
-            return true;
-        } catch (error) {
-            console.error('❌ 暂停失败:', error);
-            return false;
-        }
+        return await this.transportController.pause();
     }
 
     // 停止播放
     stop(): boolean {
-        try {
-            // 停止音频源（不触发onended事件）
-            if (this.sourceNode) {
-                try {
-                    // 移除onended回调，避免触发自动播放下一首
-                    this.sourceNode.onended = null;
-                    this.sourceNode.stop();
-                    this.sourceNode.disconnect();
-                } catch (e) {
-                }
-                this.sourceNode = null;
-            }
-
-            this.isPlaying = false;
-            this.isPaused = false;
-            this.startTime = 0;
-            this.pauseTime = 0;
-
-            // 停止进度更新
-            this.progressTicker.stop();
+        const stopped = this.transportController.stop();
+        if (stopped) {
             if (!this.visibilityCoordinator?.isVisible()) {
                 this.coverUrlStore.cleanup();
                 this.clearCurrentAudioBuffer();
             }
 
-            // 触发事件
-            if (this.onPlaybackStateChanged) {
-                this.onPlaybackStateChanged(false);
-            }
-
-            // 触发位置重置事件
-            if (this.onPositionChanged) {
-                this.onPositionChanged(0);
-            }
-
-            // 在窗口隐藏时执行内存清理
             this.visibilityCoordinator?.requestMemoryCleanupIfHidden();
-
-            console.log('⏹️ 停止播放');
-            return true;
-        } catch (error) {
-            console.error('❌ 停止失败:', error);
-            return false;
         }
+
+        return stopped;
     }
 
     // 跳转到指定位置
     async seek(position: number): Promise<boolean> {
-        try {
-            if (!this.audioBuffer) {
-                return false;
-            }
-
-            const wasPlaying = this.isPlaying;
-
-            // 停止当前播放（但不触发onended事件）
-            if (this.sourceNode) {
-                try {
-                    // 临时移除onended回调，避免触发自动播放下一首
-                    this.sourceNode.onended = null;
-                    this.sourceNode.stop();
-                    this.sourceNode.disconnect();
-                } catch (e) {
-                }
-                this.sourceNode = null;
-            }
-
-            // 停止进度更新
-            this.progressTicker.stop();
-
-            // 设置新位置
-            this.pauseTime = Math.max(0, Math.min(position, this.duration));
-            this.isPaused = true;
-            this.isPlaying = false;
-            console.log(`⏭️ 跳转到: ${position.toFixed(2)}s`);
-
-            // 如果之前在播放，继续播放
-            if (wasPlaying) {
-                await this.play();
-            }
-
-            // 触发位置更新事件
-            if (this.onPositionChanged) {
-                this.onPositionChanged(this.pauseTime);
-            }
-            return true;
-        } catch (error) {
-            console.error('❌ 跳转失败:', error);
-            return false;
-        }
+        return await this.transportController.seek(position);
     }
 
     // 设置音量
@@ -470,17 +245,17 @@ class WebAudioEngine {
         return this.gaplessPlaybackEnabled;
     }
 
+    get isPlaying(): boolean {
+        return this.transportController.isPlaying();
+    }
+
+    get isPaused(): boolean {
+        return this.transportController.isPaused();
+    }
+
     // 获取当前播放位置
     async getPosition(): Promise<number> {
-        if (!this.isPlaying && !this.isPaused) {
-            return 0;
-        }
-
-        if (this.isPaused) {
-            return this.pauseTime;
-        }
-
-        return this.audioContext.currentTime - this.startTime;
+        return await this.transportController.getPosition();
     }
 
     // 获取音频时长
@@ -557,8 +332,6 @@ class WebAudioEngine {
     // 歌曲播放结束处理
     onTrackEnded(): void {
         // console.log('🔚 歌曲播放结束');
-        this.isPlaying = false;
-        this.isPaused = false;
 
         // 自动播放下一首
         if (this.playlist.length > 0) {
@@ -606,7 +379,7 @@ class WebAudioEngine {
         this.equalizerEnabled = enabled;
 
         // 如果音频正在播放且sourceNode存在，立即重新连接音频链
-        if (this.sourceNode && this.isPlaying) {
+        if (this.transportController.hasSourceNode() && this.isPlaying) {
             // console.log('🔄 音频正在播放，立即重新连接音频链以应用均衡器状态变化');
             this.reconnectAudioChain();
         }
@@ -617,15 +390,15 @@ class WebAudioEngine {
     }
 
     // 连接音频源到音频链
-    connectSourceToChain(): void {
-        if (!this.audioContext || !this.sourceNode || !this.gainNode) {
+    connectSourceToChain(sourceNode: AudioBufferSourceNode): void {
+        if (!this.audioContext || !sourceNode || !this.gainNode) {
             console.warn('⚠️ sourceNode不存在，无法连接音频链');
             return;
         }
 
         webAudioChain.connect({
             audioContext: this.audioContext,
-            sourceNode: this.sourceNode,
+            sourceNode,
             gainNode: this.gainNode,
             equalizer: this.equalizer,
             equalizerEnabled: this.equalizerEnabled
@@ -634,14 +407,15 @@ class WebAudioEngine {
 
     // 重新连接音频链 - 支持实时切换
     reconnectAudioChain(): boolean {
-        if (!this.audioContext || !this.sourceNode || !this.gainNode) {
+        const sourceNode = this.transportController.getSourceNode();
+        if (!this.audioContext || !sourceNode || !this.gainNode) {
             console.warn('⚠️ sourceNode不存在，无法重新连接音频链');
             return false;
         }
 
         return webAudioChain.reconnect({
             audioContext: this.audioContext,
-            sourceNode: this.sourceNode,
+            sourceNode,
             gainNode: this.gainNode,
             equalizer: this.equalizer,
             equalizerEnabled: this.equalizerEnabled
@@ -650,7 +424,7 @@ class WebAudioEngine {
 
     destroy(): void {
         this.stop();
-        this.progressTicker.stop();
+        this.transportController.destroy();
         this.visibilityCoordinator?.destroy();
         this.visibilityCoordinator = null;
 
