@@ -3,6 +3,7 @@ import {audioGateway} from '@js/infrastructure/electron/AudioGateway';
 import {cacheManager} from "@services/CacheManager";
 import {PlaybackQueue} from './playback/PlaybackQueue';
 import {PlaybackPersistence} from './playback/PlaybackPersistence';
+import {PlaybackStateSynchronizer} from './playback/PlaybackStateSynchronizer';
 import {DesktopLyricsSync} from './desktopLyrics/DesktopLyricsSync';
 import {AudioEngineAdapter} from './audio/AudioEngineAdapter';
 import {LibraryBridge} from './library/LibraryBridge';
@@ -12,7 +13,6 @@ import type {DesktopLyricsPlaybackState, PlayMode, PlaybackStateName} from '@api
 import type {LyricLine} from '@api/types/lyrics';
 import type {DesktopLyricsSettings, MusicBoxSettings, WasapiShareMode} from '@api/types/settings';
 import type {Track} from '@api/types/track';
-import type {AudioEngineState} from '@services/audio/domain';
 import type {AudioEngineManagerBridge, AudioEngineType} from './audio/AudioEngineAdapter';
 
 export class MusicBoxAPI extends EventEmitter {
@@ -27,6 +27,7 @@ export class MusicBoxAPI extends EventEmitter {
     queue: PlaybackQueue;
     playMode: PlayMode;
     playbackPersistence: PlaybackPersistence;
+    playbackStateSynchronizer: PlaybackStateSynchronizer;
     desktopLyricsSync: DesktopLyricsSync;
     audioEngineAdapter: AudioEngineAdapter;
     libraryBridge: LibraryBridge;
@@ -51,6 +52,23 @@ export class MusicBoxAPI extends EventEmitter {
             persistPlayMode: (mode) => cacheManager.setLocalCache('playMode', mode)
         });
         this.playMode = this.queue.getPlayMode();
+        this.playbackStateSynchronizer = new PlaybackStateSynchronizer({
+            getAudioEngine: () => this.audioEngine,
+            getState: () => ({
+                currentTrack: this.currentTrack,
+                duration: this.duration,
+                currentIndex: this.currentIndex,
+                position: this.position,
+                isPlaying: this.isPlaying
+            }),
+            setState: (state) => {
+                if ('currentTrack' in state) this.currentTrack = state.currentTrack ?? null;
+                if (typeof state.duration === 'number') this.duration = state.duration;
+                if (typeof state.currentIndex === 'number') this.currentIndex = state.currentIndex;
+                if (typeof state.position === 'number') this.position = state.position;
+                if (typeof state.isPlaying === 'boolean') this.isPlaying = state.isPlaying;
+            }
+        });
         this.playbackPersistence = new PlaybackPersistence({
             getPlaybackState: () => ({
                 currentTrack: this.currentTrack,
@@ -98,43 +116,19 @@ export class MusicBoxAPI extends EventEmitter {
         this.audioEngine = await this.audioEngineAdapter.initializeWebAudio();
     }
 
-    private async syncFromAudioEngineState(overrides: Partial<AudioEngineState> = {}): Promise<void> {
-        if (!this.audioEngine) {
-            return;
-        }
-
-        const state = {
-            ...await this.audioEngine.getStateSnapshot(),
-            ...overrides
-        };
-
-        this.currentTrack = state.currentTrack as Track | null;
-        this.duration = state.duration;
-        this.currentIndex = state.currentIndex;
-        this.position = state.position;
-        this.isPlaying = state.isPlaying;
-    }
-
     setupEventListeners(): void {
         // 音频引擎事件监听
         const audioEngine = this.audioEngine;
         if (audioEngine) {
             audioEngine.onTrackChanged = async (track: unknown) => {
-                this.currentTrack = track as Track | null;
                 const state = await audioEngine.getStateSnapshot();
+                const syncResult = this.playbackStateSynchronizer.applyTrackChangedState(track, state);
 
-                // 从音频引擎获取最新的索引
                 // 只有在引擎索引与API索引不一致时才同步（说明是引擎主动切换的，如自动播放下一首）
-                if (state.currentIndex !== this.currentIndex) {
-                    const previousIndex = this.currentIndex;
-                    this.currentIndex = state.currentIndex;
-                    console.log(`🔄 API: 音频引擎主动切换歌曲，同步索引: ${previousIndex} -> ${this.currentIndex}`);
+                if (syncResult.indexChanged) {
+                    console.log(`🔄 API: 音频引擎主动切换歌曲，同步索引: ${syncResult.previousIndex} -> ${this.currentIndex}`);
                     this.emit('trackIndexChanged', this.currentIndex);
                 }
-
-                this.duration = state.duration;
-                this.position = state.position;
-                this.isPlaying = state.isPlaying;
 
                 this.emit('trackChanged', this.currentTrack);
                 await this.syncToDesktopLyrics('track', this.currentTrack);
@@ -223,7 +217,7 @@ export class MusicBoxAPI extends EventEmitter {
                 if (result) {
                     // 记录加载前的索引，用于判断是否需要触发 trackIndexChanged
                     const previousIndex = this.currentIndex;
-                    await this.syncFromAudioEngineState({position: 0});
+                    await this.playbackStateSynchronizer.syncFromEngine({position: 0});
 
                     //bug fix: #30 issue
                     // 如果当前索引是-1，尝试在播放列表中查找
@@ -243,7 +237,7 @@ export class MusicBoxAPI extends EventEmitter {
                         this.audioEngine.currentIndex = this.currentIndex;
                     }
 
-                    await this.syncFromAudioEngineState({position: 0});
+                    await this.playbackStateSynchronizer.syncFromEngine({position: 0});
 
                     this.emit('trackChanged', this.currentTrack);
                     this.emit('durationChanged', this.duration);
@@ -621,7 +615,7 @@ export class MusicBoxAPI extends EventEmitter {
                 const result = await this.audioEngine.nextTrack(nextIndex);
                 if (result) {
                     // 更新API状态
-                    await this.syncFromAudioEngineState({position: 0});
+                    await this.playbackStateSynchronizer.syncFromEngine({position: 0});
 
                     // 手动切换时，onTrackChanged回调已经在nextTrack()内部被触发
                     // 由于回调中会检查索引是否变化，这里的emit不会导致重复的trackIndexChanged
@@ -691,7 +685,7 @@ export class MusicBoxAPI extends EventEmitter {
                 const result = await this.audioEngine.previousTrack(prevIndex);
                 if (result) {
                     // 更新API状态
-                    await this.syncFromAudioEngineState({position: 0});
+                    await this.playbackStateSynchronizer.syncFromEngine({position: 0});
 
                     this.emit('trackIndexChanged', this.currentIndex);
                     this.emit('trackChanged', this.currentTrack);
