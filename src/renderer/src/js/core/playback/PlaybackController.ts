@@ -5,6 +5,7 @@ import type {PlaybackStateSnapshot} from '@api/types/playback';
 import type {MusicBoxSettings} from '@api/types/settings';
 import type {Track} from '@api/types/track';
 import type {RendererAppContext} from '@core/types/app';
+import {AppUIFacade} from '@core/ui/AppUIFacade';
 
 interface PlaybackControllerOptions {
     app: RendererAppContext;
@@ -12,10 +13,12 @@ interface PlaybackControllerOptions {
 
 export class PlaybackController {
     private readonly app: RendererAppContext;
+    private readonly ui: AppUIFacade;
     private playTrackLock: boolean;
 
     constructor({app}: PlaybackControllerOptions) {
         this.app = app;
+        this.ui = new AppUIFacade(app);
         this.playTrackLock = false;
     }
 
@@ -26,9 +29,7 @@ export class PlaybackController {
 
         try {
             await playbackController.setPlaylist(tracks, 0);
-            if (app.components.playlist && app.components.playlist.setTracks) {
-                app.components.playlist.setTracks(tracks, 0);
-            }
+            this.ui.syncQueueTracks(tracks, 0);
             await this.playTrackFromPlaylist(tracks[0], 0);
         } catch (error) {
             app.showError('播放失败，请重试');
@@ -40,7 +41,7 @@ export class PlaybackController {
 
         console.log('🎵 从音乐库播放歌曲:', track.title, '当前视图:', app.currentView);
 
-        if (app.components.playlist) {
+        if (this.ui.hasQueue()) {
             if (app.currentView === 'library') {
                 const currentLibrary = app.filteredLibrary && app.filteredLibrary.length > 0
                     ? app.filteredLibrary
@@ -52,23 +53,23 @@ export class PlaybackController {
 
                     console.log(`🎵 设置播放列表: ${currentLibrary.length} 首歌曲，从第 ${startIndex + 1} 首开始播放`);
 
-                    app.components.playlist.setTracks(currentLibrary, startIndex);
+                    this.ui.syncQueueTracks(currentLibrary, startIndex);
                     await this.playTrackFromPlaylist(track, startIndex);
                 } else {
                     console.warn('⚠️ 音乐库为空，无法播放');
                 }
             } else {
-                if (app.components.playlist.tracks.length === 0) {
+                if (this.ui.isQueueEmpty()) {
                     console.log('🎵 播放列表为空，添加当前歌曲，当前视图:', app.currentView);
-                    app.components.playlist.setTracks([track], 0);
+                    this.ui.syncQueueTracks([track], 0);
                     console.log('🔍 setTracks 完成，当前视图:', app.currentView);
                     await this.playTrackFromPlaylist(track, 0);
                 } else {
-                    const existingIndex = app.components.playlist.tracks.findIndex((t: Track) =>
+                    const existingIndex = this.ui.findQueueIndex((t) =>
                         t.filePath === track.filePath
                     );
                     if (existingIndex === -1) {
-                        const newIndex = app.components.playlist.addTrack(track);
+                        const newIndex = this.ui.addQueueTrack(track);
                         await this.playTrackFromPlaylist(track, newIndex);
                     } else {
                         await this.playTrackFromPlaylist(track, existingIndex);
@@ -82,8 +83,6 @@ export class PlaybackController {
     }
 
     async playTrackFromPlaylist(track: Track, index: number): Promise<void> {
-        const app = this.app;
-
         if (this.playTrackLock) {
             console.log('🚫 App: 播放操作正在进行中，忽略重复调用');
             return;
@@ -93,13 +92,14 @@ export class PlaybackController {
         console.log(`🎵 App: 开始播放 ${track.title || track.filePath}，索引: ${index}`);
 
         try {
-            if (app.components.playlist && app.components.playlist.tracks.length > 0) {
-                console.log('🔄 同步播放列表到API:', app.components.playlist.tracks.length, '首歌曲');
+            const queueTracks = this.ui.getQueueTracks();
+            if (queueTracks.length > 0) {
+                console.log('🔄 同步播放列表到API:', queueTracks.length, '首歌曲');
 
-                const setPlaylistResult = await playbackController.setPlaylist(app.components.playlist.tracks, index);
+                const setPlaylistResult = await playbackController.setPlaylist(queueTracks, index);
 
                 if (setPlaylistResult) {
-                    app.components.playlist.setCurrentTrack(index);
+                    this.ui.setQueueCurrentTrack(index);
 
                     const loadResult = await playbackController.loadTrack(track.filePath);
                     if (loadResult) {
@@ -122,20 +122,18 @@ export class PlaybackController {
     }
 
     handleTrackIndexChanged(index: number): void {
-        const playlist = this.app.components.playlist;
+        const queueLength = this.ui.getQueueTracks().length;
 
-        if (playlist) {
-            if (index >= 0 && index < playlist.tracks.length) {
-                playlist.setCurrentTrack(index);
+        if (this.ui.hasQueue()) {
+            if (index >= 0 && index < queueLength) {
+                this.ui.setQueueCurrentTrack(index);
             } else {
-                console.warn('⚠️ 索引超出播放列表范围:', index, '/', playlist.tracks.length);
+                console.warn('⚠️ 索引超出播放列表范围:', index, '/', queueLength);
             }
         }
     }
 
     async restorePlaybackState(): Promise<void> {
-        const app = this.app;
-
         try {
             const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as MusicBoxSettings;
             const playbackState = cacheManager.getLocalCache('playback-state') as PlaybackStateSnapshot | null;
@@ -164,9 +162,7 @@ export class PlaybackController {
                     if (validTracks.length > 0) {
                         await playbackController.setPlaylist(validTracks, validCurrentIndex);
 
-                        if (app.components.playlist) {
-                            app.components.playlist.setTracks(validTracks, validCurrentIndex);
-                        }
+                        this.ui.syncQueueTracks(validTracks, validCurrentIndex);
 
                         if (validCurrentIndex >= 0 && validTracks[validCurrentIndex]) {
                             const trackToLoad = validTracks[validCurrentIndex];

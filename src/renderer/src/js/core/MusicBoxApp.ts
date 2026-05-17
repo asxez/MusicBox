@@ -11,6 +11,7 @@ import {PluginBootstrap} from './plugins/PluginBootstrap';
 import {LibraryController} from './library/LibraryController';
 import {PlaybackController} from './playback/PlaybackController';
 import {PlaylistController} from './playlists/PlaylistController';
+import {AppUIFacade} from './ui/AppUIFacade';
 
 import {cacheManager} from "@services/CacheManager";
 import {extensionHostService} from "@services/plugins/ExtensionHostService";
@@ -60,6 +61,7 @@ export class MusicBoxApp extends EventEmitter {
     private readonly libraryController: LibraryController;
     private readonly playbackController: PlaybackController;
     private readonly playlistController: PlaylistController;
+    private readonly ui: AppUIFacade;
 
     constructor() {
         super();
@@ -68,6 +70,7 @@ export class MusicBoxApp extends EventEmitter {
         this.library = [];
         this.filteredLibrary = [];
         this.components = {} as ComponentMap;
+        this.ui = new AppUIFacade(this);
         this.componentRegistry = new ComponentRegistry({
             components: this.components,
             setupComponentEvents: (componentName: string) => this.setupComponentEvents(componentName)
@@ -112,7 +115,7 @@ export class MusicBoxApp extends EventEmitter {
             const savedVolume = cacheManager.getLocalCache('volume');
             if (savedVolume !== null) {
                 await playbackFeatureController.setVolume(savedVolume);
-                await this.components.player.updateUI();
+                await this.ui.updatePlayerUI();
             }
 
             // 恢复播放状态
@@ -210,16 +213,12 @@ export class MusicBoxApp extends EventEmitter {
     // 同步桌面歌词按钮状态
     async syncDesktopLyricsButtonState(): Promise<void> {
         try {
-            if (this.components.player && this.components.settings) {
-                // 从设置中获取桌面歌词状态
-                const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as Record<string, unknown>;
-                const desktopLyricsEnabled = Object.prototype.hasOwnProperty.call(settings, 'desktopLyrics')
-                    ? settings.desktopLyrics
-                    : true;
+            const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as Record<string, unknown>;
+            const desktopLyricsEnabled = Object.prototype.hasOwnProperty.call(settings, 'desktopLyrics')
+                ? settings.desktopLyrics
+                : true;
 
-                // 更新Player组件的按钮状态
-                await this.components.player.updateDesktopLyricsButtonVisibility(Boolean(desktopLyricsEnabled));
-            }
+            await this.ui.updateDesktopLyricsButtonVisibility(Boolean(desktopLyricsEnabled));
         } catch (error) {
             console.error('❌ App: 同步桌面歌词按钮状态失败:', error);
         }
@@ -428,9 +427,7 @@ export class MusicBoxApp extends EventEmitter {
     }
 
     showCreatePlaylistDialog(): void {
-        if (this.components.createPlaylistDialog) {
-            this.components.createPlaylistDialog.show();
-        }
+        this.ui.showCreatePlaylistDialog();
     }
 
     // 处理添加到自定义歌单
@@ -459,14 +456,12 @@ export class MusicBoxApp extends EventEmitter {
         this.hideAllPages();
         this.updateSidebarSelection('network-drive', String(networkDrive.id));
         this.currentView = 'network-drive-detail';
-        if (this.components.networkDriveDetailPage) {
-            await this.components.networkDriveDetailPage.show(networkDrive as any);
-        }
+        await this.ui.showNetworkDriveDetail(networkDrive);
     }
 
     // 处理网络磁盘移除
     async handleDriveRemoved(): Promise<void> {
-        await this.components.navigation.loadNetworkDrives();
+        await this.ui.loadNetworkDrives();
         await this.refreshLibrary();
     }
 
@@ -503,8 +498,9 @@ export class MusicBoxApp extends EventEmitter {
     async cleanup(): Promise<void> {
         // 保存播放状态和音量
         await this.savePlaybackState();
-        if (this.components.player) {
-            await cacheManager.setLocalCache('volume', this.components.player.volume);
+        const volume = this.ui.getPlayerVolume();
+        if (volume !== null) {
+            await cacheManager.setLocalCache('volume', volume);
         }
 
         this.domEventBinder.dispose();
@@ -583,7 +579,7 @@ export class MusicBoxApp extends EventEmitter {
     }
 
     async confirm(options: ConfirmOptions): Promise<boolean> {
-        return await this.components.confirmDialog.show(options);
+        return await this.ui.confirm(options);
     }
 
     // Playlist event handlers
@@ -633,7 +629,7 @@ export class MusicBoxApp extends EventEmitter {
 
     // 处理编辑歌曲信息
     async handleEditTrackInfo(track: Track, _index: number): Promise<void> {
-        await this.components.editTrackInfoDialog.show(track);
+        await this.ui.showEditTrackInfoDialog(track);
     }
 
     // 处理歌曲信息更新

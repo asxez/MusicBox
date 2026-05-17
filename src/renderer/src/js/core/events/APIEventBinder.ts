@@ -2,6 +2,7 @@ import {appEventController} from "@js/features/events";
 import {playbackController} from "@js/features/playback";
 import type {MusicBoxAPIEvents} from '@api/types/events';
 import type {ManagedAPIListener, RendererAppContext} from '@core/types/app';
+import {AppUIFacade} from '@core/ui/AppUIFacade';
 
 interface APIEventBinderOptions {
     apiEventListeners: ManagedAPIListener[];
@@ -34,14 +35,16 @@ export class APIEventBinder {
     }
 
     bindAppEvents(app: RendererAppContext): void {
+        const ui = new AppUIFacade(app);
+
         this.addManagedAPIEventListener('libraryUpdated', async () => {
             await app.refreshLibrary();
         });
 
         this.addManagedAPIEventListener('playlistChanged', (tracks) => {
             console.log('🎵 API播放列表改变:', tracks.length, '首歌曲');
-            if (app.components.playlist && tracks.length > 0) {
-                app.components.playlist.setTracks(tracks, playbackController.getCurrentIndex());
+            if (tracks.length > 0) {
+                ui.syncQueueTracks(tracks, playbackController.getCurrentIndex());
             }
         });
 
@@ -51,27 +54,23 @@ export class APIEventBinder {
         });
 
         this.addManagedAPIEventListener('playModeChanged', (mode) => {
-            app.components.player.updatePlayModeDisplay(mode);
+            ui.updatePlayModeDisplay(mode);
         });
 
         this.addManagedAPIEventListener('trackChanged', async (track) => {
-            if (app.components.lyrics && app.components.lyrics.isVisible) {
-                await app.components.lyrics.show(track);
-            }
+            await ui.showLyricsForTrack(track);
         });
 
         this.addManagedAPIEventListener('positionChanged', (position) => {
-            if (app.components.lyrics && app.components.lyrics.isVisible) {
+            if (ui.isLyricsVisible()) {
                 const currentTrack = playbackController.getCurrentTrackSnapshot();
                 const duration = currentTrack?.duration || playbackController.getDuration();
-                app.components.lyrics.updateProgress(position, duration);
+                ui.updateLyricsProgress(position, duration);
             }
         });
 
         this.addManagedAPIEventListener('playbackStateChanged', (_state) => {
-            if (app.components.lyrics && app.components.lyrics.isVisible) {
-                app.components.lyrics.updatePlayButton();
-            }
+            ui.updateLyricsPlayButton();
         });
 
         this.addManagedAPIEventListener('scanProgress', (progress) => {

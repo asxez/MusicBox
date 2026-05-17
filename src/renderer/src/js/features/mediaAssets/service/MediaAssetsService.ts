@@ -1,10 +1,32 @@
 import {coversGateway, lyricsGateway} from '@js/infrastructure/electron';
-import type {
-    EmbeddedLyricsResult,
-    LocalLyricsContentResult,
-    LocalLyricsFileResult
-} from '@js/infrastructure/electron/LyricsGateway';
-import type {LocalCoverFileResult} from '@js/infrastructure/electron/CoversGateway';
+import type {EmbeddedLyricsData} from '@api/types/electron';
+
+export interface LocalCoverFileResult {
+    success: boolean;
+    filePath?: string;
+    fileName?: string;
+    error?: string;
+}
+
+export interface LocalLyricsFileResult {
+    success: boolean;
+    filePath?: string;
+    fileName?: string;
+    error?: string;
+}
+
+export interface LocalLyricsContentResult {
+    success: boolean;
+    content?: string;
+    error?: string;
+}
+
+export interface EmbeddedLyricsResult {
+    success: boolean;
+    lyrics?: EmbeddedLyricsData;
+    source?: string;
+    error?: string;
+}
 
 export class MediaAssetsService {
     async checkLocalCover(

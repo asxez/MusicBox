@@ -1,10 +1,10 @@
+import {mediaAssetsService} from './service';
 import type {
     EmbeddedLyricsResult,
+    LocalCoverFileResult,
     LocalLyricsContentResult,
     LocalLyricsFileResult
-} from '@js/infrastructure/electron/LyricsGateway';
-import type {LocalCoverFileResult} from '@js/infrastructure/electron/CoversGateway';
-import {mediaAssetsService} from './service';
+} from './service';
 
 class MediaAssetsController {
     async checkLocalCover(

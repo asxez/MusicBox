@@ -2,6 +2,7 @@ import {playbackController} from "@js/features/playback";
 import type {Playlist} from '@api/types/playlist';
 import type {Track} from '@api/types/track';
 import type {RendererAppContext} from '@core/types/app';
+import {AppUIFacade} from '@core/ui/AppUIFacade';
 
 interface PlaylistControllerOptions {
     app: RendererAppContext;
@@ -9,9 +10,11 @@ interface PlaylistControllerOptions {
 
 export class PlaylistController {
     private readonly app: RendererAppContext;
+    private readonly ui: AppUIFacade;
 
     constructor({app}: PlaylistControllerOptions) {
         this.app = app;
+        this.ui = new AppUIFacade(app);
     }
 
     handlePlaylistTrackSelected(track: Track, _index: number): void {
@@ -23,13 +26,13 @@ export class PlaylistController {
     }
 
     async handlePlaylistTrackRemoved(_track: Track, index: number): Promise<void> {
-        const playlist = this.app.components.playlist;
+        const queueTracks = this.ui.getQueueTracks();
 
-        if (playlist && playlist.tracks.length >= 0) {
-            console.log('🔄 同步删除操作到API，剩余歌曲:', playlist.tracks.length);
+        if (this.ui.hasQueue()) {
+            console.log('🔄 同步删除操作到API，剩余歌曲:', queueTracks.length);
 
-            const currentIndex = playlist.currentTrackIndex;
-            await playbackController.setPlaylist(playlist.tracks, currentIndex);
+            const currentIndex = this.ui.getQueueCurrentIndex();
+            await playbackController.setPlaylist(queueTracks, currentIndex);
 
             if (index === playbackController.getCurrentIndex()) {
                 console.log('⚠️ 删除的是当前播放歌曲，停止播放');
@@ -44,18 +47,14 @@ export class PlaylistController {
     }
 
     addToPlaylist(track: Track): void {
-        const app = this.app;
-
-        if (app.components.playlist) {
-            app.components.playlist.addTrack(track);
-            app.showInfo(`已添加 "${track.title}" 到播放列表`);
+        if (this.ui.hasQueue()) {
+            this.ui.addQueueTrack(track);
+            this.app.showInfo(`已添加 "${track.title}" 到播放列表`);
         }
     }
 
     async handleAddToCustomPlaylist(track: Track, _index: number): Promise<void> {
-        if (this.app.components.addToPlaylistDialog) {
-            await this.app.components.addToPlaylistDialog.show(track);
-        }
+        await this.ui.showAddToPlaylistDialog(track);
     }
 
     async handlePlaylistCreated(): Promise<void> {
@@ -72,9 +71,7 @@ export class PlaylistController {
         app.hideAllPages();
         app.updateSidebarSelection('playlist', playlist.id);
         app.currentView = 'playlist-detail';
-        if (app.components.playlistDetailPage) {
-            await app.components.playlistDetailPage.show(playlist);
-        }
+        await this.ui.showPlaylistDetail(playlist);
     }
 
     async handlePlaylistUpdated(): Promise<void> {
@@ -86,30 +83,24 @@ export class PlaylistController {
     }
 
     async handleShowAddSongsDialog(playlist: Playlist): Promise<void> {
-        await this.app.components.musicLibrarySelectionDialog.show(playlist);
+        await this.ui.showMusicLibrarySelectionDialog(playlist);
     }
 
     async handleTracksAddedToPlaylist(): Promise<void> {
         const app = this.app;
 
-        if (app.currentView === 'playlist-detail' && app.components.playlistDetailPage) {
-            await app.components.playlistDetailPage.loadPlaylistTracks();
+        if (app.currentView === 'playlist-detail') {
+            await this.ui.reloadPlaylistDetailTracks();
         }
 
         await this.refreshNavigationPlaylists();
     }
 
     async handlePlaylistCoverUpdated(playlist: Playlist): Promise<void> {
-        const navigation = this.app.components.navigation;
-        if (navigation && navigation.updatePlaylistInfo) {
-            navigation.updatePlaylistInfo(playlist);
-        }
+        this.ui.updateNavigationPlaylistInfo(playlist);
     }
 
     async refreshNavigationPlaylists(): Promise<void> {
-        const navigation = this.app.components.navigation;
-        if (navigation && navigation.refreshPlaylists) {
-            await navigation.refreshPlaylists();
-        }
+        await this.ui.refreshNavigationPlaylists();
     }
 }

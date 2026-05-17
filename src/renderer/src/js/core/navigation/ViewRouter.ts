@@ -1,4 +1,5 @@
 import type {AppView, RendererAppContext} from '@core/types/app';
+import {AppUIFacade} from '@core/ui/AppUIFacade';
 
 interface ViewRouterOptions {
     app: RendererAppContext;
@@ -6,14 +7,15 @@ interface ViewRouterOptions {
 
 export class ViewRouter {
     private readonly app: RendererAppContext;
+    private readonly ui: AppUIFacade;
 
     constructor({app}: ViewRouterOptions) {
         this.app = app;
+        this.ui = new AppUIFacade(app);
     }
 
     async handleViewChange(view: AppView): Promise<void> {
         const app = this.app;
-        const components = app.components;
 
         this.hideAllPages();
         app.currentView = view;
@@ -24,38 +26,30 @@ export class ViewRouter {
 
         switch (view) {
             case 'home-page':
-                await components.homePage.show();
+                await this.ui.showHomePage();
                 break;
             case 'library':
-                components.trackList.show();
+                this.ui.showTrackList();
                 app.updateTrackList('navigation');
                 break;
             case 'recent':
-                if (components.recentPage) {
-                    await components.recentPage.show();
-                }
+                await this.ui.showRecentPage();
                 break;
             case 'artists':
-                if (components.artistsPage) {
-                    await components.artistsPage.show();
-                }
+                await this.ui.showArtistsPage();
                 break;
             case 'albums':
-                if (components.albumsPage) {
-                    await components.albumsPage.show();
-                }
+                await this.ui.showAlbumsPage();
                 break;
             case 'statistics':
-                if (components.statisticsPage) {
-                    await components.statisticsPage.show();
-                }
+                await this.ui.showStatisticsPage();
                 break;
             case 'playlist-detail':
                 break;
             default:
                 console.warn('Unknown view:', view);
                 if (app.currentView !== 'playlist-detail') {
-                    components.trackList.show();
+                    this.ui.showTrackList();
                     app.updateTrackList('default-fallback');
                 }
                 break;
@@ -63,38 +57,10 @@ export class ViewRouter {
     }
 
     hideAllPages(): void {
-        const components = this.app.components;
-
-        if (components.homePage) components.homePage.hide();
-        if (components.recentPage) components.recentPage.hide();
-        if (components.artistsPage) components.artistsPage.hide();
-        if (components.albumsPage) components.albumsPage.hide();
-        if (components.statisticsPage) components.statisticsPage.hide();
-        if (components.playlistDetailPage) components.playlistDetailPage.hide();
-        if (components.networkDriveDetailPage) components.networkDriveDetailPage.hide();
-        if (components.trackList) components.trackList.hide();
+        this.ui.hideAllPages();
     }
 
     updateSidebarSelection(type: string, id: string | null = null): void {
-        document.querySelectorAll('.sidebar-link, .playlist-sidebar-item, .network-drive-sidebar-item').forEach(item => {
-            item.classList.remove('active');
-        });
-
-        if (type === 'playlist' && id) {
-            const playlistItem = document.querySelector(`[data-playlist-id="${id}"]`);
-            if (playlistItem) {
-                playlistItem.classList.add('active');
-            }
-        } else if (type === 'network-drive' && id) {
-            const driveItem = document.querySelector(`[data-drive-id="${id}"]`);
-            if (driveItem) {
-                driveItem.classList.add('active');
-            }
-        } else {
-            const navItem = document.querySelector(`[data-view="${type}"]`);
-            if (navItem) {
-                navItem.classList.add('active');
-            }
-        }
+        this.ui.updateSidebarSelection(type, id);
     }
 }

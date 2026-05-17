@@ -5,6 +5,7 @@ import {settingsExtensionNavigationService} from "@services/settings/SettingsExt
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
 import type {AppView, ComponentMap, RendererAppContext} from "@core/types/app";
+import {AppUIFacade} from "@core/ui/AppUIFacade";
 
 interface ComponentEventBinderOptions {
     app: RendererAppContext;
@@ -41,10 +42,12 @@ interface ComponentNotificationPayload {
 export class ComponentEventBinder {
     private readonly app: RendererAppContext;
     private readonly components: ComponentMap;
+    private readonly ui: AppUIFacade;
 
     constructor({app}: ComponentEventBinderOptions) {
         this.app = app;
         this.components = app.components;
+        this.ui = new AppUIFacade(app);
     }
 
     bindInitialComponentEvents(): void {
@@ -64,7 +67,7 @@ export class ComponentEventBinder {
         });
 
         components.navigation.on('showSettings', async () => {
-            await components.settings.toggle();
+            await this.ui.toggleSettings();
         });
 
         components.navigation.on('playlistSelected', async (playlist: Playlist) => {
@@ -76,7 +79,7 @@ export class ComponentEventBinder {
         });
 
         components.navigation.on('showRenameDialog', (playlist: Playlist) => {
-            components.renamePlaylistDialog.show(playlist);
+            this.ui.showRenamePlaylistDialog(playlist);
         });
 
         components.settings.on('shortcutsUpdated', () => {
@@ -88,15 +91,15 @@ export class ComponentEventBinder {
         });
 
         components.trackList.on('trackRightClick', (track: Track, index: number, x: number, y: number, selectedTracks?: Set<number>) => {
-            components.contextMenu.show(x, y, track, index, selectedTracks);
+            this.ui.showContextMenu(x, y, track, index, selectedTracks);
         });
 
         components.player.on('togglePlaylist', () => {
-            components.playlist.toggle();
+            this.ui.toggleQueue();
         });
 
         components.player.on('toggleLyrics', async () => {
-            await components.lyrics.toggle(playbackController.getCurrentTrackSnapshot());
+            await this.ui.toggleLyricsForTrack(playbackController.getCurrentTrackSnapshot());
         });
 
         components.player.on('trackIndexChanged', (index: number) => {
@@ -151,7 +154,7 @@ export class ComponentEventBinder {
         });
 
         components.addToPlaylistDialog.on('createNewPlaylist', (track: Track) => {
-            components.createPlaylistDialog.show(track);
+            this.ui.showCreatePlaylistDialog(track);
         });
 
         components.addToPlaylistDialog.on('trackAdded', async ({playlist, track}: PlaylistTrackAddedPayload) => {
@@ -181,7 +184,7 @@ export class ComponentEventBinder {
 
         components.playlistDetailPage.on('trackPlayed', async (track: Track, index: number, tracks?: Track[]) => {
             if (tracks && tracks.length > 0) {
-                components.playlist.setTracks(tracks, index);
+                this.ui.syncQueueTracks(tracks, index);
                 await app.playTrackFromPlaylist(track, index);
                 return;
             }
@@ -190,7 +193,7 @@ export class ComponentEventBinder {
         });
 
         components.playlistDetailPage.on('trackRightClick', (track: Track, index: number, x: number, y: number, selectedTracks?: Set<number>) => {
-            components.contextMenu.show(x, y, track, index, selectedTracks);
+            this.ui.showContextMenu(x, y, track, index, selectedTracks);
         });
 
         components.playlistDetailPage.on('playAllTracks', async (tracks: Track[]) => {
@@ -210,21 +213,19 @@ export class ComponentEventBinder {
         });
 
         components.settings.on('checkUpdates', () => {
-            components.updateModal.show();
+            this.ui.showUpdateModal();
         });
 
         appShellController.onShowUpdateDetails(() => {
-            components.updateModal.show();
+            this.ui.showUpdateModal();
         });
 
         settingsExtensionNavigationService.onNavigate((sectionName) => {
-            components.settings.switchToSection(sectionName);
+            this.ui.switchSettingsSection(sectionName);
         });
 
         components.settings.on('desktopLyricsEnabled', async (enabled: boolean) => {
-            if (components.player) {
-                await components.player.updateDesktopLyricsButtonVisibility(enabled);
-            }
+            await this.ui.updateDesktopLyricsButtonVisibility(enabled);
         });
 
         components.settings.on('networkDriveEnabled', (enabled: boolean) => {
@@ -236,9 +237,7 @@ export class ComponentEventBinder {
         });
 
         components.settings.on('statisticsEnabled', (enabled: boolean) => {
-            if (components.navigation) {
-                components.navigation.updateStatisticsButtonVisibility(enabled);
-            }
+            this.ui.updateStatisticsButtonVisibility(enabled);
 
             if (enabled) {
                 app.initializeComponent('statisticsPage');
@@ -248,9 +247,7 @@ export class ComponentEventBinder {
         });
 
         components.settings.on('recentPlayEnabled', (enabled: boolean) => {
-            if (components.navigation) {
-                components.navigation.updateRecentPlayButtonVisibility(enabled);
-            }
+            this.ui.updateRecentPlayButtonVisibility(enabled);
 
             if (enabled) {
                 app.initializeComponent('recentPage');
@@ -260,9 +257,7 @@ export class ComponentEventBinder {
         });
 
         components.settings.on('artistsPageEnabled', (enabled: boolean) => {
-            if (components.navigation) {
-                components.navigation.updateArtistsPageButtonVisibility(enabled);
-            }
+            this.ui.updateArtistsPageButtonVisibility(enabled);
 
             if (enabled) {
                 app.initializeComponent('artistsPage');
@@ -272,9 +267,7 @@ export class ComponentEventBinder {
         });
 
         components.settings.on('albumsPageEnabled', (enabled: boolean) => {
-            if (components.navigation) {
-                components.navigation.updateAlbumsPageButtonVisibility(enabled);
-            }
+            this.ui.updateAlbumsPageButtonVisibility(enabled);
 
             if (enabled) {
                 app.initializeComponent('albumsPage');
@@ -308,11 +301,11 @@ export class ComponentEventBinder {
         });
 
         this.components.homePage.on('viewChange', (view: AppView) => {
-            this.components.navigation.navigateToView(view);
+            this.ui.navigateToView(view);
         });
 
         this.components.homePage.on('toggleLyricsFullscreen', () => {
-            this.components.lyrics.toggleFullscreen();
+            this.ui.toggleLyricsFullscreen(false);
         });
 
         if (this.components.recentPage) {
@@ -359,7 +352,7 @@ export class ComponentEventBinder {
                     });
 
                     this.components.recentPage.on('viewChange', (view: AppView) => {
-                        this.components.navigation.navigateToView(view);
+                        this.ui.navigateToView(view);
                     });
                 }
                 break;
@@ -422,7 +415,7 @@ export class ComponentEventBinder {
                     });
 
                     this.components.networkDriveDetailPage.on('trackRightClick', (track: Track, index: number, x: number, y: number) => {
-                        this.components.contextMenu.show(x, y, track, index);
+                        this.ui.showContextMenu(x, y, track, index);
                     });
                 }
                 break;

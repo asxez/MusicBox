@@ -5,6 +5,7 @@ import {playbackController} from "@js/features/playback";
 import type {MusicBoxAPIEvents} from "@api/types/events";
 import type {Track} from "@api/types/track";
 import type {RendererAppContext} from "@core/types/app";
+import {AppUIFacade} from "@core/ui/AppUIFacade";
 
 interface LibraryControllerOptions {
     app: RendererAppContext;
@@ -19,9 +20,11 @@ interface TrackInfoUpdateData {
 
 export class LibraryController {
     private readonly app: RendererAppContext;
+    private readonly ui: AppUIFacade;
 
     constructor({app}: LibraryControllerOptions) {
         this.app = app;
+        this.ui = new AppUIFacade(app);
     }
 
     async loadInitialData(): Promise<void> {
@@ -136,9 +139,7 @@ export class LibraryController {
             return;
         }
 
-        if (app.components.trackList) {
-            app.components.trackList.setTracks(app.filteredLibrary);
-        }
+        this.ui.setTrackListTracks(app.filteredLibrary);
     }
 
     handleSearchResults(results: Track[]): void {
@@ -164,13 +165,7 @@ export class LibraryController {
             filteredTrack.duration = duration;
         }
 
-        if (app.components.playlist) {
-            const playlistTrack = app.components.playlist.tracks.find((track: Track) => track.filePath === filePath);
-            if (playlistTrack) {
-                playlistTrack.duration = duration;
-                app.components.playlist.render();
-            }
-        }
+        this.ui.updateQueuedTrack(filePath, {duration});
 
         this.updateTrackList('duration-update');
     }
@@ -178,8 +173,7 @@ export class LibraryController {
     async handleDeleteTrack(track: Track, index: number): Promise<void> {
         const app = this.app;
 
-        if (app.currentView === 'playlist-detail' && app.components.playlistDetailPage) {
-            await app.components.playlistDetailPage.removeTrackFromPlaylist(track, index);
+        if (app.currentView === 'playlist-detail' && await this.ui.removeTrackFromPlaylistDetail(track, index)) {
             return;
         }
 
@@ -212,11 +206,9 @@ export class LibraryController {
                     app.filteredLibrary.splice(filteredIndex, 1);
                 }
 
-                if (app.components.playlist) {
-                    const playlistIndex = app.components.playlist.tracks.findIndex((t: Track) => t.fileId === track.fileId);
-                    if (playlistIndex !== -1) {
-                        app.components.playlist.removeTrack(playlistIndex);
-                    }
+                const playlistIndex = this.ui.findQueueIndex((t) => t.fileId === track.fileId);
+                if (playlistIndex !== -1) {
+                    this.ui.removeQueueTrack(playlistIndex);
                 }
 
                 this.updateTrackList('track-deleted');
@@ -239,8 +231,7 @@ export class LibraryController {
             return;
         }
 
-        if (app.currentView === 'playlist-detail' && app.components.playlistDetailPage) {
-            await app.components.playlistDetailPage.removeSelectedTracks();
+        if (app.currentView === 'playlist-detail' && await this.ui.removeSelectedTracksFromPlaylistDetail()) {
             return;
         }
 
@@ -274,8 +265,7 @@ export class LibraryController {
             }
         }
 
-        app.components.trackList.selectedTracks.clear();
-        app.components.trackList.lastSelectedIndex = -1;
+        this.ui.clearTrackListSelection();
 
         this.updateTrackList('track-deleted');
         libraryFeatureController.emitLibraryUpdated();
@@ -315,20 +305,14 @@ export class LibraryController {
                 });
             }
 
-            if (app.components.playlist) {
-                const playlistTrack = app.components.playlist.tracks.find((t: Track) => t.filePath === track.filePath);
-                if (playlistTrack) {
-                    Object.assign(playlistTrack, {
-                        title: updatedData.title,
-                        artist: updatedData.artist,
-                        album: updatedData.album,
-                        year: updatedData.year,
-                        genre: updatedData.genre,
-                        cover: updatedData.cover
-                    });
-                    app.components.playlist.render();
-                }
-            }
+            this.ui.updateQueuedTrack(track.filePath, {
+                title: updatedData.title,
+                artist: updatedData.artist,
+                album: updatedData.album,
+                year: updatedData.year,
+                genre: updatedData.genre,
+                cover: updatedData.cover
+            });
 
             const currentTrack = playbackController.getCurrentTrackSnapshot();
             if (currentTrack && currentTrack.filePath === track.filePath) {
@@ -340,25 +324,19 @@ export class LibraryController {
                     genre: updatedData.genre,
                     cover: updatedData.cover
                 });
-                if (app.components.player) {
-                    await app.components.player.updateTrackInfo(currentTrack);
-                }
+                await this.ui.updatePlayerTrackInfo(currentTrack);
             }
 
             this.updateTrackList('track-info-updated');
 
-            if (app.currentView === 'playlist-detail' && app.components.playlistDetailPage.isVisible) {
-                const playlistTrack = app.components.playlistDetailPage.tracks.find((t: Track) => t.filePath === track.filePath);
-                if (playlistTrack) {
-                    Object.assign(playlistTrack, {
-                        title: updatedData.title,
-                        artist: updatedData.artist,
-                        album: updatedData.album,
-                        year: updatedData.year,
-                        genre: updatedData.genre
-                    });
-                    app.components.playlistDetailPage.render();
-                }
+            if (app.currentView === 'playlist-detail' && this.ui.isPlaylistDetailVisible()) {
+                this.ui.updatePlaylistDetailTrack(track.filePath, {
+                    title: updatedData.title,
+                    artist: updatedData.artist,
+                    album: updatedData.album,
+                    year: updatedData.year,
+                    genre: updatedData.genre
+                });
             }
             app.showInfo(`歌曲信息已更新：${updatedData.title}`);
         } catch (error) {

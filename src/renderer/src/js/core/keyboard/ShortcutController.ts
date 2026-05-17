@@ -2,6 +2,7 @@ import {playbackController} from "@js/features/playback";
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import type {PlayerLike, RendererAppContext} from '@core/types/app';
+import {AppUIFacade} from '@core/ui/AppUIFacade';
 
 interface ShortcutControllerOptions {
     app: RendererAppContext;
@@ -18,9 +19,11 @@ type ShortcutMap = Record<string, ShortcutDefinition>;
 
 export class ShortcutController {
     private readonly app: RendererAppContext;
+    private readonly ui: AppUIFacade;
 
     constructor({app}: ShortcutControllerOptions) {
         this.app = app;
+        this.ui = new AppUIFacade(app);
     }
 
     initKeyboardShortcuts(): void {
@@ -115,12 +118,10 @@ export class ShortcutController {
     }
 
     getActivePlayer(): PlayerLike | null {
-        return this.app.components.player ?? null;
+        return this.ui.getActivePlayer();
     }
 
     async executeShortcutAction(shortcutId: string): Promise<void> {
-        const components = this.app.components;
-
         switch (shortcutId) {
             case 'playPause': {
                 await playbackController.toggleCurrentPlayback();
@@ -146,7 +147,7 @@ export class ShortcutController {
             }
 
             case 'search':
-                document.getElementById('search-input')?.focus();
+                this.ui.focusSearchInput();
                 break;
 
             case 'seekForward':
@@ -158,32 +159,15 @@ export class ShortcutController {
                 break;
 
             case 'toggleLyrics':
-                if (components.lyrics) {
-                    if (components.lyrics.isVisible) {
-                        components.lyrics.hide();
-                    } else {
-                        const currentTrack = playbackController.getCurrentTrackSnapshot();
-                        if (currentTrack) {
-                            await components.lyrics.show(currentTrack);
-                        }
-                    }
-                }
+                await this.ui.toggleLyricsPanel(playbackController.getCurrentTrackSnapshot());
                 break;
 
             case 'exitLyrics':
-                if (components.lyrics && components.lyrics.isVisible) {
-                    if (components.lyrics.isFullscreen) {
-                        components.lyrics.exitFullscreen();
-                    } else {
-                        components.lyrics.hide();
-                    }
-                }
+                this.ui.exitLyricsPanel();
                 break;
 
             case 'toggleFullscreen':
-                if (components.lyrics && components.lyrics.isVisible) {
-                    components.lyrics.toggleFullscreen();
-                }
+                this.ui.toggleLyricsFullscreen();
                 break;
 
             default:
