@@ -1,7 +1,8 @@
-import {api} from '@api/api';
 import type {Result} from '@api/types/common';
 import type {LyricLine} from '@api/types/lyrics';
 import type {DesktopLyricsSettings, MusicBoxSettings} from '@api/types/settings';
+import {playbackController} from '@js/features/playback';
+import {DesktopLyricsSync} from './DesktopLyricsSync';
 
 export type DesktopLyricsToggleResult = {
     success: boolean;
@@ -10,24 +11,39 @@ export type DesktopLyricsToggleResult = {
 };
 
 export class DesktopLyricsService {
+    private readonly sync: DesktopLyricsSync;
+
+    constructor() {
+        this.sync = new DesktopLyricsSync({
+            getCurrentState: () => {
+                const snapshot = playbackController.getPlaybackSnapshot();
+                return {
+                    currentTrack: snapshot.currentTrack,
+                    isPlaying: snapshot.isPlaying,
+                    position: snapshot.position
+                };
+            }
+        });
+    }
+
     async toggle(): Promise<DesktopLyricsToggleResult> {
-        return await api.toggleDesktopLyrics();
+        return await this.sync.toggleDesktopLyrics();
     }
 
     async isVisible(): Promise<boolean> {
-        return await api.isDesktopLyricsVisible();
+        return await this.sync.isDesktopLyricsVisible();
     }
 
     async hide(): Promise<Result> {
-        return await api.hideDesktopLyrics();
+        return await this.sync.hideDesktopLyrics();
     }
 
     async updateSettings(settings: DesktopLyricsSettings | MusicBoxSettings): Promise<Result> {
-        return await api.updateDesktopLyricsSettings(settings);
+        return await this.sync.updateDesktopLyricsSettings(settings);
     }
 
     async syncLyrics(lyrics: LyricLine[] | string): Promise<void> {
-        await api.syncToDesktopLyrics('lyrics', lyrics);
+        await this.sync.syncToDesktopLyrics('lyrics', lyrics);
     }
 }
 

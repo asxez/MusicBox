@@ -1,8 +1,8 @@
-import {api} from '@api/api';
 import {libraryAPI} from '@api/modules';
 import type {Result} from '@api/types/common';
 import type {CacheValidationResult, MusicBoxAPIEvents, ScanProgress} from '@api/types/events';
 import type {CacheStatistics, GetTracksOptions, Playlist, Track} from '@api/types/library';
+import {appEventController} from '@js/features/events';
 import {libraryGateway} from '@js/infrastructure/electron';
 import {LibraryBridge} from './LibraryBridge';
 
@@ -30,7 +30,7 @@ export class LibraryService {
 
     constructor() {
         this.bridge = new LibraryBridge({
-            emit: ((event, data) => api.emit(event, data)) as Emit
+            emit: ((event, data) => appEventController.emit(event, data)) as Emit
         });
     }
 
@@ -91,7 +91,7 @@ export class LibraryService {
     }
 
     emitLibraryUpdated(tracks?: Track[]): void {
-        api.emit('libraryUpdated', tracks);
+        appEventController.emit('libraryUpdated', tracks);
     }
 
     async clearIgnoreList(): Promise<Result> {

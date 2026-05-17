@@ -4,7 +4,7 @@ import type {PlaybackStateSnapshot, PlayMode} from '@api/types/playback';
 import type {WasapiShareMode} from '@api/types/settings';
 import type {Track} from '@api/types/track';
 import type {PlaybackState, Unsubscribe} from '../PlaybackStore';
-import type {AudioEngineType} from './AudioEngineAdapter';
+import type {AudioEngineManagerBridge, AudioEngineType} from './AudioEngineAdapter';
 
 export type PlaybackEventName =
     | 'durationChanged'
@@ -126,6 +126,18 @@ export class PlaybackService {
 
     setGaplessPlayback(enabled: boolean): void {
         api.setGaplessPlayback(enabled);
+    }
+
+    getEqualizer<T = unknown>(): T | null {
+        return api.getEqualizer() as T | null;
+    }
+
+    setEqualizerEnabled(enabled: boolean): void {
+        api.setEqualizerEnabled(enabled);
+    }
+
+    getAudioEngine<T extends AudioEngineManagerBridge = AudioEngineManagerBridge>(): T | null {
+        return api.audioEngine as T | null;
     }
 
     async switchAudioEngine(engineType: AudioEngineType): Promise<boolean> {

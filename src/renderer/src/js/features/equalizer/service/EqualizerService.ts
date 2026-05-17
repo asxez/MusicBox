@@ -1,17 +1,17 @@
-import {api} from '@api/api';
+import {playbackService} from '@js/features/playback/service';
 import type {AudioEngineManagerBridge} from '@js/features/playback/service/AudioEngineAdapter';
 
 export class EqualizerService {
     getEqualizer<T = unknown>(): T | null {
-        return api.getEqualizer() as T | null;
+        return playbackService.getEqualizer<T>();
     }
 
     setEqualizerEnabled(enabled: boolean): void {
-        api.setEqualizerEnabled(enabled);
+        playbackService.setEqualizerEnabled(enabled);
     }
 
     getAudioEngine<T extends AudioEngineManagerBridge = AudioEngineManagerBridge>(): T | null {
-        return api.audioEngine as T | null;
+        return playbackService.getAudioEngine<T>();
     }
 }
 
