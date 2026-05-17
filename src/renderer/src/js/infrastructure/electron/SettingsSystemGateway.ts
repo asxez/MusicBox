@@ -1,10 +1,4 @@
-function getElectronAPI(): Window['electronAPI'] {
-    if (!window.electronAPI) {
-        throw new Error('electronAPI is not available');
-    }
-
-    return window.electronAPI;
-}
+import {getElectronAPI} from './ElectronBridge';
 
 class SettingsSystemGateway {
     readonly tray = {

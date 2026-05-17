@@ -1,4 +1,3 @@
-import {userDataAPI} from '@api/modules';
 import type {
     DiaryData,
     DiaryHistory,
@@ -7,22 +6,23 @@ import type {
     SaveDiaryResult,
     SaveMoodResult
 } from '@api/types/userdata';
+import {userDataService} from './service';
 
 class UserDataController {
     async getMoodHistory(): Promise<MoodHistory> {
-        return await userDataAPI.getMoodHistory();
+        return await userDataService.getMoodHistory();
     }
 
     async saveMood(moodData: MoodData): Promise<SaveMoodResult> {
-        return await userDataAPI.saveMood(moodData);
+        return await userDataService.saveMood(moodData);
     }
 
     async getDiaryHistory(): Promise<DiaryHistory> {
-        return await userDataAPI.getDiaryHistory();
+        return await userDataService.getDiaryHistory();
     }
 
     async saveDiary(diaryData: DiaryData): Promise<SaveDiaryResult> {
-        return await userDataAPI.saveDiary(diaryData);
+        return await userDataService.saveDiary(diaryData);
     }
 }
 

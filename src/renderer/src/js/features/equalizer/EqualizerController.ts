@@ -1,22 +1,22 @@
-import {api} from '@api/api';
 import {appEventController} from '@js/features/events';
 import type {MusicBoxAPIEvents} from '@api/types/events';
-import type {AudioEngineManagerBridge} from '@api/audio/AudioEngineAdapter';
+import type {AudioEngineManagerBridge} from '@js/features/playback/service/AudioEngineAdapter';
 import type {Unsubscribe} from '@js/features/events';
+import {equalizerService} from './service';
 
 type AudioEngineChangedHandler = (event: MusicBoxAPIEvents['audioEngineChanged']) => void | Promise<void>;
 
 class EqualizerController {
     getEqualizer<T = unknown>(): T | null {
-        return api.getEqualizer() as T | null;
+        return equalizerService.getEqualizer<T>();
     }
 
     setEqualizerEnabled(enabled: boolean): void {
-        api.setEqualizerEnabled(enabled);
+        equalizerService.setEqualizerEnabled(enabled);
     }
 
     getAudioEngine<T extends AudioEngineManagerBridge = AudioEngineManagerBridge>(): T | null {
-        return api.audioEngine as T | null;
+        return equalizerService.getAudioEngine<T>();
     }
 
     onAudioEngineChanged(handler: AudioEngineChangedHandler): Unsubscribe {

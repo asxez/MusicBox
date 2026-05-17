@@ -4,4 +4,4 @@ export type {
     ExtensionInstallResult,
     ExtensionOperationResult,
     ExtensionsResult
-} from './ExtensionsController';
+} from './service';

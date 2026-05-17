@@ -7,7 +7,7 @@ type ElectronNamespace = keyof ElectronAPI;
 type NamespaceAPI<N extends ElectronNamespace> = ElectronAPI[N];
 type CallableNamespace = Record<string, (...args: any[]) => any>;
 
-function getElectronAPI(): ElectronAPI {
+export function getElectronAPI(): ElectronAPI {
     if (!window.electronAPI) {
         throw new Error('electronAPI is not available');
     }
@@ -19,7 +19,7 @@ function getNamespace<N extends ElectronNamespace>(name: N): NamespaceAPI<N> {
     return getElectronAPI()[name];
 }
 
-function hasNamespace<N extends ElectronNamespace>(name: N): boolean {
+export function hasElectronNamespace<N extends ElectronNamespace>(name: N): boolean {
     return Boolean(window.electronAPI && window.electronAPI[name]);
 }
 
@@ -31,7 +31,7 @@ export class ElectronNamespaceAdapter<N extends ElectronNamespace> {
     }
 
     isAvailable(): boolean {
-        return hasNamespace(this.namespace);
+        return hasElectronNamespace(this.namespace);
     }
 
     get api(): NamespaceAPI<N> {

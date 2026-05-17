@@ -1,40 +1,18 @@
-import {api} from '@api/api';
-import type {MusicBoxAPIEvents} from '@api/types/events';
 import type {PlaybackStateSnapshot, PlayMode} from '@api/types/playback';
 import type {WasapiShareMode} from '@api/types/settings';
 import type {Track} from '@api/types/track';
 import {PlaybackStore} from './PlaybackStore';
 import type {PlaybackState, PlaybackStoreListener, Unsubscribe} from './PlaybackStore';
-
-type AudioEngineType = 'webaudio' | 'wasapi';
-
-type PlaybackEventName =
-    | 'durationChanged'
-    | 'positionChanged'
-    | 'playbackStateChanged'
-    | 'volumeChanged'
-    | 'trackChanged'
-    | 'trackIndexChanged'
-    | 'audioEngineChanged';
-
-type PlaybackEventHandler<K extends PlaybackEventName> = (payload: MusicBoxAPIEvents[K]) => void;
+import {playbackService} from './service';
+import type {AudioEngineType, PlaybackEventHandler, PlaybackEventName} from './service';
 
 class PlaybackController {
     private readonly store: PlaybackStore;
     private toggleInProgress = false;
 
     constructor() {
-        this.store = new PlaybackStore({
-            currentTrack: api.currentTrack ?? null,
-            currentIndex: api.currentIndex,
-            playlist: api.playlist,
-            isPlaying: api.isPlaying,
-            position: api.position,
-            duration: api.duration,
-            volume: api.volume,
-            playMode: api.getPlayMode()
-        });
-        this.bindAPIEvents();
+        this.store = new PlaybackStore(playbackService.getInitialState());
+        this.bindPlaybackEvents();
     }
 
     getState(): Readonly<PlaybackState> {
@@ -58,7 +36,7 @@ class PlaybackController {
         this.toggleInProgress = true;
 
         try {
-            return await this.togglePlayPause(api.isPlaying);
+            return await this.togglePlayPause(this.isPlaying());
         } finally {
             setTimeout(() => {
                 this.toggleInProgress = false;
@@ -67,55 +45,55 @@ class PlaybackController {
     }
 
     async play(): Promise<boolean> {
-        return await api.play();
+        return await playbackService.play();
     }
 
     async pause(): Promise<boolean> {
-        return await api.pause();
+        return await playbackService.pause();
     }
 
     async stop(): Promise<boolean> {
-        return await api.stop();
+        return await playbackService.stop();
     }
 
     async initializeAudio(): Promise<boolean> {
-        return await api.initializeAudio();
+        return await playbackService.initializeAudio();
     }
 
     async loadTrack(filePath: string): Promise<boolean> {
-        return await api.loadTrack(filePath);
+        return await playbackService.loadTrack(filePath);
     }
 
     async previousTrack(): Promise<boolean> {
-        return await api.previousTrack();
+        return await playbackService.previousTrack();
     }
 
     async nextTrack(): Promise<boolean> {
-        return await api.nextTrack();
+        return await playbackService.nextTrack();
     }
 
     async seek(position: number): Promise<boolean> {
-        return await api.seek(position);
+        return await playbackService.seek(position);
     }
 
     async seekForward(seconds = 10): Promise<boolean> {
-        return await api.seekForward(seconds);
+        return await playbackService.seekForward(seconds);
     }
 
     async seekBackward(seconds = 10): Promise<boolean> {
-        return await api.seekBackward(seconds);
+        return await playbackService.seekBackward(seconds);
     }
 
     async setVolume(volume: number): Promise<boolean> {
-        return await api.setVolume(Math.max(0, Math.min(1, volume)));
+        return await playbackService.setVolume(volume);
     }
 
     async setPosition(position: number): Promise<boolean> {
-        return await api.setPosition(position);
+        return await playbackService.setPosition(position);
     }
 
     async setPlaylist(tracks: Track[], startIndex = -1): Promise<boolean> {
-        return await api.setPlaylist(tracks, startIndex);
+        return await playbackService.setPlaylist(tracks, startIndex);
     }
 
     async adjustVolume(delta: number): Promise<boolean> {
@@ -135,11 +113,11 @@ class PlaybackController {
     }
 
     async getPosition(): Promise<number> {
-        return await api.getPosition();
+        return await playbackService.getPosition();
     }
 
     getCurrentTrack(): Track | null {
-        return api.getCurrentTrack?.() ?? null;
+        return playbackService.getCurrentTrack();
     }
 
     getCurrentTrackSnapshot(): Track | null {
@@ -176,11 +154,11 @@ class PlaybackController {
     }
 
     togglePlayMode(): PlayMode {
-        return api.togglePlayMode();
+        return playbackService.togglePlayMode();
     }
 
     setPlayMode(mode: PlayMode): boolean {
-        return api.setPlayMode(mode);
+        return playbackService.setPlayMode(mode);
     }
 
     getPlayMode(): PlayMode {
@@ -188,60 +166,48 @@ class PlaybackController {
     }
 
     getPlaybackSnapshot(): PlaybackStateSnapshot {
-        const state = this.store.getState();
-        return {
-            currentTrack: state.currentTrack,
-            position: state.position,
-            isPlaying: state.isPlaying,
-            playlist: state.playlist,
-            currentIndex: state.currentIndex,
-            playMode: state.playMode,
-            timestamp: Date.now()
-        };
+        return playbackService.getPlaybackSnapshot(this.store.getState());
     }
 
     on<K extends PlaybackEventName>(event: K, handler: PlaybackEventHandler<K>): Unsubscribe {
-        api.on(event, handler);
-        return () => {
-            api.off(event, handler);
-        };
+        return playbackService.on(event, handler);
     }
 
     setGaplessPlayback(enabled: boolean): void {
-        api.setGaplessPlayback(enabled);
+        playbackService.setGaplessPlayback(enabled);
     }
 
     async switchAudioEngine(engineType: AudioEngineType): Promise<boolean> {
-        return await api.switchAudioEngine(engineType);
+        return await playbackService.switchAudioEngine(engineType);
     }
 
     async switchWasapiShareMode(mode: WasapiShareMode): Promise<boolean> {
-        return await api.switchWasapiShareMode(mode);
+        return await playbackService.switchWasapiShareMode(mode);
     }
 
-    private bindAPIEvents(): void {
-        api.on('durationChanged', (duration) => {
+    private bindPlaybackEvents(): void {
+        playbackService.on('durationChanged', (duration) => {
             this.store.setDuration(duration);
         });
-        api.on('positionChanged', (position) => {
+        playbackService.on('positionChanged', (position) => {
             this.store.setPosition(position);
         });
-        api.on('playbackStateChanged', (state) => {
+        playbackService.on('playbackStateChanged', (state) => {
             this.store.setPlaybackState(state);
         });
-        api.on('volumeChanged', (volume) => {
+        playbackService.on('volumeChanged', (volume) => {
             this.store.setVolume(volume);
         });
-        api.on('trackChanged', (track) => {
+        playbackService.on('trackChanged', (track) => {
             this.store.setTrack(track);
         });
-        api.on('trackIndexChanged', (index) => {
+        playbackService.on('trackIndexChanged', (index) => {
             this.store.setTrackIndex(index);
         });
-        api.on('playlistChanged', (tracks) => {
+        playbackService.on('playlistChanged', (tracks) => {
             this.store.setPlaylist(tracks);
         });
-        api.on('playModeChanged', (mode) => {
+        playbackService.on('playModeChanged', (mode) => {
             this.store.setPlayMode(mode);
         });
     }

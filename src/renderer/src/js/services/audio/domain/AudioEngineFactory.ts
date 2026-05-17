@@ -25,7 +25,12 @@ class AudioEngineFactory {
     async create(engineType: AudioEngineType): Promise<AudioEngineBridge> {
         let engine: AudioEngineBridge;
 
-        if (engineType === 'wasapi' && this.WasapiEngine) {
+        if (engineType === 'wasapi') {
+            const wasapiAvailable = this.WasapiEngine !== null || await this.ensureWasapiAvailable();
+            if (!wasapiAvailable || !this.WasapiEngine) {
+                throw new Error('WASAPI引擎不可用');
+            }
+
             console.log('🎵 创建WASAPI独占引擎');
             engine = new this.WasapiEngine();
         } else {

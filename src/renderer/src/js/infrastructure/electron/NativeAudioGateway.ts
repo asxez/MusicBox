@@ -1,17 +1,10 @@
 import type {Unsubscribe} from '@api/types/common';
 import type {ElectronNativeAudioAPI} from '@api/types/electron';
-
-function getElectronAPI(): Window['electronAPI'] {
-    if (!window.electronAPI) {
-        throw new Error('electronAPI is not available');
-    }
-
-    return window.electronAPI;
-}
+import {getElectronAPI, hasElectronNamespace} from './ElectronBridge';
 
 class NativeAudioGateway {
     isAvailable(): boolean {
-        return Boolean(window.electronAPI && window.electronAPI.nativeAudio);
+        return hasElectronNamespace('nativeAudio');
     }
 
     get api(): ElectronNativeAudioAPI {

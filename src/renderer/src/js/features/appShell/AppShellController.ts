@@ -1,6 +1,3 @@
-import {trayAPI, updateAPI, windowAPI} from '@api/modules';
-import {networkDriveGateway, settingsSystemGateway, windowGateway} from '@js/infrastructure/electron';
-import {systemGateway} from '@js/infrastructure/electron/SystemGateway';
 import type {Result, Unsubscribe} from '@api/types/common';
 import type {
     MountedNetworkDrive,
@@ -9,307 +6,233 @@ import type {
     NetworkDriveStatus
 } from '@api/types/electron';
 import type {WindowBounds} from '@api/types/window';
-
-type WindowBoundsResult = {
-    height: number;
-    width: number;
-    x: number;
-    y: number;
-};
-
-type SetBoundsResult = {
-    success: boolean;
-    bounds?: WindowBoundsResult;
-    error?: string;
-};
-
-type MiniModeWindowStateOptions = {
-    enabled: boolean;
-    x?: number;
-    y?: number;
-    width?: number;
-    height?: number;
-};
-
-type MiniModeWindowStateResult = {
-    success: boolean;
-    data?: {
-        size?: number[];
-        minimumSize?: number[];
-        maximumSize?: number[];
-    };
-    error?: string;
-};
-
-type FolderSelectionResult = {
-    filePaths: string[];
-    canceled: boolean;
-};
-
-type TraySettings = {
-    enabled?: boolean;
-    closeToTray?: boolean;
-    startMinimized?: boolean;
-};
-
-type MainSettingsPayload = {
-    musicFolders?: string[];
-    autoScanEnabled?: boolean;
-    enabled?: boolean;
-    scanFrequency?: string;
-    frequency?: string;
-    [key: string]: unknown;
-};
-
-type SettingsUpdateResult = {
-    success: boolean;
-    settings?: MainSettingsPayload;
-    error?: string;
-};
-
-type PathResult = {
-    success?: boolean;
-    path?: string;
-    error?: string;
-};
-
-type OperationResult = {
-    success?: boolean;
-    error?: string;
-};
-
-type ShellActionResult = {
-    success: boolean;
-    error?: string;
-};
-
-type HardwareAccelerationSettingsResult = {
-    success?: boolean;
-    settings?: {
-        enabled?: boolean;
-    };
-    error?: string;
-};
+import {appShellService} from './service';
+import type {
+    FolderSelectionResult,
+    HardwareAccelerationSettingsResult,
+    MainSettingsPayload,
+    MiniModeWindowStateOptions,
+    MiniModeWindowStateResult,
+    OperationResult,
+    PathResult,
+    SetBoundsResult,
+    SettingsUpdateResult,
+    ShellActionResult,
+    TraySettings,
+    WindowBoundsResult
+} from './service';
 
 class AppShellController {
     initWindowStateManagement(): void {
-        windowAPI.initWindowStateManagement();
+        appShellService.initWindowStateManagement();
     }
 
     disposeWindowStateManagement(): void {
-        windowAPI.disposeWindowStateManagement();
+        appShellService.disposeWindowStateManagement();
     }
 
     onWindowMaximizedChanged(handler: (isMaximized: boolean) => void): Unsubscribe {
-        return windowAPI.onMaximizedChanged(handler);
+        return appShellService.onWindowMaximizedChanged(handler);
     }
 
     async minimizeWindow(): Promise<void> {
-        await windowAPI.minimize();
+        await appShellService.minimizeWindow();
     }
 
     async toggleMaximizeWindow(): Promise<void> {
-        await windowAPI.maximize();
+        await appShellService.toggleMaximizeWindow();
     }
 
     async closeWindow(): Promise<void> {
-        await windowAPI.close();
+        await appShellService.closeWindow();
     }
 
     async isWindowMaximized(): Promise<boolean> {
-        return await windowAPI.isMaximized();
+        return await appShellService.isWindowMaximized();
     }
 
     async unmaximizeWindow(): Promise<void> {
-        await windowAPI.unmaximize();
+        await appShellService.unmaximizeWindow();
     }
 
     async getWindowBounds(): Promise<WindowBoundsResult | null> {
-        return await windowAPI.getBounds();
+        return await appShellService.getWindowBounds();
     }
 
     async setWindowBounds(bounds: WindowBounds): Promise<SetBoundsResult> {
-        return await windowAPI.setBounds(bounds);
+        return await appShellService.setWindowBounds(bounds);
     }
 
     async setMiniModeWindowState(options: MiniModeWindowStateOptions): Promise<MiniModeWindowStateResult> {
-        return await windowAPI.setMiniModeWindowState(options);
+        return await appShellService.setMiniModeWindowState(options);
     }
 
     async getWindowPosition(): Promise<[number, number]> {
-        return await windowGateway.getPosition();
+        return await appShellService.getWindowPosition();
     }
 
     async getWindowSize(): Promise<[number, number]> {
-        return await windowGateway.getSize();
+        return await appShellService.getWindowSize();
     }
 
     async setWindowSize(width: number, height: number): Promise<Result> {
-        return await windowGateway.setSize(width, height);
+        return await appShellService.setWindowSize(width, height);
     }
 
     async initSystemTray(): Promise<void> {
-        await trayAPI.initSystemTray();
+        await appShellService.initSystemTray();
     }
 
     async updateTraySettings(settings: TraySettings): Promise<void> {
-        await settingsSystemGateway.tray.updateSettings(settings);
+        await appShellService.updateTraySettings(settings);
     }
 
     async getHardwareAccelerationSettings(): Promise<HardwareAccelerationSettingsResult> {
-        return await settingsSystemGateway.hardwareAcceleration.getSettings() as HardwareAccelerationSettingsResult;
+        return await appShellService.getHardwareAccelerationSettings();
     }
 
     async updateHardwareAccelerationSettings(enabled: boolean): Promise<OperationResult> {
-        return await settingsSystemGateway.hardwareAcceleration.updateSettings({enabled}) as OperationResult;
+        return await appShellService.updateHardwareAccelerationSettings(enabled);
     }
 
     async restartApplication(): Promise<void> {
-        await settingsSystemGateway.app.restart();
+        await appShellService.restartApplication();
     }
 
     async openUserDataFolder(): Promise<OperationResult> {
-        return await settingsSystemGateway.openUserDataFolder() as OperationResult;
+        return await appShellService.openUserDataFolder();
     }
 
     async openDevTools(): Promise<OperationResult> {
-        return await settingsSystemGateway.openDevTools() as OperationResult;
+        return await appShellService.openDevTools();
     }
 
     async getVersion(): Promise<string> {
-        return await systemGateway.getVersion();
+        return await appShellService.getVersion();
     }
 
     async getPlatform(): Promise<string> {
-        return await systemGateway.getPlatform();
+        return await appShellService.getPlatform();
     }
 
     async getAppPath(): Promise<string> {
-        return await systemGateway.getAppPath();
+        return await appShellService.getAppPath();
     }
 
     async getUserDataPath(): Promise<string> {
-        return await systemGateway.getUserDataPath();
+        return await appShellService.getUserDataPath();
     }
 
     async getTempPath(): Promise<string> {
-        return await systemGateway.getTempPath();
+        return await appShellService.getTempPath();
     }
 
     async openPath(path: string): Promise<ShellActionResult> {
-        return await systemGateway.openPath(path);
+        return await appShellService.openPath(path);
     }
 
     async openExternal(url: string): Promise<ShellActionResult> {
-        return await systemGateway.openExternal(url);
+        return await appShellService.openExternal(url);
     }
 
     async autoCheckForUpdates(): Promise<void> {
-        await updateAPI.autoCheckForUpdates();
+        await appShellService.autoCheckForUpdates();
     }
 
     onShowUpdateDetails(handler: () => void): Unsubscribe {
-        return updateAPI.onShowUpdateDetails(handler);
+        return appShellService.onShowUpdateDetails(handler);
     }
 
     async openReleasePage(): Promise<void> {
-        await updateAPI.openReleasePage();
+        await appShellService.openReleasePage();
     }
 
     async openDownloadPage(url: string): Promise<Result> {
-        return await updateAPI.openDownloadPage(url);
+        return await appShellService.openDownloadPage(url);
     }
 
     async testNetworkDriveConnection(config: NetworkDriveConfig): Promise<boolean> {
-        return await networkDriveGateway.testConnection(config);
+        return await appShellService.testNetworkDriveConnection(config);
     }
 
     async mountNetworkDrive(config: NetworkDriveConfig): Promise<boolean> {
-        if (config.type === 'smb') {
-            return await networkDriveGateway.mountSMB(config);
-        }
-
-        if (config.type === 'webdav') {
-            return await networkDriveGateway.mountWebDAV(config);
-        }
-
-        return false;
+        return await appShellService.mountNetworkDrive(config);
     }
 
     async getMountedNetworkDrives(): Promise<MountedNetworkDrive[]> {
-        return await networkDriveGateway.getMountedDrives();
+        return await appShellService.getMountedNetworkDrives();
     }
 
     async getNetworkDriveStatus(driveId: string): Promise<NetworkDriveStatus | null> {
-        return await networkDriveGateway.getStatus(driveId);
+        return await appShellService.getNetworkDriveStatus(driveId);
     }
 
     async getNetworkDriveDirectoryStructure(driveId: string, path: string): Promise<NetworkDriveDirectoryResult> {
-        return await networkDriveGateway.getDirectoryStructure(driveId, path);
+        return await appShellService.getNetworkDriveDirectoryStructure(driveId, path);
     }
 
     async refreshNetworkDriveConnection(driveId: string): Promise<boolean> {
-        return await networkDriveGateway.refreshConnection(driveId);
+        return await appShellService.refreshNetworkDriveConnection(driveId);
     }
 
     async refreshNetworkDriveConnections(): Promise<boolean> {
-        return await networkDriveGateway.refreshConnections();
+        return await appShellService.refreshNetworkDriveConnections();
     }
 
     async unmountNetworkDrive(driveId: string): Promise<boolean> {
-        return await networkDriveGateway.unmount(driveId);
+        return await appShellService.unmountNetworkDrive(driveId);
     }
 
     onNetworkDriveConnected(handler: (driveId: string, config: NetworkDriveConfig) => void | Promise<void>): Unsubscribe {
-        return networkDriveGateway.onConnected(handler);
+        return appShellService.onNetworkDriveConnected(handler);
     }
 
     onNetworkDriveDisconnected(handler: (driveId: string, config: NetworkDriveConfig) => void | Promise<void>): Unsubscribe {
-        return networkDriveGateway.onDisconnected(handler);
+        return appShellService.onNetworkDriveDisconnected(handler);
     }
 
     onNetworkDriveError(handler: (driveId: string, error: string) => void): Unsubscribe {
-        return networkDriveGateway.onError(handler);
+        return appShellService.onNetworkDriveError(handler);
     }
 
     async getMusicFolders(): Promise<string[]> {
-        return await settingsSystemGateway.settings.getMusicFolders();
+        return await appShellService.getMusicFolders();
     }
 
     async getAutoScanSettings(): Promise<MainSettingsPayload> {
-        return await settingsSystemGateway.settings.getAutoScanSettings() as MainSettingsPayload;
+        return await appShellService.getAutoScanSettings();
     }
 
     async getSetting<T = unknown>(key: string): Promise<T | null> {
-        return await settingsSystemGateway.settings.get<T>(key);
+        return await appShellService.getSetting<T>(key);
     }
 
     async setSetting<T = unknown>(key: string, value: T): Promise<void> {
-        await settingsSystemGateway.settings.set(key, value);
+        await appShellService.setSetting(key, value);
     }
 
     async selectFolder(): Promise<FolderSelectionResult> {
-        return await settingsSystemGateway.selectFolder();
+        return await appShellService.selectFolder();
     }
 
     async addMusicFolder(folderPath: string): Promise<SettingsUpdateResult> {
-        return await settingsSystemGateway.settings.addMusicFolder(folderPath) as SettingsUpdateResult;
+        return await appShellService.addMusicFolder(folderPath);
     }
 
     async removeMusicFolder(folderPath: string): Promise<SettingsUpdateResult> {
-        return await settingsSystemGateway.settings.removeMusicFolder(folderPath) as SettingsUpdateResult;
+        return await appShellService.removeMusicFolder(folderPath);
     }
 
     async updateAutoScanSettings(settings: MainSettingsPayload): Promise<SettingsUpdateResult> {
-        return await settingsSystemGateway.settings.updateAutoScanSettings(settings) as SettingsUpdateResult;
+        return await appShellService.updateAutoScanSettings(settings);
     }
 
     async getDefaultCoverCachePath(): Promise<PathResult> {
-        return await settingsSystemGateway.getDefaultCoverCachePath() as PathResult;
+        return await appShellService.getDefaultCoverCachePath();
     }
 
     async ensureDirectoryExists(directoryPath: string): Promise<PathResult> {
-        return await settingsSystemGateway.ensureDirectoryExists(directoryPath) as PathResult;
+        return await appShellService.ensureDirectoryExists(directoryPath);
     }
 }
 

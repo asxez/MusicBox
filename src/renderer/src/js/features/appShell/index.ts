@@ -12,4 +12,4 @@ export type {
     ShellActionResult,
     TraySettings,
     WindowBoundsResult
-} from './AppShellController';
+} from './service';

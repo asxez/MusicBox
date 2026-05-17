@@ -1,19 +1,19 @@
 import {EventEmitter} from '@utils/index.js';
 import {audioGateway} from '@js/infrastructure/electron/AudioGateway';
 import {cacheManager} from "@services/CacheManager";
-import {PlaybackQueue} from './playback/PlaybackQueue';
-import {PlaybackPersistence} from './playback/PlaybackPersistence';
-import {PlaybackStateSynchronizer} from './playback/PlaybackStateSynchronizer';
-import {DesktopLyricsSync} from './desktopLyrics/DesktopLyricsSync';
-import {AudioEngineAdapter} from './audio/AudioEngineAdapter';
-import {LibraryBridge} from './library/LibraryBridge';
+import {PlaybackQueue} from '@js/features/playback/domain';
+import {AudioEngineAdapter} from '@js/features/playback/service/AudioEngineAdapter';
+import type {AudioEngineManagerBridge, AudioEngineType} from '@js/features/playback/service/AudioEngineAdapter';
+import {PlaybackPersistence} from '@js/features/playback/service/PlaybackPersistence';
+import {PlaybackStateSynchronizer} from '@js/features/playback/service/PlaybackStateSynchronizer';
+import {DesktopLyricsSync} from '@js/features/desktopLyrics/service/DesktopLyricsSync';
+import {LibraryBridge} from '@js/features/library/service/LibraryBridge';
 import type {Result} from '@api/types/common';
 import type {CacheValidationResult} from '@api/types/events';
 import type {DesktopLyricsPlaybackState, PlayMode, PlaybackStateName} from '@api/types/playback';
 import type {LyricLine} from '@api/types/lyrics';
 import type {DesktopLyricsSettings, MusicBoxSettings, WasapiShareMode} from '@api/types/settings';
 import type {Track} from '@api/types/track';
-import type {AudioEngineManagerBridge, AudioEngineType} from './audio/AudioEngineAdapter';
 
 export class MusicBoxAPI extends EventEmitter {
     isInitialized: boolean;

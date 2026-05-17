@@ -1,4 +1,5 @@
 import type {Unsubscribe} from '@api/types/common';
+import {getElectronAPI} from './ElectronBridge';
 
 type OpenDialogOptions = Record<string, unknown>;
 
@@ -26,14 +27,6 @@ export interface FileStatResult {
     mtime: unknown;
     isFile: boolean;
     isDirectory: boolean;
-}
-
-function getElectronAPI(): Window['electronAPI'] {
-    if (!window.electronAPI) {
-        throw new Error('electronAPI is not available');
-    }
-
-    return window.electronAPI;
 }
 
 class FileGateway {

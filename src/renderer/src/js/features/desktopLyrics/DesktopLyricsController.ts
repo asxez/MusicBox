@@ -1,35 +1,31 @@
-import {api} from '@api/api';
 import type {Result} from '@api/types/common';
 import type {LyricLine} from '@api/types/lyrics';
 import type {DesktopLyricsSettings, MusicBoxSettings} from '@api/types/settings';
-
-export type DesktopLyricsToggleResult = {
-    success: boolean;
-    visible?: boolean;
-    error?: string;
-};
+import {desktopLyricsService} from './service';
+import type {DesktopLyricsToggleResult} from './service';
 
 class DesktopLyricsController {
     async toggle(): Promise<DesktopLyricsToggleResult> {
-        return await api.toggleDesktopLyrics();
+        return await desktopLyricsService.toggle();
     }
 
     async isVisible(): Promise<boolean> {
-        return await api.isDesktopLyricsVisible();
+        return await desktopLyricsService.isVisible();
     }
 
     async hide(): Promise<Result> {
-        return await api.hideDesktopLyrics();
+        return await desktopLyricsService.hide();
     }
 
     async updateSettings(settings: DesktopLyricsSettings | MusicBoxSettings): Promise<Result> {
-        return await api.updateDesktopLyricsSettings(settings);
+        return await desktopLyricsService.updateSettings(settings);
     }
 
     async syncLyrics(lyrics: LyricLine[] | string): Promise<void> {
-        await api.syncToDesktopLyrics('lyrics', lyrics);
+        await desktopLyricsService.syncLyrics(lyrics);
     }
 }
 
 export const desktopLyricsController = new DesktopLyricsController();
 export {DesktopLyricsController};
+export type {DesktopLyricsToggleResult};

@@ -133,8 +133,18 @@ class AudioEngineManager {
             return true;
         }
 
+        const previousEngineType = this.engineType;
+
         try {
             console.log(`🔄 切换引擎: ${this.engineType} -> ${newEngineType}`);
+
+            if (newEngineType === 'wasapi') {
+                const wasapiAvailable = await this.checkWasapiAvailability();
+                if (!wasapiAvailable) {
+                    console.warn('⚠️ WASAPI引擎不可用，取消切换');
+                    return false;
+                }
+            }
 
             // 保存当前状态
             await this.saveCurrentState();
@@ -156,10 +166,12 @@ class AudioEngineManager {
                 return true;
             } else {
                 console.error('❌ 新引擎创建失败');
+                this.engineType = previousEngineType;
                 return false;
             }
         } catch (error) {
             console.error('❌ 引擎切换失败:', error);
+            this.engineType = previousEngineType;
             return false;
         }
     }

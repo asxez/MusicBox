@@ -3,7 +3,7 @@
  */
 
 import {equalizerController} from "@js/features/equalizer";
-import type {AudioEngineManagerBridge} from "@api/audio/AudioEngineAdapter";
+import type {AudioEngineManagerBridge} from "@js/features/playback/service/AudioEngineAdapter";
 import {Component} from "@ui/base/Component";
 import {showInputDialog} from "@js/utils/InputDialog";
 import {appInteractionService} from "@services/ui/AppInteractionService";
@@ -28,11 +28,18 @@ interface ParametricAudioEngine extends AudioEngineManagerBridge {
     currentEngine?: (AudioEngineManagerBridge["currentEngine"] & Partial<ParametricEngineBridge>) | null;
 }
 
+interface InitializeEqualizerOptions {
+    force?: boolean;
+    retry?: boolean;
+    attempts?: number;
+    delayMs?: number;
+}
+
 class ParametricEqualizerComponent extends Component {
     private equalizer: ParametricEqualizer | null;
     private readonly filterTypes: FilterTypeDefinition[];
     private currentEngine: unknown | null;
-    private isInitializingEqualizer: boolean;
+    private initializationPromise: Promise<boolean> | null;
     private openBtn!: HTMLElement;
     private closeBtn!: HTMLElement;
     private enabledToggleBtn!: HTMLInputElement;
@@ -50,7 +57,7 @@ class ParametricEqualizerComponent extends Component {
         super('#parametric-equalizer-modal');
         this.equalizer = null;
         this.currentEngine = null;
-        this.isInitializingEqualizer = false;
+        this.initializationPromise = null;
         this.saveStateTimeout = null;
 
         // 滤波器类型定义
@@ -66,12 +73,12 @@ class ParametricEqualizerComponent extends Component {
 
         this.setupElements();
         this.setupEventListeners();
-        this.initializeEqualizer();
+        this.initializeEqualizer({retry: true});
     }
 
     async show(): Promise<void> {
         if (!this.equalizer) {
-            await this.initializeEqualizer({force: true});
+            await this.initializeEqualizer({force: true, retry: true});
             if (!this.equalizer) {
                 return;
             }
@@ -172,23 +179,10 @@ class ParametricEqualizerComponent extends Component {
             await this.autoSaveState();
         });
 
-        const wasapiEnable = document.querySelector<HTMLInputElement>('#exclusive-mode-toggle');
-        if (wasapiEnable) {
-            this.addEventListenerManaged(wasapiEnable, 'change', async (event) => {
-                const target = event.currentTarget as HTMLInputElement;
-                this.setParametricEqualizerEnable(target.checked);
-                if (target.checked) {
-                    await this.initializeEqualizer({force: true});
-                } else {
-                    this.clearEqualizerBinding();
-                }
-            });
-        }
-
         this.addAPIEventListenerManaged('audioEngineChanged', async (event: AudioEngineChangedEvent | string) => {
             const engineType = typeof event === 'string' ? event : event?.engineType;
             if (engineType === 'wasapi') {
-                await this.initializeEqualizer({force: true});
+                await this.initializeEqualizer({force: true, retry: true});
                 return;
             }
 
@@ -218,15 +212,50 @@ class ParametricEqualizerComponent extends Component {
     }
 
     // 初始化均衡器
-    async initializeEqualizer({force = false}: {force?: boolean} = {}): Promise<boolean> {
+    async initializeEqualizer(options: InitializeEqualizerOptions = {}): Promise<boolean> {
         if (this.isDestroyed) {
             return false;
         }
 
-        if (this.isInitializingEqualizer) {
-            return this.equalizer !== null;
+        if (this.initializationPromise) {
+            return await this.initializationPromise;
         }
 
+        this.initializationPromise = this.resolveEqualizerBinding(options);
+        try {
+            return await this.initializationPromise;
+        } finally {
+            this.initializationPromise = null;
+        }
+    }
+
+    private async resolveEqualizerBinding({
+        force = false,
+        retry = false,
+        attempts = 10,
+        delayMs = 120
+    }: InitializeEqualizerOptions): Promise<boolean> {
+        const totalAttempts = retry ? Math.max(1, attempts) : 1;
+
+        for (let attempt = 0; attempt < totalAttempts; attempt++) {
+            if (this.isDestroyed) {
+                return false;
+            }
+
+            const bound = await this.tryBindEqualizer(force);
+            if (bound) {
+                return true;
+            }
+
+            if (attempt < totalAttempts - 1) {
+                await this.wait(delayMs);
+            }
+        }
+
+        return false;
+    }
+
+    private async tryBindEqualizer(force: boolean): Promise<boolean> {
         const audioEngine = equalizerController.getAudioEngine<ParametricAudioEngine>();
         if (audioEngine?.currentEngine) {
             const engineType = typeof audioEngine.getEngineType === 'function'
@@ -246,44 +275,36 @@ class ParametricEqualizerComponent extends Component {
             }
 
             if (currentEngine && typeof currentEngine.getParametricEqualizer === 'function') {
-                this.isInitializingEqualizer = true;
-                try {
-                    this.equalizer = currentEngine.getParametricEqualizer();
-                    this.currentEngine = currentEngine;
+                this.equalizer = currentEngine.getParametricEqualizer();
+                this.currentEngine = currentEngine;
 
-                    if (this.equalizer) {
-                        this.setParametricEqualizerEnable(true);
+                if (this.equalizer) {
+                    this.setParametricEqualizerEnable(true);
 
-                        // 加载自定义预设
-                        await this.equalizer.loadCustomPresets();
+                    // 加载自定义预设
+                    await this.equalizer.loadCustomPresets();
 
-                        // 填充预设选择器
-                        await this.populatePresetSelector();
+                    // 填充预设选择器
+                    await this.populatePresetSelector();
 
-                        // 尝试加载上次保存的状态
-                        const loaded = await this.equalizer.loadSavedState();
+                    // 尝试加载上次保存的状态
+                    const loaded = await this.equalizer.loadSavedState();
 
-                        // 如果成功加载了状态，刷新UI
-                        if (loaded) {
-                            console.log('🎚️ 参量均衡器: 已恢复上次状态');
-                        }
-
-                        await this.equalizer.ensureCorrectMode();
-                        if (this.modalElement.classList.contains('active')) {
-                            await this.refresh();
-                        }
-
-                        return true;
+                    // 如果成功加载了状态，刷新UI
+                    if (loaded) {
+                        console.log('🎚️ 参量均衡器: 已恢复上次状态');
                     }
-                } finally {
-                    this.isInitializingEqualizer = false;
+
+                    await this.equalizer.ensureCorrectMode();
+                    if (this.modalElement.classList.contains('active')) {
+                        await this.refresh();
+                    }
+
+                    return true;
                 }
             }
         }
-        // 音频引擎或参量均衡器尚未就绪，稍后重试
-        setTimeout(() => {
-            this.initializeEqualizer();
-        }, 100);
+
         return false;
     }
 
@@ -758,6 +779,12 @@ class ParametricEqualizerComponent extends Component {
 
     private queryElement<T extends HTMLElement = HTMLElement>(selector: string): T {
         return queryChildElement<T>(this.modalElement, selector);
+    }
+
+    private wait(delayMs: number): Promise<void> {
+        return new Promise((resolve) => {
+            setTimeout(resolve, delayMs);
+        });
     }
 
     private clearEqualizerBinding(): void {
