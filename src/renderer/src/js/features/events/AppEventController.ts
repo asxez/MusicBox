@@ -1,22 +1,17 @@
-import {api} from '@api/api';
-import type {MusicBoxAPIEvents} from '@api/types/events';
-
-type KnownEventName = keyof MusicBoxAPIEvents;
-type EventHandler<K extends KnownEventName> = (payload: MusicBoxAPIEvents[K]) => void | Promise<void>;
-type Unsubscribe = () => void;
+import {appEventService} from './service';
+import type {EventHandler, KnownEventName, Unsubscribe} from './service';
 
 class AppEventController {
     on<K extends KnownEventName>(event: K, handler: EventHandler<K>): Unsubscribe {
-        api.on(event, handler);
-        return () => this.off(event, handler);
+        return appEventService.on(event, handler);
     }
 
     off<K extends KnownEventName>(event: K, handler: EventHandler<K>): void {
-        api.off(event, handler);
+        appEventService.off(event, handler);
     }
 
-    emit<K extends KnownEventName>(event: K, payload?: MusicBoxAPIEvents[K]): void {
-        api.emit(event, payload);
+    emit<K extends KnownEventName>(event: K, payload?: Parameters<typeof appEventService.emit<K>>[1]): void {
+        appEventService.emit(event, payload);
     }
 }
 

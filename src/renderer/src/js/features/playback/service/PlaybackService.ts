@@ -1,10 +1,10 @@
-import {api} from '@api/api';
 import type {MusicBoxAPIEvents} from '@api/types/events';
 import type {PlaybackStateSnapshot, PlayMode} from '@api/types/playback';
 import type {WasapiShareMode} from '@api/types/settings';
 import type {Track} from '@api/types/track';
 import type {PlaybackState, Unsubscribe} from '../PlaybackStore';
 import type {AudioEngineManagerBridge, AudioEngineType} from './AudioEngineAdapter';
+import {playbackApiAdapter} from './PlaybackApiAdapter';
 
 export type PlaybackEventName =
     | 'durationChanged'
@@ -21,88 +21,79 @@ export type PlaybackEventHandler<K extends PlaybackEventName> = (payload: MusicB
 
 export class PlaybackService {
     getInitialState(): PlaybackState {
-        return {
-            currentTrack: api.currentTrack ?? null,
-            currentIndex: api.currentIndex,
-            playlist: api.playlist,
-            isPlaying: api.isPlaying,
-            position: api.position,
-            duration: api.duration,
-            volume: api.volume,
-            playMode: api.getPlayMode()
-        };
+        return playbackApiAdapter.getInitialState();
     }
 
     async play(): Promise<boolean> {
-        return await api.play();
+        return await playbackApiAdapter.play();
     }
 
     async pause(): Promise<boolean> {
-        return await api.pause();
+        return await playbackApiAdapter.pause();
     }
 
     async stop(): Promise<boolean> {
-        return await api.stop();
+        return await playbackApiAdapter.stop();
     }
 
     async initializeAudio(): Promise<boolean> {
-        return await api.initializeAudio();
+        return await playbackApiAdapter.initializeAudio();
     }
 
     async loadTrack(filePath: string): Promise<boolean> {
-        return await api.loadTrack(filePath);
+        return await playbackApiAdapter.loadTrack(filePath);
     }
 
     async previousTrack(): Promise<boolean> {
-        return await api.previousTrack();
+        return await playbackApiAdapter.previousTrack();
     }
 
     async nextTrack(): Promise<boolean> {
-        return await api.nextTrack();
+        return await playbackApiAdapter.nextTrack();
     }
 
     async seek(position: number): Promise<boolean> {
-        return await api.seek(position);
+        return await playbackApiAdapter.seek(position);
     }
 
     async seekForward(seconds = 10): Promise<boolean> {
-        return await api.seekForward(seconds);
+        return await playbackApiAdapter.seekForward(seconds);
     }
 
     async seekBackward(seconds = 10): Promise<boolean> {
-        return await api.seekBackward(seconds);
+        return await playbackApiAdapter.seekBackward(seconds);
     }
 
     async setVolume(volume: number): Promise<boolean> {
-        return await api.setVolume(Math.max(0, Math.min(1, volume)));
+        return await playbackApiAdapter.setVolume(volume);
     }
 
     async setPosition(position: number): Promise<boolean> {
-        return await api.setPosition(position);
+        return await playbackApiAdapter.setPosition(position);
     }
 
     async setPlaylist(tracks: Track[], startIndex = -1): Promise<boolean> {
-        return await api.setPlaylist(tracks, startIndex);
+        return await playbackApiAdapter.setPlaylist(tracks, startIndex);
     }
 
     async getPosition(): Promise<number> {
-        return await api.getPosition();
+        return await playbackApiAdapter.getPosition();
     }
 
     getCurrentTrack(): Track | null {
-        return api.getCurrentTrack?.() ?? null;
+        return playbackApiAdapter.getCurrentTrack();
     }
 
     togglePlayMode(): PlayMode {
-        return api.togglePlayMode();
+        return playbackApiAdapter.togglePlayMode();
     }
 
     setPlayMode(mode: PlayMode): boolean {
-        return api.setPlayMode(mode);
+        return playbackApiAdapter.setPlayMode(mode);
     }
 
     getPlayMode(): PlayMode {
-        return api.getPlayMode();
+        return playbackApiAdapter.getPlayMode();
     }
 
     getPlaybackSnapshot(state: Readonly<PlaybackState>): PlaybackStateSnapshot {
@@ -118,34 +109,31 @@ export class PlaybackService {
     }
 
     on<K extends PlaybackEventName>(event: K, handler: PlaybackEventHandler<K>): Unsubscribe {
-        api.on(event, handler);
-        return () => {
-            api.off(event, handler);
-        };
+        return playbackApiAdapter.on(event, handler);
     }
 
     setGaplessPlayback(enabled: boolean): void {
-        api.setGaplessPlayback(enabled);
+        playbackApiAdapter.setGaplessPlayback(enabled);
     }
 
     getEqualizer<T = unknown>(): T | null {
-        return api.getEqualizer() as T | null;
+        return playbackApiAdapter.getEqualizer<T>();
     }
 
     setEqualizerEnabled(enabled: boolean): void {
-        api.setEqualizerEnabled(enabled);
+        playbackApiAdapter.setEqualizerEnabled(enabled);
     }
 
     getAudioEngine<T extends AudioEngineManagerBridge = AudioEngineManagerBridge>(): T | null {
-        return api.audioEngine as T | null;
+        return playbackApiAdapter.getAudioEngine<T>();
     }
 
     async switchAudioEngine(engineType: AudioEngineType): Promise<boolean> {
-        return await api.switchAudioEngine(engineType);
+        return await playbackApiAdapter.switchAudioEngine(engineType);
     }
 
     async switchWasapiShareMode(mode: WasapiShareMode): Promise<boolean> {
-        return await api.switchWasapiShareMode(mode);
+        return await playbackApiAdapter.switchWasapiShareMode(mode);
     }
 }
 
