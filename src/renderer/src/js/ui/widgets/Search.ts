@@ -61,6 +61,10 @@ class Search extends Component {
         this.emit('searchCleared');
     }
 
+    focusInput(): void {
+        this.element?.focus();
+    }
+
     destroy(): void {
         // 清理防抖函数
         if (this.debouncedSearch && typeof this.debouncedSearch.cancel === 'function') {

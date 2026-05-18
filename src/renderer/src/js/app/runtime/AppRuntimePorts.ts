@@ -75,4 +75,6 @@ export interface ViewRouterHost extends AppViewStatePort {
     updateTrackList(source?: string): void;
 }
 
-export interface PluginBootstrapHost extends AppComponentPort, AppInitializationPort {}
+export interface PluginBootstrapHost extends AppInitializationPort, AppEventEmitterPort, AppViewStatePort {
+    navigateToView(viewId: string): void;
+}

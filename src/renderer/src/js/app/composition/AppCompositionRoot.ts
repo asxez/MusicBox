@@ -185,7 +185,7 @@ export function createAppComposition({
         }
     });
 
-    const pluginBootstrap = new PluginBootstrap({app});
+    const pluginBootstrap = new PluginBootstrap({app, legacyComponents: components});
 
     const libraryController = new LibraryAppController({
         app,

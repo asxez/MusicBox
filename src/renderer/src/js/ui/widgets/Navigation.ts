@@ -206,16 +206,27 @@ class Navigation extends Component {
     }
 
     navigateToView(view: SidebarView): void {
-        // 更新为当前页面
-        document.querySelectorAll<HTMLElement>('.sidebar-link').forEach(link => {
-            link.classList.remove('active');
-        });
-        const activeLink = document.querySelector<HTMLElement>(`[data-view="${view}"]`);
-        if (activeLink) {
-            activeLink.classList.add('active');
-        }
+        this.updateSidebarSelection(view);
         this.currentView = view;
         this.emit('viewChanged', view);
+    }
+
+    updateSidebarSelection(type: string, id: string | null = null): void {
+        document.querySelectorAll<HTMLElement>('.sidebar-link, .playlist-sidebar-item, .network-drive-sidebar-item').forEach(item => {
+            item.classList.remove('active');
+        });
+
+        if (type === 'playlist' && id) {
+            document.querySelector<HTMLElement>(`[data-playlist-id="${id}"]`)?.classList.add('active');
+            return;
+        }
+
+        if (type === 'network-drive' && id) {
+            document.querySelector<HTMLElement>(`[data-drive-id="${id}"]`)?.classList.add('active');
+            return;
+        }
+
+        document.querySelector<HTMLElement>(`[data-view="${type}"]`)?.classList.add('active');
     }
 
     // 切换侧边栏收缩状态

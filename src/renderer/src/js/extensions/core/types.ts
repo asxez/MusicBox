@@ -45,6 +45,20 @@ export interface MusicBoxApp {
 }
 
 /**
+ * Recommended app-ready host for extensions. Legacy appReady.detail.app and
+ * appReady.detail.components are still emitted for older plugins.
+ */
+export interface MusicBoxPluginHost {
+    readonly isInitialized: boolean;
+    getCurrentView(): string;
+    navigateToView(viewId: string): void;
+    on(event: string, listener: (...args: any[]) => void): void;
+    off(event: string, listener: (...args: any[]) => void): void;
+    emit(event: string, ...args: any[]): void;
+    removeAllListeners(event?: string): void;
+}
+
+/**
  * MusicBoxAPI 类型定义 - 播放器 API
  */
 export interface MusicBoxAPI {

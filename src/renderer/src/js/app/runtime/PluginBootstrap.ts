@@ -2,17 +2,31 @@ import {ExtensionService} from "@extensions/core/ExtensionService";
 import {InstantiationService, ServiceCollection} from "@extensions/core/Instantiation";
 import {ActivationEvents} from "@extensions/core/ExtensionsRegistry";
 import {pluginManagerService} from "@services/plugins/PluginManagerService";
-import type {AppEventEmitterPort, PluginBootstrapHost} from './AppRuntimePorts';
+import type {PluginBootstrapHost} from './AppRuntimePorts';
+import type {ComponentMap} from './components/ComponentTypes';
 
 interface PluginBootstrapOptions {
-    app: PluginBootstrapHost & AppEventEmitterPort;
+    app: PluginBootstrapHost;
+    legacyComponents?: ComponentMap;
+}
+
+interface PluginReadyHost {
+    readonly isInitialized: boolean;
+    getCurrentView(): string;
+    navigateToView(viewId: string): void;
+    on(event: string, handler: (...args: any[]) => void): void;
+    off(event: string, handler: (...args: any[]) => void): void;
+    emit(event: string, ...args: any[]): void;
+    removeAllListeners(event?: string): void;
 }
 
 export class PluginBootstrap {
-    private readonly app: PluginBootstrapHost & AppEventEmitterPort;
+    private readonly app: PluginBootstrapHost;
+    private readonly legacyComponents?: ComponentMap;
 
-    constructor({app}: PluginBootstrapOptions) {
+    constructor({app, legacyComponents}: PluginBootstrapOptions) {
         this.app = app;
+        this.legacyComponents = legacyComponents;
     }
 
     async initializePluginSystem(): Promise<void> {
@@ -66,12 +80,15 @@ export class PluginBootstrap {
 
     notifyPluginSystemReady(): void {
         const app = this.app;
+        const pluginHost = this.createPluginReadyHost();
 
         try {
             document.dispatchEvent(new CustomEvent('appReady', {
                 detail: {
+                    pluginHost,
+                    host: pluginHost,
                     app,
-                    components: app.components,
+                    components: this.legacyComponents,
                     isInitialized: app.isInitialized
                 }
             }));
@@ -80,6 +97,22 @@ export class PluginBootstrap {
         } catch (error) {
             console.error('❌ App: 通知插件系统失败:', error);
         }
+    }
+
+    private createPluginReadyHost(): PluginReadyHost {
+        const app = this.app;
+
+        return {
+            get isInitialized() {
+                return app.isInitialized;
+            },
+            getCurrentView: () => app.currentView,
+            navigateToView: (viewId: string) => app.navigateToView(viewId),
+            on: (event, handler) => app.on(event, handler),
+            off: (event, handler) => app.off(event, handler),
+            emit: (event, ...args) => app.emit(event, ...args),
+            removeAllListeners: (event) => app.removeAllListeners(event)
+        };
     }
 }
 

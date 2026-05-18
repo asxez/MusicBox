@@ -4,173 +4,142 @@ import type {Track} from '@api/types/track';
 import type {AppComponentPort} from './AppRuntimePorts';
 import type {PlayerLike} from './components/ComponentTypes';
 import type {ConfirmOptions} from '@js/shared/types/AppContracts';
-
-type TrackPredicate = (track: Track, index: number) => boolean;
+import {ContentUIFacade} from './ui/ContentUIFacade';
+import {DialogUIFacade} from './ui/DialogUIFacade';
+import {PlaybackUIFacade} from './ui/PlaybackUIFacade';
+import {QueueUIFacade} from './ui/QueueUIFacade';
 
 export class AppUIFacade {
-    constructor(private readonly app: AppComponentPort) {}
+    private readonly content: ContentUIFacade;
+    private readonly dialogs: DialogUIFacade;
+    private readonly playback: PlaybackUIFacade;
+    private readonly queue: QueueUIFacade;
+
+    constructor(app: AppComponentPort) {
+        this.content = new ContentUIFacade(app);
+        this.dialogs = new DialogUIFacade(app);
+        this.playback = new PlaybackUIFacade(app);
+        this.queue = new QueueUIFacade(app);
+    }
 
     hasQueue(): boolean {
-        return Boolean(this.app.components.playlist);
+        return this.queue.hasQueue();
     }
 
     getQueueTracks(): Track[] {
-        return this.app.components.playlist?.tracks ?? [];
+        return this.queue.getQueueTracks();
     }
 
     isQueueEmpty(): boolean {
-        return this.getQueueTracks().length === 0;
+        return this.queue.isQueueEmpty();
     }
 
     getQueueCurrentIndex(): number {
-        return this.app.components.playlist?.currentTrackIndex ?? -1;
+        return this.queue.getQueueCurrentIndex();
     }
 
     syncQueueTracks(tracks: Track[], currentIndex = 0): void {
-        this.app.components.playlist?.setTracks(tracks, currentIndex);
+        this.queue.syncQueueTracks(tracks, currentIndex);
     }
 
     setQueueCurrentTrack(index: number): void {
-        this.app.components.playlist?.setCurrentTrack(index);
+        this.queue.setQueueCurrentTrack(index);
     }
 
     addQueueTrack(track: Track): number {
-        return this.app.components.playlist?.addTrack(track) ?? -1;
+        return this.queue.addQueueTrack(track);
     }
 
     removeQueueTrack(index: number): void {
-        this.app.components.playlist?.removeTrack(index);
+        this.queue.removeQueueTrack(index);
     }
 
     renderQueue(): void {
-        this.app.components.playlist?.render();
+        this.queue.renderQueue();
     }
 
     toggleQueue(): void {
-        this.app.components.playlist?.toggle();
+        this.queue.toggleQueue();
     }
 
-    findQueueIndex(predicate: TrackPredicate): number {
-        return this.getQueueTracks().findIndex(predicate);
+    findQueueIndex(predicate: (track: Track, index: number) => boolean): number {
+        return this.queue.findQueueIndex(predicate);
     }
 
     updateQueuedTrack(filePath: string, updatedData: Partial<Track>): boolean {
-        const queuedTrack = this.getQueueTracks().find((track) => track.filePath === filePath);
-        if (!queuedTrack) {
-            return false;
-        }
-
-        Object.assign(queuedTrack, updatedData);
-        this.renderQueue();
-        return true;
+        return this.queue.updateQueuedTrack(filePath, updatedData);
     }
 
     updatePlayModeDisplay(mode: PlayMode): void {
-        this.app.components.player?.updatePlayModeDisplay(mode);
+        this.playback.updatePlayModeDisplay(mode);
     }
 
     getActivePlayer(): PlayerLike | null {
-        return this.app.components.player ?? null;
+        return this.playback.getActivePlayer();
     }
 
     async updatePlayerTrackInfo(track: Track): Promise<void> {
-        await this.app.components.player?.updateTrackInfo(track);
+        await this.playback.updatePlayerTrackInfo(track);
     }
 
     async updatePlayerUI(): Promise<void> {
-        await this.app.components.player?.updateUI();
+        await this.playback.updatePlayerUI();
     }
 
     getPlayerVolume(): number | null {
-        return this.app.components.player?.volume ?? null;
+        return this.playback.getPlayerVolume();
     }
 
     async updateDesktopLyricsButtonVisibility(enabled: boolean): Promise<void> {
-        await this.app.components.player?.updateDesktopLyricsButtonVisibility(enabled);
+        await this.playback.updateDesktopLyricsButtonVisibility(enabled);
     }
 
     isLyricsVisible(): boolean {
-        return Boolean(this.app.components.lyrics?.isVisible);
+        return this.playback.isLyricsVisible();
     }
 
     async showLyricsForTrack(track: Track | null): Promise<void> {
-        if (this.isLyricsVisible()) {
-            await this.app.components.lyrics?.show(track);
-        }
+        await this.playback.showLyricsForTrack(track);
     }
 
     async toggleLyricsForTrack(track: Track | null): Promise<void> {
-        await this.app.components.lyrics?.toggle(track);
+        await this.playback.toggleLyricsForTrack(track);
     }
 
     async toggleLyricsPanel(track: Track | null): Promise<void> {
-        const lyrics = this.app.components.lyrics;
-        if (!lyrics) {
-            return;
-        }
-
-        if (lyrics.isVisible) {
-            lyrics.hide();
-            return;
-        }
-
-        if (track) {
-            await lyrics.show(track);
-        }
+        await this.playback.toggleLyricsPanel(track);
     }
 
     exitLyricsPanel(): void {
-        const lyrics = this.app.components.lyrics;
-        if (!lyrics?.isVisible) {
-            return;
-        }
-
-        if (lyrics.isFullscreen) {
-            lyrics.exitFullscreen();
-        } else {
-            lyrics.hide();
-        }
+        this.playback.exitLyricsPanel();
     }
 
     toggleLyricsFullscreen(requireVisible = true): void {
-        const lyrics = this.app.components.lyrics;
-        if (lyrics && (!requireVisible || lyrics.isVisible)) {
-            lyrics.toggleFullscreen();
-        }
+        this.playback.toggleLyricsFullscreen(requireVisible);
     }
 
     updateLyricsProgress(position: number, duration: number): void {
-        if (this.isLyricsVisible()) {
-            this.app.components.lyrics?.updateProgress(position, duration);
-        }
+        this.playback.updateLyricsProgress(position, duration);
     }
 
     updateLyricsPlayButton(): void {
-        if (this.isLyricsVisible()) {
-            this.app.components.lyrics?.updatePlayButton();
-        }
+        this.playback.updateLyricsPlayButton();
     }
 
     setTrackListTracks(tracks: Track[]): void {
-        this.app.components.trackList?.setTracks(tracks);
+        this.content.setTrackListTracks(tracks);
     }
 
     showTrackList(): void {
-        this.app.components.trackList?.show();
+        this.content.showTrackList();
     }
 
     hideTrackList(): void {
-        this.app.components.trackList?.hide();
+        this.content.hideTrackList();
     }
 
     clearTrackListSelection(): void {
-        const trackList = this.app.components.trackList;
-        if (!trackList) {
-            return;
-        }
-
-        trackList.selectedTracks.clear();
-        trackList.lastSelectedIndex = -1;
+        this.content.clearTrackListSelection();
     }
 
     showContextMenu(
@@ -180,195 +149,142 @@ export class AppUIFacade {
         index: number,
         selectedTracks?: Set<number>
     ): void {
-        this.app.components.contextMenu?.show(x, y, track, index, selectedTracks);
+        this.content.showContextMenu(x, y, track, index, selectedTracks);
     }
 
     async toggleSettings(): Promise<void> {
-        await this.app.components.settings?.toggle();
+        await this.dialogs.toggleSettings();
     }
 
     switchSettingsSection(sectionName: string): void {
-        this.app.components.settings?.switchToSection(sectionName);
+        this.dialogs.switchSettingsSection(sectionName);
     }
 
     showCreatePlaylistDialog(track?: Track): void {
-        this.app.components.createPlaylistDialog?.show(track);
+        this.dialogs.showCreatePlaylistDialog(track);
     }
 
     async showAddToPlaylistDialog(track: Track): Promise<void> {
-        await this.app.components.addToPlaylistDialog?.show(track);
+        await this.dialogs.showAddToPlaylistDialog(track);
     }
 
     showRenamePlaylistDialog(playlist: Playlist): void {
-        this.app.components.renamePlaylistDialog?.show(playlist);
+        this.dialogs.showRenamePlaylistDialog(playlist);
     }
 
     async showMusicLibrarySelectionDialog(playlist: Playlist): Promise<void> {
-        await this.app.components.musicLibrarySelectionDialog?.show(playlist);
+        await this.dialogs.showMusicLibrarySelectionDialog(playlist);
     }
 
     async showEditTrackInfoDialog(track: Track): Promise<void> {
-        await this.app.components.editTrackInfoDialog?.show(track);
+        await this.dialogs.showEditTrackInfoDialog(track);
     }
 
     async confirm(options: ConfirmOptions): Promise<boolean> {
-        return await this.app.components.confirmDialog.show(options);
+        return await this.dialogs.confirm(options);
     }
 
     async showPlaylistDetail(playlist: Playlist): Promise<void> {
-        await this.app.components.playlistDetailPage?.show(playlist);
+        await this.content.showPlaylistDetail(playlist);
     }
 
     async showNetworkDriveDetail(drive: unknown): Promise<void> {
-        await this.app.components.networkDriveDetailPage?.show(drive as any);
+        await this.content.showNetworkDriveDetail(drive);
     }
 
     async removeTrackFromPlaylistDetail(track: Track, index: number): Promise<boolean> {
-        const playlistDetailPage = this.app.components.playlistDetailPage;
-        if (!playlistDetailPage) {
-            return false;
-        }
-
-        await playlistDetailPage.removeTrackFromPlaylist(track, index);
-        return true;
+        return await this.content.removeTrackFromPlaylistDetail(track, index);
     }
 
     async removeSelectedTracksFromPlaylistDetail(): Promise<boolean> {
-        const playlistDetailPage = this.app.components.playlistDetailPage;
-        if (!playlistDetailPage) {
-            return false;
-        }
-
-        await playlistDetailPage.removeSelectedTracks();
-        return true;
+        return await this.content.removeSelectedTracksFromPlaylistDetail();
     }
 
     isPlaylistDetailVisible(): boolean {
-        return Boolean(this.app.components.playlistDetailPage?.isVisible);
+        return this.content.isPlaylistDetailVisible();
     }
 
     updatePlaylistDetailTrack(filePath: string, updatedData: Partial<Track>): boolean {
-        const playlistDetailPage = this.app.components.playlistDetailPage;
-        const playlistTrack = playlistDetailPage?.tracks.find((track) => track.filePath === filePath);
-        if (!playlistTrack) {
-            return false;
-        }
-
-        Object.assign(playlistTrack, updatedData);
-        playlistDetailPage.render();
-        return true;
+        return this.content.updatePlaylistDetailTrack(filePath, updatedData);
     }
 
     async reloadPlaylistDetailTracks(): Promise<void> {
-        await this.app.components.playlistDetailPage?.loadPlaylistTracks();
+        await this.content.reloadPlaylistDetailTracks();
     }
 
     showUpdateModal(): void {
-        this.app.components.updateModal?.show();
+        this.dialogs.showUpdateModal();
     }
 
     showNetworkDriveModal(): boolean {
-        const modal = this.app.components.networkDiskModal;
-        if (!modal) {
-            return false;
-        }
-
-        modal.show();
-        return true;
+        return this.dialogs.showNetworkDriveModal();
     }
 
     async showPluginManager(): Promise<boolean> {
-        const modal = this.app.components.pluginManagerModal;
-        if (!modal) {
-            return false;
-        }
-
-        await modal.show();
-        return true;
+        return await this.dialogs.showPluginManager();
     }
 
     async showHomePage(): Promise<void> {
-        await this.app.components.homePage?.show();
+        await this.content.showHomePage();
     }
 
     async showRecentPage(): Promise<void> {
-        await this.app.components.recentPage?.show();
+        await this.content.showRecentPage();
     }
 
     async showArtistsPage(): Promise<void> {
-        await this.app.components.artistsPage?.show();
+        await this.content.showArtistsPage();
     }
 
     async showAlbumsPage(): Promise<void> {
-        await this.app.components.albumsPage?.show();
+        await this.content.showAlbumsPage();
     }
 
     async showStatisticsPage(): Promise<void> {
-        await this.app.components.statisticsPage?.show();
+        await this.content.showStatisticsPage();
     }
 
     hideAllPages(): void {
-        this.app.components.homePage?.hide();
-        this.app.components.recentPage?.hide();
-        this.app.components.artistsPage?.hide();
-        this.app.components.albumsPage?.hide();
-        this.app.components.statisticsPage?.hide();
-        this.app.components.playlistDetailPage?.hide();
-        this.app.components.networkDriveDetailPage?.hide();
-        this.hideTrackList();
+        this.content.hideAllPages();
     }
 
     updateSidebarSelection(type: string, id: string | null = null): void {
-        document.querySelectorAll('.sidebar-link, .playlist-sidebar-item, .network-drive-sidebar-item').forEach(item => {
-            item.classList.remove('active');
-        });
-
-        if (type === 'playlist' && id) {
-            document.querySelector(`[data-playlist-id="${id}"]`)?.classList.add('active');
-            return;
-        }
-
-        if (type === 'network-drive' && id) {
-            document.querySelector(`[data-drive-id="${id}"]`)?.classList.add('active');
-            return;
-        }
-
-        document.querySelector(`[data-view="${type}"]`)?.classList.add('active');
+        this.content.updateSidebarSelection(type, id);
     }
 
     async refreshNavigationPlaylists(): Promise<void> {
-        await this.app.components.navigation?.refreshPlaylists?.();
+        await this.content.refreshNavigationPlaylists();
     }
 
     async loadNetworkDrives(): Promise<void> {
-        await this.app.components.navigation?.loadNetworkDrives?.();
+        await this.content.loadNetworkDrives();
     }
 
     updateNavigationPlaylistInfo(playlist: Playlist): void {
-        this.app.components.navigation?.updatePlaylistInfo?.(playlist);
+        this.content.updateNavigationPlaylistInfo(playlist);
     }
 
     updateStatisticsButtonVisibility(enabled: boolean): void {
-        this.app.components.navigation?.updateStatisticsButtonVisibility?.(enabled);
+        this.content.updateStatisticsButtonVisibility(enabled);
     }
 
     updateRecentPlayButtonVisibility(enabled: boolean): void {
-        this.app.components.navigation?.updateRecentPlayButtonVisibility?.(enabled);
+        this.content.updateRecentPlayButtonVisibility(enabled);
     }
 
     updateArtistsPageButtonVisibility(enabled: boolean): void {
-        this.app.components.navigation?.updateArtistsPageButtonVisibility?.(enabled);
+        this.content.updateArtistsPageButtonVisibility(enabled);
     }
 
     updateAlbumsPageButtonVisibility(enabled: boolean): void {
-        this.app.components.navigation?.updateAlbumsPageButtonVisibility?.(enabled);
+        this.content.updateAlbumsPageButtonVisibility(enabled);
     }
 
     navigateToView(view: string): void {
-        this.app.components.navigation?.navigateToView?.(view);
+        this.content.navigateToView(view);
     }
 
     focusSearchInput(): void {
-        document.getElementById('search-input')?.focus();
+        this.content.focusSearchInput();
     }
 }
