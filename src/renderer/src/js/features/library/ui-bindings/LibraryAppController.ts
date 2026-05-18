@@ -2,33 +2,28 @@ import {cacheManager} from "@services/CacheManager";
 import {localCoverManager} from "@services/cover/LocalCoverManager";
 import type {MusicBoxAPIEvents} from "@api/types/events";
 import type {Track} from "@api/types/track";
+import type {
+    AppAPIEventPort,
+    AppConfirmationPort,
+    AppCoverPreloadPort,
+    AppLibraryStatePort,
+    AppNotificationPort,
+    AppViewStatePort
+} from "@js/app/runtime/AppRuntimeTypes";
 import {libraryController as libraryFeatureController} from "../LibraryController";
 
-interface LibraryAppHost {
-    currentView: string;
-    library: Track[];
-    filteredLibrary: Track[];
-    coversPreloadedByApp?: boolean;
-    addManagedAPIEventListener<K extends keyof MusicBoxAPIEvents>(
-        event: K,
-        handler: (payload: MusicBoxAPIEvents[K]) => void | Promise<void>
-    ): void;
+interface LibraryAppHost
+    extends AppAPIEventPort,
+        AppConfirmationPort,
+        AppCoverPreloadPort,
+        AppLibraryStatePort,
+        AppNotificationPort,
+        AppViewStatePort {
     showCacheLoadingStatus(): void;
     hideCacheLoadingStatus(): void;
     showWelcomeScreen(): void;
     updateTrackList(source?: string): void;
     syncDesktopLyricsButtonState(): Promise<void>;
-    confirm(options: LibraryConfirmOptions): Promise<boolean>;
-    showInfo(message: string): void;
-    showError(message: string): void;
-}
-
-interface LibraryConfirmOptions {
-    title: string;
-    message: string;
-    type?: 'default' | 'danger' | 'warning';
-    confirmText?: string;
-    cancelText?: string;
 }
 
 interface LibraryAppUI {

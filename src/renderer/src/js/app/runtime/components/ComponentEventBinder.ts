@@ -1,5 +1,5 @@
 import {AppUIFacade} from "@js/app/runtime/AppUIFacade";
-import type {ComponentMap, RendererAppContext} from "@js/app/runtime/AppRuntimeTypes";
+import type {AppComponentPort, ComponentBindingAppHost, ComponentMap} from "@js/app/runtime/AppRuntimeTypes";
 import {appShellController} from "@js/features/appShell";
 import {playbackController} from "@js/features/playback";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
@@ -16,20 +16,21 @@ import {bindPlaylistComponentEvents} from "@js/features/playlists/ui-bindings";
 import {bindSettingsComponentEvents} from "@js/features/settings/ui-bindings";
 
 interface ComponentEventBinderOptions {
-    app: RendererAppContext;
+    app: ComponentBindingAppHost;
+    components: AppComponentPort;
 }
 
 export class ComponentEventBinder {
-    private readonly app: RendererAppContext;
+    private readonly app: ComponentBindingAppHost;
     private readonly components: ComponentMap;
     private readonly ui: AppUIFacade;
     private readonly context: ComponentBindingContext;
     private readonly pageBindings: PageComponentBindings;
 
-    constructor({app}: ComponentEventBinderOptions) {
+    constructor({app, components}: ComponentEventBinderOptions) {
         this.app = app;
-        this.components = app.components;
-        this.ui = new AppUIFacade(app);
+        this.components = components.components;
+        this.ui = new AppUIFacade(components);
         this.context = {
             app: this.app,
             components: this.components,

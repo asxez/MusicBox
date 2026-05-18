@@ -1,9 +1,9 @@
-import type {ConfirmOptions, RendererAppContext} from "@js/app/runtime/AppRuntimeTypes";
+import type {AppInteractionHost, ConfirmOptions} from "@js/app/runtime/AppRuntimeTypes";
 
 class AppInteractionService {
-    private app: RendererAppContext | null = null;
+    private app: AppInteractionHost | null = null;
 
-    bindApp(app: RendererAppContext): void {
+    bindApp(app: AppInteractionHost): void {
         this.app = app;
     }
 
@@ -61,7 +61,7 @@ class AppInteractionService {
         return true;
     }
 
-    private requireApp(): RendererAppContext {
+    private requireApp(): AppInteractionHost {
         if (!this.app) {
             throw new Error('应用交互服务尚未绑定 App 上下文');
         }

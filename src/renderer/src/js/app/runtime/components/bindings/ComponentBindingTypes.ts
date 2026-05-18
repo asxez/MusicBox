@@ -1,7 +1,7 @@
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
 import type {AppUIFacade} from "@js/app/runtime/AppUIFacade";
-import type {ComponentMap, RendererAppContext} from "@js/app/runtime/AppRuntimeTypes";
+import type {ComponentBindingAppHost, ComponentMap} from "@js/app/runtime/AppRuntimeTypes";
 
 export type ComponentEventName =
     | 'recentPage'
@@ -12,7 +12,7 @@ export type ComponentEventName =
     | 'networkDriveDetailPage';
 
 export interface ComponentBindingContext {
-    app: RendererAppContext;
+    app: ComponentBindingAppHost;
     components: ComponentMap;
     ui: AppUIFacade;
     notify(data: ComponentNotificationPayload): void;
@@ -39,7 +39,7 @@ export interface ComponentNotificationPayload {
 }
 
 export function notifyComponentEvent(
-    app: RendererAppContext,
+    app: ComponentBindingAppHost,
     data: ComponentNotificationPayload
 ): void {
     switch (data.type) {

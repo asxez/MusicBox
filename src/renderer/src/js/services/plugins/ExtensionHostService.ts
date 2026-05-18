@@ -2,7 +2,7 @@ import {cacheManager} from "@services/CacheManager";
 import {libraryController} from "@js/features/library";
 import {playbackController} from "@js/features/playback";
 import type {Track as ApiTrack} from "@api/types/track";
-import type {RendererAppContext} from "@js/app/runtime/AppRuntimeTypes";
+import type {ExtensionHostApp} from "@js/app/runtime/AppRuntimeTypes";
 import type {
     Album as ExtensionAlbum,
     Artist as ExtensionArtist,
@@ -22,9 +22,9 @@ type HostTrack = ApiTrack & ExtensionTrack & {
 };
 
 class ExtensionHostService {
-    private app: RendererAppContext | null = null;
+    private app: ExtensionHostApp | null = null;
 
-    bindApp(app: RendererAppContext): void {
+    bindApp(app: ExtensionHostApp): void {
         this.app = app;
     }
 
@@ -169,7 +169,7 @@ class ExtensionHostService {
         };
     }
 
-    private requireApp(): RendererAppContext {
+    private requireApp(): ExtensionHostApp {
         if (!this.app) {
             throw new Error('插件宿主服务尚未绑定 App 上下文');
         }

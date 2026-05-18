@@ -2,14 +2,14 @@ import {ExtensionService} from "@extensions/core/ExtensionService";
 import {InstantiationService, ServiceCollection} from "@extensions/core/Instantiation";
 import {ActivationEvents} from "@extensions/core/ExtensionsRegistry";
 import {pluginManagerService} from "@services/plugins/PluginManagerService";
-import type {RendererAppContext} from './AppRuntimeTypes';
+import type {AppEventEmitterPort, PluginBootstrapHost} from './AppRuntimeTypes';
 
 interface PluginBootstrapOptions {
-    app: RendererAppContext;
+    app: PluginBootstrapHost & AppEventEmitterPort;
 }
 
 export class PluginBootstrap {
-    private readonly app: RendererAppContext;
+    private readonly app: PluginBootstrapHost & AppEventEmitterPort;
 
     constructor({app}: PluginBootstrapOptions) {
         this.app = app;

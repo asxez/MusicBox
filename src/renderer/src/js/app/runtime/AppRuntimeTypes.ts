@@ -91,32 +91,136 @@ export interface ConfirmOptions {
     cancelText?: string;
 }
 
-export interface RendererAppContext {
+export interface AppComponentPort {
     components: ComponentMap;
-    currentView: AppView;
+}
+
+export interface AppInitializationPort {
     isInitialized: boolean;
+}
+
+export interface AppViewStatePort {
+    currentView: AppView;
+}
+
+export interface AppLibraryStatePort {
     library: Track[];
     filteredLibrary: Track[];
+}
+
+export interface AppCoverPreloadPort {
     coversPreloadedByApp?: boolean;
+}
+
+export interface AppEventEmitterPort {
     on(event: string, handler: (...args: any[]) => void): void;
     off(event: string, handler: (...args: any[]) => void): void;
     emit(event: string, ...args: any[]): void;
     removeAllListeners(event?: string): void;
+}
+
+export interface AppDOMEventPort {
     addManagedEventListener(
         element: EventTarget,
         event: string,
         handler: EventListenerOrEventListenerObject,
         options?: boolean | AddEventListenerOptions
     ): void;
+}
+
+export interface AppAPIEventPort {
     addManagedAPIEventListener<K extends keyof MusicBoxAPIEvents>(
         event: K,
         handler: (payload: MusicBoxAPIEvents[K]) => void | Promise<void>
     ): void;
+}
+
+export interface AppNotificationPort {
+    showSuccess(message: string): void;
+    showError(message: string): void;
+    showInfo(message: string): void;
+}
+
+export interface AppConfirmationPort {
+    confirm(options: ConfirmOptions): Promise<boolean>;
+}
+
+export interface APIEventBindingHost {
+    refreshLibrary(): Promise<void>;
+    updateLibraryTrackDuration(filePath: string, duration: number): void;
+    updateScanProgress(progress: ScanProgress): void;
+}
+
+export interface DOMEventBindingHost extends AppDOMEventPort {
     cleanup(): Promise<void>;
     initKeyboardShortcuts(): void;
     initGlobalShortcuts(): Promise<void>;
     showCreatePlaylistDialog(): void;
     setupFileLoading(): void;
+}
+
+export interface ViewRouterHost extends AppViewStatePort {
+    updateTrackList(source?: string): void;
+}
+
+export interface PluginBootstrapHost extends AppComponentPort, AppInitializationPort {}
+
+export interface AppInteractionHost extends AppComponentPort, AppNotificationPort, AppConfirmationPort {
+    handleViewChange(view: AppView): Promise<void>;
+    addMusicFiles(): Promise<void>;
+}
+
+export interface ExtensionHostApp extends AppComponentPort, AppEventEmitterPort, AppViewStatePort, AppLibraryStatePort {
+    handleDeleteTrack(track: Track, index: number): Promise<void>;
+    loadAndPlayFile?(filePath: string): Promise<void>;
+}
+
+export interface ComponentBindingAppHost
+    extends AppInitializationPort,
+        AppNotificationPort {
+    initializeComponent(componentName: string): void;
+    destroyComponent(componentName: string): void;
+    preloadTrackCovers(): Promise<void>;
+    handleSearchResults(results: Track[]): void;
+    handleSearchCleared(): void;
+    handleViewChange(view: AppView): Promise<void>;
+    handlePlaylistSelected(playlist: Playlist): Promise<void>;
+    handleNetworkDriveSelected(drive: unknown): Promise<void>;
+    handleDriveRemoved(drive?: unknown): Promise<void>;
+    handleTrackPlayed(track: Track, index: number): Promise<void>;
+    handlePlayAllTracks(tracks: Track[]): Promise<void>;
+    handleTrackIndexChanged(index: number): void;
+    handlePlaylistTrackSelected(track: Track, index: number): void;
+    handlePlaylistTrackPlayed(track: Track, index: number): Promise<void>;
+    handlePlaylistTrackRemoved(track: Track, index: number): Promise<void>;
+    handlePlaylistCleared(): Promise<void>;
+    addToPlaylist(track: Track): void;
+    handleAddToCustomPlaylist(track: Track, index: number): Promise<void>;
+    handleDeleteTrack(track: Track, index: number): Promise<void>;
+    handleBatchDelete(selectedTracks: Set<number> | null | undefined, track: Track, index: number): Promise<void>;
+    handleEditTrackInfo(track: Track, index: number): Promise<void>;
+    handlePlaylistCreated(playlist?: Playlist): Promise<void>;
+    handleTrackAddedToPlaylist(playlist?: Playlist, track?: Track): Promise<void>;
+    handlePlaylistRenamed(playlist?: Playlist): Promise<void>;
+    handleTracksAddedToPlaylist(data?: unknown): Promise<void>;
+    handleTrackInfoUpdated(data: unknown): Promise<void>;
+    playTrackFromPlaylist(track: Track, index: number): Promise<void>;
+    handlePlaylistUpdated(playlist?: Playlist): Promise<void>;
+    handleShowAddSongsDialog(playlist: Playlist): Promise<void>;
+    handlePlaylistCoverUpdated(playlist: Playlist): Promise<void>;
+}
+
+export interface RendererAppContext
+    extends AppComponentPort,
+        AppInitializationPort,
+        AppViewStatePort,
+        AppLibraryStatePort,
+        AppCoverPreloadPort,
+        AppEventEmitterPort,
+        AppDOMEventPort,
+        AppAPIEventPort,
+        AppNotificationPort,
+        AppConfirmationPort {
     initializeComponent(componentName: string): void;
     destroyComponent(componentName: string): void;
     loadInitialData?(): Promise<void>;
@@ -157,11 +261,7 @@ export interface RendererAppContext {
     showCacheLoadingStatus(): void;
     hideCacheLoadingStatus(): void;
     showWelcomeScreen(): void;
-    showSuccess(message: string): void;
-    showError(message: string): void;
     showFatalError?(message: string): void;
-    showInfo(message: string): void;
-    confirm(options: ConfirmOptions): Promise<boolean>;
     syncDesktopLyricsButtonState(): Promise<void>;
     hideAllPages(): void;
     updateSidebarSelection(type: string, id?: string | null): void;

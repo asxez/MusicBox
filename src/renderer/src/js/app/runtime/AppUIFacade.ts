@@ -1,12 +1,12 @@
 import type {PlayMode} from '@api/types/playback';
 import type {Playlist} from '@api/types/playlist';
 import type {Track} from '@api/types/track';
-import type {ConfirmOptions, PlayerLike, RendererAppContext} from './AppRuntimeTypes';
+import type {AppComponentPort, ConfirmOptions, PlayerLike} from './AppRuntimeTypes';
 
 type TrackPredicate = (track: Track, index: number) => boolean;
 
 export class AppUIFacade {
-    constructor(private readonly app: RendererAppContext) {}
+    constructor(private readonly app: AppComponentPort) {}
 
     hasQueue(): boolean {
         return Boolean(this.app.components.playlist);

@@ -1,17 +1,9 @@
 import {showToast} from '@utils/index.js';
 import {libraryController} from "../LibraryController";
+import type {AppDOMEventPort, AppNotificationPort} from "@js/app/runtime/AppRuntimeTypes";
 
-interface FileImportHost {
-    addManagedEventListener(
-        element: EventTarget,
-        event: string,
-        handler: EventListenerOrEventListenerObject,
-        options?: boolean | AddEventListenerOptions
-    ): void;
+interface FileImportHost extends AppDOMEventPort, AppNotificationPort {
     showScanProgress(): void;
-    showSuccess(message: string): void;
-    showError(message: string): void;
-    showInfo(message: string): void;
 }
 
 interface FileImportIntegrations {

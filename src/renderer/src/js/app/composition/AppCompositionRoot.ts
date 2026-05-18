@@ -10,10 +10,21 @@ import {PluginBootstrap} from '@js/app/runtime/PluginBootstrap';
 import {ShortcutController} from '@js/app/runtime/ShortcutController';
 import {ViewRouter} from '@js/app/runtime/ViewRouter';
 import type {
+    AppAPIEventPort,
+    AppComponentPort,
+    AppConfirmationPort,
+    AppCoverPreloadPort,
+    AppDOMEventPort,
+    AppEventEmitterPort,
+    AppInitializationPort,
+    AppLibraryStatePort,
+    AppNotificationPort,
+    AppViewStatePort,
+    ComponentBindingAppHost,
     ComponentMap,
     ManagedAPIListener,
     ManagedDOMListener,
-    RendererAppContext
+    ViewRouterHost
 } from '@js/app/runtime/AppRuntimeTypes';
 import {AppLifecycleController} from '@js/app/lifecycle';
 import {AppShellView} from '@js/app/shell';
@@ -39,18 +50,44 @@ interface AppCompositionRootOptions {
     apiEventListeners: ManagedAPIListener[];
 }
 
-interface MusicBoxAppHost extends RendererAppContext {
+interface MusicBoxAppHost
+    extends AppAPIEventPort,
+        AppComponentPort,
+        AppConfirmationPort,
+        AppCoverPreloadPort,
+        AppDOMEventPort,
+        AppEventEmitterPort,
+        AppInitializationPort,
+        AppLibraryStatePort,
+        AppNotificationPort,
+        AppViewStatePort,
+        ComponentBindingAppHost,
+        ViewRouterHost {
     addMusicFiles(): Promise<void>;
     clearRuntimeData(): void;
+    cleanup(): Promise<void>;
+    hideAllPages(): void;
     handleViewChange(view: string): Promise<void>;
+    hideCacheLoadingStatus(): void;
     initializeComponents(): void;
+    initGlobalShortcuts(): Promise<void>;
+    initKeyboardShortcuts(): void;
+    loadAndPlayFile?(filePath: string): Promise<void>;
     loadInitialData(): Promise<void>;
+    openDirectoryDialog(): Promise<void>;
     scanMusicFolder(): Promise<void>;
     schedulePluginSystemInitialization(): void;
     setupComponentEvents(componentName?: string | null): void;
     setupEventListeners(): Promise<void>;
+    setupFileLoading(): void;
     showApp(): void;
+    showCacheLoadingStatus(): void;
+    showCreatePlaylistDialog(): void;
     showFatalError(message: string): void;
+    showScanProgress(): void;
+    showWelcomeScreen(): void;
+    syncDesktopLyricsButtonState(): Promise<void>;
+    updateSidebarSelection(type: string, id?: string | null): void;
 }
 
 export interface AppComposition {
@@ -79,20 +116,21 @@ export function createAppComposition({
     eventListeners,
     apiEventListeners
 }: AppCompositionRootOptions): AppComposition {
-    const ui = new AppUIFacade(app);
+    const componentPort: AppComponentPort = {components};
+    const ui = new AppUIFacade(componentPort);
     const componentRegistry = new ComponentRegistry({
         components,
         setupComponentEvents: (componentName: string) => app.setupComponentEvents(componentName)
     });
     const domEventBinder = new DOMEventBinder({eventListeners});
-    const apiEventBinder = new APIEventBinder({apiEventListeners});
+    const apiEventBinder = new APIEventBinder({apiEventListeners, components: componentPort});
     const shellView = new AppShellView({
         onScanMusicFolder: () => app.scanMusicFolder(),
         onAddMusicFiles: () => app.addMusicFiles(),
         onShowHomePage: () => app.handleViewChange('home-page')
     });
-    const componentEventBinder = new ComponentEventBinder({app});
-    const viewRouter = new ViewRouter({app});
+    const componentEventBinder = new ComponentEventBinder({app, components: componentPort});
+    const viewRouter = new ViewRouter({app, components: componentPort});
     const notifier = new AppNotifier(shellView);
     const desktopLyricsButtonSync = new DesktopLyricsButtonSync(ui);
 

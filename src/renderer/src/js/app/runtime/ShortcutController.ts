@@ -1,7 +1,7 @@
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import type {Track} from "@api/types/track";
-import type {PlayerLike} from './AppRuntimeTypes';
+import type {AppDOMEventPort, PlayerLike} from './AppRuntimeTypes';
 
 interface ShortcutControllerOptions {
     app: ShortcutHost;
@@ -18,13 +18,7 @@ interface ShortcutDefinition {
 
 type ShortcutMap = Record<string, ShortcutDefinition>;
 
-interface ShortcutHost {
-    addManagedEventListener(
-        element: EventTarget,
-        event: string,
-        handler: EventListenerOrEventListenerObject,
-        options?: boolean | AddEventListenerOptions
-    ): void;
+interface ShortcutHost extends AppDOMEventPort {
     openDirectoryDialog(): Promise<void>;
     addMusicFiles(): Promise<void>;
 }

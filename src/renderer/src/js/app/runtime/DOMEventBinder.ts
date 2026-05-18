@@ -1,5 +1,5 @@
 import {appShellController} from "@js/features/appShell";
-import type {ManagedDOMListener, RendererAppContext} from './AppRuntimeTypes';
+import type {DOMEventBindingHost, ManagedDOMListener} from './AppRuntimeTypes';
 
 interface DOMEventBinderOptions {
     eventListeners: ManagedDOMListener[];
@@ -35,7 +35,7 @@ export class DOMEventBinder {
         this.eventListeners.length = 0;
     }
 
-    async bindAppEvents(app: RendererAppContext): Promise<void> {
+    async bindAppEvents(app: DOMEventBindingHost): Promise<void> {
         this.addManagedEventListener(window, 'beforeunload', async () => {
             await app.cleanup();
         });

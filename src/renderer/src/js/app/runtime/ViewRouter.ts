@@ -1,17 +1,18 @@
-import type {AppView, RendererAppContext} from './AppRuntimeTypes';
+import type {AppComponentPort, AppView, ViewRouterHost} from './AppRuntimeTypes';
 import {AppUIFacade} from './AppUIFacade';
 
 interface ViewRouterOptions {
-    app: RendererAppContext;
+    app: ViewRouterHost;
+    components: AppComponentPort;
 }
 
 export class ViewRouter {
-    private readonly app: RendererAppContext;
+    private readonly app: ViewRouterHost;
     private readonly ui: AppUIFacade;
 
-    constructor({app}: ViewRouterOptions) {
+    constructor({app, components}: ViewRouterOptions) {
         this.app = app;
-        this.ui = new AppUIFacade(app);
+        this.ui = new AppUIFacade(components);
     }
 
     async handleViewChange(view: AppView): Promise<void> {
