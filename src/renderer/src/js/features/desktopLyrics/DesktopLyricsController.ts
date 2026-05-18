@@ -5,6 +5,10 @@ import {desktopLyricsService} from './service';
 import type {DesktopLyricsToggleResult} from './service';
 
 class DesktopLyricsController {
+    configure(...args: Parameters<typeof desktopLyricsService.configure>): void {
+        desktopLyricsService.configure(...args);
+    }
+
     async toggle(): Promise<DesktopLyricsToggleResult> {
         return await desktopLyricsService.toggle();
     }

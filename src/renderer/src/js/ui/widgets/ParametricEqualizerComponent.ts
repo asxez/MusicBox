@@ -3,7 +3,7 @@
  */
 
 import {equalizerController} from "@js/features/equalizer";
-import type {AudioEngineManagerBridge} from "@js/features/playback/service/AudioEngineAdapter";
+import type {AudioEngineManagerBridge} from "@js/features/equalizer/service";
 import {Component} from "@ui/base/Component";
 import {showInputDialog} from "@js/utils/InputDialog";
 import {appInteractionService} from "@services/ui/AppInteractionService";

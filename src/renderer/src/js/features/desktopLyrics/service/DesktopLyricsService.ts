@@ -1,7 +1,7 @@
 import type {Result} from '@api/types/common';
 import type {LyricLine} from '@api/types/lyrics';
 import type {DesktopLyricsSettings, MusicBoxSettings} from '@api/types/settings';
-import {playbackController} from '@js/features/playback';
+import type {Track} from '@api/types/track';
 import {DesktopLyricsSync} from './DesktopLyricsSync';
 
 export type DesktopLyricsToggleResult = {
@@ -10,13 +10,31 @@ export type DesktopLyricsToggleResult = {
     error?: string;
 };
 
+export type DesktopLyricsPlaybackSnapshot = {
+    currentTrack: Track | null;
+    isPlaying: boolean;
+    position: number;
+};
+
+interface DesktopLyricsServiceDependencies {
+    getPlaybackSnapshot(): DesktopLyricsPlaybackSnapshot;
+}
+
 export class DesktopLyricsService {
     private readonly sync: DesktopLyricsSync;
+    private dependencies: DesktopLyricsServiceDependencies;
 
     constructor() {
+        this.dependencies = {
+            getPlaybackSnapshot: () => ({
+                currentTrack: null,
+                isPlaying: false,
+                position: 0
+            })
+        };
         this.sync = new DesktopLyricsSync({
             getCurrentState: () => {
-                const snapshot = playbackController.getPlaybackSnapshot();
+                const snapshot = this.dependencies.getPlaybackSnapshot();
                 return {
                     currentTrack: snapshot.currentTrack,
                     isPlaying: snapshot.isPlaying,
@@ -24,6 +42,10 @@ export class DesktopLyricsService {
                 };
             }
         });
+    }
+
+    configure(dependencies: DesktopLyricsServiceDependencies): void {
+        this.dependencies = dependencies;
     }
 
     async toggle(): Promise<DesktopLyricsToggleResult> {

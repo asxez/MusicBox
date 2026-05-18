@@ -197,4 +197,20 @@ export class ComponentRegistry {
                 console.warn('🎵 App: 未知的组件名称:', componentName);
         }
     }
+
+    destroyAllComponents(): void {
+        Object.values(this.components).forEach(component => {
+            if (component && typeof component.destroy === 'function') {
+                try {
+                    component.destroy();
+                } catch (error) {
+                    console.warn('Failed to destroy component:', error);
+                }
+            }
+        });
+
+        Object.keys(this.components).forEach((key: string) => {
+            delete this.components[key];
+        });
+    }
 }

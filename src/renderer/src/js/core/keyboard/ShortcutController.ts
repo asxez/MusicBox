@@ -1,11 +1,12 @@
-import {playbackController} from "@js/features/playback";
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
-import type {PlayerLike, RendererAppContext} from '@core/types/app';
-import {AppUIFacade} from '@core/ui/AppUIFacade';
+import type {Track} from "@api/types/track";
+import type {PlayerLike} from '@core/types/app';
 
 interface ShortcutControllerOptions {
-    app: RendererAppContext;
+    app: ShortcutHost;
+    integrations: ShortcutIntegrations;
+    ui: ShortcutUI;
 }
 
 interface ShortcutDefinition {
@@ -17,13 +18,44 @@ interface ShortcutDefinition {
 
 type ShortcutMap = Record<string, ShortcutDefinition>;
 
-export class ShortcutController {
-    private readonly app: RendererAppContext;
-    private readonly ui: AppUIFacade;
+interface ShortcutHost {
+    addManagedEventListener(
+        element: EventTarget,
+        event: string,
+        handler: EventListenerOrEventListenerObject,
+        options?: boolean | AddEventListenerOptions
+    ): void;
+    openDirectoryDialog(): Promise<void>;
+    addMusicFiles(): Promise<void>;
+}
 
-    constructor({app}: ShortcutControllerOptions) {
+interface ShortcutUI {
+    getActivePlayer(): PlayerLike | null;
+    focusSearchInput(): void;
+    toggleLyricsPanel(track: Track | null): Promise<void>;
+    exitLyricsPanel(): void;
+    toggleLyricsFullscreen(): void;
+}
+
+interface ShortcutIntegrations {
+    toggleCurrentPlayback(): Promise<boolean>;
+    previousTrack(): Promise<boolean>;
+    nextTrack(): Promise<boolean>;
+    adjustVolume(delta: number): Promise<boolean>;
+    seekForward(seconds: number): Promise<boolean>;
+    seekBackward(seconds: number): Promise<boolean>;
+    getCurrentTrackSnapshot(): Track | null;
+}
+
+export class ShortcutController {
+    private readonly app: ShortcutHost;
+    private readonly integrations: ShortcutIntegrations;
+    private readonly ui: ShortcutUI;
+
+    constructor({app, integrations, ui}: ShortcutControllerOptions) {
         this.app = app;
-        this.ui = new AppUIFacade(app);
+        this.integrations = integrations;
+        this.ui = ui;
     }
 
     initKeyboardShortcuts(): void {
@@ -124,25 +156,25 @@ export class ShortcutController {
     async executeShortcutAction(shortcutId: string): Promise<void> {
         switch (shortcutId) {
             case 'playPause': {
-                await playbackController.toggleCurrentPlayback();
+                await this.integrations.toggleCurrentPlayback();
                 break;
             }
 
             case 'previousTrack':
-                await playbackController.previousTrack();
+                await this.integrations.previousTrack();
                 break;
 
             case 'nextTrack':
-                await playbackController.nextTrack();
+                await this.integrations.nextTrack();
                 break;
 
             case 'volumeUp': {
-                await playbackController.adjustVolume(0.01);
+                await this.integrations.adjustVolume(0.01);
                 break;
             }
 
             case 'volumeDown': {
-                await playbackController.adjustVolume(-0.01);
+                await this.integrations.adjustVolume(-0.01);
                 break;
             }
 
@@ -151,15 +183,15 @@ export class ShortcutController {
                 break;
 
             case 'seekForward':
-                await playbackController.seekForward(3);
+                await this.integrations.seekForward(3);
                 break;
 
             case 'seekBackward':
-                await playbackController.seekBackward(3);
+                await this.integrations.seekBackward(3);
                 break;
 
             case 'toggleLyrics':
-                await this.ui.toggleLyricsPanel(playbackController.getCurrentTrackSnapshot());
+                await this.ui.toggleLyricsPanel(this.integrations.getCurrentTrackSnapshot());
                 break;
 
             case 'exitLyrics':

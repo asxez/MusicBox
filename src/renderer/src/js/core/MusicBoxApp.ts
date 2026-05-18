@@ -6,17 +6,25 @@ import {DOMEventBinder} from './events/DOMEventBinder';
 import {APIEventBinder} from './events/APIEventBinder';
 import {ViewRouter} from './navigation/ViewRouter';
 import {ShortcutController} from './keyboard/ShortcutController';
-import {FileImportController} from './files/FileImportController';
 import {PluginBootstrap} from './plugins/PluginBootstrap';
-import {LibraryController} from './library/LibraryController';
-import {PlaybackController} from './playback/PlaybackController';
-import {PlaylistController} from './playlists/PlaylistController';
+import {
+    FileImportController,
+    LibraryAppController,
+    libraryController as libraryFeatureController
+} from '@js/features/library';
+import {PlaylistController} from '@js/features/playlists';
+import {PlaybackAppController} from '@js/features/playback';
 import {AppUIFacade} from './ui/AppUIFacade';
 
 import {cacheManager} from "@services/CacheManager";
 import {extensionHostService} from "@services/plugins/ExtensionHostService";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import {appShellController} from "@js/features/appShell";
+import {desktopLyricsController} from "@js/features/desktopLyrics";
+import {equalizerController} from "@js/features/equalizer";
+import type {AudioEngineManagerBridge} from "@js/features/equalizer/service";
+import {mediaController} from "@js/features/media";
+import {playbackService} from "@js/features/playback/service";
 import {playbackController as playbackFeatureController} from "@js/features/playback";
 import type {MusicBoxAPIEvents, ScanProgress} from "@api/types/events";
 import type {Playlist} from "@api/types/playlist";
@@ -58,8 +66,8 @@ export class MusicBoxApp extends EventEmitter {
     private readonly shortcutController: ShortcutController;
     private readonly fileImportController: FileImportController;
     private readonly pluginBootstrap: PluginBootstrap;
-    private readonly libraryController: LibraryController;
-    private readonly playbackController: PlaybackController;
+    private readonly libraryController: LibraryAppController;
+    private readonly playbackController: PlaybackAppController;
     private readonly playlistController: PlaylistController;
     private readonly ui: AppUIFacade;
 
@@ -84,12 +92,61 @@ export class MusicBoxApp extends EventEmitter {
         this.apiEventBinder = new APIEventBinder({apiEventListeners: this.apiEventListeners});
         this.componentEventBinder = new ComponentEventBinder({app: this});
         this.viewRouter = new ViewRouter({app: this});
-        this.shortcutController = new ShortcutController({app: this});
-        this.fileImportController = new FileImportController({app: this});
+        this.shortcutController = new ShortcutController({
+            app: this,
+            integrations: {
+                toggleCurrentPlayback: () => playbackFeatureController.toggleCurrentPlayback(),
+                previousTrack: () => playbackFeatureController.previousTrack(),
+                nextTrack: () => playbackFeatureController.nextTrack(),
+                adjustVolume: (delta) => playbackFeatureController.adjustVolume(delta),
+                seekForward: (seconds) => playbackFeatureController.seekForward(seconds),
+                seekBackward: (seconds) => playbackFeatureController.seekBackward(seconds),
+                getCurrentTrackSnapshot: () => playbackFeatureController.getCurrentTrackSnapshot()
+            },
+            ui: this.ui
+        });
+        this.fileImportController = new FileImportController({
+            app: this,
+            integrations: {
+                openDirectory: () => mediaController.openDirectory(),
+                openDirectoryDialog: () => mediaController.openDirectoryDialog(),
+                openFiles: () => mediaController.openFiles(),
+                loadTrack: (filePath) => playbackFeatureController.loadTrack(filePath),
+                play: () => playbackFeatureController.play()
+            }
+        });
         this.pluginBootstrap = new PluginBootstrap({app: this});
-        this.libraryController = new LibraryController({app: this});
-        this.playbackController = new PlaybackController({app: this});
-        this.playlistController = new PlaylistController({app: this});
+        this.libraryController = new LibraryAppController({
+            app: this,
+            integrations: {
+                getCurrentPlaybackTrack: () => playbackFeatureController.getCurrentTrackSnapshot()
+            },
+            ui: this.ui
+        });
+        this.playbackController = new PlaybackAppController({
+            app: this,
+            integrations: {
+                getLibraryTracks: () => libraryFeatureController.getTracks()
+            },
+            ui: this.ui
+        });
+        this.playlistController = new PlaylistController({
+            app: this,
+            playback: {
+                setPlaylist: (tracks, startIndex) => playbackFeatureController.setPlaylist(tracks, startIndex),
+                getCurrentIndex: () => playbackFeatureController.getCurrentIndex(),
+                pause: () => playbackFeatureController.pause()
+            },
+            ui: this.ui
+        });
+        desktopLyricsController.configure({
+            getPlaybackSnapshot: () => playbackFeatureController.getPlaybackSnapshot()
+        });
+        equalizerController.configure({
+            getEqualizer: <T = unknown>() => playbackService.getEqualizer<T>(),
+            setEqualizerEnabled: (enabled) => playbackService.setEqualizerEnabled(enabled),
+            getAudioEngine: <T extends AudioEngineManagerBridge>() => playbackService.getAudioEngine() as T | null
+        });
         appInteractionService.bindApp(this);
         extensionHostService.bindApp(this);
 
@@ -506,21 +563,7 @@ export class MusicBoxApp extends EventEmitter {
         this.domEventBinder.dispose();
         this.apiEventBinder.dispose();
 
-        // 销毁组件
-        Object.values(this.components).forEach(component => {
-            if (component && typeof component.destroy === 'function') {
-                try {
-                    component.destroy();
-                } catch (error) {
-                    console.warn('Failed to destroy component:', error);
-                }
-            }
-        });
-
-        // 清理组件引用，保持 registry/binder 持有同一个 components 对象
-        Object.keys(this.components).forEach((key: string) => {
-            delete this.components[key];
-        });
+        this.componentRegistry.destroyAllComponents();
 
         // 清理数据
         this.library = [];

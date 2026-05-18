@@ -1,0 +1,1 @@
+export {bindPlaylistComponentEvents} from './PlaylistComponentBindings';

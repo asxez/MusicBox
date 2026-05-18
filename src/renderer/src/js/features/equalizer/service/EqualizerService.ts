@@ -1,17 +1,36 @@
-import {playbackService} from '@js/features/playback/service';
-import type {AudioEngineManagerBridge} from '@js/features/playback/service/AudioEngineAdapter';
+import type {AudioEngineManagerBridge} from './EqualizerTypes';
+
+interface EqualizerServiceDependencies {
+    getEqualizer<T = unknown>(): T | null;
+    setEqualizerEnabled(enabled: boolean): void;
+    getAudioEngine<T extends AudioEngineManagerBridge = AudioEngineManagerBridge>(): T | null;
+}
 
 export class EqualizerService {
+    private dependencies: EqualizerServiceDependencies;
+
+    constructor() {
+        this.dependencies = {
+            getEqualizer: () => null,
+            setEqualizerEnabled: () => undefined,
+            getAudioEngine: () => null
+        };
+    }
+
+    configure(dependencies: EqualizerServiceDependencies): void {
+        this.dependencies = dependencies;
+    }
+
     getEqualizer<T = unknown>(): T | null {
-        return playbackService.getEqualizer<T>();
+        return this.dependencies.getEqualizer<T>();
     }
 
     setEqualizerEnabled(enabled: boolean): void {
-        playbackService.setEqualizerEnabled(enabled);
+        this.dependencies.setEqualizerEnabled(enabled);
     }
 
     getAudioEngine<T extends AudioEngineManagerBridge = AudioEngineManagerBridge>(): T | null {
-        return playbackService.getAudioEngine<T>();
+        return this.dependencies.getAudioEngine<T>();
     }
 }
 
