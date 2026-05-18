@@ -6,7 +6,7 @@
 import {Validator} from '@extensions/api/common/validation';
 import {ErrorUtils} from '@extensions/api/common/errors';
 import {IDisposable, toDisposable} from '@extensions/core/Lifecycle';
-import {extensionHostService} from "@services/plugins/ExtensionHostService";
+import {extensionHostService} from "@js/features/extensions/service";
 import {ExtensionContext} from "@extensions/core";
 import {EventCallback, EventsAPI} from "@extensions/api/types/events";
 

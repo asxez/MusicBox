@@ -5,7 +5,7 @@
 
 import {Validator} from '@extensions/api/common/validation';
 import {ErrorUtils, NotAvailableError} from '@extensions/api/common/errors';
-import {extensionHostService} from "@services/plugins/ExtensionHostService";
+import {extensionHostService} from "@js/features/extensions/service";
 import {ExtensionContext} from "@extensions/core";
 import {Album, Artist, LibraryAPI, Playlist} from "@extensions/api/types/library";
 import {Track} from "@extensions/api/types/player";

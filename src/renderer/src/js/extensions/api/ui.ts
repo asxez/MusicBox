@@ -7,7 +7,7 @@ import {Validator} from '@extensions/api/common/validation';
 import {ErrorUtils} from '@extensions/api/common/errors';
 import {IDisposable, toDisposable} from '@extensions/core/Lifecycle';
 import {onDOMReady, showToast, theme} from '@js/utils';
-import {appInteractionService} from "@services/ui/AppInteractionService";
+import {appInteractionService} from "@js/features/appShell/service";
 import {settingsExtensionNavigationService} from "@services/settings/SettingsExtensionNavigationService";
 import {ExtensionContext} from "@extensions/core";
 import {

@@ -1,4 +1,5 @@
 export {AppShellService, appShellService} from './AppShellService';
+export {AppInteractionService, appInteractionService} from './AppInteractionService';
 export type {
     FolderSelectionResult,
     HardwareAccelerationSettingsResult,
@@ -13,3 +14,4 @@ export type {
     TraySettings,
     WindowBoundsResult
 } from './AppShellService';
+export type {AppInteractionHost} from './AppInteractionService';

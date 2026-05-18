@@ -6,7 +6,7 @@ import {theme} from "@js/utils";
 import {cacheManager} from "@services/CacheManager";
 import {Component} from "@ui/base/Component";
 import {navigationDataService} from "@services/navigation/NavigationDataService";
-import {appInteractionService} from "@services/ui/AppInteractionService";
+import {appInteractionService} from "@js/features/appShell/service";
 import type {Playlist} from "@api/types/playlist";
 import type {AppView, ConfirmOptions} from "@js/shared/types/AppContracts";
 import type {Unsubscribe} from "@api/types/common";

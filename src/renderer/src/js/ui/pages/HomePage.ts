@@ -7,7 +7,7 @@ import {libraryController} from "@js/features/library";
 import {mediaController} from "@js/features/media";
 import {playbackController} from "@js/features/playback";
 import {userDataController} from "@js/features/userData";
-import {appInteractionService} from "@services/ui/AppInteractionService";
+import {appInteractionService} from "@js/features/appShell/service";
 import type {Track} from "@api/types/library";
 
 type BreathingPhase = 'inhale' | 'hold' | 'exhale';

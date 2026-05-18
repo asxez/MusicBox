@@ -59,6 +59,18 @@ export interface MusicBoxPluginHost {
 }
 
 /**
+ * Detail payload for the appReady DOM event emitted after extension startup.
+ * Prefer pluginHost/host; app and components are legacy compatibility fields.
+ */
+export interface AppReadyEventDetail {
+    pluginHost: MusicBoxPluginHost;
+    host: MusicBoxPluginHost;
+    app: MusicBoxApp;
+    components?: MusicBoxApp['components'];
+    isInitialized: boolean;
+}
+
+/**
  * MusicBoxAPI 类型定义 - 播放器 API
  */
 export interface MusicBoxAPI {

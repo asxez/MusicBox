@@ -5,7 +5,7 @@
 
 import {validate} from '@extensions/api/common/validation';
 import {ErrorUtils, NotAvailableError} from '@extensions/api/common/errors';
-import {extensionHostService} from "@services/plugins/ExtensionHostService";
+import {extensionHostService} from "@js/features/extensions/service";
 import {ExtensionContext} from "@extensions/core";
 import {NavigationAPI} from "@extensions/api/types/navigation";
 

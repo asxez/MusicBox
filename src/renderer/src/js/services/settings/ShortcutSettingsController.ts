@@ -1,5 +1,5 @@
 import {showToast} from "@utils/index.js";
-import {appInteractionService} from "@services/ui/AppInteractionService";
+import {appInteractionService} from "@js/features/appShell/service";
 import {shortcutDialogService} from "@services/settings/ShortcutDialogService";
 import {shortcutListRenderer} from "@services/settings/ShortcutListRenderer";
 import {

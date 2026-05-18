@@ -46,8 +46,8 @@ import {playbackService} from '@js/features/playback/service';
 import {desktopLyricsController} from '@js/features/desktopLyrics';
 import {equalizerController} from '@js/features/equalizer';
 import {mediaController} from '@js/features/media';
-import {extensionHostService} from '@services/plugins/ExtensionHostService';
-import {appInteractionService} from '@services/ui/AppInteractionService';
+import {extensionHostService} from '@js/features/extensions/service';
+import {appInteractionService} from '@js/features/appShell/service';
 import type {AudioEngineManagerBridge} from '@js/features/equalizer/service';
 
 interface AppCompositionRootOptions {

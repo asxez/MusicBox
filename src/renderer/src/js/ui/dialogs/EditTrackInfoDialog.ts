@@ -6,7 +6,7 @@ import {Component} from "@ui/base/Component";
 import {libraryController} from "@js/features/library";
 import {mediaController} from "@js/features/media";
 import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
-import {appInteractionService} from "@services/ui/AppInteractionService";
+import {appInteractionService} from "@js/features/appShell/service";
 import type {Track} from "@api/types/library";
 
 type EditableTrack = Omit<Track, 'cover' | 'year'> & {

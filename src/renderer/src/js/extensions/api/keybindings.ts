@@ -7,7 +7,7 @@ import {extensionsController} from '@js/features/extensions';
 import {Validator} from '@extensions/api/common/validation';
 import {ErrorUtils, NotFoundError} from '@extensions/api/common/errors';
 import {ExtensionContext, IDisposable, toDisposable} from '@extensions/core';
-import {extensionHostService} from "@services/plugins/ExtensionHostService";
+import {extensionHostService} from "@js/features/extensions/service";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import '@extensions/core/types';
 import {

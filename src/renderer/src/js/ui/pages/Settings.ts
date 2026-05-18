@@ -22,7 +22,7 @@ import {hardwareAccelerationSettingsController} from "@services/settings/Hardwar
 import {musicFolderListRenderer} from "@services/settings/MusicFolderListRenderer";
 import {musicFolderSettingsController} from "@services/settings/MusicFolderSettingsController";
 import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
-import {appInteractionService} from "@services/ui/AppInteractionService";
+import {appInteractionService} from "@js/features/appShell/service";
 import {settingsPanelVisibilityService} from "@services/settings/SettingsPanelVisibilityService";
 import {settingsPageVisibilityService} from "@services/settings/SettingsPageVisibilityService";
 import {settingsSectionNavigationService} from "@services/settings/SettingsSectionNavigationService";

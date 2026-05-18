@@ -1,5 +1,7 @@
 export {AppShellController, appShellController} from './AppShellController';
+export {AppInteractionService, appInteractionService} from './service';
 export type {
+    AppInteractionHost,
     FolderSelectionResult,
     HardwareAccelerationSettingsResult,
     MainSettingsPayload,

@@ -7,8 +7,8 @@ import {Component} from "@ui/base/Component";
 import {
     pluginManagerService,
     type PluginExtension
-} from "@services/plugins/PluginManagerService";
-import {appInteractionService} from "@services/ui/AppInteractionService";
+} from "@js/features/extensions/service";
+import {appInteractionService} from "@js/features/appShell/service";
 import type {ConfirmOptions} from "@js/shared/types/AppContracts";
 
 type ToastType = 'info' | 'success' | 'error' | 'warning';

@@ -1,6 +1,6 @@
 import {showToast} from "@utils/index.js";
 import {hardwareAccelerationSettingsService} from "@services/settings/HardwareAccelerationSettingsService";
-import {appInteractionService} from "@services/ui/AppInteractionService";
+import {appInteractionService} from "@js/features/appShell/service";
 
 interface HardwareAccelerationChangeResult {
     checked: boolean;

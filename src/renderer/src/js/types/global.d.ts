@@ -17,6 +17,7 @@ import type {
 } from '@api/types/electron';
 import type {Unsubscribe} from '@api/types/common';
 import type {createExtensionAPI} from '@extensions/api';
+import type {AppReadyEventDetail} from '@extensions/core/types';
 
 interface ElectronSettingsAPI {
     get<T = unknown>(key: string): Promise<T | null>;
@@ -233,6 +234,10 @@ interface ElectronAPI {
 }
 
 declare global {
+    interface DocumentEventMap {
+        appReady: CustomEvent<AppReadyEventDetail>;
+    }
+
     interface Window {
         electronAPI: ElectronAPI;
         createExtensionAPI?: typeof createExtensionAPI;

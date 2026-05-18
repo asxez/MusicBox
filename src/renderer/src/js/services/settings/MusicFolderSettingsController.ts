@@ -1,7 +1,7 @@
 import {showToast} from "@utils/index.js";
 import {cacheMaintenanceService} from "@services/settings/CacheMaintenanceService";
 import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
-import {appInteractionService} from "@services/ui/AppInteractionService";
+import {appInteractionService} from "@js/features/appShell/service";
 
 interface AutoScanToggleResult {
     checked: boolean;

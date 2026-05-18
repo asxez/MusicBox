@@ -12,3 +12,11 @@ export * from './ExtensionPermissions';
 export * from './ExtensionConfiguration';
 export * from './ExtensionDependencies';
 export * from './ExtensionAPIProxy';
+
+export type {
+    AppReadyEventDetail,
+    ExtensionInfo,
+    MusicBoxAPI,
+    MusicBoxApp,
+    MusicBoxPluginHost
+} from './types';

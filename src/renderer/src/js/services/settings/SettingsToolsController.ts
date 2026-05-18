@@ -9,7 +9,7 @@ import {lyricsAppearanceSettingsRenderer} from "@services/settings/LyricsAppeara
 import {lyricsAppearanceSettingsService} from "@services/settings/LyricsAppearanceSettingsService";
 import {mediaDirectorySettingsRenderer} from "@services/settings/MediaDirectorySettingsRenderer";
 import {mediaDirectorySettingsService} from "@services/settings/MediaDirectorySettingsService";
-import {appInteractionService} from "@services/ui/AppInteractionService";
+import {appInteractionService} from "@js/features/appShell/service";
 import type {SettingValue} from "@services/settings/SettingsStore";
 
 export interface SettingsToolsElements {

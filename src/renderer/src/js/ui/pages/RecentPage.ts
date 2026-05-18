@@ -4,7 +4,7 @@
 
 import {cacheManager} from "@services/CacheManager";
 import {localCoverManager} from "@services/cover/LocalCoverManager";
-import {appInteractionService} from "@services/ui/AppInteractionService";
+import {appInteractionService} from "@js/features/appShell/service";
 import {formatTime} from "@utils/index.js";
 import {Component} from "@ui/base/Component";
 import {mediaController} from "@js/features/media";

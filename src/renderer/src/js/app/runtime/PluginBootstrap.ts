@@ -1,23 +1,18 @@
 import {ExtensionService} from "@extensions/core/ExtensionService";
 import {InstantiationService, ServiceCollection} from "@extensions/core/Instantiation";
 import {ActivationEvents} from "@extensions/core/ExtensionsRegistry";
-import {pluginManagerService} from "@services/plugins/PluginManagerService";
+import {pluginManagerService} from "@js/features/extensions/service";
+import type {
+    AppReadyEventDetail,
+    MusicBoxApp as LegacyMusicBoxApp,
+    MusicBoxPluginHost
+} from '@extensions/core/types';
 import type {PluginBootstrapHost} from './AppRuntimePorts';
 import type {ComponentMap} from './components/ComponentTypes';
 
 interface PluginBootstrapOptions {
     app: PluginBootstrapHost;
     legacyComponents?: ComponentMap;
-}
-
-interface PluginReadyHost {
-    readonly isInitialized: boolean;
-    getCurrentView(): string;
-    navigateToView(viewId: string): void;
-    on(event: string, handler: (...args: any[]) => void): void;
-    off(event: string, handler: (...args: any[]) => void): void;
-    emit(event: string, ...args: any[]): void;
-    removeAllListeners(event?: string): void;
 }
 
 export class PluginBootstrap {
@@ -83,15 +78,15 @@ export class PluginBootstrap {
         const pluginHost = this.createPluginReadyHost();
 
         try {
-            document.dispatchEvent(new CustomEvent('appReady', {
-                detail: {
-                    pluginHost,
-                    host: pluginHost,
-                    app,
-                    components: this.legacyComponents,
-                    isInitialized: app.isInitialized
-                }
-            }));
+            const detail: AppReadyEventDetail = {
+                pluginHost,
+                host: pluginHost,
+                app: app as unknown as LegacyMusicBoxApp,
+                components: this.legacyComponents,
+                isInitialized: app.isInitialized
+            };
+
+            document.dispatchEvent(new CustomEvent<AppReadyEventDetail>('appReady', {detail}));
 
             console.log('✅ App: 应用就绪事件已触发');
         } catch (error) {
@@ -99,7 +94,7 @@ export class PluginBootstrap {
         }
     }
 
-    private createPluginReadyHost(): PluginReadyHost {
+    private createPluginReadyHost(): MusicBoxPluginHost {
         const app = this.app;
 
         return {

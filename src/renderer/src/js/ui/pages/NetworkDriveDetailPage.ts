@@ -8,7 +8,7 @@ import {
     type SingleFileScanResult
 } from "@services/networkDrive/NetworkDriveDetailService";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
-import {appInteractionService} from "@services/ui/AppInteractionService";
+import {appInteractionService} from "@js/features/appShell/service";
 import type {Unsubscribe} from "@api/types/common";
 import type {Track} from "@api/types/track";
 import type {ScanProgress} from "@api/types/events";

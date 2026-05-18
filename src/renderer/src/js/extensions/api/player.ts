@@ -6,7 +6,7 @@
 import {validate, Validator} from '@extensions/api/common/validation';
 import {ErrorUtils, NotAvailableError} from '@extensions/api/common/errors';
 import {ExtensionContext, IDisposable, toDisposable} from '@extensions/core';
-import {extensionHostService} from "@services/plugins/ExtensionHostService";
+import {extensionHostService} from "@js/features/extensions/service";
 import {playbackController} from "@js/features/playback";
 import {PlaybackStateType, PlayerAPI, PlayerState, PlayModeType, Track} from "@extensions/api/types/player";
 import type {Track as ApiTrack} from '@api/types/track';

@@ -1,6 +1,6 @@
 import {showToast} from "@utils/index.js";
 import {displayModeSettingsController} from "@services/settings/DisplayModeSettingsController";
-import {appInteractionService} from "@services/ui/AppInteractionService";
+import {appInteractionService} from "@js/features/appShell/service";
 import {settingsPanelVisibilityService} from "@services/settings/SettingsPanelVisibilityService";
 import type {SettingValue} from "@services/settings/SettingsStore";
 

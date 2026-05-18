@@ -3,7 +3,7 @@
  */
 
 import {cacheManager} from "@services/CacheManager";
-import {appInteractionService} from "@services/ui/AppInteractionService";
+import {appInteractionService} from "@js/features/appShell/service";
 import {Component} from "@ui/base/Component";
 import {equalizerController} from "@js/features/equalizer";
 
