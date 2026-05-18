@@ -27,7 +27,7 @@ import {MusicLibrarySelectionDialog} from "@ui/dialogs/MusicLibrarySelectionDial
 import {RenamePlaylistDialog} from "@ui/dialogs/RenamePlaylistDialog";
 
 import {cacheManager} from "@services/CacheManager";
-import type {ComponentMap} from "@js/app/runtime";
+import type {ComponentMap} from "@js/app/runtime/AppRuntimeTypes";
 
 interface ComponentRegistryOptions {
     components: ComponentMap;

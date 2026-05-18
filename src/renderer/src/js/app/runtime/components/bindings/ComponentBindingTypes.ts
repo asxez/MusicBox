@@ -1,6 +1,7 @@
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
-import type {AppUIFacade, ComponentMap, RendererAppContext} from "@js/app/runtime";
+import type {AppUIFacade} from "@js/app/runtime/AppUIFacade";
+import type {ComponentMap, RendererAppContext} from "@js/app/runtime/AppRuntimeTypes";
 
 export type ComponentEventName =
     | 'recentPage'

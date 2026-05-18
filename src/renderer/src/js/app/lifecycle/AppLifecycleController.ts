@@ -1,6 +1,6 @@
 import {appShellController} from '@js/features/appShell';
 import {cacheManager} from '@services/CacheManager';
-import type {AppUIFacade} from '@js/app/runtime';
+import type {AppUIFacade} from '@js/app/runtime/AppUIFacade';
 import type {PlayMode} from '@api/types/playback';
 
 export interface InitResult {
@@ -15,7 +15,7 @@ interface AppLifecycleHost {
     loadInitialData(): Promise<void>;
     showApp(): void;
     schedulePluginSystemInitialization(): void;
-    showError(message: string): void;
+    showFatalError(message: string): void;
     clearRuntimeData(): void;
 }
 
@@ -63,7 +63,7 @@ export class AppLifecycleController {
 
             return {status: true};
         } catch (error) {
-            app.showError('应用初始化失败');
+            app.showFatalError('应用初始化失败');
             return {
                 status: false,
                 error

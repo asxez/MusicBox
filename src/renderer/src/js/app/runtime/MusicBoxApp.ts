@@ -1,10 +1,14 @@
-import {EventEmitter, showToast} from '@utils/index.js';
+import {EventEmitter} from '@utils/index.js';
 
 import {APIEventBinder} from './APIEventBinder';
+import {AppNotifier} from './AppNotifier';
+import {AppRuntimeState} from './AppRuntimeState';
 import {AppUIFacade} from './AppUIFacade';
 import {ComponentEventBinder} from './components/ComponentEventBinder';
 import {ComponentRegistry} from './components/ComponentRegistry';
+import {DesktopLyricsButtonSync} from './DesktopLyricsButtonSync';
 import {DOMEventBinder} from './DOMEventBinder';
+import {NetworkDriveRouteController} from './NetworkDriveRouteController';
 import {PluginBootstrap} from './PluginBootstrap';
 import {ShortcutController} from './ShortcutController';
 import {ViewRouter} from './ViewRouter';
@@ -28,22 +32,10 @@ import type {
     ManagedDOMListener
 } from "./AppRuntimeTypes";
 
-interface NetworkDriveLike {
-    id: string | number;
-    [key: string]: any;
-}
-
 type ShortcutDefinitionMap = Record<string, any>;
 
 export class MusicBoxApp extends EventEmitter {
-    isInitialized: boolean;
-    currentView: AppView;
-    library: Track[];
-    filteredLibrary: Track[];
-    components: ComponentMap;
-    coversPreloadedByApp: boolean;
-    eventListeners: ManagedDOMListener[];
-    apiEventListeners: ManagedAPIListener[];
+    private readonly state: AppRuntimeState;
     private readonly componentRegistry: ComponentRegistry;
     private readonly componentEventBinder: ComponentEventBinder;
     private readonly domEventBinder: DOMEventBinder;
@@ -56,19 +48,15 @@ export class MusicBoxApp extends EventEmitter {
     private readonly playbackController: PlaybackAppController;
     private readonly playlistController: PlaylistController;
     private readonly ui: AppUIFacade;
+    private readonly desktopLyricsButtonSync: DesktopLyricsButtonSync;
     private readonly lifecycleController: AppLifecycleController;
+    private readonly networkDriveRouteController: NetworkDriveRouteController;
+    private readonly notifier: AppNotifier;
     private readonly shellView: AppShellView;
 
     constructor() {
         super();
-        this.isInitialized = false;
-        this.currentView = 'home-page';
-        this.library = [];
-        this.filteredLibrary = [];
-        this.components = {} as ComponentMap;
-        this.coversPreloadedByApp = false; // 防重复标志：封面预加载
-        this.eventListeners = [];
-        this.apiEventListeners = [];
+        this.state = new AppRuntimeState();
 
         const composition = createAppComposition({
             app: this,
@@ -87,13 +75,68 @@ export class MusicBoxApp extends EventEmitter {
         this.fileImportController = composition.fileImportController;
         this.pluginBootstrap = composition.pluginBootstrap;
         this.libraryController = composition.libraryController;
+        this.desktopLyricsButtonSync = composition.desktopLyricsButtonSync;
         this.playbackController = composition.playbackController;
         this.playlistController = composition.playlistController;
+        this.networkDriveRouteController = composition.networkDriveRouteController;
+        this.notifier = composition.notifier;
         this.lifecycleController = composition.lifecycleController;
 
         this.init().then((res: InitResult) => {
             if (!res.status) console.error('Failed to initialize MusicBox:', res.error);
         });
+    }
+
+    get isInitialized(): boolean {
+        return this.state.isInitialized;
+    }
+
+    set isInitialized(value: boolean) {
+        this.state.isInitialized = value;
+    }
+
+    get currentView(): AppView {
+        return this.state.currentView;
+    }
+
+    set currentView(value: AppView) {
+        this.state.currentView = value;
+    }
+
+    get library(): Track[] {
+        return this.state.library;
+    }
+
+    set library(value: Track[]) {
+        this.state.library = value;
+    }
+
+    get filteredLibrary(): Track[] {
+        return this.state.filteredLibrary;
+    }
+
+    set filteredLibrary(value: Track[]) {
+        this.state.filteredLibrary = value;
+    }
+
+    get components(): ComponentMap {
+        return this.state.components;
+    }
+
+    get coversPreloadedByApp(): boolean {
+        return this.state.coversPreloadedByApp;
+    }
+
+    set coversPreloadedByApp(value: boolean) {
+        this.state.coversPreloadedByApp = value;
+    }
+
+    get eventListeners(): ManagedDOMListener[] {
+        return this.state.eventListeners;
+    }
+
+    get apiEventListeners(): ManagedAPIListener[] {
+        return this.state.apiEventListeners;
     }
 
     async init(): Promise<InitResult> {
@@ -169,16 +212,7 @@ export class MusicBoxApp extends EventEmitter {
 
     // 同步桌面歌词按钮状态
     async syncDesktopLyricsButtonState(): Promise<void> {
-        try {
-            const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as Record<string, unknown>;
-            const desktopLyricsEnabled = Object.prototype.hasOwnProperty.call(settings, 'desktopLyrics')
-                ? settings.desktopLyrics
-                : true;
-
-            await this.ui.updateDesktopLyricsButtonVisibility(Boolean(desktopLyricsEnabled));
-        } catch (error) {
-            console.error('❌ App: 同步桌面歌词按钮状态失败:', error);
-        }
+        await this.desktopLyricsButtonSync.syncButtonState();
     }
 
     showCacheLoadingStatus(): void {
@@ -328,17 +362,12 @@ export class MusicBoxApp extends EventEmitter {
 
     // 处理网络磁盘选择
     async handleNetworkDriveSelected(drive: unknown): Promise<void> {
-        const networkDrive = drive as NetworkDriveLike;
-        this.hideAllPages();
-        this.updateSidebarSelection('network-drive', String(networkDrive.id));
-        this.currentView = 'network-drive-detail';
-        await this.ui.showNetworkDriveDetail(networkDrive);
+        await this.networkDriveRouteController.handleNetworkDriveSelected(drive);
     }
 
     // 处理网络磁盘移除
     async handleDriveRemoved(): Promise<void> {
-        await this.ui.loadNetworkDrives();
-        await this.refreshLibrary();
+        await this.networkDriveRouteController.handleDriveRemoved();
     }
 
     // 更新侧边栏选中状态
@@ -380,8 +409,7 @@ export class MusicBoxApp extends EventEmitter {
     }
 
     clearRuntimeData(): void {
-        this.library = [];
-        this.filteredLibrary = [];
+        this.state.clearLibraryData();
     }
 
     // 文件加载方法
@@ -414,16 +442,19 @@ export class MusicBoxApp extends EventEmitter {
     }
 
     showSuccess(message: string): void {
-        showToast(message, 'success');
+        this.notifier.showSuccess(message);
     }
 
     showError(message: string): void {
-        this.shellView.showFatalError(message);
-        showToast(message, 'error');
+        this.notifier.showError(message);
+    }
+
+    showFatalError(message: string): void {
+        this.notifier.showFatalError(message);
     }
 
     showInfo(message: string): void {
-        showToast(message, 'info');
+        this.notifier.showInfo(message);
     }
 
     async confirm(options: ConfirmOptions): Promise<boolean> {

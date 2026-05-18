@@ -1,8 +1,11 @@
 import {APIEventBinder} from '@js/app/runtime/APIEventBinder';
+import {AppNotifier} from '@js/app/runtime/AppNotifier';
 import {AppUIFacade} from '@js/app/runtime/AppUIFacade';
 import {ComponentEventBinder} from '@js/app/runtime/components/ComponentEventBinder';
 import {ComponentRegistry} from '@js/app/runtime/components/ComponentRegistry';
+import {DesktopLyricsButtonSync} from '@js/app/runtime/DesktopLyricsButtonSync';
 import {DOMEventBinder} from '@js/app/runtime/DOMEventBinder';
+import {NetworkDriveRouteController} from '@js/app/runtime/NetworkDriveRouteController';
 import {PluginBootstrap} from '@js/app/runtime/PluginBootstrap';
 import {ShortcutController} from '@js/app/runtime/ShortcutController';
 import {ViewRouter} from '@js/app/runtime/ViewRouter';
@@ -47,16 +50,20 @@ interface MusicBoxAppHost extends RendererAppContext {
     setupComponentEvents(componentName?: string | null): void;
     setupEventListeners(): Promise<void>;
     showApp(): void;
+    showFatalError(message: string): void;
 }
 
 export interface AppComposition {
     apiEventBinder: APIEventBinder;
     componentEventBinder: ComponentEventBinder;
     componentRegistry: ComponentRegistry;
+    desktopLyricsButtonSync: DesktopLyricsButtonSync;
     domEventBinder: DOMEventBinder;
     fileImportController: FileImportController;
     lifecycleController: AppLifecycleController;
     libraryController: LibraryAppController;
+    networkDriveRouteController: NetworkDriveRouteController;
+    notifier: AppNotifier;
     playbackController: PlaybackAppController;
     playlistController: PlaylistController;
     pluginBootstrap: PluginBootstrap;
@@ -86,6 +93,8 @@ export function createAppComposition({
     });
     const componentEventBinder = new ComponentEventBinder({app});
     const viewRouter = new ViewRouter({app});
+    const notifier = new AppNotifier(shellView);
+    const desktopLyricsButtonSync = new DesktopLyricsButtonSync(ui);
 
     const shortcutController = new ShortcutController({
         app,
@@ -139,6 +148,12 @@ export function createAppComposition({
         },
         ui
     });
+    const networkDriveRouteController = new NetworkDriveRouteController({
+        app,
+        library: libraryController,
+        ui,
+        viewRouter
+    });
 
     configureSharedFeatureDependencies();
     appInteractionService.bindApp(app);
@@ -160,10 +175,13 @@ export function createAppComposition({
         apiEventBinder,
         componentEventBinder,
         componentRegistry,
+        desktopLyricsButtonSync,
         domEventBinder,
         fileImportController,
         lifecycleController,
         libraryController,
+        networkDriveRouteController,
+        notifier,
         playbackController: playbackAppController,
         playlistController,
         pluginBootstrap,

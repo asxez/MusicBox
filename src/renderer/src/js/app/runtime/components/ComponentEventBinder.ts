@@ -1,4 +1,5 @@
-import {AppUIFacade, type ComponentMap, type RendererAppContext} from "@js/app/runtime";
+import {AppUIFacade} from "@js/app/runtime/AppUIFacade";
+import type {ComponentMap, RendererAppContext} from "@js/app/runtime/AppRuntimeTypes";
 import {appShellController} from "@js/features/appShell";
 import {playbackController} from "@js/features/playback";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";

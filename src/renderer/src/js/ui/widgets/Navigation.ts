@@ -8,7 +8,7 @@ import {Component} from "@ui/base/Component";
 import {navigationDataService} from "@services/navigation/NavigationDataService";
 import {appInteractionService} from "@services/ui/AppInteractionService";
 import type {Playlist} from "@api/types/playlist";
-import type {AppView, ConfirmOptions} from "@js/app/runtime";
+import type {AppView, ConfirmOptions} from "@js/app/runtime/AppRuntimeTypes";
 import type {Unsubscribe} from "@api/types/common";
 import type {MountedNetworkDrive} from "@api/types/electron";
 

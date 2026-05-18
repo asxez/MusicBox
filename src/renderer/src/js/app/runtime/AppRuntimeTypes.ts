@@ -159,6 +159,7 @@ export interface RendererAppContext {
     showWelcomeScreen(): void;
     showSuccess(message: string): void;
     showError(message: string): void;
+    showFatalError?(message: string): void;
     showInfo(message: string): void;
     confirm(options: ConfirmOptions): Promise<boolean>;
     syncDesktopLyricsButtonState(): Promise<void>;

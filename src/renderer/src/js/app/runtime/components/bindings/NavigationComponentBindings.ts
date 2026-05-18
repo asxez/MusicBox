@@ -1,6 +1,6 @@
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
-import type {AppView} from "@js/app/runtime";
+import type {AppView} from "@js/app/runtime/AppRuntimeTypes";
 
 import type {ComponentBindingContext} from "./ComponentBindingTypes";
 
