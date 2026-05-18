@@ -1,8 +1,10 @@
 export {AppShellController, appShellController} from './AppShellController';
-export {AppInteractionService, appInteractionService} from './service';
+export {AppInteractionService, appInteractionService, updateService} from './service';
 export type {
     AppInteractionHost,
     FolderSelectionResult,
+    GitHubRelease,
+    GitHubReleaseAsset,
     HardwareAccelerationSettingsResult,
     MainSettingsPayload,
     MiniModeWindowStateOptions,
@@ -13,5 +15,6 @@ export type {
     SettingsUpdateResult,
     ShellActionResult,
     TraySettings,
+    UpdateCheckResult,
     WindowBoundsResult
 } from './service';

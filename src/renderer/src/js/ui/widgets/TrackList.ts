@@ -5,7 +5,7 @@
 import {formatTime, sanitizeHTML} from "@utils/index.js";
 import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
 import type {CoverUpdateData} from "@services/cover/CoverUpdateManager";
-import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
+import {trackCoverDisplayPreferenceService} from "@js/features/settings/service";
 import {Component} from "@ui/base/Component";
 import {mediaController} from "@js/features/media";
 import type {Unsubscribe} from "@api/types/common";

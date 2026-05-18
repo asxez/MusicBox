@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {networkDriveManagementService} from "@services/networkDrive/NetworkDriveManagementService";
+import {networkDriveManagementService} from "@js/features/networkDrive/service";
 import type {ScanProgress} from "@api/types/events";
 import type {MountedNetworkDrive, NetworkDriveConfig} from "@api/types/electron";
 import type {Unsubscribe} from "@api/types/common";

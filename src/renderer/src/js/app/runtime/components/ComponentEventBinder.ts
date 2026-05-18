@@ -3,8 +3,8 @@ import type {AppComponentPort, AppNotificationPort} from "@js/app/runtime/AppRun
 import type {ComponentMap} from "@js/app/runtime/components/ComponentTypes";
 import {appShellController} from "@js/features/appShell";
 import {playbackController} from "@js/features/playback";
-import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
-import {settingsExtensionNavigationService} from "@services/settings/SettingsExtensionNavigationService";
+import {trackCoverDisplayPreferenceService} from "@js/features/settings/service";
+import {settingsExtensionNavigationService} from "@js/features/settings/service";
 import {
     type ComponentBindingContext,
     type ComponentEventName,

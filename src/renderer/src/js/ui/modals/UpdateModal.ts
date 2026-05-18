@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {type GitHubRelease, updateService} from "@services/update/UpdateService";
+import {type GitHubRelease, updateService} from "@js/features/appShell/service";
 
 function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);

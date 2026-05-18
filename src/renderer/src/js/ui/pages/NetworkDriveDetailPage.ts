@@ -6,8 +6,8 @@ import {Component} from "@ui/base/Component";
 import {
     networkDriveDetailService,
     type SingleFileScanResult
-} from "@services/networkDrive/NetworkDriveDetailService";
-import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
+} from "@js/features/networkDrive/service";
+import {trackCoverDisplayPreferenceService} from "@js/features/settings/service";
 import {appInteractionService} from "@js/features/appShell/service";
 import type {Unsubscribe} from "@api/types/common";
 import type {Track} from "@api/types/track";

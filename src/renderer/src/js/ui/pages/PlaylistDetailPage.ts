@@ -5,7 +5,7 @@
 import {Component} from "@ui/base/Component";
 import {libraryController} from "@js/features/library";
 import {mediaController} from "@js/features/media";
-import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";
+import {trackCoverDisplayPreferenceService} from "@js/features/settings/service";
 import {appInteractionService} from "@js/features/appShell/service";
 import type {Unsubscribe} from "@api/types/common";
 import type {Playlist, Track} from "@api/types/library";

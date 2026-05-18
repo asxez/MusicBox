@@ -3,42 +3,42 @@
  */
 
 import {showToast} from '@utils/index.js';
-import {appInfoSettingsService} from "@services/settings/AppInfoSettingsService";
+import {appInfoSettingsService} from "@js/features/settings/service";
 import {
     audioEngineSettingsController,
     type AudioEngineSettingsElements
-} from "@services/settings/AudioEngineSettingsController";
-import {displayModeSettingsController} from "@services/settings/DisplayModeSettingsController";
+} from "@js/features/settings/service";
+import {displayModeSettingsController} from "@js/features/settings/service";
 import {
     displayModeSettingsRenderer,
     type DesktopLyricsSettingsElements,
     type MiniModeSettingsElements
-} from "@services/settings/DisplayModeSettingsRenderer";
+} from "@js/features/settings/service";
 import {
     generalSettingsController,
     type GeneralSettingsElements
-} from "@services/settings/GeneralSettingsController";
-import {hardwareAccelerationSettingsController} from "@services/settings/HardwareAccelerationSettingsController";
-import {musicFolderListRenderer} from "@services/settings/MusicFolderListRenderer";
-import {musicFolderSettingsController} from "@services/settings/MusicFolderSettingsController";
-import {musicFolderSettingsService} from "@services/settings/MusicFolderSettingsService";
+} from "@js/features/settings/service";
+import {hardwareAccelerationSettingsController} from "@js/features/settings/service";
+import {musicFolderListRenderer} from "@js/features/settings/service";
+import {musicFolderSettingsController} from "@js/features/settings/service";
+import {musicFolderSettingsService} from "@js/features/settings/service";
 import {appInteractionService} from "@js/features/appShell/service";
-import {settingsPanelVisibilityService} from "@services/settings/SettingsPanelVisibilityService";
-import {settingsPageVisibilityService} from "@services/settings/SettingsPageVisibilityService";
-import {settingsSectionNavigationService} from "@services/settings/SettingsSectionNavigationService";
-import {settingsStore, type SettingValue} from "@services/settings/SettingsStore";
+import {settingsPanelVisibilityService} from "@js/features/settings/service";
+import {settingsPageVisibilityService} from "@js/features/settings/service";
+import {settingsSectionNavigationService} from "@js/features/settings/service";
+import {settingsStore, type SettingValue} from "@js/features/settings/service";
 import {
     settingsToolsController,
     type SettingsToolsElements
-} from "@services/settings/SettingsToolsController";
+} from "@js/features/settings/service";
 import {
     shortcutSettingsController,
     type ShortcutSettingsElements
-} from "@services/settings/ShortcutSettingsController";
+} from "@js/features/settings/service";
 import {
     traySettingsController,
     type TraySettingsElements
-} from "@services/settings/TraySettingsController";
+} from "@js/features/settings/service";
 import {Component} from "@ui/base/Component";
 import type {MusicBoxSettings} from "@api/types/settings";
 

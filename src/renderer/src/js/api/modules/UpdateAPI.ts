@@ -5,7 +5,7 @@
 
 import {showToast} from '@js/utils';
 import {BaseAPI, Logger} from "@api/core";
-import {type GitHubRelease, updateService} from "@services/update/UpdateService";
+import {type GitHubRelease, updateService} from "@js/features/appShell/service";
 
 type ShowUpdateDetailsHandler = () => void;
 

@@ -8,7 +8,7 @@ import {ErrorUtils} from '@extensions/api/common/errors';
 import {IDisposable, toDisposable} from '@extensions/core/Lifecycle';
 import {onDOMReady, showToast, theme} from '@js/utils';
 import {appInteractionService} from "@js/features/appShell/service";
-import {settingsExtensionNavigationService} from "@services/settings/SettingsExtensionNavigationService";
+import {settingsExtensionNavigationService} from "@js/features/settings/service";
 import {ExtensionContext} from "@extensions/core";
 import {
     ButtonSettingOptions,
