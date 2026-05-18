@@ -1,4 +1,4 @@
-import {cacheManager} from '@services/CacheManager';
+import {cacheManager} from '@js/shared/cache';
 
 import type {AppUIFacade} from './AppUIFacade';
 

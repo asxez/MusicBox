@@ -1,6 +1,6 @@
 import {libraryController} from '@js/features/library';
 import {mediaController} from '@js/features/media';
-import {embeddedCoverManager} from '@services/cover/EmbeddedCoverManager';
+import {embeddedCoverManager} from '@js/features/mediaAssets/service';
 import type WebAudioObjectUrlStore from './WebAudioObjectUrlStore';
 import type {CoverData, LoadedWebAudioTrack, TrackMetadata, WebAudioTrack} from './WebAudioTypes';
 

@@ -4,10 +4,8 @@
  * 支持多种歌词来源：内嵌→本地→网络TTML→网络LRC
  */
 
-import {embeddedLyricsManager} from '@services/lyrics/EmbeddedLyricsManager';
-import {localLyricsManager} from '@services/lyrics/LocalLyricsManager';
-import {cacheManager} from '@services/CacheManager';
-import {ttmlParser} from '@services/lyrics/TTMLParser';
+import {embeddedLyricsManager, localLyricsManager, ttmlParser} from '@js/features/mediaAssets/service';
+import {cacheManager} from '@js/shared/cache';
 import {BaseAPI, Logger, Validator} from "@api/core";
 import {LyricLine, LyricsFormat, LyricsResult, NetworkLyricsSearchResult} from "@api/types";
 import {networkAPI} from "@api/modules/NetworkAPI";

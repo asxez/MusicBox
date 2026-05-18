@@ -1,5 +1,5 @@
-import {cacheManager} from "@services/CacheManager";
-import {localCoverManager} from "@services/cover/LocalCoverManager";
+import {cacheManager} from "@js/shared/cache";
+import {localCoverManager} from "@js/features/mediaAssets/service";
 import type {MusicBoxAPIEvents} from "@api/types/events";
 import type {Track} from "@api/types/track";
 import {libraryController as libraryFeatureController} from "../LibraryController";

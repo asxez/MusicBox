@@ -1,4 +1,4 @@
-import {cacheManager} from "@services/CacheManager";
+import {cacheManager} from "@js/shared/cache";
 import {libraryController} from "@js/features/library";
 import {playbackController} from "@js/features/playback";
 import type {Track as ApiTrack} from "@api/types/track";

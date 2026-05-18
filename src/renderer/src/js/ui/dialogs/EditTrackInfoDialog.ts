@@ -5,7 +5,7 @@
 import {Component} from "@ui/base/Component";
 import {libraryController} from "@js/features/library";
 import {mediaController} from "@js/features/media";
-import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
+import {coverUpdateManager} from "@js/features/mediaAssets/service";
 import {appInteractionService} from "@js/features/appShell/service";
 import type {Track} from "@api/types/library";
 

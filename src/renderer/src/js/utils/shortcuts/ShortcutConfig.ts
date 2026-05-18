@@ -4,7 +4,7 @@
  */
 
 import {globalShortcutsGateway} from "@js/infrastructure/electron";
-import {cacheManager} from "@services/CacheManager";
+import {cacheManager} from "@js/shared/cache";
 
 export interface ShortcutDefinition {
     id: string;

@@ -4,7 +4,7 @@
 
 import {audioDriverController} from "@js/features/audioDriver";
 import {libraryController} from "@js/features/library";
-import {cacheManager} from "@services/CacheManager";
+import {cacheManager} from "@js/shared/cache";
 import {getTrackFilePath, type AudioEngineState, type AudioTrack, type TrackSource} from "@services/audio/domain";
 import ParametricEqualizer from "@services/audio/ParametricEqualizer";
 import WasapiEqualizer from "@services/audio/WasapiEqualizer";

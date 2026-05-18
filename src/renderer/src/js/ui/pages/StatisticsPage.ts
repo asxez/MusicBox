@@ -2,7 +2,7 @@
  * 统计页组件
  */
 
-import {cacheManager} from "@services/CacheManager";
+import {cacheManager} from "@js/shared/cache";
 import {Component} from "@ui/base/Component";
 import {libraryController} from "@js/features/library";
 import {userDataController} from "@js/features/userData";

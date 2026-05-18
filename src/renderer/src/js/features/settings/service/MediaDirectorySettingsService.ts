@@ -1,6 +1,5 @@
 import {appShellController} from "@js/features/appShell";
-import {localCoverManager} from "@services/cover/LocalCoverManager";
-import {localLyricsManager} from "@services/lyrics/LocalLyricsManager";
+import {localCoverManager, localLyricsManager} from "@js/features/mediaAssets/service";
 
 interface PathResult {
     success?: boolean;

@@ -2,8 +2,8 @@
  * 最近播放页组件
  */
 
-import {cacheManager} from "@services/CacheManager";
-import {localCoverManager} from "@services/cover/LocalCoverManager";
+import {cacheManager} from "@js/shared/cache";
+import {localCoverManager} from "@js/features/mediaAssets/service";
 import {appInteractionService} from "@js/features/appShell/service";
 import {formatTime} from "@utils/index.js";
 import {Component} from "@ui/base/Component";

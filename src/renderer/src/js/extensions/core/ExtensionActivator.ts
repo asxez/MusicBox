@@ -4,7 +4,7 @@
  */
 
 import {extensionsController} from '@js/features/extensions';
-import {cacheManager} from '@services/CacheManager';
+import {cacheManager} from '@js/shared/cache';
 import {Disposable, DisposableStore} from '@extensions/core/Lifecycle';
 import {createExtensionAPI, type ExtensionAPI} from '@extensions/api/index.js';
 import {ExtensionDescriptor, ExtensionsRegistry} from '@extensions/core/ExtensionsRegistry';

@@ -1,6 +1,6 @@
 import {EventEmitter} from '@utils/index.js';
 import {audioGateway} from '@js/infrastructure/electron/AudioGateway';
-import {cacheManager} from "@services/CacheManager";
+import {cacheManager} from "@js/shared/cache";
 import {PlaybackQueue} from '@js/features/playback/domain';
 import {AudioEngineAdapter} from '@js/features/playback/service/AudioEngineAdapter';
 import type {AudioEngineManagerBridge, AudioEngineType} from '@js/features/playback/service/AudioEngineAdapter';

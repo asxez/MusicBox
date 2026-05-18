@@ -23,7 +23,7 @@ import {Disposable} from '@extensions/core/Lifecycle';
 import {DependencyResolver} from '@extensions/core/ExtensionDependencies';
 import {PermissionManager} from '@extensions/core/ExtensionPermissions';
 import {ConfigurationManager} from '@extensions/core/ExtensionConfiguration';
-import {cacheManager} from "@services/CacheManager";
+import {cacheManager} from "@js/shared/cache";
 import '@extensions/core/types';
 import type {ExtensionInfo} from '@extensions/core/types';
 

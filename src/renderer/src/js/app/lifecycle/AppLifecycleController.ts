@@ -1,5 +1,5 @@
 import {appShellController} from '@js/features/appShell';
-import {cacheManager} from '@services/CacheManager';
+import {cacheManager} from '@js/shared/cache';
 import type {AppUIFacade} from '@js/app/runtime/AppUIFacade';
 import type {PlayMode} from '@api/types/playback';
 

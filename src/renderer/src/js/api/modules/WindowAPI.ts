@@ -4,7 +4,7 @@
  */
 
 import {windowGateway} from '@js/infrastructure/electron';
-import {cacheManager} from '@services/CacheManager';
+import {cacheManager} from '@js/shared/cache';
 import {BaseAPI, Validator} from "@api/core";
 import {WindowBounds, WindowSize} from "@api/types";
 import type {Unsubscribe} from "@api/types/common";

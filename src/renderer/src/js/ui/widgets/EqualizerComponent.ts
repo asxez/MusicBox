@@ -2,7 +2,7 @@
  * 均衡器组件
  */
 
-import {cacheManager} from "@services/CacheManager";
+import {cacheManager} from "@js/shared/cache";
 import {appInteractionService} from "@js/features/appShell/service";
 import {Component} from "@ui/base/Component";
 import {equalizerController} from "@js/features/equalizer";

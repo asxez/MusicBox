@@ -19,7 +19,7 @@ import {FileImportController, LibraryAppController} from '@js/features/library';
 import {PlaylistController} from '@js/features/playlists';
 import {PlaybackAppController} from '@js/features/playback';
 
-import {cacheManager} from "@services/CacheManager";
+import {cacheManager} from "@js/shared/cache";
 import {playbackController as playbackFeatureController} from "@js/features/playback";
 import type {MusicBoxAPIEvents, ScanProgress} from "@api/types/events";
 import type {Playlist} from "@api/types/playlist";

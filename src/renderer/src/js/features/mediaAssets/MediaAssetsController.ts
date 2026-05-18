@@ -1,10 +1,10 @@
-import {mediaAssetsService} from './service';
+import {mediaAssetsService} from './service/MediaAssetsService';
 import type {
     EmbeddedLyricsResult,
     LocalCoverFileResult,
     LocalLyricsContentResult,
     LocalLyricsFileResult
-} from './service';
+} from './service/MediaAssetsService';
 
 class MediaAssetsController {
     async checkLocalCover(

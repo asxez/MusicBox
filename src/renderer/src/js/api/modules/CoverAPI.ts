@@ -4,8 +4,7 @@
  * 支持多种封面来源：内嵌→本地→网络
  */
 
-import {embeddedCoverManager} from '@services/cover/EmbeddedCoverManager';
-import {localCoverManager} from '@services/cover/LocalCoverManager';
+import {embeddedCoverManager, localCoverManager} from '@js/features/mediaAssets/service';
 import {urlValidator} from '@utils/URLValidator';
 import {BaseAPI, Logger, Validator} from "@api/core";
 import {CoverResult, ImageFormat} from "@api/types";

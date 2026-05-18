@@ -1,4 +1,4 @@
-import {cacheManager} from "@services/CacheManager";
+import {cacheManager} from "@js/shared/cache";
 import type {PlaybackStateSnapshot} from '@api/types/playback';
 import type {MusicBoxSettings} from '@api/types/settings';
 import type {Track} from '@api/types/track';

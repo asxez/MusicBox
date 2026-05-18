@@ -3,8 +3,8 @@
  */
 
 import {formatTime, sanitizeHTML} from "@utils/index.js";
-import {coverUpdateManager} from "@services/cover/CoverUpdateManager";
-import type {CoverUpdateData} from "@services/cover/CoverUpdateManager";
+import {coverUpdateManager} from "@js/features/mediaAssets/service";
+import type {CoverUpdateData} from "@js/features/mediaAssets/service";
 import {trackCoverDisplayPreferenceService} from "@js/features/settings/service";
 import {Component} from "@ui/base/Component";
 import {mediaController} from "@js/features/media";

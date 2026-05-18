@@ -3,7 +3,7 @@
  */
 
 import {theme} from "@js/utils";
-import {cacheManager} from "@services/CacheManager";
+import {cacheManager} from "@js/shared/cache";
 import {Component} from "@ui/base/Component";
 import {navigationDataService} from "@services/navigation/NavigationDataService";
 import {appInteractionService} from "@js/features/appShell/service";

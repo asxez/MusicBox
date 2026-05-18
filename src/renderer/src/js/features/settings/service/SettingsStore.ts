@@ -1,4 +1,4 @@
-import {cacheManager} from "@services/CacheManager";
+import {cacheManager} from "@js/shared/cache";
 import type {MusicBoxSettings} from "@api/types/settings";
 
 export type SettingValue = string | number | boolean | object | null | undefined;

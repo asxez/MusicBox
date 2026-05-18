@@ -4,7 +4,7 @@
  */
 
 import {trayGateway} from '@js/infrastructure/electron';
-import {cacheManager} from '@services/CacheManager';
+import {cacheManager} from '@js/shared/cache';
 import {BaseAPI} from "@api/core";
 
 /**

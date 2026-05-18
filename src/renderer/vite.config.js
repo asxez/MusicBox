@@ -58,7 +58,7 @@ export default defineConfig({
           }
 
           // 共享工具类
-          if (id.includes('services/CacheManager') || id.includes('utils/md5')) {
+          if (id.includes('shared/cache/CacheManager') || id.includes('services/CacheManager') || id.includes('utils/md5')) {
             return 'shared-utils';
           }
 
