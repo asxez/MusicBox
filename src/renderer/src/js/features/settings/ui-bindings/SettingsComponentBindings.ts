@@ -6,13 +6,6 @@ interface SettingsBindingComponents {
     settings: ComponentEventSource;
 }
 
-interface SettingsBindingApp {
-    isInitialized: boolean;
-    initializeComponent(componentName: string): void;
-    destroyComponent(componentName: string): void;
-    preloadTrackCovers(): Promise<void>;
-}
-
 interface SettingsBindingUI {
     showUpdateModal(): void;
     switchSettingsSection(sectionName: string): void;
@@ -23,8 +16,15 @@ interface SettingsBindingUI {
     updateAlbumsPageButtonVisibility(enabled: boolean): void;
 }
 
+export interface SettingsComponentBindingHost {
+    isInitialized: boolean;
+    initializeComponent(componentName: string): void;
+    destroyComponent(componentName: string): void;
+    preloadTrackCovers(): Promise<void>;
+}
+
 interface SettingsComponentBindingContext {
-    app: SettingsBindingApp;
+    app: SettingsComponentBindingHost;
     components: SettingsBindingComponents;
     integrations: SettingsBindingIntegrations;
     ui: SettingsBindingUI;

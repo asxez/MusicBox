@@ -1,7 +1,7 @@
 import {APIEventBinder} from '@js/app/runtime/APIEventBinder';
 import {AppNotifier} from '@js/app/runtime/AppNotifier';
 import {AppUIFacade} from '@js/app/runtime/AppUIFacade';
-import {ComponentEventBinder} from '@js/app/runtime/components/ComponentEventBinder';
+import {ComponentEventBinder, type ComponentBindingPorts} from '@js/app/runtime/components/ComponentEventBinder';
 import {ComponentRegistry} from '@js/app/runtime/components/ComponentRegistry';
 import {DesktopLyricsButtonSync} from '@js/app/runtime/DesktopLyricsButtonSync';
 import {DOMEventBinder} from '@js/app/runtime/DOMEventBinder';
@@ -20,12 +20,15 @@ import type {
     AppLibraryStatePort,
     AppNotificationPort,
     AppViewStatePort,
-    ComponentBindingAppHost,
     ComponentMap,
     ManagedAPIListener,
     ManagedDOMListener,
     ViewRouterHost
 } from '@js/app/runtime/AppRuntimeTypes';
+import type {
+    NavigationComponentBindingHost,
+    PageComponentBindingHost
+} from '@js/app/runtime/components/bindings/ComponentBindingTypes';
 import {AppLifecycleController} from '@js/app/lifecycle';
 import {AppShellView} from '@js/app/shell';
 import {
@@ -33,8 +36,13 @@ import {
     LibraryAppController,
     libraryController as libraryFeatureController
 } from '@js/features/library';
-import {PlaylistController} from '@js/features/playlists';
+import type {FileImportHost, LibraryAppHost} from '@js/features/library/ui-bindings';
+import {PlaylistController, type PlaylistAppHost} from '@js/features/playlists';
+import type {PlaylistComponentBindingHost} from '@js/features/playlists/ui-bindings';
 import {PlaybackAppController, playbackController} from '@js/features/playback';
+import type {PlaybackAppHost} from '@js/features/playback/ui-bindings';
+import type {PlaybackComponentBindingHost} from '@js/features/playback/ui-bindings';
+import type {SettingsComponentBindingHost} from '@js/features/settings/ui-bindings';
 import {playbackService} from '@js/features/playback/service';
 import {desktopLyricsController} from '@js/features/desktopLyrics';
 import {equalizerController} from '@js/features/equalizer';
@@ -61,7 +69,15 @@ interface MusicBoxAppHost
         AppLibraryStatePort,
         AppNotificationPort,
         AppViewStatePort,
-        ComponentBindingAppHost,
+        FileImportHost,
+        LibraryAppHost,
+        NavigationComponentBindingHost,
+        PageComponentBindingHost,
+        PlaybackAppHost,
+        PlaybackComponentBindingHost,
+        PlaylistAppHost,
+        PlaylistComponentBindingHost,
+        SettingsComponentBindingHost,
         ViewRouterHost {
     addMusicFiles(): Promise<void>;
     clearRuntimeData(): void;
@@ -129,7 +145,15 @@ export function createAppComposition({
         onAddMusicFiles: () => app.addMusicFiles(),
         onShowHomePage: () => app.handleViewChange('home-page')
     });
-    const componentEventBinder = new ComponentEventBinder({app, components: componentPort});
+    const componentBindingPorts: ComponentBindingPorts = {
+        navigation: app,
+        pages: app,
+        playback: app,
+        playlists: app,
+        settings: app,
+        notifications: app
+    };
+    const componentEventBinder = new ComponentEventBinder({ports: componentBindingPorts, components: componentPort});
     const viewRouter = new ViewRouter({app, components: componentPort});
     const notifier = new AppNotifier(shellView);
     const desktopLyricsButtonSync = new DesktopLyricsButtonSync(ui);

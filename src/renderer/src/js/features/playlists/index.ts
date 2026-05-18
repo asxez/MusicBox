@@ -1,2 +1,2 @@
-export {PlaylistController} from './PlaylistController';
-export {bindPlaylistComponentEvents} from './ui-bindings';
+export {PlaylistController, type PlaylistAppHost} from './PlaylistController';
+export {bindPlaylistComponentEvents, type PlaylistComponentBindingHost} from './ui-bindings';

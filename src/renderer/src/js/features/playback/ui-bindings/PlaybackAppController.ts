@@ -2,14 +2,14 @@ import {cacheManager} from "@services/CacheManager";
 import type {PlaybackStateSnapshot} from '@api/types/playback';
 import type {MusicBoxSettings} from '@api/types/settings';
 import type {Track} from '@api/types/track';
-import type {
-    AppLibraryStatePort,
-    AppNotificationPort,
-    AppViewStatePort
-} from "@js/app/runtime/AppRuntimeTypes";
 import {playbackController} from "../PlaybackController";
 
-interface PlaybackAppHost extends AppLibraryStatePort, AppNotificationPort, AppViewStatePort {}
+export interface PlaybackAppHost {
+    currentView: string;
+    library: Track[];
+    filteredLibrary: Track[];
+    showError(message: string): void;
+}
 
 interface PlaybackAppUI {
     hasQueue(): boolean;

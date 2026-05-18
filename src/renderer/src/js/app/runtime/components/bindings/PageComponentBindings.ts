@@ -2,13 +2,13 @@ import type {Track} from "@api/types/track";
 import type {AppView} from "@js/app/runtime/AppRuntimeTypes";
 
 import type {
-    ComponentBindingContext,
     ComponentEventName,
-    ComponentNotificationPayload
+    ComponentNotificationPayload,
+    PageComponentBindingContext
 } from "./ComponentBindingTypes";
 
 export class PageComponentBindings {
-    constructor(private readonly context: ComponentBindingContext) {}
+    constructor(private readonly context: PageComponentBindingContext) {}
 
     setupComponentEvents(componentName: ComponentEventName | null = null): void {
         if (componentName) {

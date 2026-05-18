@@ -175,41 +175,6 @@ export interface ExtensionHostApp extends AppComponentPort, AppEventEmitterPort,
     loadAndPlayFile?(filePath: string): Promise<void>;
 }
 
-export interface ComponentBindingAppHost
-    extends AppInitializationPort,
-        AppNotificationPort {
-    initializeComponent(componentName: string): void;
-    destroyComponent(componentName: string): void;
-    preloadTrackCovers(): Promise<void>;
-    handleSearchResults(results: Track[]): void;
-    handleSearchCleared(): void;
-    handleViewChange(view: AppView): Promise<void>;
-    handlePlaylistSelected(playlist: Playlist): Promise<void>;
-    handleNetworkDriveSelected(drive: unknown): Promise<void>;
-    handleDriveRemoved(drive?: unknown): Promise<void>;
-    handleTrackPlayed(track: Track, index: number): Promise<void>;
-    handlePlayAllTracks(tracks: Track[]): Promise<void>;
-    handleTrackIndexChanged(index: number): void;
-    handlePlaylistTrackSelected(track: Track, index: number): void;
-    handlePlaylistTrackPlayed(track: Track, index: number): Promise<void>;
-    handlePlaylistTrackRemoved(track: Track, index: number): Promise<void>;
-    handlePlaylistCleared(): Promise<void>;
-    addToPlaylist(track: Track): void;
-    handleAddToCustomPlaylist(track: Track, index: number): Promise<void>;
-    handleDeleteTrack(track: Track, index: number): Promise<void>;
-    handleBatchDelete(selectedTracks: Set<number> | null | undefined, track: Track, index: number): Promise<void>;
-    handleEditTrackInfo(track: Track, index: number): Promise<void>;
-    handlePlaylistCreated(playlist?: Playlist): Promise<void>;
-    handleTrackAddedToPlaylist(playlist?: Playlist, track?: Track): Promise<void>;
-    handlePlaylistRenamed(playlist?: Playlist): Promise<void>;
-    handleTracksAddedToPlaylist(data?: unknown): Promise<void>;
-    handleTrackInfoUpdated(data: unknown): Promise<void>;
-    playTrackFromPlaylist(track: Track, index: number): Promise<void>;
-    handlePlaylistUpdated(playlist?: Playlist): Promise<void>;
-    handleShowAddSongsDialog(playlist: Playlist): Promise<void>;
-    handlePlaylistCoverUpdated(playlist: Playlist): Promise<void>;
-}
-
 export interface RendererAppContext
     extends AppComponentPort,
         AppInitializationPort,

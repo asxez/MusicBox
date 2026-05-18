@@ -1,7 +1,26 @@
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
 import type {AppUIFacade} from "@js/app/runtime/AppUIFacade";
-import type {ComponentBindingAppHost, ComponentMap} from "@js/app/runtime/AppRuntimeTypes";
+import type {AppView} from "@js/app/runtime/AppRuntimeTypes";
+import type {
+    AppNotificationPort,
+    ComponentMap
+} from "@js/app/runtime/AppRuntimeTypes";
+
+export interface NavigationComponentBindingHost {
+    handleSearchResults(results: Track[]): void;
+    handleSearchCleared(): void;
+    handleViewChange(view: AppView): Promise<void>;
+    handlePlaylistSelected(playlist: Playlist): Promise<void>;
+    handleNetworkDriveSelected(drive: unknown): Promise<void>;
+}
+
+export interface PageComponentBindingHost {
+    handleDriveRemoved(drive?: unknown): Promise<void>;
+    handleTrackPlayed(track: Track, index: number): Promise<void>;
+    handlePlayAllTracks(tracks: Track[]): Promise<void>;
+    addToPlaylist(track: Track): void;
+}
 
 export type ComponentEventName =
     | 'recentPage'
@@ -12,10 +31,17 @@ export type ComponentEventName =
     | 'networkDriveDetailPage';
 
 export interface ComponentBindingContext {
-    app: ComponentBindingAppHost;
     components: ComponentMap;
     ui: AppUIFacade;
     notify(data: ComponentNotificationPayload): void;
+}
+
+export interface NavigationComponentBindingContext extends ComponentBindingContext {
+    app: NavigationComponentBindingHost;
+}
+
+export interface PageComponentBindingContext extends ComponentBindingContext {
+    app: PageComponentBindingHost;
 }
 
 export interface TrackEventPayload {
@@ -39,7 +65,7 @@ export interface ComponentNotificationPayload {
 }
 
 export function notifyComponentEvent(
-    app: ComponentBindingAppHost,
+    app: AppNotificationPort,
     data: ComponentNotificationPayload
 ): void {
     switch (data.type) {

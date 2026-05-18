@@ -12,7 +12,13 @@ interface PlaybackBindingComponents {
     contextMenu: ComponentEventSource;
 }
 
-interface PlaybackBindingApp {
+interface PlaybackBindingUI {
+    showContextMenu(x: number, y: number, track: Track, index: number, selectedTracks?: Set<number>): void;
+    toggleQueue(): void;
+    toggleLyricsForTrack(track: Track | null): Promise<void>;
+}
+
+export interface PlaybackComponentBindingHost {
     handleTrackPlayed(track: Track, index: number): Promise<void>;
     handleTrackIndexChanged(index: number): void;
     handlePlaylistTrackSelected(track: Track, index: number): void;
@@ -26,14 +32,8 @@ interface PlaybackBindingApp {
     handleEditTrackInfo(track: Track, index: number): Promise<void>;
 }
 
-interface PlaybackBindingUI {
-    showContextMenu(x: number, y: number, track: Track, index: number, selectedTracks?: Set<number>): void;
-    toggleQueue(): void;
-    toggleLyricsForTrack(track: Track | null): Promise<void>;
-}
-
 interface PlaybackComponentBindingContext {
-    app: PlaybackBindingApp;
+    app: PlaybackComponentBindingHost;
     components: PlaybackBindingComponents;
     ui: PlaybackBindingUI;
 }

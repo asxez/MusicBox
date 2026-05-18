@@ -14,24 +14,24 @@ interface PlaylistBindingComponents {
     playlistDetailPage: ComponentEventSource;
 }
 
-interface PlaylistBindingApp {
+interface PlaylistBindingUI {
+    showCreatePlaylistDialog(track?: Track): void;
+    syncQueueTracks(tracks: Track[], currentIndex?: number): void;
+    showContextMenu(x: number, y: number, track: Track, index: number, selectedTracks?: Set<number>): void;
+}
+
+export interface PlaylistComponentBindingHost {
     handlePlaylistCreated(playlist?: Playlist): Promise<void>;
     handleTrackAddedToPlaylist(playlist?: Playlist, track?: Track): Promise<void>;
     handlePlaylistRenamed(playlist?: Playlist): Promise<void>;
     handleTracksAddedToPlaylist(data?: unknown): Promise<void>;
     handleTrackInfoUpdated(data: unknown): Promise<void>;
-    playTrackFromPlaylist(track: Track, index: number): Promise<void>;
     handleTrackPlayed(track: Track, index: number): Promise<void>;
     handlePlayAllTracks(tracks: Track[]): Promise<void>;
+    playTrackFromPlaylist(track: Track, index: number): Promise<void>;
     handlePlaylistUpdated(playlist?: Playlist): Promise<void>;
     handleShowAddSongsDialog(playlist: Playlist): Promise<void>;
     handlePlaylistCoverUpdated(playlist: Playlist): Promise<void>;
-}
-
-interface PlaylistBindingUI {
-    showCreatePlaylistDialog(track?: Track): void;
-    syncQueueTracks(tracks: Track[], currentIndex?: number): void;
-    showContextMenu(x: number, y: number, track: Track, index: number, selectedTracks?: Set<number>): void;
 }
 
 interface ComponentNotificationPayload {
@@ -45,7 +45,7 @@ interface PlaylistTrackAddedPayload {
 }
 
 interface PlaylistComponentBindingContext {
-    app: PlaylistBindingApp;
+    app: PlaylistComponentBindingHost;
     components: PlaylistBindingComponents;
     notify(data: ComponentNotificationPayload): void;
     ui: PlaylistBindingUI;

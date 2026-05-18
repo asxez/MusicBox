@@ -1,1 +1,1 @@
-export {bindSettingsComponentEvents} from './SettingsComponentBindings';
+export {bindSettingsComponentEvents, type SettingsComponentBindingHost} from './SettingsComponentBindings';

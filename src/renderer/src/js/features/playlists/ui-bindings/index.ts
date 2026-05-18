@@ -1,1 +1,1 @@
-export {bindPlaylistComponentEvents} from './PlaylistComponentBindings';
+export {bindPlaylistComponentEvents, type PlaylistComponentBindingHost} from './PlaylistComponentBindings';

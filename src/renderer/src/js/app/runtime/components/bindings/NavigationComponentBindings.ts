@@ -2,13 +2,13 @@ import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
 import type {AppView} from "@js/app/runtime/AppRuntimeTypes";
 
-import type {ComponentBindingContext} from "./ComponentBindingTypes";
+import type {NavigationComponentBindingContext} from "./ComponentBindingTypes";
 
 export function bindNavigationComponentEvents({
     app,
     components,
     ui
-}: ComponentBindingContext): void {
+}: NavigationComponentBindingContext): void {
     components.search.on('searchResults', (results: Track[]) => {
         app.handleSearchResults(results);
     });

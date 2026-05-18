@@ -1,2 +1,2 @@
-export {FileImportController} from './FileImportController';
-export {LibraryAppController} from './LibraryAppController';
+export {FileImportController, type FileImportHost} from './FileImportController';
+export {LibraryAppController, type LibraryAppHost} from './LibraryAppController';

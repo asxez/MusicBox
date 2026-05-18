@@ -1,6 +1,5 @@
 import type {Playlist} from '@api/types/playlist';
 import type {Track} from '@api/types/track';
-import type {AppNotificationPort, AppViewStatePort} from '@js/app/runtime/AppRuntimeTypes';
 
 interface PlaylistControllerOptions {
     app: PlaylistAppHost;
@@ -8,8 +7,10 @@ interface PlaylistControllerOptions {
     ui: PlaylistUI;
 }
 
-interface PlaylistAppHost extends AppNotificationPort, AppViewStatePort {
+export interface PlaylistAppHost {
+    currentView: string;
     hideAllPages(): void;
+    showInfo(message: string): void;
     updateSidebarSelection(type: string, id?: string | null): void;
     playTrackFromPlaylist(track: Track, index: number): Promise<void>;
 }
