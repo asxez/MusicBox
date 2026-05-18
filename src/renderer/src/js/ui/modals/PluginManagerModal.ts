@@ -9,7 +9,7 @@ import {
     type PluginExtension
 } from "@services/plugins/PluginManagerService";
 import {appInteractionService} from "@services/ui/AppInteractionService";
-import type {ConfirmOptions} from "@core/types/app";
+import type {ConfirmOptions} from "@js/app/runtime";
 
 type ToastType = 'info' | 'success' | 'error' | 'warning';
 

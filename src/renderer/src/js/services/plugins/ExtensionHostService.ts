@@ -2,7 +2,7 @@ import {cacheManager} from "@services/CacheManager";
 import {libraryController} from "@js/features/library";
 import {playbackController} from "@js/features/playback";
 import type {Track as ApiTrack} from "@api/types/track";
-import type {RendererAppContext} from "@core/types/app";
+import type {RendererAppContext} from "@js/app/runtime";
 import type {
     Album as ExtensionAlbum,
     Artist as ExtensionArtist,

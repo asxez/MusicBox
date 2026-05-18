@@ -1,4 +1,4 @@
-import type {ConfirmOptions, RendererAppContext} from "@core/types/app";
+import type {ConfirmOptions, RendererAppContext} from "@js/app/runtime";
 
 class AppInteractionService {
     private app: RendererAppContext | null = null;

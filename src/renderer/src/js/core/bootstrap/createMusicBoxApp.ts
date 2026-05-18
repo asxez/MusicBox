@@ -1,5 +1,1 @@
-import {MusicBoxApp} from '../MusicBoxApp';
-
-export function createMusicBoxApp(): MusicBoxApp {
-    return new MusicBoxApp();
-}
+export * from '@js/app/bootstrap/createMusicBoxApp';

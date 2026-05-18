@@ -1,4 +1,4 @@
-import type {ConfirmOptions} from "@core/types/app";
+import type {ConfirmOptions} from "@js/app/runtime";
 import type {ShortcutConflict} from "@services/settings/ShortcutSettingsService";
 
 class ShortcutDialogService {
