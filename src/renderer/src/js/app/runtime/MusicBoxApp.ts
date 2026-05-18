@@ -24,7 +24,7 @@ import {playbackController as playbackFeatureController} from "@js/features/play
 import type {MusicBoxAPIEvents, ScanProgress} from "@api/types/events";
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
-import type {ComponentMap} from "./AppRuntimeTypes";
+import type {ComponentMap} from "./components/ComponentTypes";
 import type {
     AppView,
     ConfirmOptions,
@@ -459,6 +459,18 @@ export class MusicBoxApp extends EventEmitter {
 
     async confirm(options: ConfirmOptions): Promise<boolean> {
         return await this.ui.confirm(options);
+    }
+
+    showNetworkDriveModal(): boolean {
+        return this.ui.showNetworkDriveModal();
+    }
+
+    async showPluginManager(): Promise<boolean> {
+        return await this.ui.showPluginManager();
+    }
+
+    navigateToView(viewId: string): void {
+        this.ui.navigateToView(viewId);
     }
 
     // Playlist event handlers

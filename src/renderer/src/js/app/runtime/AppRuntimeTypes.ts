@@ -1,140 +1,48 @@
-import type {MusicBoxAPIEvents, ScanProgress} from '@api/types/events';
-import type {PlayMode} from '@api/types/playback';
+import type {ScanProgress} from '@api/types/events';
 import type {Playlist} from '@api/types/playlist';
 import type {Track} from '@api/types/track';
-import type {AlbumsPage} from '@ui/pages/AlbumsPage';
-import type {ArtistsPage} from '@ui/pages/ArtistsPage';
-import type {HomePage} from '@ui/pages/HomePage';
-import type {NetworkDriveDetailPage} from '@ui/pages/NetworkDriveDetailPage';
-import type {PlaylistDetailPage} from '@ui/pages/PlaylistDetailPage';
-import type {RecentPage} from '@ui/pages/RecentPage';
-import type {Settings} from '@ui/pages/Settings';
-import type {StatisticsPage} from '@ui/pages/StatisticsPage';
-import type {ContextMenu} from '@ui/widgets/ContextMenu';
-import type {EqualizerComponent} from '@ui/widgets/EqualizerComponent';
-import type ParametricEqualizerComponent from '@ui/widgets/ParametricEqualizerComponent';
-import type {Lyrics} from '@ui/widgets/Lyrics';
-import type {Navigation} from '@ui/widgets/Navigation';
-import type {Player} from '@ui/widgets/Player';
-import type {Playlist as QueuePlaylist} from '@ui/widgets/Playlist';
-import type {Search} from '@ui/widgets/Search';
-import type {TrackList} from '@ui/widgets/TrackList';
-import type {NetworkDiskModal} from '@ui/modals/NetworkDiskModal';
-import type {PluginManagerModal} from '@ui/modals/PluginManagerModal';
-import type {UpdateModal} from '@ui/modals/UpdateModal';
-import type {AddToPlaylistDialog} from '@ui/dialogs/AddToPlaylistDialog';
-import type {ConfirmDialog} from '@ui/dialogs/ConfirmDialog';
-import type {CreatePlaylistDialog} from '@ui/dialogs/CreatePlaylistDialog';
-import type {EditTrackInfoDialog} from '@ui/dialogs/EditTrackInfoDialog';
-import type {MusicLibrarySelectionDialog} from '@ui/dialogs/MusicLibrarySelectionDialog';
-import type {RenamePlaylistDialog} from '@ui/dialogs/RenamePlaylistDialog';
-import type {AppView, ConfirmOptions} from '@js/shared/types/AppContracts';
-export type {AppView, ConfirmOptions, ManagedAPIListener, ManagedDOMListener} from '@js/shared/types/AppContracts';
+import type {AppView} from '@js/shared/types/AppContracts';
+import type {
+    AppAPIEventPort,
+    AppComponentPort,
+    AppConfirmationPort,
+    AppCoverPreloadPort,
+    AppDOMEventPort,
+    AppEventEmitterPort,
+    AppInitializationPort,
+    AppLibraryStatePort,
+    AppNotificationPort,
+    AppViewStatePort
+} from './AppRuntimePorts';
 
-export interface ComponentRegistryMap {
-    player: Player;
-    search: Search;
-    navigation: Navigation & Record<string, any>;
-    trackList: TrackList;
-    playlist: QueuePlaylist;
-    contextMenu: ContextMenu;
-    settings: Settings;
-    lyrics: Lyrics;
-    equalizer: EqualizerComponent;
-    parametricEqualizer: ParametricEqualizerComponent;
-    confirmDialog: ConfirmDialog;
-    createPlaylistDialog: CreatePlaylistDialog;
-    addToPlaylistDialog: AddToPlaylistDialog;
-    renamePlaylistDialog: RenamePlaylistDialog;
-    musicLibrarySelectionDialog: MusicLibrarySelectionDialog;
-    editTrackInfoDialog: EditTrackInfoDialog;
-    playlistDetailPage: PlaylistDetailPage;
-    networkDriveDetailPage: NetworkDriveDetailPage;
-    updateModal: UpdateModal;
-    pluginManagerModal: PluginManagerModal;
-    homePage: HomePage;
-    recentPage: RecentPage | null;
-    artistsPage: ArtistsPage | null;
-    albumsPage: AlbumsPage | null;
-    statisticsPage: StatisticsPage | null;
-    networkDiskModal: NetworkDiskModal | null;
-}
-
-export type ComponentMap = ComponentRegistryMap & Record<string, any>;
-
-export interface AppComponentPort {
-    components: ComponentMap;
-}
-
-export interface AppInitializationPort {
-    isInitialized: boolean;
-}
-
-export interface AppViewStatePort {
-    currentView: AppView;
-}
-
-export interface AppLibraryStatePort {
-    library: Track[];
-    filteredLibrary: Track[];
-}
-
-export interface AppCoverPreloadPort {
-    coversPreloadedByApp?: boolean;
-}
-
-export interface AppEventEmitterPort {
-    on(event: string, handler: (...args: any[]) => void): void;
-    off(event: string, handler: (...args: any[]) => void): void;
-    emit(event: string, ...args: any[]): void;
-    removeAllListeners(event?: string): void;
-}
-
-export interface AppDOMEventPort {
-    addManagedEventListener(
-        element: EventTarget,
-        event: string,
-        handler: EventListenerOrEventListenerObject,
-        options?: boolean | AddEventListenerOptions
-    ): void;
-}
-
-export interface AppAPIEventPort {
-    addManagedAPIEventListener<K extends keyof MusicBoxAPIEvents>(
-        event: K,
-        handler: (payload: MusicBoxAPIEvents[K]) => void | Promise<void>
-    ): void;
-}
-
-export interface AppNotificationPort {
-    showSuccess(message: string): void;
-    showError(message: string): void;
-    showInfo(message: string): void;
-}
-
-export interface AppConfirmationPort {
-    confirm(options: ConfirmOptions): Promise<boolean>;
-}
-
-export interface APIEventBindingHost {
-    refreshLibrary(): Promise<void>;
-    updateLibraryTrackDuration(filePath: string, duration: number): void;
-    updateScanProgress(progress: ScanProgress): void;
-}
-
-export interface DOMEventBindingHost extends AppDOMEventPort {
-    cleanup(): Promise<void>;
-    initKeyboardShortcuts(): void;
-    initGlobalShortcuts(): Promise<void>;
-    showCreatePlaylistDialog(): void;
-    setupFileLoading(): void;
-}
-
-export interface ViewRouterHost extends AppViewStatePort {
-    updateTrackList(source?: string): void;
-}
-
-export interface PluginBootstrapHost extends AppComponentPort, AppInitializationPort {}
+export type {
+    AppView,
+    ConfirmOptions,
+    ManagedAPIListener,
+    ManagedDOMListener
+} from '@js/shared/types/AppContracts';
+export type {
+    ComponentMap,
+    ComponentRegistryMap,
+    LyricsLike,
+    PlayerLike
+} from './components/ComponentTypes';
+export type {
+    APIEventBindingHost,
+    AppAPIEventPort,
+    AppComponentPort,
+    AppConfirmationPort,
+    AppCoverPreloadPort,
+    AppDOMEventPort,
+    AppEventEmitterPort,
+    AppInitializationPort,
+    AppLibraryStatePort,
+    AppNotificationPort,
+    AppViewStatePort,
+    DOMEventBindingHost,
+    PluginBootstrapHost,
+    ViewRouterHost
+} from './AppRuntimePorts';
 
 export interface AppInteractionHost extends AppComponentPort, AppNotificationPort, AppConfirmationPort {
     handleViewChange(view: AppView): Promise<void>;
@@ -203,20 +111,4 @@ export interface RendererAppContext
     updateSidebarSelection(type: string, id?: string | null): void;
     playTrackFromPlaylist(track: Track, index: number): Promise<void>;
     loadAndPlayFile?(filePath: string): Promise<void>;
-}
-
-export interface PlayerLike {
-    togglePlayPause?: () => Promise<void> | void;
-    updatePlayModeDisplay?: (mode: PlayMode) => void;
-}
-
-export interface LyricsLike {
-    isVisible?: boolean;
-    isFullscreen?: boolean;
-    show?: (track: Track | null) => Promise<void> | void;
-    hide?: () => void;
-    updateProgress?: (position: number, duration: number) => void;
-    updatePlayButton?: (isPlaying: boolean) => void;
-    exitFullscreen?: () => void;
-    toggleFullscreen?: () => void;
 }

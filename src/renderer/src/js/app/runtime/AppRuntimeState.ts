@@ -1,6 +1,6 @@
 import type {Track} from '@api/types/track';
 
-import type {ComponentMap} from './AppRuntimeTypes';
+import type {ComponentMap} from './components/ComponentTypes';
 import type {AppView, ManagedAPIListener, ManagedDOMListener} from '@js/shared/types/AppContracts';
 
 export class AppRuntimeState {

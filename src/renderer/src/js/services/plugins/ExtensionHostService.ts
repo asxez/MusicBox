@@ -21,9 +21,6 @@ type HostTrack = ApiTrack & ExtensionTrack & {
 };
 
 interface ExtensionHostApp {
-    components: {
-        navigation?: {navigateToView(viewId: string): void} | null;
-    };
     currentView: string;
     library: ApiTrack[];
     on(event: string, handler: (...args: any[]) => void): void;
@@ -31,6 +28,7 @@ interface ExtensionHostApp {
     emit(event: string, ...args: any[]): void;
     removeAllListeners(event?: string): void;
     handleDeleteTrack(track: ApiTrack, index: number): Promise<void>;
+    navigateToView(viewId: string): void;
     loadAndPlayFile?(filePath: string): Promise<void>;
 }
 
@@ -152,13 +150,7 @@ class ExtensionHostService {
     }
 
     navigateToView(viewId: string): void {
-        const app = this.requireApp();
-        const navigation = app.components.navigation;
-        if (!navigation) {
-            throw new Error('导航组件不可用');
-        }
-
-        navigation.navigateToView(viewId);
+        this.requireApp().navigateToView(viewId);
     }
 
     getCurrentView(): string | null {

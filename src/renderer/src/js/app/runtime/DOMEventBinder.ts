@@ -1,5 +1,5 @@
 import {appShellController} from "@js/features/appShell";
-import type {DOMEventBindingHost} from './AppRuntimeTypes';
+import type {DOMEventBindingHost} from './AppRuntimePorts';
 import type {ManagedDOMListener} from '@js/shared/types/AppContracts';
 
 interface DOMEventBinderOptions {

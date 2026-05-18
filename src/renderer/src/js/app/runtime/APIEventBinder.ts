@@ -1,7 +1,7 @@
 import {appEventController} from "@js/features/events";
 import {playbackController} from "@js/features/playback";
 import type {MusicBoxAPIEvents} from '@api/types/events';
-import type {APIEventBindingHost, AppComponentPort} from './AppRuntimeTypes';
+import type {APIEventBindingHost, AppComponentPort} from './AppRuntimePorts';
 import type {ManagedAPIListener} from '@js/shared/types/AppContracts';
 import {AppUIFacade} from './AppUIFacade';
 

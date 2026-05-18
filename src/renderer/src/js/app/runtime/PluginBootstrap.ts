@@ -2,7 +2,7 @@ import {ExtensionService} from "@extensions/core/ExtensionService";
 import {InstantiationService, ServiceCollection} from "@extensions/core/Instantiation";
 import {ActivationEvents} from "@extensions/core/ExtensionsRegistry";
 import {pluginManagerService} from "@services/plugins/PluginManagerService";
-import type {AppEventEmitterPort, PluginBootstrapHost} from './AppRuntimeTypes';
+import type {AppEventEmitterPort, PluginBootstrapHost} from './AppRuntimePorts';
 
 interface PluginBootstrapOptions {
     app: PluginBootstrapHost & AppEventEmitterPort;

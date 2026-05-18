@@ -1,5 +1,6 @@
 export * from './APIEventBinder';
 export * from './AppNotifier';
+export * from './AppRuntimePorts';
 export * from './AppRuntimeState';
 export * from './AppRuntimeTypes';
 export * from './AppUIFacade';
@@ -9,6 +10,7 @@ export * from './NetworkDriveRouteController';
 export * from './PluginBootstrap';
 export * from './ShortcutController';
 export * from './ViewRouter';
+export * from './components/ComponentTypes';
 export * from './components/ComponentEventBinder';
 export * from './components/ComponentRegistry';
 export * from './MusicBoxApp';

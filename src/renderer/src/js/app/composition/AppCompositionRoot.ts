@@ -21,8 +21,8 @@ import type {
     AppNotificationPort,
     AppViewStatePort,
     ViewRouterHost
-} from '@js/app/runtime/AppRuntimeTypes';
-import type {ComponentMap} from '@js/app/runtime/AppRuntimeTypes';
+} from '@js/app/runtime/AppRuntimePorts';
+import type {ComponentMap} from '@js/app/runtime/components/ComponentTypes';
 import type {ManagedAPIListener, ManagedDOMListener} from '@js/shared/types/AppContracts';
 import type {
     NavigationComponentBindingHost,
@@ -99,10 +99,13 @@ interface MusicBoxAppHost
     showCacheLoadingStatus(): void;
     showCreatePlaylistDialog(): void;
     showFatalError(message: string): void;
+    showNetworkDriveModal(): boolean;
+    showPluginManager(): Promise<boolean>;
     showScanProgress(): void;
     showWelcomeScreen(): void;
     syncDesktopLyricsButtonState(): Promise<void>;
     updateSidebarSelection(type: string, id?: string | null): void;
+    navigateToView(viewId: string): void;
 }
 
 export interface AppComposition {

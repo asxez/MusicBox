@@ -1,16 +1,14 @@
 import type {AppView, ConfirmOptions} from "@js/shared/types/AppContracts";
 
 interface AppInteractionHost {
-    components: {
-        networkDiskModal?: {show(): void} | null;
-        pluginManagerModal?: {show(): Promise<void> | void} | null;
-    };
     confirm(options: ConfirmOptions): Promise<boolean>;
     showInfo(message: string): void;
     showSuccess(message: string): void;
     showError(message: string): void;
     handleViewChange(view: AppView): Promise<void>;
     addMusicFiles(): Promise<void>;
+    showNetworkDriveModal(): boolean;
+    showPluginManager(): Promise<boolean>;
 }
 
 class AppInteractionService {
@@ -45,33 +43,11 @@ class AppInteractionService {
     }
 
     showNetworkDriveModal(): boolean {
-        const app = this.app;
-        if (!app) {
-            return false;
-        }
-
-        const modal = app.components.networkDiskModal;
-        if (!modal) {
-            return false;
-        }
-
-        modal.show();
-        return true;
+        return this.app?.showNetworkDriveModal() ?? false;
     }
 
     async showPluginManager(): Promise<boolean> {
-        const app = this.app;
-        if (!app) {
-            return false;
-        }
-
-        const modal = app.components.pluginManagerModal;
-        if (!modal) {
-            return false;
-        }
-
-        await modal.show();
-        return true;
+        return await this.app?.showPluginManager() ?? false;
     }
 
     private requireApp(): AppInteractionHost {

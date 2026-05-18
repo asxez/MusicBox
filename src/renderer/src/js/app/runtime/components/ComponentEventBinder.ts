@@ -1,5 +1,6 @@
 import {AppUIFacade} from "@js/app/runtime/AppUIFacade";
-import type {AppComponentPort, AppNotificationPort, ComponentMap} from "@js/app/runtime/AppRuntimeTypes";
+import type {AppComponentPort, AppNotificationPort} from "@js/app/runtime/AppRuntimePorts";
+import type {ComponentMap} from "@js/app/runtime/components/ComponentTypes";
 import {appShellController} from "@js/features/appShell";
 import {playbackController} from "@js/features/playback";
 import {trackCoverDisplayPreferenceService} from "@services/preferences/TrackCoverDisplayPreferenceService";

@@ -1,7 +1,8 @@
 import {shortcutRecorder} from "@utils/shortcuts/ShortcutRecorder";
 import {shortcutConfig} from "@utils/shortcuts/ShortcutConfig";
 import type {Track} from "@api/types/track";
-import type {AppDOMEventPort, PlayerLike} from './AppRuntimeTypes';
+import type {AppDOMEventPort} from './AppRuntimePorts';
+import type {PlayerLike} from './components/ComponentTypes';
 
 interface ShortcutControllerOptions {
     app: ShortcutHost;

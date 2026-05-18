@@ -1,7 +1,8 @@
 import type {PlayMode} from '@api/types/playback';
 import type {Playlist} from '@api/types/playlist';
 import type {Track} from '@api/types/track';
-import type {AppComponentPort, PlayerLike} from './AppRuntimeTypes';
+import type {AppComponentPort} from './AppRuntimePorts';
+import type {PlayerLike} from './components/ComponentTypes';
 import type {ConfirmOptions} from '@js/shared/types/AppContracts';
 
 type TrackPredicate = (track: Track, index: number) => boolean;
@@ -264,6 +265,26 @@ export class AppUIFacade {
 
     showUpdateModal(): void {
         this.app.components.updateModal?.show();
+    }
+
+    showNetworkDriveModal(): boolean {
+        const modal = this.app.components.networkDiskModal;
+        if (!modal) {
+            return false;
+        }
+
+        modal.show();
+        return true;
+    }
+
+    async showPluginManager(): Promise<boolean> {
+        const modal = this.app.components.pluginManagerModal;
+        if (!modal) {
+            return false;
+        }
+
+        await modal.show();
+        return true;
     }
 
     async showHomePage(): Promise<void> {

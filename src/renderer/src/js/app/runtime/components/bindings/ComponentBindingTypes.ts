@@ -2,10 +2,8 @@ import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
 import type {AppUIFacade} from "@js/app/runtime/AppUIFacade";
 import type {AppView} from "@js/shared/types/AppContracts";
-import type {
-    AppNotificationPort,
-    ComponentMap
-} from "@js/app/runtime/AppRuntimeTypes";
+import type {AppNotificationPort} from "@js/app/runtime/AppRuntimePorts";
+import type {ComponentMap} from "@js/app/runtime/components/ComponentTypes";
 
 export interface NavigationComponentBindingHost {
     handleSearchResults(results: Track[]): void;
