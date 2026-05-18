@@ -2,7 +2,6 @@ import {cacheManager} from "@services/CacheManager";
 import {libraryController} from "@js/features/library";
 import {playbackController} from "@js/features/playback";
 import type {Track as ApiTrack} from "@api/types/track";
-import type {ExtensionHostApp} from "@js/app/runtime/AppRuntimeTypes";
 import type {
     Album as ExtensionAlbum,
     Artist as ExtensionArtist,
@@ -20,6 +19,20 @@ type HostTrack = ApiTrack & ExtensionTrack & {
     cover?: string | null;
     path?: string;
 };
+
+interface ExtensionHostApp {
+    components: {
+        navigation?: {navigateToView(viewId: string): void} | null;
+    };
+    currentView: string;
+    library: ApiTrack[];
+    on(event: string, handler: (...args: any[]) => void): void;
+    off(event: string, handler: (...args: any[]) => void): void;
+    emit(event: string, ...args: any[]): void;
+    removeAllListeners(event?: string): void;
+    handleDeleteTrack(track: ApiTrack, index: number): Promise<void>;
+    loadAndPlayFile?(filePath: string): Promise<void>;
+}
 
 class ExtensionHostService {
     private app: ExtensionHostApp | null = null;

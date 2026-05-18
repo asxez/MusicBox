@@ -24,13 +24,13 @@ import {playbackController as playbackFeatureController} from "@js/features/play
 import type {MusicBoxAPIEvents, ScanProgress} from "@api/types/events";
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
+import type {ComponentMap} from "./AppRuntimeTypes";
 import type {
     AppView,
-    ComponentMap,
     ConfirmOptions,
     ManagedAPIListener,
     ManagedDOMListener
-} from "./AppRuntimeTypes";
+} from "@js/shared/types/AppContracts";
 
 type ShortcutDefinitionMap = Record<string, any>;
 

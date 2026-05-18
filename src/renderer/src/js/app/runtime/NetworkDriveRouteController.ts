@@ -1,4 +1,4 @@
-import type {AppView} from './AppRuntimeTypes';
+import type {AppView} from '@js/shared/types/AppContracts';
 import type {AppUIFacade} from './AppUIFacade';
 
 interface NetworkDriveLike {

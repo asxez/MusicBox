@@ -1,4 +1,17 @@
-import type {AppInteractionHost, ConfirmOptions} from "@js/app/runtime/AppRuntimeTypes";
+import type {AppView, ConfirmOptions} from "@js/shared/types/AppContracts";
+
+interface AppInteractionHost {
+    components: {
+        networkDiskModal?: {show(): void} | null;
+        pluginManagerModal?: {show(): Promise<void> | void} | null;
+    };
+    confirm(options: ConfirmOptions): Promise<boolean>;
+    showInfo(message: string): void;
+    showSuccess(message: string): void;
+    showError(message: string): void;
+    handleViewChange(view: AppView): Promise<void>;
+    addMusicFiles(): Promise<void>;
+}
 
 class AppInteractionService {
     private app: AppInteractionHost | null = null;

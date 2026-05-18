@@ -1,4 +1,5 @@
-import type {AppComponentPort, AppView, ViewRouterHost} from './AppRuntimeTypes';
+import type {AppComponentPort, ViewRouterHost} from './AppRuntimeTypes';
+import type {AppView} from '@js/shared/types/AppContracts';
 import {AppUIFacade} from './AppUIFacade';
 
 interface ViewRouterOptions {

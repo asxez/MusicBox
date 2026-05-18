@@ -1,5 +1,5 @@
 import type {Track} from "@api/types/track";
-import type {AppView} from "@js/app/runtime/AppRuntimeTypes";
+import type {AppView} from "@js/shared/types/AppContracts";
 
 import type {
     ComponentEventName,

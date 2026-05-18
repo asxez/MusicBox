@@ -20,11 +20,10 @@ import type {
     AppLibraryStatePort,
     AppNotificationPort,
     AppViewStatePort,
-    ComponentMap,
-    ManagedAPIListener,
-    ManagedDOMListener,
     ViewRouterHost
 } from '@js/app/runtime/AppRuntimeTypes';
+import type {ComponentMap} from '@js/app/runtime/AppRuntimeTypes';
+import type {ManagedAPIListener, ManagedDOMListener} from '@js/shared/types/AppContracts';
 import type {
     NavigationComponentBindingHost,
     PageComponentBindingHost

@@ -28,29 +28,8 @@ import type {CreatePlaylistDialog} from '@ui/dialogs/CreatePlaylistDialog';
 import type {EditTrackInfoDialog} from '@ui/dialogs/EditTrackInfoDialog';
 import type {MusicLibrarySelectionDialog} from '@ui/dialogs/MusicLibrarySelectionDialog';
 import type {RenamePlaylistDialog} from '@ui/dialogs/RenamePlaylistDialog';
-
-export type AppView =
-    | 'home-page'
-    | 'library'
-    | 'recent'
-    | 'artists'
-    | 'albums'
-    | 'statistics'
-    | 'playlist-detail'
-    | 'network-drive-detail'
-    | string;
-
-export interface ManagedDOMListener {
-    element: EventTarget;
-    event: string;
-    handler: EventListenerOrEventListenerObject;
-    options?: boolean | AddEventListenerOptions;
-}
-
-export interface ManagedAPIListener<K extends keyof MusicBoxAPIEvents = keyof MusicBoxAPIEvents> {
-    event: K;
-    handler: (payload: MusicBoxAPIEvents[K]) => void | Promise<void>;
-}
+import type {AppView, ConfirmOptions} from '@js/shared/types/AppContracts';
+export type {AppView, ConfirmOptions, ManagedAPIListener, ManagedDOMListener} from '@js/shared/types/AppContracts';
 
 export interface ComponentRegistryMap {
     player: Player;
@@ -82,14 +61,6 @@ export interface ComponentRegistryMap {
 }
 
 export type ComponentMap = ComponentRegistryMap & Record<string, any>;
-
-export interface ConfirmOptions {
-    title: string;
-    message: string;
-    type?: 'default' | 'danger' | 'warning';
-    confirmText?: string;
-    cancelText?: string;
-}
 
 export interface AppComponentPort {
     components: ComponentMap;

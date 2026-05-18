@@ -1,7 +1,8 @@
 import type {PlayMode} from '@api/types/playback';
 import type {Playlist} from '@api/types/playlist';
 import type {Track} from '@api/types/track';
-import type {AppComponentPort, ConfirmOptions, PlayerLike} from './AppRuntimeTypes';
+import type {AppComponentPort, PlayerLike} from './AppRuntimeTypes';
+import type {ConfirmOptions} from '@js/shared/types/AppContracts';
 
 type TrackPredicate = (track: Track, index: number) => boolean;
 
