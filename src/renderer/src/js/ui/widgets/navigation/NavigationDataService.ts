@@ -1,4 +1,4 @@
-import {appShellController} from "@js/features/appShell";
+import {windowShellService} from "@js/features/appShell/service";
 import {libraryController} from "@js/features/library";
 import {networkDriveManagementService} from "@js/features/networkDrive/service";
 import type {Result, Unsubscribe} from "@api/types/common";
@@ -11,7 +11,7 @@ class NavigationDataService {
     }
 
     onWindowMaximizedChanged(handler: (isMaximized: boolean) => void): Unsubscribe {
-        return appShellController.onWindowMaximizedChanged(handler);
+        return windowShellService.onMaximizedChanged(handler);
     }
 
     onNetworkDriveConnected(handler: () => void | Promise<void>): Unsubscribe {
@@ -23,19 +23,19 @@ class NavigationDataService {
     }
 
     async minimizeWindow(): Promise<void> {
-        await appShellController.minimizeWindow();
+        await windowShellService.minimize();
     }
 
     async toggleMaximizeWindow(): Promise<void> {
-        await appShellController.toggleMaximizeWindow();
+        await windowShellService.maximize();
     }
 
     async closeWindow(): Promise<void> {
-        await appShellController.closeWindow();
+        await windowShellService.close();
     }
 
     async isWindowMaximized(): Promise<boolean> {
-        return appShellController.isWindowMaximized();
+        return windowShellService.isMaximized();
     }
 
     async getPlaylists(): Promise<Playlist[]> {

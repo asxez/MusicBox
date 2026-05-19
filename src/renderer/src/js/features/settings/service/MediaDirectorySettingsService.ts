@@ -1,4 +1,4 @@
-import {appShellController} from "@js/features/appShell";
+import {settingsShellService} from "@js/features/appShell/service";
 import {localCoverManager, localLyricsManager} from "@js/features/mediaAssets/service";
 
 interface PathResult {
@@ -15,7 +15,7 @@ interface DirectoryResult {
 
 class MediaDirectorySettingsService {
     async selectDirectory(): Promise<string | null> {
-        const result = await appShellController.selectFolder();
+        const result = await settingsShellService.selectFolder();
         if (!result || !result.filePaths || result.filePaths.length === 0) {
             return null;
         }
@@ -36,7 +36,7 @@ class MediaDirectorySettingsService {
             return {directory: savedDirectory, shouldPersist: false};
         }
 
-        const defaultPathResult = await appShellController.getDefaultCoverCachePath() as PathResult;
+        const defaultPathResult = await settingsShellService.getDefaultCoverCachePath() as PathResult;
         if (!defaultPathResult.success || !defaultPathResult.path) {
             return {
                 directory: null,
@@ -45,7 +45,7 @@ class MediaDirectorySettingsService {
             };
         }
 
-        const ensureResult = await appShellController.ensureDirectoryExists(defaultPathResult.path) as PathResult;
+        const ensureResult = await settingsShellService.ensureDirectoryExists(defaultPathResult.path) as PathResult;
         if (!ensureResult.success) {
             return {
                 directory: null,

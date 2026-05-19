@@ -3,7 +3,7 @@
  * 提供对原生参量均衡器的前端接口封装
  */
 
-import {appShellController} from "@js/features/appShell";
+import {settingsShellService} from "@js/features/appShell/service";
 import {mediaController} from "@js/features/media";
 import ParametricEqualizerPresets, {
     ParametricFilterType,
@@ -522,7 +522,7 @@ class ParametricEqualizer {
     async saveCustomPresets(): Promise<void> {
         try {
             const customPresets = this.presets.getCustomPresets();
-            await appShellController.setSetting('parametric-equalizer.custom-presets', customPresets);
+            await settingsShellService.setSetting('parametric-equalizer.custom-presets', customPresets);
         } catch (error) {
             console.error('❌ 保存自定义预设到本地存储失败:', error);
         }
@@ -533,7 +533,7 @@ class ParametricEqualizer {
      */
     async loadCustomPresets(): Promise<void> {
         try {
-            const customPresets = await appShellController.getSetting('parametric-equalizer.custom-presets');
+            const customPresets = await settingsShellService.getSetting('parametric-equalizer.custom-presets');
             if (customPresets) {
                 this.presets.loadCustomPresets(customPresets);
                 console.log('🎚️ 加载自定义预设:', Object.keys(customPresets).length, '个');
@@ -559,7 +559,7 @@ class ParametricEqualizer {
                 currentPresetIsCustom: this.currentPresetIsCustom
             };
 
-            await appShellController.setSetting('parametric-equalizer.state', state);
+            await settingsShellService.setSetting('parametric-equalizer.state', state);
             console.log('💾 保存参量均衡器状态');
         } catch (error) {
             console.error('❌ 保存参量均衡器状态失败:', error);
@@ -571,7 +571,7 @@ class ParametricEqualizer {
      */
     async loadSavedState(): Promise<boolean> {
         try {
-            const state = await appShellController.getSetting<ParametricEqualizerState>('parametric-equalizer.state');
+            const state = await settingsShellService.getSetting<ParametricEqualizerState>('parametric-equalizer.state');
             if (!state) {
                 console.log('💡 没有保存的参量均衡器状态');
                 return false;

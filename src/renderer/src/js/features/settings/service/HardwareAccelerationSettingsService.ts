@@ -1,4 +1,4 @@
-import {appShellController} from "@js/features/appShell";
+import {hardwareAccelerationShellService} from "@js/features/appShell/service";
 
 interface HardwareAccelerationSettingsResult {
     success?: boolean;
@@ -15,7 +15,7 @@ interface OperationResult {
 
 class HardwareAccelerationSettingsService {
     async getEnabled(): Promise<boolean> {
-        const result = await appShellController.getHardwareAccelerationSettings() as HardwareAccelerationSettingsResult;
+        const result = await hardwareAccelerationShellService.getSettings() as HardwareAccelerationSettingsResult;
         if (!result.success) {
             return true;
         }
@@ -24,19 +24,19 @@ class HardwareAccelerationSettingsService {
     }
 
     updateEnabled(enabled: boolean): Promise<OperationResult> {
-        return appShellController.updateHardwareAccelerationSettings(enabled) as Promise<OperationResult>;
+        return hardwareAccelerationShellService.updateSettings(enabled) as Promise<OperationResult>;
     }
 
     restartApplication(): Promise<void> {
-        return appShellController.restartApplication();
+        return hardwareAccelerationShellService.restartApplication();
     }
 
     openUserDataFolder(): Promise<OperationResult> {
-        return appShellController.openUserDataFolder() as Promise<OperationResult>;
+        return hardwareAccelerationShellService.openUserDataFolder() as Promise<OperationResult>;
     }
 
     openDevTools(): Promise<OperationResult> {
-        return appShellController.openDevTools() as Promise<OperationResult>;
+        return hardwareAccelerationShellService.openDevTools() as Promise<OperationResult>;
     }
 }
 

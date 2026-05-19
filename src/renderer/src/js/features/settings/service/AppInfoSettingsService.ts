@@ -1,5 +1,4 @@
-import {appShellController} from "@js/features/appShell";
-import {updateService} from "@js/features/appShell/service";
+import {systemShellService, updateService} from "@js/features/appShell/service";
 
 class AppInfoSettingsService {
     private readonly repositoryUrl = 'https://github.com/asxez/MusicBox';
@@ -15,7 +14,7 @@ class AppInfoSettingsService {
     }
 
     async openRepository(): Promise<{success: boolean; error?: string}> {
-        return await appShellController.openExternal(this.repositoryUrl);
+        return await systemShellService.openExternal(this.repositoryUrl);
     }
 }
 

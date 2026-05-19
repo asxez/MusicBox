@@ -184,6 +184,13 @@ export class WindowShellService {
         );
     }
 
+    async getPosition(): Promise<[number, number]> {
+        return await this.callGateway(
+            () => windowGateway.getPosition(),
+            'window.getPosition'
+        );
+    }
+
     async setSize(width: number, height: number): Promise<Result> {
         this.assertNumber(width, 'width');
         this.assertNumber(height, 'height');

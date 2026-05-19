@@ -1,18 +1,18 @@
-import {appShellController} from "@js/features/appShell";
+import {trayShellService} from "@js/features/appShell/service";
 
 class TraySettingsService {
     updateEnabled(enabled: boolean): Promise<void> {
-        return appShellController.updateTraySettings({enabled});
+        return trayShellService.updateSettings({enabled});
     }
 
     updateCloseBehavior(behavior: string): Promise<void> {
-        return appShellController.updateTraySettings({
+        return trayShellService.updateSettings({
             closeToTray: behavior === 'minimize'
         });
     }
 
     updateStartMinimized(startMinimized: boolean): Promise<void> {
-        return appShellController.updateTraySettings({startMinimized});
+        return trayShellService.updateSettings({startMinimized});
     }
 }
 
