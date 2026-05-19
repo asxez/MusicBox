@@ -1,5 +1,6 @@
 import {
     appendLyricsWordSpans,
+    findActiveLyricIndex,
     getLyricsWordText,
     LyricsWordHighlightController
 } from '@js/shared/lyrics';
@@ -61,7 +62,7 @@ export class DesktopLyricsRenderController {
             return;
         }
 
-        const newIndex = this.findLyricIndex(currentTime);
+        const newIndex = findActiveLyricIndex(this.lyrics, currentTime);
         if (newIndex !== this.currentLyricIndex) {
             this.currentLyricIndex = newIndex;
             this.renderCurrentLyric();
@@ -70,18 +71,6 @@ export class DesktopLyricsRenderController {
         if (newIndex >= 0 && this.lyrics[newIndex].type === 'word-by-word') {
             this.updateWordHighlight(newIndex, currentTime);
         }
-    }
-
-    private findLyricIndex(currentTime: number): number {
-        let newIndex = -1;
-        for (let i = 0; i < this.lyrics.length; i++) {
-            if (currentTime >= this.lyrics[i].time) {
-                newIndex = i;
-            } else {
-                break;
-            }
-        }
-        return newIndex;
     }
 
     private renderCurrentLyric(): void {

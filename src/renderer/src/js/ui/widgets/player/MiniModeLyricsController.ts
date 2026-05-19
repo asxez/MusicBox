@@ -1,6 +1,6 @@
 import {lyricsContentService} from "@js/features/mediaAssets/service";
 import {playbackController} from "@js/features/playback";
-import {appendLyricsWordSpans, LyricsWordHighlightController} from "@js/shared/lyrics";
+import {appendLyricsWordSpans, findActiveLyricIndex, LyricsWordHighlightController} from "@js/shared/lyrics";
 import type {Unsubscribe} from "@js/features/playback";
 import type {LyricLine} from "@api/types/lyrics";
 import type {Track} from "@api/types/track";
@@ -66,7 +66,7 @@ class MiniModeLyricsController {
             }
 
             this.lyrics = parsedLyrics;
-            this.currentLyricIndex = this.findLyricIndex(currentTime);
+            this.currentLyricIndex = findActiveLyricIndex(parsedLyrics, currentTime, {beforeFirst: 'first'});
             console.log(`✅ MiniModeLyricsController: 迷你模式歌词加载成功，共${parsedLyrics.length}行，当前索引:${this.currentLyricIndex}，播放位置:${currentTime.toFixed(2)}s`);
             this.updateLyrics();
         } catch (error) {
@@ -112,29 +112,12 @@ class MiniModeLyricsController {
         return result.lyrics as MiniModeLyricLine[];
     }
 
-    private findLyricIndex(currentTime: number): number {
-        if (this.lyrics.length === 0) {
-            return -1;
-        }
-
-        let index = -1;
-        for (let i = 0; i < this.lyrics.length; i++) {
-            if (currentTime >= this.lyrics[i].time) {
-                index = i;
-            } else {
-                break;
-            }
-        }
-
-        return index === -1 ? 0 : index;
-    }
-
     private updateLyricIndex(currentTime: number): void {
         if (this.lyrics.length === 0) {
             return;
         }
 
-        const newIndex = this.findLyricIndex(currentTime);
+        const newIndex = findActiveLyricIndex(this.lyrics, currentTime, {beforeFirst: 'first'});
         if (newIndex !== this.currentLyricIndex) {
             this.currentLyricIndex = newIndex;
             this.updateLyrics();

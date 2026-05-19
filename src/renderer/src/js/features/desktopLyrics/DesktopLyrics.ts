@@ -1,17 +1,16 @@
-import type {DesktopLyricsPlaybackState} from '@api/types/playback';
-import type {Track} from '@api/types/library';
-import {desktopLyricsWindowService} from './service';
 import {resolveDesktopLyricsElements} from './DesktopLyricsElements';
+import {DesktopLyricsEventBinder} from './DesktopLyricsEventBinder';
 import {DesktopLyricsLockController} from './DesktopLyricsLockController';
 import {DesktopLyricsRenderController} from './DesktopLyricsRenderController';
 import {DesktopLyricsSettingsController} from './DesktopLyricsSettingsController';
-import type {DesktopLyricsElements, DesktopLyricsSettings} from './DesktopLyricsTypes';
+import type {DesktopLyricsElements} from './DesktopLyricsTypes';
 
 class DesktopLyrics {
     private readonly elements: DesktopLyricsElements;
     private readonly lockController: DesktopLyricsLockController;
     private readonly renderController: DesktopLyricsRenderController;
     private readonly settingsController: DesktopLyricsSettingsController;
+    private readonly eventBinder: DesktopLyricsEventBinder;
     isPlaying: boolean;
     currentPosition: number;
 
@@ -20,6 +19,20 @@ class DesktopLyrics {
         this.lockController = new DesktopLyricsLockController(this.elements);
         this.renderController = new DesktopLyricsRenderController(this.elements);
         this.settingsController = new DesktopLyricsSettingsController(this.elements, this.lockController);
+        this.eventBinder = new DesktopLyricsEventBinder({
+            elements: this.elements,
+            lockController: this.lockController,
+            renderController: this.renderController,
+            settingsController: this.settingsController,
+            setPlaybackState: (state) => {
+                if (typeof state.isPlaying === 'boolean') {
+                    this.isPlaying = state.isPlaying;
+                }
+                if (typeof state.position === 'number') {
+                    this.currentPosition = state.position;
+                }
+            }
+        });
         this.isPlaying = false;
         this.currentPosition = 0;
 
@@ -27,49 +40,10 @@ class DesktopLyrics {
     }
 
     init(): void {
-        this.setupEventListeners();
-        this.setupIPCListeners();
+        this.eventBinder.bind();
         this.settingsController.loadSettings();
         void this.settingsController.applySettings();
         this.renderController.showDefaultLyrics();
-    }
-
-    setupEventListeners(): void {
-        this.elements.lockBtn.addEventListener('click', () => {
-            void this.lockController.toggle();
-        });
-
-        this.elements.closeBtn.addEventListener('click', () => {
-            void desktopLyricsWindowService.close();
-        });
-
-        this.lockController.bindControlHover();
-    }
-
-    setupIPCListeners(): void {
-        desktopLyricsWindowService.onLyricsUpdated((lyricsData) => {
-            this.renderController.updateLyrics(lyricsData);
-        });
-
-        desktopLyricsWindowService.onPositionChanged((position) => {
-            const normalizedPosition = this.renderController.updatePosition(position);
-            if (normalizedPosition !== null) {
-                this.currentPosition = normalizedPosition;
-            }
-        });
-
-        desktopLyricsWindowService.onPlaybackStateChanged((state: DesktopLyricsPlaybackState) => {
-            this.isPlaying = state?.isPlaying || false;
-        });
-
-        desktopLyricsWindowService.onTrackChanged((_track: Track | null) => {
-            this.currentPosition = 0;
-            this.renderController.reset();
-        });
-
-        desktopLyricsWindowService.onSettingsChanged((settings) => {
-            void this.settingsController.updateSettings(settings as Partial<DesktopLyricsSettings>);
-        });
     }
 }
 

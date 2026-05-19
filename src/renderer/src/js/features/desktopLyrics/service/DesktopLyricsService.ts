@@ -3,12 +3,7 @@ import type {LyricLine} from '@api/types/lyrics';
 import type {DesktopLyricsSettings, MusicBoxSettings} from '@api/types/settings';
 import type {Track} from '@api/types/track';
 import {DesktopLyricsSync} from './DesktopLyricsSync';
-
-export type DesktopLyricsToggleResult = {
-    success: boolean;
-    visible?: boolean;
-    error?: string;
-};
+import type {DesktopLyricsToggleResult} from './DesktopLyricsWindowOperationsService';
 
 export type DesktopLyricsPlaybackSnapshot = {
     currentTrack: Track | null;
@@ -70,3 +65,4 @@ export class DesktopLyricsService {
 }
 
 export const desktopLyricsService = new DesktopLyricsService();
+export type {DesktopLyricsToggleResult};

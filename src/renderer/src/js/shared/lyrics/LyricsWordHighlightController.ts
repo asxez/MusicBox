@@ -54,13 +54,15 @@ class LyricsWordHighlightController {
         this.currentPlaybackPosition = 0;
     }
 
-    updateWordHighlight({
-        lineElement,
-        words,
-        currentTime,
-        lineEndTime,
-        preservePlayedProgress = true
-    }: WordHighlightOptions): void {
+    updateWordHighlight(
+        {
+            lineElement,
+            words,
+            currentTime,
+            lineEndTime,
+            preservePlayedProgress = true
+        }: WordHighlightOptions
+    ): void {
         if (!words || words.length === 0) {
             return;
         }

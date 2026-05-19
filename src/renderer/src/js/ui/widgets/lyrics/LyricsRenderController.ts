@@ -1,5 +1,5 @@
 import type {RenderLyricLine} from "@ui/widgets/lyrics/LyricsTypes";
-import {appendLyricsWordSpans, LyricsWordHighlightController} from "@js/shared/lyrics";
+import {appendLyricsWordSpans, findActiveLyricIndex, LyricsWordHighlightController} from "@js/shared/lyrics";
 
 interface LyricsRenderControllerOptions {
     lyricsDisplay: HTMLElement;
@@ -131,14 +131,7 @@ class LyricsRenderController {
             return;
         }
 
-        let newIndex = -1;
-        for (let i = 0; i < this.lyrics.length; i++) {
-            if (currentTime >= this.lyrics[i].time) {
-                newIndex = i;
-            } else {
-                break;
-            }
-        }
+        const newIndex = findActiveLyricIndex(this.lyrics, currentTime);
 
         if (newIndex !== this.currentLyricIndex) {
             if (this.currentLyricIndex >= 0) {
