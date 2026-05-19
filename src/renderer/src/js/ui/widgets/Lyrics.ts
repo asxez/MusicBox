@@ -7,10 +7,12 @@ import {Component} from "@ui/base/Component";
 import {desktopLyricsController} from "@js/features/desktopLyrics";
 import {mediaController} from "@js/features/media";
 import {playbackController} from "@js/features/playback";
+import {LyricsPlaybackControlsController} from "@ui/widgets/lyrics/LyricsPlaybackControlsController";
 import type {PlaybackState, PlaybackStoreChange, Unsubscribe} from "@js/features/playback";
 import type {LyricLine} from "@api/types/lyrics";
 import type {PlayMode} from "@api/types/playback";
 import type {Track} from "@api/types/track";
+import type {LyricsPlaybackControlElements} from "@ui/widgets/lyrics/LyricsPlaybackControlsController";
 
 type WordLyric = {
     text: string;
@@ -35,7 +37,6 @@ type LyricsTrack = Track & {
 class Lyrics extends Component {
     public isVisible: boolean;
     public isFullscreen: boolean;
-    private isPlaying: boolean;
     private currentTrack: LyricsTrack | null;
     private lyrics: RenderLyricLine[];
     private currentLyricIndex: number;
@@ -73,10 +74,7 @@ class Lyrics extends Component {
     private modeSequenceIcon!: HTMLElement;
     private modeShuffleIcon!: HTMLElement;
     private modeRepeatOneIcon!: HTMLElement;
-    private isDraggingProgress: boolean;
-    private isDraggingVolume: boolean;
-    private currentVolume: number;
-    private previousVolume: number;
+    private playbackControls!: LyricsPlaybackControlsController;
     private elementMouseMoveHandler: (() => void) | null;
     private clearHideTimer: (() => void) | null;
     private _lastTrackPath: string | null;
@@ -94,12 +92,10 @@ class Lyrics extends Component {
     private isTransitioning: boolean;
     private lastClickTime: number;
     private readonly doubleClickDelay: number;
-    private _toggleInProgress: boolean;
     private playbackStateUnsubscribe: Unsubscribe | null;
 
     constructor(element: Element | null) {
         super(element);
-        this.isPlaying = false;
         this.element = element;
         this.isVisible = false;
         this.currentTrack = null;
@@ -128,13 +124,8 @@ class Lyrics extends Component {
         this.lastClickTime = 0; // 上次点击时间，用于双击检测
         this.doubleClickDelay = 300; // 双击检测延迟（毫秒）
         this.isFullscreen = false;
-        this.isDraggingProgress = false;
-        this.isDraggingVolume = false;
-        this.currentVolume = 50;
-        this.previousVolume = 50;
         this.elementMouseMoveHandler = null;
         this.clearHideTimer = null;
-        this._toggleInProgress = false;
         this.playbackStateUnsubscribe = null;
 
         this.setupElements();
@@ -150,7 +141,6 @@ class Lyrics extends Component {
 
         this.currentTrack = track;
         this.isVisible = true;
-        this.isPlaying = playbackController.getState().isPlaying;
 
         // 立即显示页面，不等待歌词加载
         this.page.style.display = 'block';
@@ -206,7 +196,6 @@ class Lyrics extends Component {
 
         // 重置状态
         this.isVisible = false;
-        this.isPlaying = false;
         this.listenersSetup = false;
 
         this.resetLayoutState();
@@ -281,11 +270,13 @@ class Lyrics extends Component {
         // 全屏状态
         this.isFullscreen = false;
 
-        // 控制状态
-        this.isDraggingProgress = false;
-        this.isDraggingVolume = false;
-        this.currentVolume = 50;
-        this.previousVolume = 50;
+        this.playbackControls = new LyricsPlaybackControlsController({
+            elements: this.getPlaybackControlElements(),
+            addDomListener: (element, event, handler, options) => {
+                this.addEventListenerManaged(element, event, handler, options);
+            },
+            getCurrentTrack: () => this.currentTrack
+        });
     }
 
     setupEventListeners(): void {
@@ -297,17 +288,7 @@ class Lyrics extends Component {
             this.toggleFullscreen();
         });
 
-        this.addEventListenerManaged(this.playBtn, 'click', async () => {
-            await this.togglePlayPause();
-        });
-
-        this.addEventListenerManaged(this.prevBtn, 'click', async () => {
-            await playbackController.previousTrack();
-        });
-
-        this.addEventListenerManaged(this.nextBtn, 'click', async () => {
-            await playbackController.nextTrack();
-        });
+        this.playbackControls.bind();
 
         // 封面双击切换布局事件
         this.addEventListenerManaged(this.trackCover, 'click', async (e) => {
@@ -317,59 +298,6 @@ class Lyrics extends Component {
         // 窗口大小变化监听器
         this.addEventListenerManaged(window, 'resize', () => {
             this.handleWindowResize();
-        });
-
-        // 音量控制事件
-        this.addEventListenerManaged(this.volumeBtn, 'click', async () => {
-            await this.toggleVolumeMute();
-        });
-
-        // 音量条点击和拖拽事件
-        this.addEventListenerManaged(this.volumeSliderContainer, 'mousedown', async (e) => {
-            this.isDraggingVolume = true;
-            await this.updateVolumeFromEvent(e as MouseEvent);
-        });
-        this.addEventListenerManaged(this.volumeSliderContainer, 'click', async (e) => {
-            if (!this.isDraggingVolume) {
-                await this.updateVolumeFromEvent(e as MouseEvent);
-            }
-        });
-        this.addEventListenerManaged(this.volumeSliderContainer, 'mousewheel', async (e) => {
-            const wheelEvent = e as WheelEvent & {wheelDelta?: number};
-            if ((wheelEvent.wheelDelta || -wheelEvent.deltaY) < 0) await this.setVolume(Math.min(100, this.currentVolume + 1));
-            else await this.setVolume(Math.max(0, this.currentVolume - 1));
-        });
-
-        // 播放模式切换事件
-        this.addEventListenerManaged(this.playModeBtn, 'click', () => {
-            const newMode = playbackController.togglePlayMode();
-            this.updatePlayModeDisplay(newMode);
-        });
-
-        // 进度条交互事件
-        this.addEventListenerManaged(this.progressBar, 'click', async (e) => {
-            await this.seekToPosition(e as MouseEvent);
-        });
-        this.addEventListenerManaged(this.progressBar, 'mousedown', (e) => {
-            this.startProgressDrag(e as MouseEvent);
-        });
-
-        // document
-        this.addEventListenerManaged(document, 'mousemove', async (e) => {
-            if (this.isDraggingProgress) {
-                this.updateProgressDrag(e as MouseEvent);
-            }
-            if (this.isDraggingVolume) {
-                await this.updateVolumeFromEvent(e as MouseEvent);
-            }
-        });
-        this.addEventListenerManaged(document, 'mouseup', async () => {
-            if (this.isDraggingProgress) {
-                await this.endProgressDrag();
-            }
-            if (this.isDraggingVolume) {
-                this.isDraggingVolume = false;
-            }
         });
 
         // 鼠标隐藏逻辑
@@ -416,14 +344,11 @@ class Lyrics extends Component {
                 break;
 
             case 'playbackStateChanged':
-                this.isPlaying = state.isPlaying;
-                this.updatePlayButton();
+                this.playbackControls.setPlaying(state.isPlaying);
                 break;
 
             case 'durationChanged':
-                if (this.durationEl && state.duration > 0) {
-                    this.durationEl.textContent = this.formatTime(state.duration);
-                }
+                this.playbackControls.updateDuration(state.duration);
                 break;
 
             case 'trackChanged':
@@ -434,8 +359,7 @@ class Lyrics extends Component {
                 break;
 
             case 'volumeChanged':
-                this.currentVolume = state.volume * 100;
-                this.updateVolumeDisplay();
+                this.playbackControls.setVolumeFromRuntime(state.volume);
                 break;
 
             case 'playModeChanged':
@@ -481,58 +405,15 @@ class Lyrics extends Component {
     }
 
     async togglePlayPause(): Promise<void> {
-        // 防止重复调用的锁定机制
-        if (this._toggleInProgress) {
-            return;
-        }
-
-        this._toggleInProgress = true;
-        try {
-            if (this.isPlaying) {
-                const result = await playbackController.pause();
-                if (!result) {
-                    console.error('❌ Lyrics: 暂停失败');
-                }
-            } else {
-                const result = await playbackController.play();
-                if (!result) {
-                    console.error('❌ Lyrics: 播放失败');
-                }
-            }
-        } catch (error) {
-            console.error('❌ Lyrics: 切换播放状态失败:', error);
-        } finally {
-            // 延迟释放锁，确保状态更新完成
-            setTimeout(() => {
-                this._toggleInProgress = false;
-            }, 100);
-        }
+        await this.playbackControls.togglePlayPause();
     }
 
     updateProgress(currentTime: number, duration: number): void {
-        // 更新进度条填充和滑块位置
-        if (this.progressFill && this.progressHandle && duration > 0) {
-            const percentage = (currentTime / duration) * 100;
-            this.progressFill.style.width = `${percentage}%`;
-            this.progressHandle.style.left = `${percentage}%`;
-        }
-        // 更新时间显示
-        if (this.currentTimeEl) {
-            this.currentTimeEl.textContent = this.formatTime(currentTime);
-        }
-        if (this.durationEl) {
-            this.durationEl.textContent = this.formatTime(duration);
-        }
+        this.playbackControls.updateProgress(currentTime, duration);
     }
 
     updatePlayButton(): void {
-        if (this.isPlaying) {
-            this.playIcon.style.display = 'none';
-            this.pauseIcon.style.display = 'block';
-        } else {
-            this.playIcon.style.display = 'block';
-            this.pauseIcon.style.display = 'none';
-        }
+        this.playbackControls.setPlaying(playbackController.getState().isPlaying);
     }
 
     formatTime(seconds: number): string {
@@ -583,10 +464,7 @@ class Lyrics extends Component {
             this.trackTitle.textContent = track.title || '未知歌曲';
             this.trackArtist.textContent = track.artist || '未知艺术家';
 
-            // 正确更新总时长显示
-            if (this.durationEl && track.duration) {
-                this.durationEl.textContent = this.formatTime(track.duration);
-            }
+            this.playbackControls.updateTrackDuration(track.duration);
 
             // 更新封面和歌词
             await this.loadLyrics(track);
@@ -1115,141 +993,20 @@ class Lyrics extends Component {
 
     // 初始化控件状态
     async initializeControls(): Promise<void> {
-        const playbackState = playbackController.getState();
-        this.isPlaying = playbackState.isPlaying;
-
-        const currentVolume = playbackState.volume * 100;
-        await this.setVolume(currentVolume);
-        this.updatePlayModeDisplay(playbackState.playMode);
-        this.updatePlayButton();
+        await this.playbackControls.initialize();
     }
 
     // 音量控制方法
     async setVolume(volume: number): Promise<void> {
-        this.currentVolume = Math.max(0, Math.min(100, volume));
-        this.updateVolumeDisplay();
-        await playbackController.setVolume(this.currentVolume / 100);
+        await this.playbackControls.setVolume(volume);
     }
 
     updateVolumeDisplay(): void {
-        // 更新音量条填充和滑块位置
-        if (this.volumeFill) {
-            this.volumeFill.style.width = `${this.currentVolume}%`;
-        }
-        if (this.volumeHandle) {
-            this.volumeHandle.style.left = `${this.currentVolume}%`;
-        }
-
-        // 更新音量图标
-        if (this.volumeIcon) this.volumeIcon.style.display = 'none';
-        if (this.volumeHalfIcon) this.volumeHalfIcon.style.display = 'none';
-        if (this.volumeMuteIcon) this.volumeMuteIcon.style.display = 'none';
-        if (this.currentVolume === 0) {
-            if (this.volumeMuteIcon) this.volumeMuteIcon.style.display = 'block';
-        } else if (this.currentVolume <= 50) {
-            if (this.volumeHalfIcon) this.volumeHalfIcon.style.display = 'block';
-        } else {
-            if (this.volumeIcon) this.volumeIcon.style.display = 'block';
-            this.volumeMuteIcon.style.display = 'none';
-            this.volumeHalfIcon.style.display = 'none';
-        }
-    }
-
-    // 从鼠标事件更新音量
-    async updateVolumeFromEvent(e: MouseEvent): Promise<void> {
-        if (!this.volumeSliderContainer) return;
-
-        const rect = this.volumeSliderContainer.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const percentage = Math.max(0, Math.min(1, clickX / rect.width));
-        const volume = Math.round(percentage * 100);
-
-        await this.setVolume(volume);
-    }
-
-    async toggleVolumeMute(): Promise<void> {
-        if (this.currentVolume > 0) {
-            this.previousVolume = this.currentVolume;
-            await this.setVolume(0);
-        } else {
-            await this.setVolume(this.previousVolume || 50);
-        }
+        this.playbackControls.setVolumeFromRuntime(playbackController.getState().volume);
     }
 
     updatePlayModeDisplay(mode: PlayMode): void {
-        if (!this.modeSequenceIcon || !this.modeShuffleIcon || !this.modeRepeatOneIcon) {
-            return;
-        }
-        this.modeSequenceIcon.style.display = 'none';
-        this.modeShuffleIcon.style.display = 'none';
-        this.modeRepeatOneIcon.style.display = 'none';
-        switch (mode) {
-            case 'sequence':
-                this.modeSequenceIcon.style.display = 'block';
-                if (this.playModeBtn) this.playModeBtn.title = '顺序播放';
-                break;
-            case 'shuffle':
-                this.modeShuffleIcon.style.display = 'block';
-                if (this.playModeBtn) this.playModeBtn.title = '随机播放';
-                break;
-            case 'repeat-one':
-                this.modeRepeatOneIcon.style.display = 'block';
-                if (this.playModeBtn) this.playModeBtn.title = '单曲循环';
-                break;
-            default:
-                // 默认显示顺序播放
-                this.modeSequenceIcon.style.display = 'block';
-                if (this.playModeBtn) this.playModeBtn.title = '顺序播放';
-                break;
-        }
-    }
-
-    // 进度条交互方法
-    async seekToPosition(e: MouseEvent): Promise<void> {
-        const duration = this.getPlaybackDuration();
-        if (!this.currentTrack || !duration) return;
-        const rect = this.progressBar.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const percentage = clickX / rect.width;
-        const seekTime = percentage * duration;
-        await playbackController.seek(seekTime);
-        // console.log('🎵 Lyrics: 跳转到', this.formatTime(seekTime));
-    }
-
-    startProgressDrag(e: MouseEvent): void {
-        this.isDraggingProgress = true;
-        this.progressBar.classList.add('dragging');
-        this.updateProgressDrag(e);
-    }
-
-    updateProgressDrag(e: MouseEvent): void {
-        const duration = this.getPlaybackDuration();
-        if (!this.isDraggingProgress || !this.currentTrack || duration <= 0) return;
-
-        const rect = this.progressBar.getBoundingClientRect();
-        const dragX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-        const percentage = dragX / rect.width;
-
-        // 实时更新进度条显示
-        this.progressFill.style.width = `${percentage * 100}%`;
-        this.currentTimeEl.textContent = this.formatTime(percentage * duration);
-    }
-
-    async endProgressDrag(): Promise<void> {
-        if (!this.isDraggingProgress) return;
-
-        this.isDraggingProgress = false;
-        this.progressBar.classList.remove('dragging');
-
-        // 执行实际的跳转
-        const percentage = parseFloat(this.progressFill.style.width) / 100;
-        const duration = this.getPlaybackDuration();
-        const seekTime = percentage * (duration || 0);
-        await playbackController.seek(seekTime);
-    }
-
-    private getPlaybackDuration(): number {
-        return (this.currentTrack && this.currentTrack.duration) ? this.currentTrack.duration : playbackController.getState().duration;
+        this.playbackControls.updatePlayModeDisplay(mode);
     }
 
     // 封面点击处理方法
@@ -1414,6 +1171,32 @@ class Lyrics extends Component {
         }
 
         return element;
+    }
+
+    private getPlaybackControlElements(): LyricsPlaybackControlElements {
+        return {
+            playBtn: this.playBtn,
+            prevBtn: this.prevBtn,
+            nextBtn: this.nextBtn,
+            playIcon: this.playIcon,
+            pauseIcon: this.pauseIcon,
+            progressBar: this.progressBar,
+            progressFill: this.progressFill,
+            progressHandle: this.progressHandle,
+            currentTimeEl: this.currentTimeEl,
+            durationEl: this.durationEl,
+            volumeBtn: this.volumeBtn,
+            volumeSliderContainer: this.volumeSliderContainer,
+            volumeFill: this.volumeFill,
+            volumeHandle: this.volumeHandle,
+            volumeIcon: this.volumeIcon,
+            volumeMuteIcon: this.volumeMuteIcon,
+            volumeHalfIcon: this.volumeHalfIcon,
+            playModeBtn: this.playModeBtn,
+            modeSequenceIcon: this.modeSequenceIcon,
+            modeShuffleIcon: this.modeShuffleIcon,
+            modeRepeatOneIcon: this.modeRepeatOneIcon
+        };
     }
 }
 
