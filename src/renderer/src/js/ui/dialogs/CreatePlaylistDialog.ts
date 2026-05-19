@@ -3,19 +3,14 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {libraryController} from "@js/features/library";
+import {playlistDialogActionService} from "@js/features/playlists";
+import type {Playlist, Track} from "@api/types/library";
 
-interface TrackToAdd {
-    fileId?: string;
-    [key: string]: unknown;
-}
+type TrackToAdd = Track;
 
 interface PlaylistResult {
     success: boolean;
-    playlist?: {
-        id: string;
-        [key: string]: unknown;
-    };
+    playlist?: Playlist;
     error?: string;
 }
 
@@ -146,21 +141,8 @@ class CreatePlaylistDialog extends Component {
             // 显示加载状态
             this.confirmBtn.disabled = true;
             this.confirmBtn.textContent = '创建中...';
-            const result = await libraryController.createPlaylist(name, description) as PlaylistResult;
+            const result = await playlistDialogActionService.createPlaylist(name, description, this.currentTrackToAdd) as PlaylistResult;
             if (result.success && result.playlist) {
-                // 如果有要添加的歌曲，立即添加
-                if (this.currentTrackToAdd?.fileId) {
-                    try {
-                        await libraryController.addToPlaylist(
-                            result.playlist.id,
-                            this.currentTrackToAdd.fileId
-                        );
-                        console.log('✅ 歌曲已添加到新歌单');
-                    } catch (error) {
-                        console.warn('⚠️ 添加歌曲到新歌单失败:', error);
-                    }
-                }
-
                 // 触发歌单创建事件
                 this.emit('playlistCreated', result.playlist);
                 this.hide();

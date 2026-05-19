@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {libraryController} from "@js/features/library";
+import {playlistDialogActionService} from "@js/features/playlists";
 import type {Playlist, Track} from "@api/types/library";
 
 type PlaylistWithTrackIds = Playlist & {trackIds?: string[]};
@@ -115,17 +115,7 @@ class MusicLibrarySelectionDialog extends Component {
                 </div>
             `;
 
-            // 获取所有音乐
-            const tracks = await libraryController.getTracks();
-            this.allTracks = tracks || [];
-
-            // 过滤掉已在歌单中的歌曲
-            const existingTrackIds = this.currentPlaylist?.trackIds;
-            if (existingTrackIds) {
-                this.allTracks = this.allTracks.filter(track =>
-                    !track.fileId || !existingTrackIds.includes(track.fileId)
-                );
-            }
+            this.allTracks = await playlistDialogActionService.getSelectableTracks(this.currentPlaylist?.trackIds);
 
             this.filteredTracks = [...this.allTracks];
             this.renderTrackList();
@@ -302,30 +292,10 @@ class MusicLibrarySelectionDialog extends Component {
             this.confirmBtn.textContent = '添加中...';
 
             const selectedTrackIds = Array.from(this.selectedTracks);
-            let successCount = 0;
-            let failCount = 0;
-
-            // 批量添加歌曲
-            for (const trackId of selectedTrackIds) {
-                try {
-                    const result = await libraryController.addToPlaylist(
-                        this.currentPlaylist.id,
-                        trackId
-                    );
-
-                    if (result.success) {
-                        successCount++;
-                    } else {
-                        failCount++;
-                        console.warn('❌ 添加歌曲失败:', trackId, result.error);
-                    }
-                } catch (error) {
-                    failCount++;
-                    console.error('❌ 添加歌曲异常:', trackId, error);
-                }
-            }
-
-            console.log(`✅ 批量添加歌曲完成: 成功 ${successCount}, 失败 ${failCount}`);
+            const {successCount, failCount} = await playlistDialogActionService.addSelectedTracks(
+                this.currentPlaylist.id,
+                selectedTrackIds
+            );
 
             // 触发歌单更新事件
             this.emit('tracksAdded', {

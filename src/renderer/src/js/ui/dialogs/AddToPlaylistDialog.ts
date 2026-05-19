@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {libraryController} from "@js/features/library";
+import {playlistDialogActionService} from "@js/features/playlists";
 import type {Playlist, Track} from "@api/types/library";
 
 class AddToPlaylistDialog extends Component {
@@ -87,7 +87,7 @@ class AddToPlaylistDialog extends Component {
 
     async loadPlaylists(): Promise<void> {
         try {
-            this.playlists = await libraryController.getPlaylists();
+            this.playlists = await playlistDialogActionService.getPlaylists();
             this.renderPlaylistList();
         } catch (error) {
             console.error('❌ 加载歌单列表失败:', error);
@@ -136,12 +136,9 @@ class AddToPlaylistDialog extends Component {
         }
 
         try {
-            const result = await libraryController.addToPlaylist(
-                playlistId,
-                this.currentTrack.fileId
-            );
+            const result = await playlistDialogActionService.addTrackToPlaylist(playlistId, this.currentTrack, this.playlists);
             if (result.success) {
-                const playlist = this.playlists.find(p => p.id === playlistId);
+                const playlist = result.playlist;
                 this.emit('notification', {type: 'info', message: `已添加到歌单 "${playlist?.name || '未知'}"`});
 
                 // 触发添加成功事件

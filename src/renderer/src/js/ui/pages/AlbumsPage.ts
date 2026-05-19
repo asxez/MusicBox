@@ -5,23 +5,14 @@
 
 import {formatTime} from "@utils/index.js";
 import {Component} from "@ui/base/Component";
-import {libraryController} from "@js/features/library";
-import {coverLookupService} from "@js/features/mediaAssets/service";
+import {
+    libraryPageDataService,
+    type LibraryAlbumItem as AlbumItem
+} from "@js/features/library/service";
 import type {Track} from "@api/types/library";
 
 type AlbumViewSize = 's' | 'm' | 'l';
 type AlbumSortKey = 'name' | 'artist' | 'tracks' | 'year';
-
-interface AlbumItem {
-    key: string;
-    name: string;
-    artist: string;
-    year: string | number | null;
-    cover: string | null;
-    tracks: Track[];
-    totalDuration: number;
-    album?: string;
-}
 
 interface SourceRect {
     left: number;
@@ -87,9 +78,11 @@ class AlbumsPage extends Component {
 
         // 只有在没有tracks数据时才获取，避免重复调用
         if (!this.tracks || this.tracks.length === 0) {
-            this.tracks = await libraryController.getTracks();
+            const pageData = await libraryPageDataService.getAlbums(this.sortBy);
+            this.tracks = pageData.tracks;
             this._lastTracksHash = this._generateTracksHash(this.tracks);
-            this.processAlbums();
+            this.albums = pageData.albums;
+            this.scheduleCoversForMissing();
         }
 
         this.render();
@@ -147,31 +140,7 @@ class AlbumsPage extends Component {
 
     // 归并专辑
     processAlbums(): void {
-        const map = new Map<string, AlbumItem>();
-        this.tracks.forEach(track => {
-            const albumName = track.album || '未知专辑';
-            const albumArtist = (track as any).albumartist || track.artist || '未知艺术家';
-            const key = `${albumName}:::${albumArtist}`;
-            if (!map.has(key)) {
-                map.set(key, {
-                    key,
-                    name: albumName,
-                    artist: albumArtist,
-                    year: track.year || null,
-                    cover: track.cover || null,
-                    tracks: [],
-                    totalDuration: 0
-                });
-            }
-            const album = map.get(key)!;
-            album.tracks.push(track);
-            album.totalDuration += track.duration || 0;
-            if (!album.cover && track.cover) album.cover = track.cover;
-            // 最早年份
-            if (!album.year && track.year) album.year = track.year;
-        });
-
-        this.albums = Array.from(map.values());
+        this.albums = libraryPageDataService.buildAlbums(this.tracks);
         this.sortAlbums(this.sortBy);
         // 补全缺失封面
         this.scheduleCoversForMissing();
@@ -234,7 +203,7 @@ class AlbumsPage extends Component {
             }
             // 显示加载态
             this._setAlbumCardLoading(album.key, true);
-            const result = await coverLookupService.getCover('', artist, name, null, false);
+            const result = await libraryPageDataService.findAlbumCover(artist, name);
             if (result && result.success && result.imageUrl) {
                 // 更新专辑数据
                 album.cover = result.imageUrl;
@@ -283,22 +252,7 @@ class AlbumsPage extends Component {
 
     sortAlbums(sortBy: AlbumSortKey): void {
         this.sortBy = sortBy;
-        switch (sortBy) {
-            case 'name':
-                this.albums.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
-                break;
-            case 'artist':
-                this.albums.sort((a, b) => a.artist.localeCompare(b.artist, 'zh-CN'));
-                break;
-            case 'tracks':
-                this.albums.sort((a, b) => b.tracks.length - a.tracks.length);
-                break;
-            case 'year':
-                this.albums.sort((a, b) => Number(b.year || 0) - Number(a.year || 0));
-                break;
-            default:
-                break;
-        }
+        libraryPageDataService.sortAlbums(this.albums, sortBy);
     }
 
     render(): void {

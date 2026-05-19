@@ -3,7 +3,7 @@
  * 负责内嵌封面的提取、格式转换和缓存管理
  */
 
-import {libraryController} from "@js/features/library";
+import {libraryDataService} from "@js/features/library/service/LibraryDataService";
 
 interface EmbeddedCoverResult {
     success: boolean;
@@ -107,7 +107,7 @@ class EmbeddedCoverManager {
             this.processingFiles.add(filePath);
 
             // 从主进程获取元数据（包括封面）
-            const metadata = await libraryController.getTrackMetadata(filePath) as TrackMetadataWithCover | null;
+            const metadata = await libraryDataService.getTrackMetadata(filePath) as TrackMetadataWithCover | null;
             if (!metadata || typeof metadata !== 'object') {
                 const errorResult: EmbeddedCoverResult = {success: false, error: '主进程返回无效响应'};
                 this.setCache(cacheKey, errorResult);

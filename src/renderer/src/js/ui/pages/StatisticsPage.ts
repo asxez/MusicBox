@@ -2,37 +2,15 @@
  * 统计页组件
  */
 
-import {cacheManager} from "@js/shared/cache";
 import {Component} from "@ui/base/Component";
-import {libraryController} from "@js/features/library";
-import {userDataController} from "@js/features/userData";
+import {libraryPageDataService} from "@js/features/library/service";
+import {
+    recentPlaybackHistoryService,
+    type PlayStats,
+    type RecentTrack
+} from "@js/features/playback/service";
 import type {Track} from "@api/types/library";
 import type {DiaryData, MoodData} from "@api/types/userdata";
-
-interface RecentTrack extends Track {
-    playTime?: number;
-}
-
-type PlayCountStats = Record<string, number>;
-
-interface MostPlayedTrack {
-    title: string;
-    artist: string;
-    album: string;
-    playCount: number;
-}
-
-interface PlayStats {
-    totalTracks: number;
-    totalDuration: number;
-    favoriteArtist: string;
-    uniqueArtists: number;
-    uniqueAlbums: number;
-    totalPlayedSongs: number;
-    totalPlayedDuration: number;
-    mostPlayedTracks: MostPlayedTrack[];
-    totalPlayCount: number;
-}
 
 type MoodKey = 'happy' | 'calm' | 'sad' | 'excited' | 'relaxed' | 'nostalgic';
 
@@ -89,10 +67,11 @@ class StatisticsPage extends Component {
         if (this.element) {
             (this.element as HTMLElement).style.display = 'block';
         }
-        this.tracks = await libraryController.getTracks();
+        const pageData = await libraryPageDataService.getStatisticsPageData();
+        this.tracks = pageData.tracks;
         this.loadPlayHistory();
-        this.moodHistory = await userDataController.getMoodHistory();
-        this.diaryHistory = await userDataController.getDiaryHistory() as DiaryEntry[];
+        this.moodHistory = pageData.moodHistory;
+        this.diaryHistory = pageData.diaryHistory as DiaryEntry[];
         this.calculatePlayStats();
         this.render();
     }
@@ -128,133 +107,18 @@ class StatisticsPage extends Component {
     }
 
     loadPlayHistory(): void {
-        try {
-            const history = cacheManager.getLocalCache<RecentTrack[]>('musicbox-play-history');
-            if (Array.isArray(history)) {
-                this.recentTracks = history.slice(0, 50);
-            } else {
-                this.recentTracks = [];
-            }
-        } catch (error) {
-            console.error('加载播放历史失败:', error);
-            this.recentTracks = [];
-        }
+        this.recentTracks = recentPlaybackHistoryService.loadHistory(50);
     }
 
     updatePlayHistory(track: RecentTrack | null): void {
         if (!track || !track.filePath) return;
         this.loadPlayHistory();
-        this.updatePlayCount(track);
+        recentPlaybackHistoryService.updatePlayCount(track);
         this.calculatePlayStats();
     }
 
-    // 更新播放次数统计
-    updatePlayCount(track: Track | null): void {
-        if (!track || !track.filePath) return;
-
-        try {
-            let playCountStats = this.loadPlayCountStats();
-            const trackKey = this.getTrackKey(track);
-
-            // 增加播放次数
-            playCountStats[trackKey] = (playCountStats[trackKey] || 0) + 1;
-
-            // 保存统计数据
-            cacheManager.setLocalCache('musicbox-play-count-stats', playCountStats);
-            console.log(`📊 StatisticsPage: 更新播放次数 - ${track.title}: ${playCountStats[trackKey]} 次`);
-        } catch (error) {
-            console.error('❌ StatisticsPage: 更新播放次数失败:', error);
-        }
-    }
-
-    // 加载播放次数统计
-    loadPlayCountStats(): PlayCountStats {
-        try {
-            return cacheManager.getLocalCache<PlayCountStats>('musicbox-play-count-stats') || {};
-        } catch (error) {
-            console.error('❌ StatisticsPage: 加载播放次数统计失败:', error);
-            return {};
-        }
-    }
-
-    // 生成歌曲唯一标识
-    getTrackKey(track: Track): string {
-        return `${track.title || 'Unknown'}_${track.artist || 'Unknown'}_${track.album || 'Unknown'}`;
-    }
-
-    // 获取最常播放的歌曲
-    getMostPlayedTracks(playCountStats: PlayCountStats, limit = 10): MostPlayedTrack[] {
-        return Object.entries(playCountStats)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, limit)
-            .map(([trackKey, playCount]) => {
-                const [title, artist, album] = trackKey.split('_');
-                return {
-                    title: title || 'Unknown',
-                    artist: artist || 'Unknown',
-                    album: album || 'Unknown',
-                    playCount
-                };
-            });
-    }
-
     calculatePlayStats(): void {
-        const playCountStats = this.loadPlayCountStats();
-        const totalPlayedSongs = this.recentTracks.length;
-        const totalPlayedDuration = this.recentTracks.reduce((sum, track) => sum + (track.duration || 0), 0);
-        const mostPlayedTracks = this.getMostPlayedTracks(playCountStats, 5);
-        const totalPlayCount = Object.values(playCountStats).reduce((sum, count) => sum + count, 0);
-
-        this.playStats = {
-            totalTracks: this.tracks.length,
-            totalDuration: this.tracks.reduce((sum, track) => sum + (track.duration || 0), 0),
-            favoriteArtist: this.getMostPlayedArtist(),
-            uniqueArtists: this.getUniqueArtists().length,
-            uniqueAlbums: this.getUniqueAlbums().length,
-            totalPlayedSongs: totalPlayedSongs,
-            totalPlayedDuration: totalPlayedDuration,
-            mostPlayedTracks: mostPlayedTracks,
-            totalPlayCount: totalPlayCount
-        };
-    }
-
-    getMostPlayedArtist(): string {
-        const artistCounts: Record<string, number> = {};
-        this.recentTracks.forEach(track => {
-            if (track.artist) {
-                artistCounts[track.artist] = (artistCounts[track.artist] || 0) + 1;
-            }
-        });
-
-        let favoriteArtist = '暂无';
-        let maxCount = 0;
-        for (const [artist, count] of Object.entries(artistCounts)) {
-            if (count > maxCount) {
-                maxCount = count;
-                favoriteArtist = artist;
-            }
-        }
-        return favoriteArtist;
-    }
-
-    getUniqueArtists(): string[] {
-        const artists = new Set<string>();
-        this.tracks.forEach(track => {
-            if (track.artist) {
-                artists.add(track.artist);
-            }
-        });
-        return Array.from(artists);
-    }
-
-    getUniqueAlbums(): string[] {
-        const albums = new Set<string>();
-        this.tracks.forEach(track => {
-            if (track.album) {
-                albums.add(track.album);
-            }
-        });
-        return Array.from(albums);
+        this.playStats = recentPlaybackHistoryService.calculatePlayStats(this.tracks, this.recentTracks);
     }
 
     formatDuration(seconds: number): string {

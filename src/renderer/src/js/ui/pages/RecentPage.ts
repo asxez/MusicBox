@@ -2,9 +2,8 @@
  * 最近播放页组件
  */
 
-import {cacheManager} from "@js/shared/cache";
 import {coverLookupService, localCoverManager} from "@js/features/mediaAssets/service";
-import {appConfirmationService} from "@js/features/appShell/service";
+import {recentPlaybackHistoryService} from "@js/features/playback/service";
 import {formatTime} from "@utils/index.js";
 import {Component} from "@ui/base/Component";
 import type {Track} from "@api/types/library";
@@ -69,66 +68,23 @@ class RecentPage extends Component {
     }
 
     loadPlayHistory(): void {
-        try {
-            const history = cacheManager.getLocalCache('musicbox-play-history') as RecentTrack[] | null;
-            if (Array.isArray(history)) {
-                this.recentTracks = history;
-            } else {
-                this.recentTracks = [];
-            }
-        } catch (error) {
-            console.error('加载播放历史失败:', error);
-            this.recentTracks = [];
-        }
+        this.recentTracks = recentPlaybackHistoryService.loadHistory() as RecentTrack[];
     }
 
     updatePlayHistory(track: RecentTrack | null): void {
-        if (!track || !track.filePath) return;
-
-        let history: RecentTrack[] = [];
-        const stored = cacheManager.getLocalCache('musicbox-play-history') as RecentTrack[] | null;
-        if (Array.isArray(stored)) {
-            history = stored;
-        }
-
-        // 移除重复项
-        history = history.filter(item => item.filePath !== track.filePath);
-
-        // 添加到开头
-        history.unshift({
-            ...track,
-            playTime: Date.now()
-        });
-
-        // 限制历史记录数量
-        history = history.slice(0, 100);
-        cacheManager.setLocalCache('musicbox-play-history', history);
-        this.recentTracks = history;
+        this.recentTracks = recentPlaybackHistoryService.recordTrack(track) as RecentTrack[];
     }
 
     // 清空播放历史
     clearHistory(): void {
-        try {
-            cacheManager.removeLocalCache('musicbox-play-history');
-            this.recentTracks = [];
-            this.render();
-        } catch (error) {
-            console.error('❌ RecentPage: 清空播放历史失败:', error);
-        }
+        this.recentTracks = recentPlaybackHistoryService.clearHistory() as RecentTrack[];
+        this.render();
     }
 
     // 移除单个历史记录
     removeHistoryItem(trackPath: string): void {
-        try {
-            let history = (cacheManager.getLocalCache('musicbox-play-history') || []) as RecentTrack[];
-            history = history.filter(item => item.filePath !== trackPath);
-
-            cacheManager.setLocalCache('musicbox-play-history', history);
-            this.recentTracks = history;
-            this.render();
-        } catch (error) {
-            console.error('❌ RecentPage: 移除历史记录失败:', error);
-        }
+        this.recentTracks = recentPlaybackHistoryService.removeHistoryItem(trackPath) as RecentTrack[];
+        this.render();
     }
 
     render(): void {
@@ -387,12 +343,7 @@ class RecentPage extends Component {
         const clearBtn = this.container.querySelector('#clear-history');
         if (clearBtn) {
             clearBtn.addEventListener('click', async () => {
-                const confirmed = await appConfirmationService.confirm({
-                    title: '清空播放历史',
-                    message: '确定要清空播放历史吗？此操作无法撤销。',
-                    confirmText: '清空',
-                    type: 'warning'
-                });
+                const confirmed = await recentPlaybackHistoryService.confirmClearHistory();
 
                 if (confirmed) {
                     this.clearHistory();
@@ -441,10 +392,10 @@ class RecentPage extends Component {
             // 从历史中移除
             const removeBtn = item.querySelector('.track-actions .action-btn:last-child');
             if (removeBtn) {
-                removeBtn.addEventListener('click', (e) => {
+                removeBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const track = this.recentTracks[index];
-                    if (track && confirm(`确定要从历史中移除 "${track.title}" 吗？`)) {
+                    if (track && await recentPlaybackHistoryService.confirmRemoveHistoryItem(track.title)) {
                         this.removeHistoryItem(track.filePath);
                     }
                 });

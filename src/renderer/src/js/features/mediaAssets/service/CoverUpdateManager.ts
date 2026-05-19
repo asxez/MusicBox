@@ -3,7 +3,7 @@
  * 处理封面更新事件和缓存刷新
  */
 
-import {libraryController} from "@js/features/library";
+import {libraryGateway} from "@js/infrastructure/electron";
 import {localCoverManager} from "./LocalCoverManager";
 import {embeddedCoverManager} from "./EmbeddedCoverManager";
 import {onDOMReady} from "@utils/index.js";
@@ -36,7 +36,7 @@ class CoverUpdateManager {
         if (this.initialized) return;
 
         // 监听主进程的封面更新事件
-        this.unsubscribeCoverUpdated = libraryController.onCoverUpdated(async (data) => {
+        this.unsubscribeCoverUpdated = libraryGateway.onCoverUpdated(async (data) => {
             await this.handleCoverUpdate(data as CoverUpdateData);
         });
         this.initialized = true;

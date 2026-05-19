@@ -4,19 +4,14 @@
 
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@ui/base/Component";
-import {libraryController} from "@js/features/library";
-import {coverLookupService} from "@js/features/mediaAssets/service";
+import {
+    libraryPageDataService,
+    type CoverLookupResult as CoverResult,
+    type LibraryArtistInfo as ArtistInfo
+} from "@js/features/library/service";
 import type {Track} from "@api/types/track";
 
 type ArtistViewMode = 'constellation' | 'galaxy';
-
-interface ArtistInfo {
-    name: string;
-    tracks: Track[];
-    albums: Set<string>;
-    totalDuration: number;
-    cover: string | null;
-}
 
 interface StarParticle {
     x: number;
@@ -33,12 +28,6 @@ interface SourceRectSnapshot {
     height: number;
     radius: string;
     scrollTop: number;
-}
-
-interface CoverResult {
-    success?: boolean;
-    imageUrl?: string;
-    error?: string;
 }
 
 class ArtistsPage extends Component {
@@ -80,8 +69,10 @@ class ArtistsPage extends Component {
 
         // 只有在没有tracks数据时才获取，避免重复调用
         if (!this.tracks || this.tracks.length === 0) {
-            this.tracks = await libraryController.getTracks() as Track[];
-            this.processArtists();
+            const pageData = await libraryPageDataService.getArtists();
+            this.tracks = pageData.tracks as Track[];
+            this.artists = pageData.artists as ArtistInfo[];
+            this.filteredArtists = [...this.artists];
         }
 
         this.render();
@@ -139,38 +130,7 @@ class ArtistsPage extends Component {
     }
 
     processArtists(): void {
-        const artistMap = new Map<string, ArtistInfo>();
-        this.tracks.forEach((track) => {
-            const artistName = track.artist || '未知艺术家';
-
-            if (!artistMap.has(artistName)) {
-                artistMap.set(artistName, {
-                    name: artistName,
-                    tracks: [],
-                    albums: new Set(),
-                    totalDuration: 0,
-                    cover: null
-                });
-            }
-
-            const artist = artistMap.get(artistName)!;
-            artist.tracks.push(track);
-            artist.totalDuration += track.duration || 0;
-
-            if (track.album) {
-                artist.albums.add(track.album);
-            }
-
-            // 使用第一个有封面的歌曲作为艺术家封面
-            if (!artist.cover && track.cover) {
-                artist.cover = track.cover;
-            }
-        });
-
-        this.artists = Array.from(artistMap.values())
-            .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
-
-        // 初始化过滤后的艺术家列表
+        this.artists = libraryPageDataService.buildArtists(this.tracks as any) as ArtistInfo[];
         this.filteredArtists = [...this.artists];
     }
 
@@ -546,7 +506,7 @@ class ArtistsPage extends Component {
 
             // 调用API获取艺术家封面
             // 只传艺术家名称，不传专辑名
-            const result = await coverLookupService.getCover('', artistName, '', null, false) as CoverResult;
+            const result = await libraryPageDataService.findArtistCover(artistName) as CoverResult;
             if (result && result.success && result.imageUrl) {
                 // 更新艺术家数据
                 artist.cover = result.imageUrl;
@@ -1408,7 +1368,7 @@ class ArtistsPage extends Component {
             this._coverLoading.add(albumKey);
 
             // 调用API获取专辑封面
-            const result = await coverLookupService.getCover('', artistName, albumName, null, false) as CoverResult;
+            const result = await libraryPageDataService.findAlbumCover(artistName, albumName) as CoverResult;
             if (result && result.success && result.imageUrl) {
                 // 更新专辑封面显示
                 this.updateAlbumCoverDisplay(albumName, result.imageUrl);

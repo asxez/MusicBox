@@ -3,16 +3,11 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {libraryController} from "@js/features/library";
-import {mediaFileDialogService, mediaFileSystemService} from "@js/features/media/service";
-import {coverLookupService, coverUpdateManager} from "@js/features/mediaAssets/service";
-import {appNotificationService} from "@js/features/appShell/service";
-import type {Track} from "@api/types/library";
-
-type EditableTrack = Omit<Track, 'cover' | 'year'> & {
-    cover?: CoverData | null;
-    year?: string | number;
-};
+import {
+    trackMetadataEditService,
+    type EditableTrackMetadata as EditableTrack,
+    type MetadataUpdatePayload
+} from "@js/features/library/service";
 
 interface OriginalTrackFormData {
     title: string;
@@ -29,35 +24,6 @@ interface CoverObject {
 }
 
 type CoverData = string | CoverObject;
-
-interface DialogFileResult {
-    canceled?: boolean;
-    filePaths?: string[];
-}
-
-interface MetadataUpdatePayload {
-    filePath: string;
-    title: string;
-    artist: string;
-    album: string;
-    year: string | null;
-    genre: string | null;
-    cover?: number[];
-}
-
-interface MetadataUpdateResult {
-    success: boolean;
-    error?: string;
-    updatedMetadata?: EditableTrack;
-    coverUpdated?: boolean;
-}
-
-interface ApiAvailabilityStatus {
-    electronAPI: boolean;
-    showOpenDialog: boolean;
-    stat: boolean;
-    readFile: boolean;
-}
 
 type FieldName = 'title' | 'artist' | 'album' | 'year' | 'genre';
 
@@ -239,9 +205,9 @@ class EditTrackInfoDialog extends Component {
     // 使用API加载封面
     async loadCoverFromAPI(track: EditableTrack): Promise<boolean> {
         try {
-            const result = await coverLookupService.getCover(track.title, track.artist, track.album, track.filePath);
-            if (result.success && typeof result.imageUrl === 'string') {
-                track.cover = result.imageUrl;
+            const imageUrl = await trackMetadataEditService.loadCover(track);
+            if (imageUrl) {
+                track.cover = imageUrl;
 
                 if (this.isVisible) {
                     this.refreshCoverPreview();
@@ -507,19 +473,6 @@ class EditTrackInfoDialog extends Component {
         return false;
     }
 
-    // 检查API可用性
-    checkAPIAvailability(): ApiAvailabilityStatus {
-        const status = {
-            electronAPI: true,
-            showOpenDialog: true,
-            stat: true,
-            readFile: true
-        };
-
-        console.log('🔍 EditTrackInfoDialog: API可用性检查', status);
-        return status;
-    }
-
     // 将封面对象转换为可用的URL
     convertCoverObjectToUrl(coverObject: CoverObject): void {
         try {
@@ -640,105 +593,23 @@ class EditTrackInfoDialog extends Component {
 
     async selectCover(): Promise<void> {
         try {
-            // 检查API可用性
-            const apiStatus = this.checkAPIAvailability();
-
-            if (!apiStatus.electronAPI) {
-                console.error('❌ EditTrackInfoDialog: electronAPI 不可用');
-                this.showError('系统接口不可用，请重启应用后重试');
+            console.log('🎵 EditTrackInfoDialog: 开始选择封面');
+            const result = await trackMetadataEditService.selectCoverFile();
+            if (result.error) {
+                this.showError(result.error);
                 return;
             }
-            console.log('🎵 EditTrackInfoDialog: 开始选择封面');
-
-            let result: DialogFileResult;
-            // 优先使用通用的dialog API
-            if (apiStatus.showOpenDialog) {
-                console.log('🎵 EditTrackInfoDialog: 使用通用dialog API');
-                result = await mediaFileDialogService.showOpenDialog({
-                    title: '选择专辑封面',
-                    filters: [
-                        {name: '图片文件', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']}
-                    ],
-                    properties: ['openFile']
-                });
-            } else {
-                // 备用方案：使用现有的openImageFile API
-                console.log('🎵 EditTrackInfoDialog: 使用备用openImageFile API');
-                const imageResult = await mediaFileDialogService.selectImageFile();
-                const filePath = imageResult.path || null;
-                result = {canceled: !filePath, filePaths: filePath ? [filePath] : []};
-            }
-            console.log('🎵 EditTrackInfoDialog: 文件选择结果', result);
-
-            const filePaths = result.filePaths || [];
-            if (!result.canceled && filePaths.length > 0) {
-                const filePath = filePaths[0];
-                console.log('🎵 EditTrackInfoDialog: 选择的文件路径', filePath);
-
-                // 验证文件大小（限制为5MB）
-                if (apiStatus.stat) {
-                    try {
-                        const stats = await mediaFileSystemService.stat(filePath);
-                        console.log('🎵 EditTrackInfoDialog: 文件统计信息', stats);
-
-                        if (stats.size > 5 * 1024 * 1024) {
-                            this.showError('封面文件大小不能超过5MB');
-                            return;
-                        }
-                    } catch (statError) {
-                        console.error('❌ EditTrackInfoDialog: 获取文件信息失败', statError);
-                        console.warn('⚠️ EditTrackInfoDialog: 跳过文件大小验证');
-                    }
-                } else {
-                    console.warn('⚠️ EditTrackInfoDialog: fs.stat API不可用，跳过文件大小验证');
-                }
-
-                // 读取文件
-                if (apiStatus.readFile) {
-                    try {
-                        console.log('🎵 EditTrackInfoDialog: 开始读取文件数据');
-                        const fileData = await mediaFileSystemService.readFile(filePath, null);
-                        console.log('🎵 EditTrackInfoDialog: 文件数据读取完成，大小:', fileData.length);
-
-                        // 创建File对象
-                        const uint8Array = new Uint8Array(fileData as ArrayLike<number>);
-                        this.selectedCoverFile = new File([uint8Array], 'cover.jpg', {type: 'image/jpeg'});
-
-                        this.updateCoverPreview();
-                        this.validateForm();
-
-                        console.log('✅ EditTrackInfoDialog: 封面选择成功', filePath);
-                    } catch (readError) {
-                        console.error('❌ EditTrackInfoDialog: 读取文件失败', readError);
-                        this.showError('读取文件失败，请选择其他文件');
-                        return;
-                    }
-                } else {
-                    // 备用方案：使用HTML5 File API（如果用户通过拖拽等方式选择文件）
-                    console.warn('⚠️ EditTrackInfoDialog: fs.readFile API不可用，尝试备用方案');
-                    this.showError('文件读取API不可用，请重启应用后重试');
-                    return;
-                }
+            if (!result.canceled && result.file) {
+                this.selectedCoverFile = result.file;
+                this.updateCoverPreview();
+                this.validateForm();
+                console.log('✅ EditTrackInfoDialog: 封面选择成功');
             } else {
                 console.log('🎵 EditTrackInfoDialog: 用户取消了文件选择');
             }
         } catch (error) {
             console.error('❌ EditTrackInfoDialog: 选择封面失败', error);
-
-            // 根据错误类型提供更具体的错误信息
-            let errorMessage = '选择封面失败：';
-            const message = getErrorMessage(error);
-            if (message.includes('Cannot read properties of undefined')) {
-                errorMessage += 'API接口不可用，请重启应用后重试';
-            } else if (message.includes('dialog')) {
-                errorMessage += '文件选择对话框打开失败';
-            } else if (message.includes('fs')) {
-                errorMessage += '文件系统访问失败';
-            } else {
-                errorMessage += message || '未知错误';
-            }
-
-            this.showError(errorMessage);
+            this.showError(`选择封面失败：${getErrorMessage(error) || '未知错误'}`);
         }
     }
 
@@ -842,7 +713,7 @@ class EditTrackInfoDialog extends Component {
 
     showError(message: string): void {
         console.error('❌ EditTrackInfoDialog:', message);
-        appNotificationService.showError(message);
+        trackMetadataEditService.showError(message);
     }
 
     clearForm(): void {
@@ -878,81 +749,14 @@ class EditTrackInfoDialog extends Component {
                 genre: this.genreInput.value.trim() || null
             };
 
-            // 如果选择了新封面，添加封面数据
+            const result = await trackMetadataEditService.saveTrackMetadata(track, updatedData, this.selectedCoverFile);
             if (this.selectedCoverFile) {
-                try {
-                    const arrayBuffer = await this.selectedCoverFile.arrayBuffer();
-                    updatedData.cover = Array.from(new Uint8Array(arrayBuffer));
-                    console.log('🖼️ EditTrackInfoDialog: 封面数据准备完成');
-                } catch (coverError) {
-                    console.error('❌ EditTrackInfoDialog: 封面数据处理失败', coverError);
-                    throw new Error('封面图片处理失败，请重新选择封面');
-                }
+                this.selectedCoverFile = null;
+                this.updateCoverPreview();
             }
 
-            console.log('📝 EditTrackInfoDialog: 开始保存歌曲信息', updatedData.title);
-
-            // 调用主进程保存更改
-            const result = await libraryController.updateTrackMetadata(updatedData) as MetadataUpdateResult;
-
-            if (result.success) {
-                console.log('✅ EditTrackInfoDialog: 歌曲信息保存成功');
-
-                // 如果保存了新封面，更新封面URL
-                if (this.selectedCoverFile && result.updatedMetadata && result.updatedMetadata.cover) {
-                    try {
-                        const coverResult = await coverLookupService.getCover(
-                            result.updatedMetadata.title,
-                            result.updatedMetadata.artist,
-                            result.updatedMetadata.album,
-                            result.updatedMetadata.filePath
-                        );
-
-                        if (coverResult.success && typeof coverResult.imageUrl === 'string') {
-                            track.cover = coverResult.imageUrl;
-                        } else {
-                            track.cover = null;
-                        }
-                    } catch (apiError) {
-                        console.error('获取封面URL失败:', apiError);
-                        track.cover = null;
-                    }
-
-                    this.selectedCoverFile = null;
-                    this.updateCoverPreview();
-                }
-
-                // 准备更新数据
-                const safeUpdatedData = {
-                    ...(result.updatedMetadata || updatedData),
-                    cover: track.cover
-                } as MetadataUpdatePayload & Partial<EditableTrack>;
-
-                // 如果封面被更新，手动触发封面刷新
-                if (result.coverUpdated) {
-                    console.log('🖼️ EditTrackInfoDialog: 检测到封面更新，触发刷新');
-                    try {
-                        await coverUpdateManager.refreshCover(
-                            track.filePath,
-                            safeUpdatedData.title || track.title,
-                            safeUpdatedData.artist || track.artist,
-                            safeUpdatedData.album || track.album
-                        );
-                    } catch (error) {
-                        console.warn('⚠️ EditTrackInfoDialog: 封面刷新失败:', error);
-                    }
-                }
-
-                // 发出更新事件
-                this.emit('trackUpdated', {
-                    track,
-                    updatedData: safeUpdatedData
-                });
-
-                this.hide();
-            } else {
-                throw new Error(result.error || '保存失败，请检查文件权限或文件格式是否支持');
-            }
+            this.emit('trackUpdated', result);
+            this.hide();
         } catch (error) {
             console.error('❌ EditTrackInfoDialog: 保存失败', error);
 

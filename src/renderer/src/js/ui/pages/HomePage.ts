@@ -3,11 +3,8 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {libraryController} from "@js/features/library";
-import {mediaFileDialogService} from "@js/features/media/service";
-import {playbackController} from "@js/features/playback";
-import {userDataController} from "@js/features/userData";
-import {appFileImportActionService} from "@js/features/appShell/service";
+import {homeLibraryActionService} from "@js/features/library/service";
+import {homeJournalActionService} from "@js/features/userData/service";
 import type {Track} from "@api/types/library";
 
 type BreathingPhase = 'inhale' | 'hold' | 'exhale';
@@ -38,7 +35,7 @@ class HomePage extends Component {
 
         // 只有在没有tracks数据时才获取，避免重复调用
         if (!this.tracks || this.tracks.length === 0) {
-            this.tracks = await libraryController.getTracks();
+            this.tracks = await homeLibraryActionService.loadTracks();
             this._lastTracksHash = this._generateTracksHash(this.tracks);
         }
 
@@ -439,15 +436,7 @@ class HomePage extends Component {
     }
 
     async recordMood(mood: string): Promise<void> {
-        const currentTrack = playbackController.getCurrentTrackSummary();
-        const moodData = {
-            mood: mood,
-            currentTrack: currentTrack?.title || null,
-            artist: currentTrack?.artist || null,
-            album: currentTrack?.album || null
-        };
-
-        await userDataController.saveMood(moodData as any);
+        await homeJournalActionService.recordMood(mood);
     }
 
     async saveMusicDiary(): Promise<void> {
@@ -456,15 +445,7 @@ class HomePage extends Component {
         const diaryInput = this.container.querySelector('.diary-input') as HTMLTextAreaElement | null;
         if (!diaryInput || !diaryInput.value.trim()) return;
 
-        const currentTrack = playbackController.getCurrentTrackSummary();
-        const diaryEntry = {
-            content: diaryInput.value.trim(),
-            currentTrack: currentTrack?.title || null,
-            artist: currentTrack?.artist || null,
-            album: currentTrack?.album || null
-        };
-
-        await userDataController.saveDiary(diaryEntry as any);
+        await homeJournalActionService.saveMusicDiary(diaryInput.value.trim());
 
         // 清空输入框并显示保存成功提示
         diaryInput.value = '';
@@ -658,13 +639,10 @@ class HomePage extends Component {
         if (scanBtn) {
             scanBtn.addEventListener('click', async () => {
                 try {
-                    const directory = await mediaFileDialogService.openDirectory();
-                    if (directory) {
-                        const success = await libraryController.scanDirectory(directory);
-                        if (success) {
-                            this.tracks = await libraryController.getTracks();
-                            this.render();
-                        }
+                    const result = await homeLibraryActionService.scanSelectedFolder();
+                    if (result.changed) {
+                        this.tracks = result.tracks;
+                        this.render();
                     }
                 } catch (error) {
                     console.error('扫描文件夹失败:', error);
@@ -677,9 +655,11 @@ class HomePage extends Component {
         if (addFilesBtn) {
             addFilesBtn.addEventListener('click', async () => {
                 try {
-                    await appFileImportActionService.addMusicFiles();
-                    this.tracks = await libraryController.getTracks();
-                    this.render();
+                    const result = await homeLibraryActionService.addMusicFiles();
+                    if (result.changed) {
+                        this.tracks = result.tracks;
+                        this.render();
+                    }
                 } catch (error) {
                     console.error('添加文件失败:', error);
                 }

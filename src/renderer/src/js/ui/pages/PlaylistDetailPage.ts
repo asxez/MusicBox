@@ -3,13 +3,13 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {libraryController} from "@js/features/library";
 import {coverLookupService} from "@js/features/mediaAssets/service";
 import {trackCoverDisplayPreferenceService} from "@js/features/settings/service";
-import {appNotificationService} from "@js/features/appShell/service";
 import {
     playlistCoverActionService,
+    playlistDataService,
     playlistFolderImportService,
+    playlistPlaybackActionService,
     playlistTrackMutationService
 } from "@js/features/playlists";
 import type {Unsubscribe} from "@api/types/common";
@@ -363,7 +363,7 @@ class PlaylistDetailPage extends Component {
     async loadPlaylistCover(): Promise<void> {
         if (!this.currentPlaylist) return;
         try {
-            const result = await libraryController.getPlaylistCover(this.currentPlaylist.id);
+            const result = await playlistDataService.getPlaylistCover(this.currentPlaylist.id);
             if (result.success && result.coverPath) {
                 this.currentPlaylist.coverImage = result.coverPath;
             } else {
@@ -378,7 +378,7 @@ class PlaylistDetailPage extends Component {
     async loadPlaylistTracks(): Promise<void> {
         if (!this.currentPlaylist) return;
         try {
-            const result = await libraryController.getPlaylistDetail(this.currentPlaylist.id);
+            const result = await playlistDataService.getPlaylistDetail(this.currentPlaylist.id);
             if (result.success) {
                 this.tracks = (result.tracks || result.playlist?.tracks || []) as PlaylistDetailTrack[];
 
@@ -602,22 +602,13 @@ class PlaylistDetailPage extends Component {
     }
 
     async playAllTracks(): Promise<void> {
-        if (this.tracks.length === 0) {
-            appNotificationService.showInfo('歌单为空，无法播放');
-            return;
-        }
-        this.emit('playAllTracks', this.tracks);
+        const tracks = playlistPlaybackActionService.getPlayableTracks(this.tracks);
+        if (tracks) this.emit('playAllTracks', tracks);
     }
 
     async shufflePlayTracks(): Promise<void> {
-        if (this.tracks.length === 0) {
-            appNotificationService.showInfo('歌单为空，无法播放');
-            return;
-        }
-
-        // 创建随机播放列表
-        const shuffledTracks = [...this.tracks].sort(() => Math.random() - 0.5);
-        this.emit('playAllTracks', shuffledTracks);
+        const shuffledTracks = playlistPlaybackActionService.getShuffledPlayableTracks(this.tracks);
+        if (shuffledTracks) this.emit('playAllTracks', shuffledTracks);
     }
 
     showAddSongsDialog(): void {
