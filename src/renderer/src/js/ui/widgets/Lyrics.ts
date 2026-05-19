@@ -2,37 +2,17 @@
  * 歌词页组件
  */
 
-import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@ui/base/Component";
-import {desktopLyricsController} from "@js/features/desktopLyrics";
-import {mediaController} from "@js/features/media";
 import {playbackController} from "@js/features/playback";
+import {LyricsCoverArtController} from "@ui/widgets/lyrics/LyricsCoverArtController";
+import {resolveLyricsElements} from "@ui/widgets/lyrics/LyricsElementRegistry";
+import {LyricsLayoutController} from "@ui/widgets/lyrics/LyricsLayoutController";
+import {LyricsLoaderController} from "@ui/widgets/lyrics/LyricsLoaderController";
 import {LyricsPlaybackControlsController} from "@ui/widgets/lyrics/LyricsPlaybackControlsController";
 import type {PlaybackState, PlaybackStoreChange, Unsubscribe} from "@js/features/playback";
-import type {LyricLine} from "@api/types/lyrics";
 import type {PlayMode} from "@api/types/playback";
-import type {Track} from "@api/types/track";
-import type {LyricsPlaybackControlElements} from "@ui/widgets/lyrics/LyricsPlaybackControlsController";
-
-type WordLyric = {
-    text: string;
-    time: number;
-    endTime?: number;
-};
-
-type RenderLyricLine = LyricLine & {
-    type?: string;
-    words?: WordLyric[];
-    endTime?: number;
-};
-
-type LyricsTrack = Track & {
-    path?: string;
-    lyrics?: string | RenderLyricLine[];
-    lrcText?: string;
-    lyricsContent?: string;
-    lyricsFormat?: string;
-};
+import type {LyricsElements} from "@ui/widgets/lyrics/LyricsElementRegistry";
+import type {LyricsTrack, RenderLyricLine} from "@ui/widgets/lyrics/LyricsTypes";
 
 class Lyrics extends Component {
     public isVisible: boolean;
@@ -41,46 +21,12 @@ class Lyrics extends Component {
     private lyrics: RenderLyricLine[];
     private currentLyricIndex: number;
     private listenersSetup: boolean;
-    private page!: HTMLElement;
-    private background!: HTMLElement;
-    private closeBtn!: HTMLElement;
-    private fullscreenBtn!: HTMLElement;
-    private fullscreenIcon!: HTMLElement;
-    private fullscreenExitIcon!: HTMLElement;
-    private trackCover!: HTMLImageElement;
-    private trackTitle!: HTMLElement;
-    private trackArtist!: HTMLElement;
-    private lyricsDisplay!: HTMLElement;
-    private lyricsMain!: HTMLElement;
-    private leftSide!: HTMLElement;
-    private playBtn!: HTMLElement;
-    private prevBtn!: HTMLElement;
-    private nextBtn!: HTMLElement;
-    private playIcon!: HTMLElement;
-    private pauseIcon!: HTMLElement;
-    private progressBar!: HTMLElement;
-    private progressFill!: HTMLElement;
-    private progressHandle!: HTMLElement;
-    private currentTimeEl!: HTMLElement;
-    private durationEl!: HTMLElement;
-    private volumeBtn!: HTMLElement;
-    private volumeSliderContainer!: HTMLElement;
-    private volumeFill!: HTMLElement;
-    private volumeHandle!: HTMLElement;
-    private volumeIcon!: HTMLElement;
-    private volumeMuteIcon!: HTMLElement;
-    private volumeHalfIcon!: HTMLElement;
-    private playModeBtn!: HTMLElement;
-    private modeSequenceIcon!: HTMLElement;
-    private modeShuffleIcon!: HTMLElement;
-    private modeRepeatOneIcon!: HTMLElement;
+    private elements!: LyricsElements;
+    private coverArtController!: LyricsCoverArtController;
+    private layoutController!: LyricsLayoutController;
+    private lyricsLoader!: LyricsLoaderController;
     private playbackControls!: LyricsPlaybackControlsController;
-    private elementMouseMoveHandler: (() => void) | null;
-    private clearHideTimer: (() => void) | null;
     private _lastTrackPath: string | null;
-    private _lastLoadedLyricsPath: string | null;
-    private _lastLoadedTrackId: string | null;
-    private _isLoadingLyrics: boolean;
     private _updateTrackInfoInProgress: boolean;
     private _pendingUpdatePromise: Promise<void> | null;
     private _currentPlaybackPosition: number;
@@ -88,10 +34,6 @@ class Lyrics extends Component {
     private _rafId: number | null;
     private _lastWordUpdateTime: number;
     private _wordUpdateInterval: number;
-    private isCenterMode: boolean;
-    private isTransitioning: boolean;
-    private lastClickTime: number;
-    private readonly doubleClickDelay: number;
     private playbackStateUnsubscribe: Unsubscribe | null;
 
     constructor(element: Element | null) {
@@ -105,9 +47,6 @@ class Lyrics extends Component {
 
         // 防重复加载机制
         this._lastTrackPath = null; // 上次更新的歌曲路径
-        this._lastLoadedLyricsPath = null; // 上次加载歌词的歌曲路径
-        this._lastLoadedTrackId = null; // 上次加载的歌曲ID
-        this._isLoadingLyrics = false; // 是否正在加载歌词
         this._updateTrackInfoInProgress = false; // 是否正在更新歌曲信息
         this._pendingUpdatePromise = null; // 当前正在执行的更新Promise
 
@@ -118,14 +57,7 @@ class Lyrics extends Component {
         this._lastWordUpdateTime = 0; // 上次逐字更新的时间戳
         this._wordUpdateInterval = 16; // 逐字更新间隔（毫秒），约60fps
 
-        // 封面双击切换功能状态
-        this.isCenterMode = false; // 是否处于居中模式
-        this.isTransitioning = false; // 是否正在进行布局切换动画
-        this.lastClickTime = 0; // 上次点击时间，用于双击检测
-        this.doubleClickDelay = 300; // 双击检测延迟（毫秒）
         this.isFullscreen = false;
-        this.elementMouseMoveHandler = null;
-        this.clearHideTimer = null;
         this.playbackStateUnsubscribe = null;
 
         this.setupElements();
@@ -143,9 +75,9 @@ class Lyrics extends Component {
         this.isVisible = true;
 
         // 立即显示页面，不等待歌词加载
-        this.page.style.display = 'block';
+        this.elements.page.style.display = 'block';
         setTimeout(() => {
-            this.page.classList.add('show');
+            this.elements.page.classList.add('show');
         }, 10);
 
         this.updateFullscreenState();
@@ -158,20 +90,19 @@ class Lyrics extends Component {
 
         // 确保歌词显示区域滚动到顶部
         setTimeout(() => {
-            if (this.lyricsDisplay) {
-                this.lyricsDisplay.scrollTop = 0;
+            if (this.elements.lyricsDisplay) {
+                this.elements.lyricsDisplay.scrollTop = 0;
             }
         }, 50);
     }
 
     hide(): void {
         this.isVisible = false;
-        this.page.classList.remove('show');
+        this.elements.page.classList.remove('show');
 
         // 重置防重复状态
         this._lastTrackPath = null;
-        this._lastLoadedLyricsPath = null;
-        this._isLoadingLyrics = false;
+        this.lyricsLoader.reset();
         this._updateTrackInfoInProgress = false;
         this._pendingUpdatePromise = null;
 
@@ -181,7 +112,7 @@ class Lyrics extends Component {
 
         setTimeout(() => {
             if (!this.isVisible) {
-                this.page.style.display = 'none';
+                this.elements.page.style.display = 'none';
             }
         }, 300);
     }
@@ -198,7 +129,7 @@ class Lyrics extends Component {
         this.isVisible = false;
         this.listenersSetup = false;
 
-        this.resetLayoutState();
+        this.layoutController.resetLayoutState();
         super.destroy();
     }
 
@@ -216,62 +147,41 @@ class Lyrics extends Component {
     }
 
     setupElements(): void {
-        this.page = this.requireElement(this.element, '#lyrics-page');
-        this.background = this.queryElement('.lyrics-background');
-        this.closeBtn = this.queryElement('#lyrics-close');
-        this.fullscreenBtn = this.queryElement('#lyrics-fullscreen');
-
-        // 全屏按钮图标
-        this.fullscreenIcon = this.queryChildElement(this.fullscreenBtn, '.fullscreen-icon');
-        this.fullscreenExitIcon = this.queryChildElement(this.fullscreenBtn, '.fullscreen-exit-icon');
-
-        // 封面和歌曲信息
-        this.trackCover = this.queryElement<HTMLImageElement>('#lyrics-cover-image');
-        this.trackTitle = this.queryElement('#lyrics-track-title');
-        this.trackArtist = this.queryElement('#lyrics-track-artist');
-
-        // 歌词显示
-        this.lyricsDisplay = this.queryElement('#lyrics-display');
-
-        // 布局切换相关元素
-        this.lyricsMain = this.queryElement('.lyrics-main');
-        this.leftSide = this.queryElement('.lyrics-left-side');
-        // this.rightSide = this.element.querySelector('.lyrics-right-side');
-
-        // 播放控制
-        this.playBtn = this.queryElement('#lyrics-play-btn');
-        this.prevBtn = this.queryElement('#lyrics-prev-btn');
-        this.nextBtn = this.queryElement('#lyrics-next-btn');
-        this.playIcon = this.queryChildElement(this.playBtn, '.play-icon');
-        this.pauseIcon = this.queryChildElement(this.playBtn, '.pause-icon');
-
-        // 进度条
-        this.progressBar = this.queryElement('#lyrics-progress-bar');
-        this.progressFill = this.queryElement('#lyrics-progress-fill');
-        this.progressHandle = this.queryElement('#lyrics-progress-handle');
-        this.currentTimeEl = this.queryElement('#lyrics-current-time');
-        this.durationEl = this.queryElement('#lyrics-duration');
-
-        // 音量控制
-        this.volumeBtn = this.queryElement('#lyrics-volume-btn');
-        this.volumeSliderContainer = this.queryElement('.volume-slider-container');
-        this.volumeFill = this.queryElement('#lyrics-volume-fill');
-        this.volumeHandle = this.queryElement('#lyrics-volume-handle');
-        this.volumeIcon = this.queryChildElement(this.volumeBtn, '.volume-icon');
-        this.volumeMuteIcon = this.queryChildElement(this.volumeBtn, '.volume-mute-icon');
-        this.volumeHalfIcon = this.queryChildElement(this.volumeBtn, '.volume-half-icon');
-
-        // 播放模式控制
-        this.playModeBtn = this.queryElement('#lyrics-playmode-btn');
-        this.modeSequenceIcon = this.queryChildElement(this.playModeBtn, '.lyrics-mode-sequence');
-        this.modeShuffleIcon = this.queryChildElement(this.playModeBtn, '.lyrics-mode-shuffle');
-        this.modeRepeatOneIcon = this.queryChildElement(this.playModeBtn, '.lyrics-mode-repeat-one');
+        this.elements = resolveLyricsElements(this.element);
 
         // 全屏状态
         this.isFullscreen = false;
 
+        this.coverArtController = new LyricsCoverArtController({
+            background: this.elements.background,
+            trackCover: this.elements.trackCover
+        });
+
+        this.layoutController = new LyricsLayoutController({
+            elements: this.elements.layout,
+            addDomListener: (element, event, handler, options) => {
+                this.addEventListenerManaged(element, event, handler, options);
+            },
+            isVisible: () => this.isVisible
+        });
+
+        this.lyricsLoader = new LyricsLoaderController({
+            setLyrics: (lyrics) => {
+                this.lyrics = lyrics;
+            },
+            renderLyrics: () => {
+                this.renderLyrics();
+            },
+            showLoading: () => {
+                this.showLoading();
+            },
+            showNoLyrics: () => {
+                this.showNoLyrics();
+            }
+        });
+
         this.playbackControls = new LyricsPlaybackControlsController({
-            elements: this.getPlaybackControlElements(),
+            elements: this.elements.playback,
             addDomListener: (element, event, handler, options) => {
                 this.addEventListenerManaged(element, event, handler, options);
             },
@@ -280,52 +190,12 @@ class Lyrics extends Component {
     }
 
     setupEventListeners(): void {
-        this.addEventListenerManaged(this.closeBtn, 'click', () => {
+        this.addEventListenerManaged(this.elements.closeBtn, 'click', () => {
             this.hide();
         });
 
-        this.addEventListenerManaged(this.fullscreenBtn, 'click', () => {
-            this.toggleFullscreen();
-        });
-
+        this.layoutController.bind();
         this.playbackControls.bind();
-
-        // 封面双击切换布局事件
-        this.addEventListenerManaged(this.trackCover, 'click', async (e) => {
-            await this.handleCoverClick(e as MouseEvent);
-        });
-
-        // 窗口大小变化监听器
-        this.addEventListenerManaged(window, 'resize', () => {
-            this.handleWindowResize();
-        });
-
-        // 鼠标隐藏逻辑
-        const HIDE_DELAY = 2000;
-        let mouseTimer: ReturnType<typeof setTimeout> | null = null;
-        this.elementMouseMoveHandler = () => {
-            if (this.isVisible && this.isFullscreen) {
-                this.page.classList.remove('hide-cursor');
-                if (mouseTimer) clearTimeout(mouseTimer);
-                mouseTimer = setTimeout(() => {
-                    if (this.isVisible && this.isFullscreen) {
-                        this.page.classList.add('hide-cursor');
-                    }
-                }, HIDE_DELAY);
-            }
-        };
-        this.addEventListenerManaged(this.page, 'mousemove', this.elementMouseMoveHandler);
-
-        this.clearHideTimer = () => {
-            if (mouseTimer) clearTimeout(mouseTimer);
-            mouseTimer = null;
-            this.page.classList.remove('hide-cursor');
-        };
-
-        this.addEventListenerManaged(document, 'fullscreenchange', () => {
-            if (!this.isFullscreen) this.clearHideTimer?.();
-            this.updateFullscreenState();
-        });
     }
 
     setupAPIListeners(): void {
@@ -461,270 +331,22 @@ class Lyrics extends Component {
         try {
             console.log('🎵 Lyrics: 开始更新歌曲信息', track.title, '时间戳:', Date.now());
 
-            this.trackTitle.textContent = track.title || '未知歌曲';
-            this.trackArtist.textContent = track.artist || '未知艺术家';
+            this.elements.trackTitle.textContent = track.title || '未知歌曲';
+            this.elements.trackArtist.textContent = track.artist || '未知艺术家';
 
             this.playbackControls.updateTrackDuration(track.duration);
 
             // 更新封面和歌词
-            await this.loadLyrics(track);
-            await this.updateCoverArt(track);
+            await this.lyricsLoader.loadLyrics(track);
+            await this.coverArtController.updateCoverArt(track);
         } catch (error) {
             console.error('❌ Lyrics: 歌曲信息更新失败:', error);
             throw error;
         }
     }
 
-    async loadLyrics(track: LyricsTrack): Promise<void> {
-        if (!track || !track.title || !track.artist) {
-            this.showNoLyrics();
-            return;
-        }
-
-        // 增强的防重复加载机制
-        const trackPath = track.filePath || track.path || `${track.title}_${track.artist}`;
-        const trackId = `${track.title}_${track.artist}_${track.album || ''}`;
-
-        // 检查是否正在加载或已经加载过相同歌曲
-        if (this._isLoadingLyrics || this._lastLoadedLyricsPath === trackPath) {
-            return;
-        }
-
-        // 检查是否是相同的歌曲
-        // 即使路径不同也检查
-        if (this._lastLoadedTrackId === trackId) {
-            return;
-        }
-
-        this._isLoadingLyrics = true;
-        this._lastLoadedLyricsPath = trackPath;
-        this._lastLoadedTrackId = trackId;
-
-        // 检查是否已有内嵌的歌词
-        if (track.lyrics) {
-            if (Array.isArray(track.lyrics)) {
-                this.lyrics = track.lyrics as RenderLyricLine[];
-            } else {
-                const parsedLyrics = mediaController.parseLyrics(String(track.lyrics), track.lyricsFormat as any);
-                this.lyrics = parsedLyrics as RenderLyricLine[];
-            }
-            this.renderLyrics();
-
-            // 同步歌词到桌面歌词窗口
-            await desktopLyricsController.syncLyrics(this.lyrics);
-            this._isLoadingLyrics = false;
-            return;
-        }
-
-        this.showLoading();
-
-        try {
-            const lyricsResult = await mediaController.getLyrics(track.title, track.artist, track.album, track.filePath);
-            if (lyricsResult.success) {
-                let parsedLyrics: RenderLyricLine[] | undefined;
-
-                if (lyricsResult.format === 'ttml' && lyricsResult.content) {
-                    parsedLyrics = mediaController.parseTTML(lyricsResult.content);
-                } else if (lyricsResult.lrc) {
-                    parsedLyrics = mediaController.parseLRC(lyricsResult.lrc);
-                } else if (lyricsResult.content) {
-                    parsedLyrics = mediaController.parseLyrics(lyricsResult.content, lyricsResult.format);
-                }
-
-                if (parsedLyrics && parsedLyrics.length > 0) {
-                    this.lyrics = parsedLyrics;
-                    // 缓存歌词到track对象
-                    track.lyrics = this.lyrics;
-                    if (lyricsResult.lrc) {
-                        track.lrcText = lyricsResult.lrc;
-                    } else if (lyricsResult.content) {
-                        track.lyricsContent = lyricsResult.content;
-                        track.lyricsFormat = lyricsResult.format;
-                    }
-                    this.renderLyrics();
-
-                    // 同步歌词到桌面歌词窗口
-                    await desktopLyricsController.syncLyrics(this.lyrics);
-                } else {
-                    this.showNoLyrics();
-                    console.log('❌ Lyrics: 歌词解析失败');
-                }
-            } else {
-                this.showNoLyrics();
-                console.log('❌ Lyrics: 歌词获取失败');
-            }
-        } catch (error) {
-            console.error('❌ Lyrics: 歌词加载失败:', error);
-            this.showNoLyrics();
-        } finally {
-            this._isLoadingLyrics = false;
-        }
-    }
-
-    async updateCoverArt(track: LyricsTrack): Promise<void> {
-        // 首先设置默认封面和背景
-        this.trackCover.src = 'assets/images/default-cover.svg';
-        this.trackCover.classList.add('loading');
-        await this.setBackgroundImage(null); // 清空背景
-
-        try {
-            let finalImageUrl = null;
-            if (track.title && track.artist) {
-                // 添加forceRefresh参数以确保首次播放时能正确获取封面，特别是网络磁盘文件
-                const coverResult = await mediaController.getCover(track.title, track.artist, track.album, track.filePath, true);
-                if (coverResult.success && coverResult.imageUrl) {
-                    // 验证URL格式
-                    if (typeof coverResult.imageUrl === 'string') {
-                        finalImageUrl = coverResult.imageUrl;
-                        // 缓存封面URL到track对象
-                        track.cover = coverResult.imageUrl;
-                    } else {
-                        console.error('❌ Lyrics: API返回的imageUrl不是字符串', {
-                            type: typeof coverResult.imageUrl,
-                            value: coverResult.imageUrl
-                        });
-                    }
-                } else {
-                    console.log('❌ Lyrics: 封面获取失败，使用默认封面', coverResult.error);
-                }
-            }
-
-            // 统一设置封面和背景
-            if (finalImageUrl) {
-                await this.setCoverAndBackground(finalImageUrl);
-            }
-        } catch (error) {
-            console.error('❌ Lyrics: 封面更新失败:', error);
-        } finally {
-            this.trackCover.classList.remove('loading');
-        }
-    }
-
-    // 设置背景图片的辅助方法
-    async setBackgroundImage(imageUrl: string | null): Promise<void> {
-        if (!this.background) return;
-
-        if (imageUrl) {
-            try {
-                // 处理不同类型的URL
-                const processedUrl = await this.processImageUrl(imageUrl);
-                if (processedUrl) {
-                    this.background.style.backgroundImage = `url("${processedUrl}")`;
-                } else {
-                    this.background.style.backgroundImage = 'none';
-                }
-            } catch (error) {
-                console.error('❌ Lyrics: 背景图片设置失败:', error);
-                this.background.style.backgroundImage = 'none';
-            }
-        } else {
-            this.background.style.backgroundImage = 'none';
-        }
-    }
-
-    // 处理图片URL，将file://协议转换为可用格式
-    async processImageUrl(url: string): Promise<string | null> {
-        if (!url || typeof url !== 'string') return null;
-
-        // 如果是data URL或blob URL，直接返回
-        if (url.startsWith('data:') || url.startsWith('blob:')) {
-            return url;
-        }
-
-        // 如果是HTTP/HTTPS URL，直接返回
-        if (url.startsWith('http://') || url.startsWith('https://')) {
-            return url;
-        }
-
-        // 如果是file://协议，转换为blob URL
-        if (url.startsWith('file://')) {
-            return await this.convertFileUrlToBlobUrl(url);
-        }
-
-        // 其他情况，尝试作为本地文件路径处理
-        return await this.convertLocalPathToBlobUrl(url);
-    }
-
-    // 将file://协议的URL转换为blob URL
-    async convertFileUrlToBlobUrl(fileUrl: string): Promise<string | null> {
-        try {
-            // 提取文件路径
-            let filePath = fileUrl.replace('file://', '');
-
-            // Windows路径处理
-            if (filePath.startsWith('/') && filePath.includes(':')) {
-                filePath = filePath.substring(1); // 移除开头的/
-            }
-
-            return await this.convertLocalPathToBlobUrl(filePath);
-        } catch (error) {
-            console.error('❌ Lyrics: file://协议转换失败:', error);
-            return null;
-        }
-    }
-
-    // 将本地文件路径转换为blob URL
-    async convertLocalPathToBlobUrl(filePath: string): Promise<string | null> {
-        try {
-            // 读取文件数据
-            const fileData = await mediaController.readFile(filePath);
-            if (!fileData || fileData.length === 0) {
-                console.error('❌ Lyrics: 文件数据为空');
-                return null;
-            }
-
-            // 根据文件扩展名确定MIME类型
-            const mimeType = this.getMimeTypeFromPath(filePath);
-
-            // 创建Blob
-            const uint8Array = typeof fileData === 'string'
-                ? new TextEncoder().encode(fileData)
-                : new Uint8Array(fileData);
-            const blob = new Blob([uint8Array], {type: mimeType});
-
-            // 创建blob URL
-            return URL.createObjectURL(blob);
-        } catch (error) {
-            console.error('❌ Lyrics: 本地文件转换失败:', error);
-            return null;
-        }
-    }
-
-    // 根据文件路径获取MIME类型
-    getMimeTypeFromPath(filePath: string): string {
-        const ext = filePath.toLowerCase().split('.').pop() || '';
-        const mimeTypes: Record<string, string> = {
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'png': 'image/png',
-            'gif': 'image/gif',
-            'webp': 'image/webp',
-            'bmp': 'image/bmp',
-            'svg': 'image/svg+xml'
-        };
-        return mimeTypes[ext] || 'image/jpeg';
-    }
-
-    // 统一设置封面和背景的方法
-    async setCoverAndBackground(imageUrl: string): Promise<void> {
-        try {
-            // 使用urlValidator安全设置封面图片
-            const success = await urlValidator.safeSetImageSrc(this.trackCover, imageUrl);
-            if (!success) {
-                this.trackCover.src = 'assets/images/default-cover.svg';
-            }
-
-            // 设置背景图片
-            await this.setBackgroundImage(imageUrl);
-        } catch (error) {
-            console.error('❌ Lyrics: 封面和背景设置失败:', error);
-            this.trackCover.src = 'assets/images/default-cover.svg';
-            await this.setBackgroundImage(null);
-        }
-    }
-
     showLoading(): void {
-        this.lyricsDisplay.innerHTML = `
+        this.elements.lyricsDisplay.innerHTML = `
             <div class="lyrics-text">
                 <p class="lyrics-line loading">正在加载歌词...</p>
             </div>
@@ -734,7 +356,7 @@ class Lyrics extends Component {
     showNoLyrics(): void {
         this.lyrics = [];
         this.currentLyricIndex = -1;
-        this.lyricsDisplay.innerHTML = `
+        this.elements.lyricsDisplay.innerHTML = `
             <div class="lyrics-text">
                 <div class="lyrics-line-spacer"></div>
                 <p class="lyrics-line">暂无歌词</p>
@@ -761,7 +383,7 @@ class Lyrics extends Component {
             }
         }).join('');
 
-        this.lyricsDisplay.innerHTML = `
+        this.elements.lyricsDisplay.innerHTML = `
             <div class="lyrics-text">
                 <div class="lyrics-line-spacer"></div>
                 ${lyricsHTML}
@@ -770,9 +392,9 @@ class Lyrics extends Component {
         `;
 
         // 重置滚动位置到顶部，确保从第一行歌词开始显示
-        this.lyricsDisplay.scrollTop = 0;
+        this.elements.lyricsDisplay.scrollTop = 0;
         // 添加点击事件，允许用户跳转到指定时间
-        this.lyricsDisplay.querySelectorAll<HTMLElement>('.lyrics-line').forEach((line) => {
+        this.elements.lyricsDisplay.querySelectorAll<HTMLElement>('.lyrics-line').forEach((line) => {
             line.addEventListener('click', async () => {
                 const time = parseFloat(line.dataset.time || '');
                 if (!isNaN(time)) {
@@ -805,7 +427,7 @@ class Lyrics extends Component {
         if (newIndex !== this.currentLyricIndex) {
             // 移除之前的高亮
             if (this.currentLyricIndex >= 0) {
-                const prevLine = this.lyricsDisplay.querySelector(`[data-index="${this.currentLyricIndex}"]`);
+                const prevLine = this.elements.lyricsDisplay.querySelector(`[data-index="${this.currentLyricIndex}"]`);
                 if (prevLine) {
                     prevLine.classList.remove('highlight');
                     // 清除逐字高亮（但保留played状态）
@@ -819,7 +441,7 @@ class Lyrics extends Component {
 
             // 添加新的高亮
             if (newIndex >= 0) {
-                const currentLine = this.lyricsDisplay.querySelector(`[data-index="${newIndex}"]`);
+                const currentLine = this.elements.lyricsDisplay.querySelector(`[data-index="${newIndex}"]`);
                 if (currentLine) {
                     currentLine.classList.add('highlight');
 
@@ -848,7 +470,7 @@ class Lyrics extends Component {
             return;
         }
 
-        const currentLine = this.lyricsDisplay.querySelector(`[data-index="${lineIndex}"]`);
+        const currentLine = this.elements.lyricsDisplay.querySelector(`[data-index="${lineIndex}"]`);
         if (!currentLine) {
             return;
         }
@@ -929,10 +551,10 @@ class Lyrics extends Component {
      * @param {number} seekPosition - seek到的时间位置
      */
     resetWordHighlightStates(seekPosition: number): void {
-        if (!this.lyricsDisplay) return;
+        if (!this.elements.lyricsDisplay) return;
 
         // 获取所有歌词行
-        const allLines = this.lyricsDisplay.querySelectorAll<HTMLElement>('.lyrics-line.lyrics-word-by-word');
+        const allLines = this.elements.lyricsDisplay.querySelectorAll<HTMLElement>('.lyrics-line.lyrics-word-by-word');
 
         for (const line of allLines) {
             const words = line.querySelectorAll<HTMLElement>('.lyric-word');
@@ -951,44 +573,19 @@ class Lyrics extends Component {
 
     // 全屏功能方法
     toggleFullscreen(): void {
-        if (this.isFullscreen) {
-            this.exitFullscreen();
-        } else {
-            this.enterFullscreen();
-        }
+        this.layoutController.toggleFullscreen();
     }
 
     enterFullscreen(): void {
-        if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().then(() => {
-                console.log('🎵 Lyrics: 进入全屏模式');
-            }).catch(err => {
-                console.error('❌ Lyrics: 进入全屏失败:', err);
-            });
-        }
+        this.layoutController.enterFullscreen();
     }
 
     exitFullscreen(): void {
-        if (document.exitFullscreen) {
-            document.exitFullscreen().then(() => {
-                console.log('🎵 Lyrics: 退出全屏模式');
-            }).catch(err => {
-                console.error('❌ Lyrics: 退出全屏失败:', err);
-            });
-        }
+        this.layoutController.exitFullscreen();
     }
 
     updateFullscreenState(): void {
-        this.isFullscreen = !!document.fullscreenElement;
-
-        // 更新按钮图标
-        if (this.isFullscreen) {
-            this.fullscreenIcon.style.display = 'none';
-            this.fullscreenExitIcon.style.display = 'block';
-        } else {
-            this.fullscreenIcon.style.display = 'block';
-            this.fullscreenExitIcon.style.display = 'none';
-        }
+        this.isFullscreen = this.layoutController.updateFullscreenState();
     }
 
     // 初始化控件状态
@@ -1009,195 +606,11 @@ class Lyrics extends Component {
         this.playbackControls.updatePlayModeDisplay(mode);
     }
 
-    // 封面点击处理方法
-    async handleCoverClick(e: MouseEvent): Promise<void> {
-        e.preventDefault();
-        e.stopPropagation();
-
-        const currentTime = Date.now();
-        const timeDiff = currentTime - this.lastClickTime;
-
-        if (timeDiff < this.doubleClickDelay) {
-            // 双击检测成功
-            await this.handleCoverDoubleClick();
-        }
-
-        this.lastClickTime = currentTime;
-    }
-
-    // 封面双击处理方法
-    async handleCoverDoubleClick(): Promise<void> {
-        if (this.isTransitioning) {
-            return; // 如果正在切换，忽略双击
-        }
-
-        // 添加视觉反馈
-        this.trackCover.style.transform = 'scale(0.95)';
-        setTimeout(() => {
-            if (this.trackCover) {
-                this.trackCover.style.transform = '';
-            }
-        }, 150);
-
-        this.toggleLayoutMode();
-    }
-
-    // 检查是否支持布局切换（在小屏幕上禁用）
-    isLayoutSwitchSupported(): boolean {
-        return window.innerWidth > 768;
-    }
-
-    // 处理窗口大小变化
-    handleWindowResize(): void {
-        // 若当前处于居中模式，但屏幕变小了，则退出居中模式
-        if (this.isCenterMode && !this.isLayoutSwitchSupported()) {
-            this.resetLayoutState();
-            return;
-        }
-
-        // 若当前处于动态居中模式，重新计算居中位置
-        if (this.isCenterMode && this.page.classList.contains('dynamic-center')) {
-            // 延迟一点时间等待布局稳定
-            setTimeout(() => {
-                this.applyDynamicCenter();
-            }, 100);
-        }
-    }
-
-    // 动态计算精确的居中transform值
-    calculateCenterTransform(): string {
-        if (!this.page || !this.lyricsMain || !this.leftSide) {
-            return 'translateX(0)';
-        }
-
-        const pageRect = this.page.getBoundingClientRect();
-        const mainRect = this.lyricsMain.getBoundingClientRect();
-
-        // 获取左侧内容的实际内容区域
-        const coverSection = this.leftSide.querySelector('.lyrics-cover-section');
-        if (!coverSection) {
-            return 'translateX(0)';
-        }
-
-        const coverRect = coverSection.getBoundingClientRect();
-
-        // 计算页面中心位置（相对于main容器）
-        const pageCenterX = pageRect.width / 2;
-
-        // 计算内容当前中心位置（相对于main容器）
-        const contentCenterX = coverRect.left + coverRect.width / 2 - mainRect.left;
-
-        // 计算需要移动的距离
-        const translateX = pageCenterX - contentCenterX;
-        return `translateX(${translateX}px)`;
-    }
-
-    // 应用动态居中
-    applyDynamicCenter(): void {
-        if (!this.leftSide) return;
-
-        const transform = this.calculateCenterTransform();
-        this.leftSide.style.setProperty('--dynamic-center-transform', transform);
-
-        // 添加CSS变量支持的类
-        this.page.classList.add('dynamic-center');
-    }
-
-    // 切换布局模式
-    toggleLayoutMode(): void {
-        if (this.isTransitioning || !this.isLayoutSwitchSupported() || !this.page) {
-            return;
-        }
-
-        this.isTransitioning = true;
-        this.isCenterMode = !this.isCenterMode;
-        if (this.isCenterMode) {
-            // 进入居中模式：计算并应用动态居中
-            this.applyDynamicCenter();
-        } else {
-            // 退出居中模式：移除动态居中
-            this.page.classList.remove('dynamic-center');
-        }
-
-        // 切换CSS类，让CSS动画处理过渡效果
-        this.page.classList.toggle('center-mode', this.isCenterMode);
-
-        // 设置动画完成后的回调
-        setTimeout(() => {
-            this.isTransitioning = false;
-        }, 800);
-    }
-
     // 重置布局状态
     resetLayoutState(): void {
-        if (!this.page) {
-            return;
-        }
-
-        // 重置状态变量
-        this.isCenterMode = false;
-        this.isTransitioning = false;
-
-        // 移除所有布局相关的类
-        this.page.classList.remove('center-mode', 'dynamic-center');
-
-        // 清理动态CSS变量
-        if (this.leftSide) {
-            this.leftSide.style.removeProperty('--dynamic-center-transform');
-        }
+        this.layoutController.resetLayoutState();
     }
 
-    private requireElement<T extends HTMLElement = HTMLElement>(element: Element | null, selector: string): T {
-        if (element instanceof HTMLElement) {
-            return element as T;
-        }
-
-        throw new Error(`Element not found: ${selector}`);
-    }
-
-    private queryElement<T extends HTMLElement = HTMLElement>(selector: string): T {
-        const element = this.page?.querySelector<T>(selector);
-        if (!element) {
-            throw new Error(`Element not found: ${selector}`);
-        }
-
-        return element;
-    }
-
-    private queryChildElement<T extends HTMLElement = HTMLElement>(root: ParentNode, selector: string): T {
-        const element = root.querySelector<T>(selector);
-        if (!element) {
-            throw new Error(`Element not found: ${selector}`);
-        }
-
-        return element;
-    }
-
-    private getPlaybackControlElements(): LyricsPlaybackControlElements {
-        return {
-            playBtn: this.playBtn,
-            prevBtn: this.prevBtn,
-            nextBtn: this.nextBtn,
-            playIcon: this.playIcon,
-            pauseIcon: this.pauseIcon,
-            progressBar: this.progressBar,
-            progressFill: this.progressFill,
-            progressHandle: this.progressHandle,
-            currentTimeEl: this.currentTimeEl,
-            durationEl: this.durationEl,
-            volumeBtn: this.volumeBtn,
-            volumeSliderContainer: this.volumeSliderContainer,
-            volumeFill: this.volumeFill,
-            volumeHandle: this.volumeHandle,
-            volumeIcon: this.volumeIcon,
-            volumeMuteIcon: this.volumeMuteIcon,
-            volumeHalfIcon: this.volumeHalfIcon,
-            playModeBtn: this.playModeBtn,
-            modeSequenceIcon: this.modeSequenceIcon,
-            modeShuffleIcon: this.modeShuffleIcon,
-            modeRepeatOneIcon: this.modeRepeatOneIcon
-        };
-    }
 }
 
 export {Lyrics};
