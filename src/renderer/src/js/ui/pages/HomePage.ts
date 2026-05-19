@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {homeLibraryActionService} from "@js/features/library/service";
+import {homeLibraryActionService} from "@js/features/library/service/HomeLibraryActionService";
 import {homeJournalActionService} from "@js/features/userData/service";
 import type {Track} from "@api/types/library";
 

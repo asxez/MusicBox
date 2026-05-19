@@ -1,6 +1,6 @@
 import {cacheManager} from "@js/shared/cache";
-import {libraryController} from "@js/features/library";
-import {playbackController} from "@js/features/playback";
+import {libraryDataService} from "@js/features/library/service/LibraryDataService";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import type {Track as ApiTrack} from "@api/types/track";
 import type {
     Album as ExtensionAlbum,
@@ -67,7 +67,7 @@ export class ExtensionHostService {
     }
 
     async searchTracks(query: string): Promise<HostTrack[]> {
-        const results = await libraryController.searchLibrary(query);
+        const results = await libraryDataService.searchLibrary(query);
         if (results.length > 0) {
             return results as HostTrack[];
         }
@@ -81,7 +81,7 @@ export class ExtensionHostService {
     }
 
     async addTrack(track: unknown): Promise<void> {
-        await libraryController.addTrackToLibrary(track as HostTrack);
+        await libraryDataService.addTrackToLibrary(track as HostTrack);
     }
 
     async removeTrack(trackId: string, index: number): Promise<void> {
@@ -169,8 +169,8 @@ export class ExtensionHostService {
 
     getPlaybackContext(): {isPlaying: boolean; currentTrack: HostTrack | null} {
         return {
-            isPlaying: playbackController.isPlaying(),
-            currentTrack: playbackController.getCurrentTrackSnapshot() as HostTrack | null
+            isPlaying: playbackUiStateService.isPlaying(),
+            currentTrack: playbackUiStateService.getCurrentTrackSnapshot() as HostTrack | null
         };
     }
 

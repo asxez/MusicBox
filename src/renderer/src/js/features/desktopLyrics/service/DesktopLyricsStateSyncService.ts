@@ -1,5 +1,5 @@
 import {desktopLyricsGateway} from '@js/infrastructure/electron/DesktopLyricsGateway';
-import {lyricsContentService} from '@js/features/mediaAssets/service';
+import {lyricsContentService} from '@js/features/mediaAssets/service/LyricsContentService';
 import type {LyricLine} from '@api/types/lyrics';
 import type {DesktopLyricsPlaybackState} from '@api/types/playback';
 import type {Track} from '@api/types/track';

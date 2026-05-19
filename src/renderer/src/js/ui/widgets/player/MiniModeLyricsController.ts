@@ -1,7 +1,7 @@
-import {lyricsContentService} from "@js/features/mediaAssets/service";
-import {playbackController} from "@js/features/playback";
+import {lyricsContentService} from "@js/features/mediaAssets/service/LyricsContentService";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import {appendLyricsWordSpans, findActiveLyricIndex, LyricsWordHighlightController} from "@js/shared/lyrics";
-import type {Unsubscribe} from "@js/features/playback";
+import type {Unsubscribe} from "@js/features/playback/PlaybackStore";
 import type {LyricLine} from "@api/types/lyrics";
 import type {Track} from "@api/types/track";
 
@@ -77,7 +77,7 @@ class MiniModeLyricsController {
 
     private subscribePositionChanges(): void {
         this.unsubscribePositionChanges();
-        this.positionUnsubscribe = playbackController.on('positionChanged', (position) => {
+        this.positionUnsubscribe = playbackUiStateService.on('positionChanged', (position) => {
             this.updateLyricIndex(position);
             this.updateLyricsWordHighlight(position);
         });

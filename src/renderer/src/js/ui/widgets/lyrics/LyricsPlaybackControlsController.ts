@@ -1,4 +1,4 @@
-import {playbackController} from "@js/features/playback";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import type {PlayMode} from "@api/types/playback";
 import type {Track} from "@api/types/track";
 import type {AddLyricsDomListener} from "@ui/widgets/lyrics/LyricsDomEvents";
@@ -51,7 +51,8 @@ class LyricsPlaybackControlsController {
     }
 
     async initialize(): Promise<void> {
-        const playbackState = playbackController.getState();
+        playbackUiStateService.syncStateFromRuntime();
+        const playbackState = playbackUiStateService.getState();
         this.playbackButtons.setPlaying(playbackState.isPlaying);
         await this.volumeController.setVolume(playbackState.volume * 100);
         this.playbackButtons.updatePlayModeDisplay(playbackState.playMode);

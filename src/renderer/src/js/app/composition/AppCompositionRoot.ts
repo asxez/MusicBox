@@ -32,19 +32,20 @@ import {AppLifecycleController} from '@js/app/lifecycle';
 import {AppShellView} from '@js/app/shell';
 import {
     FileImportController,
-    LibraryAppController,
-    libraryController as libraryFeatureController
-} from '@js/features/library';
+    LibraryAppController
+} from '@js/features/library/ui-bindings';
+import {libraryDataService} from '@js/features/library/service/LibraryDataService';
 import type {FileImportHost, LibraryAppHost} from '@js/features/library/ui-bindings';
-import {PlaylistController, type PlaylistAppHost} from '@js/features/playlists';
+import {PlaylistController, type PlaylistAppHost} from '@js/features/playlists/PlaylistController';
 import type {PlaylistComponentBindingHost} from '@js/features/playlists/ui-bindings';
-import {PlaybackAppController, playbackController} from '@js/features/playback';
+import {playbackController} from '@js/features/playback/PlaybackController';
+import {PlaybackAppController} from '@js/features/playback/ui-bindings/PlaybackAppController';
 import type {PlaybackAppHost} from '@js/features/playback/ui-bindings';
 import type {PlaybackComponentBindingHost} from '@js/features/playback/ui-bindings';
 import type {SettingsComponentBindingHost} from '@js/features/settings/ui-bindings';
-import {playbackService} from '@js/features/playback/service';
-import {desktopLyricsController} from '@js/features/desktopLyrics';
-import {equalizerController} from '@js/features/equalizer';
+import {playbackService} from '@js/features/playback/service/PlaybackService';
+import {desktopLyricsService} from '@js/features/desktopLyrics/service/DesktopLyricsService';
+import {equalizerService} from '@js/features/equalizer/service/EqualizerService';
 import {mediaFileDialogService} from '@js/features/media/service';
 import {extensionHostService} from '@js/features/extensions/service';
 import {appShellRuntimeHost} from '@js/features/appShell/service';
@@ -198,7 +199,13 @@ export function createAppComposition({
     const playbackAppController = new PlaybackAppController({
         app,
         integrations: {
-            getLibraryTracks: () => libraryFeatureController.getTracks()
+            getLibraryTracks: () => libraryDataService.getTracks(),
+            setPlaylist: (tracks, startIndex) => playbackController.setPlaylist(tracks, startIndex),
+            loadTrack: (filePath) => playbackController.loadTrack(filePath),
+            play: () => playbackController.play(),
+            setPosition: (position) => playbackController.setPosition(position),
+            setPlayMode: (mode) => playbackController.setPlayMode(mode),
+            getPlaybackSnapshot: () => playbackController.getPlaybackSnapshot()
         },
         ui
     });
@@ -257,10 +264,10 @@ export function createAppComposition({
 }
 
 function configureSharedFeatureDependencies(): void {
-    desktopLyricsController.configure({
+    desktopLyricsService.configure({
         getPlaybackSnapshot: () => playbackController.getPlaybackSnapshot()
     });
-    equalizerController.configure({
+    equalizerService.configure({
         getEqualizer: <T = unknown>() => playbackService.getEqualizer<T>(),
         setEqualizerEnabled: (enabled) => playbackService.setEqualizerEnabled(enabled),
         getAudioEngine: <T extends AudioEngineManagerBridge>() => playbackService.getAudioEngine() as T | null

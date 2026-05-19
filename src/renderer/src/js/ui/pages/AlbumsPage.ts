@@ -8,7 +8,7 @@ import {Component} from "@ui/base/Component";
 import {
     libraryPageDataService,
     type LibraryAlbumItem as AlbumItem
-} from "@js/features/library/service";
+} from "@js/features/library/service/LibraryPageDataService";
 import type {Track} from "@api/types/library";
 
 type AlbumViewSize = 's' | 'm' | 'l';

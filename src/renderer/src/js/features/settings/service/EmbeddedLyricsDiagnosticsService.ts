@@ -1,5 +1,5 @@
 import {mediaFileDialogService} from "@js/features/media/service";
-import {embeddedLyricsManager} from "@js/features/mediaAssets/service";
+import {embeddedLyricsManager} from "@js/features/mediaAssets/service/EmbeddedLyricsManager";
 
 interface DebugEmbeddedLyricsResult {
     success: boolean;

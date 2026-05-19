@@ -1,5 +1,5 @@
 import type {Playlist, Track} from "@api/types/library";
-import {libraryDataService} from "@js/features/library/service";
+import {libraryDataService} from "@js/features/library/service/LibraryDataService";
 
 export interface PlaylistCoverDetailResult {
     success?: boolean;

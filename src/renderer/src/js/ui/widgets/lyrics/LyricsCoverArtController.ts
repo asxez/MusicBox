@@ -1,6 +1,6 @@
 import {urlValidator} from "@utils/URLValidator";
 import type {Track} from "@api/types/track";
-import {lyricsCoverArtService} from '@js/features/mediaAssets/service';
+import {lyricsCoverArtService} from '@js/features/mediaAssets/service/LyricsCoverArtService';
 
 type LyricsCoverTrack = Track & {
     path?: string;

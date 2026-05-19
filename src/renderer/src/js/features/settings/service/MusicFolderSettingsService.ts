@@ -1,5 +1,5 @@
 import {settingsShellService} from "@js/features/appShell/service";
-import {libraryController} from "@js/features/library";
+import {libraryDataService} from "@js/features/library/service/LibraryDataService";
 
 export interface AutoScanSettingsView {
     enabled: boolean;
@@ -71,7 +71,7 @@ class MusicFolderSettingsService {
     }
 
     scanDirectory(folderPath: string): Promise<boolean> {
-        return libraryController.scanDirectory(folderPath);
+        return libraryDataService.scanDirectory(folderPath);
     }
 
     private normalizeAutoScanSettings(settings: MainSettingsPayload | null | undefined): AutoScanSettingsView {

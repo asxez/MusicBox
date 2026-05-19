@@ -1,9 +1,9 @@
-import {playbackController} from "@js/features/playback";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import {userDataService} from "./UserDataService";
 
 export class HomeJournalActionService {
     async recordMood(mood: string): Promise<void> {
-        const currentTrack = playbackController.getCurrentTrackSummary();
+        const currentTrack = playbackUiStateService.getCurrentTrackSummary();
         await userDataService.saveMood({
             mood,
             currentTrack: currentTrack?.title || null,
@@ -13,7 +13,7 @@ export class HomeJournalActionService {
     }
 
     async saveMusicDiary(content: string): Promise<void> {
-        const currentTrack = playbackController.getCurrentTrackSummary();
+        const currentTrack = playbackUiStateService.getCurrentTrackSummary();
         await userDataService.saveDiary({
             content,
             currentTrack: currentTrack?.title || null,

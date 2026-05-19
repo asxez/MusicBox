@@ -2,8 +2,9 @@
  * 最近播放页组件
  */
 
-import {coverLookupService, localCoverManager} from "@js/features/mediaAssets/service";
-import {recentPlaybackHistoryService} from "@js/features/playback/service";
+import {coverLookupService} from "@js/features/mediaAssets/service/CoverLookupService";
+import {localCoverManager} from "@js/features/mediaAssets/service/LocalCoverManager";
+import {recentPlaybackHistoryService} from "@js/features/playback/service/RecentPlaybackHistoryService";
 import {formatTime} from "@utils/index.js";
 import {Component} from "@ui/base/Component";
 import type {Track} from "@api/types/library";

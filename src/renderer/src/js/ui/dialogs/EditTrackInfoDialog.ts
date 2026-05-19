@@ -7,7 +7,7 @@ import {
     trackMetadataEditService,
     type EditableTrackMetadata as EditableTrack,
     type MetadataUpdatePayload
-} from "@js/features/library/service";
+} from "@js/features/library/service/TrackMetadataEditService";
 
 interface OriginalTrackFormData {
     title: string;

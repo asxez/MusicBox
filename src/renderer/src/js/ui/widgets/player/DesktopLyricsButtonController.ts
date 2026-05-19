@@ -1,5 +1,5 @@
 import {cacheManager} from "@js/shared/cache";
-import {desktopLyricsController} from "@js/features/desktopLyrics";
+import {desktopLyricsService} from "@js/features/desktopLyrics/service/DesktopLyricsService";
 import {showToast} from "@js/utils";
 import type {AddManagedDomListener} from "@ui/widgets/player/PlayerDomEvents";
 
@@ -47,7 +47,7 @@ class DesktopLyricsButtonController {
             await this.updateVisibility(enabled);
 
             if (enabled) {
-                const isVisible = await desktopLyricsController.isVisible();
+                const isVisible = await desktopLyricsService.isVisible();
                 this.updateButton(isVisible);
             }
         } catch (error) {
@@ -73,7 +73,7 @@ class DesktopLyricsButtonController {
 
     private async toggle(): Promise<void> {
         try {
-            const result = await desktopLyricsController.toggle();
+            const result = await desktopLyricsService.toggle();
 
             if (result.success) {
                 this.updateButton(result.visible);
@@ -100,7 +100,7 @@ class DesktopLyricsButtonController {
 
     private async checkWindowState(): Promise<void> {
         try {
-            const isVisible = await desktopLyricsController.isVisible();
+            const isVisible = await desktopLyricsService.isVisible();
             this.updateButton(isVisible);
         } catch (error) {
             console.error('❌ DesktopLyricsButtonController: 检查桌面歌词窗口状态失败:', error);

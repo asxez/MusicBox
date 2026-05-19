@@ -7,7 +7,7 @@ import {validate, Validator} from '@extensions/api/common/validation';
 import {ErrorUtils, NotAvailableError} from '@extensions/api/common/errors';
 import {ExtensionContext, IDisposable, toDisposable} from '@extensions/core';
 import {extensionHostService} from "@js/features/extensions/service";
-import {playbackController} from "@js/features/playback";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import {PlaybackStateType, PlayerAPI, PlayerState, PlayModeType, Track} from "@extensions/api/types/player";
 import type {Track as ApiTrack} from '@api/types/track';
 
@@ -39,7 +39,7 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
     return {
         async play(): Promise<boolean> {
             return ErrorUtils.wrapAsync(async () => {
-                return await playbackController.play();
+                return await playbackUiStateService.play();
             }, 'player.play');
         },
 
@@ -57,25 +57,25 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
 
         async pause(): Promise<boolean> {
             return ErrorUtils.wrapAsync(async () => {
-                return await playbackController.pause();
+                return await playbackUiStateService.pause();
             }, 'player.pause');
         },
 
         async stop(): Promise<boolean> {
             return ErrorUtils.wrapAsync(async () => {
-                return await playbackController.stop();
+                return await playbackUiStateService.stop();
             }, 'player.stop');
         },
 
         async nextTrack(): Promise<boolean> {
             return ErrorUtils.wrapAsync(async () => {
-                return await playbackController.nextTrack();
+                return await playbackUiStateService.nextTrack();
             }, 'player.nextTrack');
         },
 
         async previousTrack(): Promise<boolean> {
             return ErrorUtils.wrapAsync(async () => {
-                return await playbackController.previousTrack();
+                return await playbackUiStateService.previousTrack();
             }, 'player.previousTrack');
         },
 
@@ -83,19 +83,19 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
             validate.volume(volume);
 
             await ErrorUtils.wrapAsync(async () => {
-                await playbackController.setVolume(volume);
+                await playbackUiStateService.setVolume(volume);
             }, 'player.setVolume');
         },
 
         getVolume(): number {
             return ErrorUtils.wrapSync(() => {
-                return playbackController.getVolume();
+                return playbackUiStateService.getVolume();
             }, 'player.getVolume');
         },
 
         getState(): PlayerState {
             return ErrorUtils.wrapSync(() => {
-                const state = playbackController.getState();
+                const state = playbackUiStateService.getState();
                 return {
                     isPlaying: state.isPlaying,
                     currentTrack: state.currentTrack as unknown as Track | null,
@@ -108,7 +108,7 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
 
         getCurrentTrack(): Track | null {
             return ErrorUtils.wrapSync(() => {
-                return playbackController.getCurrentTrackSnapshot() as unknown as Track | null;
+                return playbackUiStateService.getCurrentTrackSnapshot() as unknown as Track | null;
             }, 'player.getCurrentTrack');
         },
 
@@ -116,19 +116,19 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
             validate.time(time);
 
             return ErrorUtils.wrapAsync(async () => {
-                return await playbackController.seek(time);
+                return await playbackUiStateService.seek(time);
             }, 'player.seek');
         },
 
         async getPosition(): Promise<number> {
             return await ErrorUtils.wrapAsync(async () => {
-                return await playbackController.getPosition();
+                return playbackUiStateService.getState().position;
             }, 'player.getPosition');
         },
 
         getDuration(): number {
             return ErrorUtils.wrapSync(() => {
-                return playbackController.getDuration();
+                return playbackUiStateService.getDuration();
             }, 'player.getDuration');
         },
 
@@ -139,13 +139,13 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
             }
 
             return ErrorUtils.wrapAsync(async () => {
-                return await playbackController.setPlaylist(tracks as unknown as ApiTrack[], startIndex);
+                return await playbackUiStateService.setPlaylist(tracks as unknown as ApiTrack[], startIndex);
             }, 'player.setPlaylist');
         },
 
         getPlaylist(): Track[] {
             return ErrorUtils.wrapSync(() => {
-                return [...playbackController.getPlaylist()] as unknown as Track[];
+                return [...playbackUiStateService.getPlaylist()] as unknown as Track[];
             }, 'player.getPlaylist');
         },
 
@@ -157,13 +157,13 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
             );
 
             ErrorUtils.wrapSync(() => {
-                playbackController.setPlayMode(mode);
+                playbackUiStateService.setPlayMode(mode);
             }, 'player.setPlayMode');
         },
 
         getPlayMode(): PlayModeType {
             return ErrorUtils.wrapSync(() => {
-                return playbackController.getPlayMode() as PlayModeType || PlayMode.SEQUENCE;
+                return playbackUiStateService.getPlayMode() as PlayModeType || PlayMode.SEQUENCE;
             }, 'player.getPlayMode');
         },
 
@@ -171,7 +171,7 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
             Validator.assertFunction(callback, 'callback');
 
             return ErrorUtils.wrapSync(() => {
-                const unsubscribe = playbackController.on('trackChanged', callback as any);
+                const unsubscribe = playbackUiStateService.on('trackChanged', callback as any);
                 return toDisposable(unsubscribe);
             }, 'player.onTrackChanged');
         },
@@ -180,7 +180,7 @@ export function createPlayerAPI(_context: ExtensionContext): PlayerAPI {
             Validator.assertFunction(callback, 'callback');
 
             return ErrorUtils.wrapSync(() => {
-                const unsubscribe = playbackController.on('playbackStateChanged', callback as any);
+                const unsubscribe = playbackUiStateService.on('playbackStateChanged', callback as any);
                 return toDisposable(unsubscribe);
             }, 'player.onPlaybackStateChanged');
         }

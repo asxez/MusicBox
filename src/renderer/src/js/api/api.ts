@@ -1,6 +1,6 @@
 import {appEventService} from '@js/features/events/service/AppEventService';
-import {playbackController} from '@js/features/playback/PlaybackController';
 import {playbackApiAdapter} from '@js/features/playback/service/PlaybackApiAdapter';
+import {playbackUiStateService} from '@js/features/playback/service/PlaybackUiStateService';
 import {MusicBoxAPI, api} from './MusicBoxAPI';
 
 appEventService.bindEventBus({
@@ -10,6 +10,6 @@ appEventService.bindEventBus({
 });
 
 playbackApiAdapter.bindRuntime(api);
-playbackController.syncStateFromRuntime();
+playbackUiStateService.syncStateFromRuntime();
 
 export {MusicBoxAPI, api};

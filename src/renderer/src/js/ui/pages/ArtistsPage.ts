@@ -8,7 +8,7 @@ import {
     libraryPageDataService,
     type CoverLookupResult as CoverResult,
     type LibraryArtistInfo as ArtistInfo
-} from "@js/features/library/service";
+} from "@js/features/library/service/LibraryPageDataService";
 import type {Track} from "@api/types/track";
 
 type ArtistViewMode = 'constellation' | 'galaxy';

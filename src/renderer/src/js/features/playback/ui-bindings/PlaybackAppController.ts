@@ -2,7 +2,6 @@ import {cacheManager} from "@js/shared/cache";
 import type {PlaybackStateSnapshot} from '@api/types/playback';
 import type {MusicBoxSettings} from '@api/types/settings';
 import type {Track} from '@api/types/track';
-import {playbackController} from "../PlaybackController";
 
 export interface PlaybackAppHost {
     currentView: string;
@@ -29,6 +28,12 @@ interface PlaybackAppControllerOptions {
 
 interface PlaybackAppIntegrations {
     getLibraryTracks(): Promise<Track[]>;
+    setPlaylist(tracks: Track[], startIndex?: number): Promise<boolean>;
+    loadTrack(filePath: string): Promise<boolean>;
+    play(): Promise<boolean>;
+    setPosition(position: number): Promise<boolean>;
+    setPlayMode(mode: PlaybackStateSnapshot['playMode']): boolean;
+    getPlaybackSnapshot(): PlaybackStateSnapshot;
 }
 
 export class PlaybackAppController {
@@ -50,7 +55,7 @@ export class PlaybackAppController {
         if (!tracks || tracks.length === 0) return;
 
         try {
-            await playbackController.setPlaylist(tracks, 0);
+            await this.integrations.setPlaylist(tracks, 0);
             this.ui.syncQueueTracks(tracks, 0);
             await this.playTrackFromPlaylist(tracks[0], 0);
         } catch (error) {
@@ -100,7 +105,7 @@ export class PlaybackAppController {
             }
         } else {
             console.warn('播放列表组件不存在，使用传统播放方式');
-            await playbackController.setPlaylist([track], 0);
+            await this.integrations.setPlaylist([track], 0);
         }
     }
 
@@ -118,14 +123,14 @@ export class PlaybackAppController {
             if (queueTracks.length > 0) {
                 console.log('🔄 同步播放列表到API:', queueTracks.length, '首歌曲');
 
-                const setPlaylistResult = await playbackController.setPlaylist(queueTracks, index);
+                const setPlaylistResult = await this.integrations.setPlaylist(queueTracks, index);
 
                 if (setPlaylistResult) {
                     this.ui.setQueueCurrentTrack(index);
 
-                    const loadResult = await playbackController.loadTrack(track.filePath);
+                    const loadResult = await this.integrations.loadTrack(track.filePath);
                     if (loadResult) {
-                        await playbackController.play();
+                        await this.integrations.play();
                         console.log(`✅ App: 播放成功 ${track.title || track.filePath}`);
                     } else {
                         console.error('❌ App: 加载歌曲失败');
@@ -164,7 +169,7 @@ export class PlaybackAppController {
                 const {currentTrack, position, playlist, currentIndex, playMode} = playbackState;
 
                 if (playMode) {
-                    playbackController.setPlayMode(playMode);
+                    this.integrations.setPlayMode(playMode);
                 }
 
                 if (playlist && playlist.length > 0) {
@@ -182,22 +187,22 @@ export class PlaybackAppController {
                     }
 
                     if (validTracks.length > 0) {
-                        await playbackController.setPlaylist(validTracks, validCurrentIndex);
+                        await this.integrations.setPlaylist(validTracks, validCurrentIndex);
 
                         this.ui.syncQueueTracks(validTracks, validCurrentIndex);
 
                         if (validCurrentIndex >= 0 && validTracks[validCurrentIndex]) {
                             const trackToLoad = validTracks[validCurrentIndex];
-                            const loadResult = await playbackController.loadTrack(trackToLoad.filePath);
+                            const loadResult = await this.integrations.loadTrack(trackToLoad.filePath);
                             if (loadResult) {
                                 if (position > 0) {
-                                    const setPositionResult = await playbackController.setPosition(position);
+                                    const setPositionResult = await this.integrations.setPosition(position);
                                     console.log('App: setPosition 结果:', setPositionResult);
                                 }
 
                                 if (settings.autoplay) {
                                     setTimeout(async () => {
-                                        await playbackController.play();
+                                        await this.integrations.play();
                                     }, 1000);
                                 }
                             }
@@ -210,14 +215,14 @@ export class PlaybackAppController {
                     }
                 } else if (currentTrack) {
                     console.log('💾 App: 恢复单个歌曲（兼容模式）:', currentTrack.title);
-                    const loadResult = await playbackController.loadTrack(currentTrack.filePath);
+                    const loadResult = await this.integrations.loadTrack(currentTrack.filePath);
                     if (loadResult) {
                         if (position > 0) {
-                            await playbackController.setPosition(position);
+                            await this.integrations.setPosition(position);
                         }
                         if (settings.autoplay) {
                             setTimeout(async () => {
-                                await playbackController.play();
+                                await this.integrations.play();
                             }, 1000);
                         }
                     }
@@ -243,10 +248,10 @@ export class PlaybackAppController {
             const tracks = await this.integrations.getLibraryTracks();
             if (tracks && tracks.length > 0) {
                 console.log('🎵 App: 加载第一首歌曲:', tracks[0].title);
-                const loadResult = await playbackController.loadTrack(tracks[0].filePath);
+                const loadResult = await this.integrations.loadTrack(tracks[0].filePath);
                 console.log('📂 App: 加载结果:', loadResult);
                 if (loadResult) {
-                    await playbackController.play();
+                    await this.integrations.play();
                 }
             } else {
                 console.warn('⚠️ App: 音乐库为空，无法自动播放');
@@ -258,7 +263,7 @@ export class PlaybackAppController {
         const settings = (cacheManager.getLocalCache('musicbox-settings') || {}) as MusicBoxSettings;
 
         if (settings.rememberPosition) {
-            const playbackState: PlaybackStateSnapshot = playbackController.getPlaybackSnapshot();
+            const playbackState: PlaybackStateSnapshot = this.integrations.getPlaybackSnapshot();
             cacheManager.setLocalCache('playback-state', playbackState);
         }
     }

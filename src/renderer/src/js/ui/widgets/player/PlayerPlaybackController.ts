@@ -1,5 +1,5 @@
-import {playbackController} from "@js/features/playback";
-import type {PlaybackState, PlaybackStoreChange, Unsubscribe} from "@js/features/playback";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
+import type {PlaybackState, PlaybackStoreChange, Unsubscribe} from "@js/features/playback/PlaybackStore";
 import type {PlayMode} from "@api/types/playback";
 import type {Track} from "@api/types/track";
 import type {AddManagedDomListener} from "@ui/widgets/player/PlayerDomEvents";
@@ -78,19 +78,19 @@ class PlayerPlaybackController {
         });
 
         this.addDomListener(this.prevBtn, 'click', () => {
-            void playbackController.previousTrack();
+            void playbackUiStateService.previousTrack();
         });
 
         this.addDomListener(this.nextBtn, 'click', () => {
-            void playbackController.nextTrack();
+            void playbackUiStateService.nextTrack();
         });
 
         this.addDomListener(this.playModeBtn, 'click', () => {
-            const newMode = playbackController.togglePlayMode();
+            const newMode = playbackUiStateService.togglePlayMode();
             this.updatePlayModeDisplay(newMode);
         });
 
-        this.playbackStateUnsubscribe = playbackController.subscribe((state, change) => {
+        this.playbackStateUnsubscribe = playbackUiStateService.subscribe((state, change) => {
             return this.handlePlaybackStateChange(state, change);
         });
 
@@ -98,7 +98,8 @@ class PlayerPlaybackController {
     }
 
     syncInitialState(): Readonly<PlaybackState> {
-        const state = playbackController.getState();
+        playbackUiStateService.syncStateFromRuntime();
+        const state = playbackUiStateService.getState();
         this.currentPlaying = state.isPlaying;
         this.updatePlayButton();
         this.updatePlayModeDisplay(state.playMode);
@@ -155,13 +156,13 @@ class PlayerPlaybackController {
         try {
             if (this.currentPlaying) {
                 console.log('🔄 Player: 请求暂停');
-                const result = await playbackController.pause();
+                const result = await playbackUiStateService.pause();
                 if (!result) {
                     console.error('❌ Player: 暂停失败');
                 }
             } else {
                 console.log('🔄 Player: 请求播放');
-                const result = await playbackController.play();
+                const result = await playbackUiStateService.play();
                 if (!result) {
                     console.error('❌ Player: 播放失败');
                 }
@@ -176,7 +177,7 @@ class PlayerPlaybackController {
     }
 
     getVolume(): number {
-        return playbackController.getVolume();
+        return playbackUiStateService.getVolume();
     }
 
     destroy(): void {

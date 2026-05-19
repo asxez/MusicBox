@@ -5,7 +5,7 @@
 import {cacheManager} from "@js/shared/cache";
 import {appConfirmationService} from "@js/features/appShell/service";
 import {Component} from "@ui/base/Component";
-import {equalizerController} from "@js/features/equalizer";
+import {equalizerService} from "@js/features/equalizer/service/EqualizerService";
 
 interface EqualizerFrequencyPoint {
     frequency: number;
@@ -235,7 +235,7 @@ class EqualizerComponent extends Component {
 
     async initializeEqualizer(): Promise<void> {
         // 等待API初始化
-        const equalizer = equalizerController.getEqualizer<EqualizerBridge>();
+        const equalizer = equalizerService.getEqualizer<EqualizerBridge>();
         if (equalizer) {
             this.equalizer = equalizer;
             if (cacheManager) {
@@ -250,7 +250,7 @@ class EqualizerComponent extends Component {
     }
 
     async refreshEqualizerReference(): Promise<boolean> {
-        const latestEqualizer = equalizerController.getEqualizer<EqualizerBridge>();
+        const latestEqualizer = equalizerService.getEqualizer<EqualizerBridge>();
         if (!latestEqualizer) {
             return false;
         }
@@ -280,7 +280,7 @@ class EqualizerComponent extends Component {
         this.isEnabled = enabled;
 
         // 更新音频引擎
-        equalizerController.setEqualizerEnabled(enabled);
+        equalizerService.setEqualizerEnabled(enabled);
         // console.log(`🎛️ 音频引擎均衡器状态已更新: ${enabled}`);
 
         // 更新UI状态（避免触发change事件）
@@ -459,7 +459,7 @@ class EqualizerComponent extends Component {
             }
 
             // 直接更新音频引擎状态，不通过setEnabled避免递归
-            equalizerController.setEqualizerEnabled(this.isEnabled);
+            equalizerService.setEqualizerEnabled(this.isEnabled);
 
             // 更新UI状态
             if (this.equalizerSettings) {
@@ -543,7 +543,7 @@ class EqualizerComponent extends Component {
             this.equalizerSettings.classList.add('disabled');
         }
 
-        equalizerController.setEqualizerEnabled(false);
+        equalizerService.setEqualizerEnabled(false);
     }
 
     saveSettings(): void {

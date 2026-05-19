@@ -1,4 +1,4 @@
-import {playbackController} from "@js/features/playback";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import type {PlayMode} from "@api/types/playback";
 import type {AddLyricsDomListener} from "@ui/widgets/lyrics/LyricsDomEvents";
 
@@ -39,15 +39,15 @@ class LyricsPlaybackButtonController {
         });
 
         this.addDomListener(this.elements.prevBtn, 'click', () => {
-            void playbackController.previousTrack();
+            void playbackUiStateService.previousTrack();
         });
 
         this.addDomListener(this.elements.nextBtn, 'click', () => {
-            void playbackController.nextTrack();
+            void playbackUiStateService.nextTrack();
         });
 
         this.addDomListener(this.elements.playModeBtn, 'click', () => {
-            const newMode = playbackController.togglePlayMode();
+            const newMode = playbackUiStateService.togglePlayMode();
             this.updatePlayModeDisplay(newMode);
         });
 
@@ -92,12 +92,12 @@ class LyricsPlaybackButtonController {
         this.toggleInProgress = true;
         try {
             if (this.playing) {
-                const result = await playbackController.pause();
+                const result = await playbackUiStateService.pause();
                 if (!result) {
                     console.error('❌ Lyrics: 暂停失败');
                 }
             } else {
-                const result = await playbackController.play();
+                const result = await playbackUiStateService.play();
                 if (!result) {
                     console.error('❌ Lyrics: 播放失败');
                 }

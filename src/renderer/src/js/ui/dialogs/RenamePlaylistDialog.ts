@@ -3,7 +3,7 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {playlistDialogActionService} from "@js/features/playlists";
+import {playlistDialogActionService} from "@js/features/playlists/service/PlaylistDialogActionService";
 
 interface PlaylistLike {
     id: string;

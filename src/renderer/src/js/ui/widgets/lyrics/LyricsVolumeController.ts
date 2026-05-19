@@ -1,4 +1,4 @@
-import {playbackController} from "@js/features/playback";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import type {AddLyricsDomListener} from "@ui/widgets/lyrics/LyricsDomEvents";
 
 interface LyricsVolumeElements {
@@ -74,7 +74,7 @@ class LyricsVolumeController {
     async setVolume(volume: number): Promise<void> {
         this.currentVolume = Math.max(0, Math.min(100, volume));
         this.updateVolumeDisplay();
-        await playbackController.setVolume(this.currentVolume / 100);
+        await playbackUiStateService.setVolume(this.currentVolume / 100);
     }
 
     setVolumeFromRuntime(volume: number): void {

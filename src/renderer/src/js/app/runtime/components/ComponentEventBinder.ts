@@ -2,7 +2,7 @@ import {AppUIFacade} from "@js/app/runtime/AppUIFacade";
 import type {AppComponentPort, AppNotificationPort} from "@js/app/runtime/AppRuntimePorts";
 import type {ComponentMap} from "@js/app/runtime/components/ComponentTypes";
 import {updateNotificationService} from "@js/features/appShell/service";
-import {playbackController} from "@js/features/playback";
+import {playbackService} from "@js/features/playback/service/PlaybackService";
 import {trackCoverDisplayPreferenceService} from "@js/features/settings/service";
 import {settingsExtensionNavigationService} from "@js/features/settings/service";
 import {
@@ -77,7 +77,7 @@ export class ComponentEventBinder {
                     settingsExtensionNavigationService.onNavigate(handler);
                 },
                 setGaplessPlayback: (enabled) => {
-                    playbackController.setGaplessPlayback(enabled);
+                    playbackService.setGaplessPlayback(enabled);
                 },
                 setTrackCoverDisplayPreference: (enabled) => {
                     trackCoverDisplayPreferenceService.setEnabled(enabled);

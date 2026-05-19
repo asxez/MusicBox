@@ -1,5 +1,5 @@
 import {formatTime} from "@js/utils";
-import {playbackController} from "@js/features/playback";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import type {AddManagedDomListener} from "@ui/widgets/player/PlayerDomEvents";
 
 interface PlayerProgressControllerOptions {
@@ -144,7 +144,7 @@ class PlayerProgressController {
         this.progressTooltip.style.opacity = '0';
 
         const progress = parseFloat(this.progressFill.style.width) / 100;
-        await playbackController.seek(this.duration * progress);
+        await playbackUiStateService.seek(this.duration * progress);
         await this.onSeekCommitted?.();
     }
 }

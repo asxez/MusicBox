@@ -1,8 +1,9 @@
 import {cacheManager} from "@js/shared/cache";
-import {localCoverManager} from "@js/features/mediaAssets/service";
+import {localCoverManager} from "@js/features/mediaAssets/service/LocalCoverManager";
 import type {MusicBoxAPIEvents} from "@api/types/events";
 import type {Track} from "@api/types/track";
-import {libraryController as libraryFeatureController} from "../LibraryController";
+import {libraryDataService} from "../service/LibraryDataService";
+import {libraryService} from "../service/LibraryService";
 
 interface LibraryConfirmOptions {
     title: string;
@@ -77,11 +78,11 @@ export class LibraryAppController {
         const app = this.app;
 
         try {
-            const hasCachedLibrary = await libraryFeatureController.hasCachedLibrary();
+            const hasCachedLibrary = await libraryDataService.hasCachedLibrary();
             if (hasCachedLibrary) {
                 app.showCacheLoadingStatus();
 
-                app.library = await libraryFeatureController.loadCachedTracks();
+                app.library = await libraryService.loadCachedTracks();
                 if (app.library.length > 0) {
                     app.filteredLibrary = [...app.library];
                     if (app.currentView === 'library') {
@@ -95,7 +96,7 @@ export class LibraryAppController {
                 }
             }
 
-            app.library = await libraryFeatureController.getTracks();
+            app.library = await libraryDataService.getTracks();
             if (app.library.length === 0) {
                 app.showWelcomeScreen();
             } else {
@@ -157,7 +158,7 @@ export class LibraryAppController {
                 console.warn('⚠️ 后台缓存验证失败:', error);
             });
 
-            await libraryFeatureController.validateCache();
+            await libraryService.validateCache();
         } catch (error) {
             console.warn('⚠️ 后台缓存验证失败:', error);
         }
@@ -167,7 +168,7 @@ export class LibraryAppController {
         const app = this.app;
 
         try {
-            app.library = await libraryFeatureController.getTracks();
+            app.library = await libraryDataService.getTracks();
             app.filteredLibrary = [...app.library];
             app.updateTrackList('refresh');
         } catch (error) {
@@ -240,7 +241,7 @@ export class LibraryAppController {
         }
 
         try {
-            const result = await libraryFeatureController.removeTrack(track.fileId as string);
+            const result = await libraryDataService.removeTrack(track.fileId as string);
             if (result.success) {
                 const libraryIndex = app.library.findIndex(t => t.fileId === track.fileId);
                 if (libraryIndex !== -1) {
@@ -258,7 +259,7 @@ export class LibraryAppController {
                 }
 
                 this.updateTrackList('track-deleted');
-                libraryFeatureController.emitLibraryUpdated();
+                libraryService.emitLibraryUpdated();
                 app.showInfo(`已从音乐库删除 "${track.title}"`);
             } else {
                 app.showError(result.error || '删除失败');
@@ -298,7 +299,7 @@ export class LibraryAppController {
             const t = app.filteredLibrary[i];
             if (!t) continue;
             try {
-                const result = await libraryFeatureController.removeTrack(t.fileId as string);
+                const result = await libraryDataService.removeTrack(t.fileId as string);
                 if (result.success) {
                     successCount++;
                     const libIdx = app.library.findIndex(x => x.fileId === t.fileId);
@@ -314,7 +315,7 @@ export class LibraryAppController {
         this.ui.clearTrackListSelection();
 
         this.updateTrackList('track-deleted');
-        libraryFeatureController.emitLibraryUpdated();
+        libraryService.emitLibraryUpdated();
         app.showInfo(`已从音乐库删除 ${successCount} 首歌曲`);
     }
 

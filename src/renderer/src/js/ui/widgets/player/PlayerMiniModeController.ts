@@ -1,5 +1,5 @@
 import {miniModeWindowService} from "@js/features/appShell/service";
-import {playbackController} from "@js/features/playback";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import {showToast} from "@js/utils";
 import type {MiniModePlayerView} from "@ui/widgets/player/MiniModePlayerView";
 import type {PlayerCoverInteractionController} from "@ui/widgets/player/PlayerCoverInteractionController";
@@ -49,7 +49,7 @@ class PlayerMiniModeController {
         await miniModeWindowService.enterMiniMode();
         this.active = true;
         this.coverInteractionController.disableStandardInteractions();
-        await this.miniModeView.enter(playbackController.getCurrentTrack(), this.getCurrentTime());
+        await this.miniModeView.enter(playbackUiStateService.getCurrentTrack(), this.getCurrentTime());
     }
 
     async exit(): Promise<void> {

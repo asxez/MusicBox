@@ -1,6 +1,7 @@
 import type {Track} from "@api/types/library";
 import {appNotificationService} from "@js/features/appShell/service";
-import {coverLookupService, coverUpdateManager} from "@js/features/mediaAssets/service";
+import {coverLookupService} from "@js/features/mediaAssets/service/CoverLookupService";
+import {coverUpdateManager} from "@js/features/mediaAssets/service/CoverUpdateManager";
 import {mediaFileDialogService, mediaFileSystemService} from "@js/features/media/service";
 import {libraryDataService} from "./LibraryDataService";
 

@@ -1,4 +1,5 @@
-import {coverLookupService, coverUpdateManager} from "@js/features/mediaAssets/service";
+import {coverLookupService} from "@js/features/mediaAssets/service/CoverLookupService";
+import {coverUpdateManager} from "@js/features/mediaAssets/service/CoverUpdateManager";
 import {urlValidator} from "@utils/URLValidator";
 import type {Track} from "@api/types/track";
 

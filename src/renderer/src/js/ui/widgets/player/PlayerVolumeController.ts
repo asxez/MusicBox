@@ -1,4 +1,4 @@
-import {playbackController} from "@js/features/playback";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import type {AddManagedDomListener} from "@ui/widgets/player/PlayerDomEvents";
 
 interface PlayerVolumeControllerOptions {
@@ -96,21 +96,21 @@ class PlayerVolumeController {
 
     private async applyInputValue(value: string): Promise<void> {
         this.updateVolume(value);
-        await playbackController.setVolume(this.getRenderedVolume());
+        await playbackUiStateService.setVolume(this.getRenderedVolume());
     }
 
     private async applyPointerVolume(event: MouseEvent): Promise<void> {
         this.updateVolume(event);
-        await playbackController.setVolume(this.getRenderedVolume());
+        await playbackUiStateService.setVolume(this.getRenderedVolume());
     }
 
     private async adjustFromWheel(event: WheelEvent & {wheelDelta?: number}): Promise<void> {
         if ((event.wheelDelta ?? -event.deltaY) < 0) {
-            await playbackController.adjustVolume(0.01);
+            await playbackUiStateService.adjustVolume(0.01);
             return;
         }
 
-        await playbackController.adjustVolume(-0.01);
+        await playbackUiStateService.adjustVolume(-0.01);
     }
 
     private async stopDragging(): Promise<void> {
@@ -119,7 +119,7 @@ class PlayerVolumeController {
         }
 
         this.dragging = false;
-        await playbackController.setVolume(this.getRenderedVolume());
+        await playbackUiStateService.setVolume(this.getRenderedVolume());
     }
 
     private updateVolume(eventOrValue: MouseEvent | string | number): void {
@@ -142,11 +142,11 @@ class PlayerVolumeController {
     private async toggleMute(): Promise<void> {
         if (this.volume > 0) {
             this.previousVolume = this.volume;
-            await playbackController.setVolume(0);
+            await playbackUiStateService.setVolume(0);
             return;
         }
 
-        await playbackController.setVolume(this.previousVolume || 0.7);
+        await playbackUiStateService.setVolume(this.previousVolume || 0.7);
     }
 
     private updateIcon(): void {

@@ -3,15 +3,13 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {coverLookupService} from "@js/features/mediaAssets/service";
+import {coverLookupService} from "@js/features/mediaAssets/service/CoverLookupService";
 import {trackCoverDisplayPreferenceService} from "@js/features/settings/service";
-import {
-    playlistCoverActionService,
-    playlistDataService,
-    playlistFolderImportService,
-    playlistPlaybackActionService,
-    playlistTrackMutationService
-} from "@js/features/playlists";
+import {playlistCoverActionService} from "@js/features/playlists/service/PlaylistCoverActionService";
+import {playlistDataService} from "@js/features/playlists/service/PlaylistDataService";
+import {playlistFolderImportService} from "@js/features/playlists/service/PlaylistFolderImportService";
+import {playlistPlaybackActionService} from "@js/features/playlists/service/PlaylistPlaybackActionService";
+import {playlistTrackMutationService} from "@js/features/playlists/service/PlaylistTrackMutationService";
 import type {Unsubscribe} from "@api/types/common";
 import type {Playlist, Track} from "@api/types/library";
 

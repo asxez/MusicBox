@@ -5,6 +5,7 @@ export {PlaybackPersistence} from './PlaybackPersistence';
 export {RecentPlaybackHistoryService, recentPlaybackHistoryService} from './RecentPlaybackHistoryService';
 export {PlaybackService, playbackService} from './PlaybackService';
 export {PlaybackStateSynchronizer} from './PlaybackStateSynchronizer';
+export {PlaybackUiStateService, playbackUiStateService} from './PlaybackUiStateService';
 export type {AudioEngineManagerBridge, AudioEngineType} from './AudioEngineAdapter';
 export type {AudioEngineBridge, AudioEngineState, TrackSource} from './audioEngine';
 export type {PlaybackEventHandler, PlaybackEventName, PlaybackRuntimePort} from './PlaybackRuntimePort';

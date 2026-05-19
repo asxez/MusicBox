@@ -2,7 +2,7 @@
  * 参量均衡器UI组件
  */
 
-import {equalizerController} from "@js/features/equalizer";
+import {equalizerService} from "@js/features/equalizer/service/EqualizerService";
 import type {AudioEngineManagerBridge} from "@js/features/equalizer/service";
 import {Component} from "@ui/base/Component";
 import {showInputDialog} from "@js/utils/InputDialog";
@@ -256,7 +256,7 @@ class ParametricEqualizerComponent extends Component {
     }
 
     private async tryBindEqualizer(force: boolean): Promise<boolean> {
-        const audioEngine = equalizerController.getAudioEngine<ParametricAudioEngine>();
+        const audioEngine = equalizerService.getAudioEngine<ParametricAudioEngine>();
         if (audioEngine?.currentEngine) {
             const engineType = typeof audioEngine.getEngineType === 'function'
                 ? audioEngine.getEngineType()

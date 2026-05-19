@@ -15,12 +15,12 @@ import {ViewRouter} from './ViewRouter';
 import {AppLifecycleController, type InitResult} from '@js/app/lifecycle';
 import {AppShellView} from '@js/app/shell';
 import {createAppComposition} from '@js/app/composition';
-import {FileImportController, LibraryAppController} from '@js/features/library';
-import {PlaylistController} from '@js/features/playlists';
-import {PlaybackAppController} from '@js/features/playback';
+import {FileImportController, LibraryAppController} from '@js/features/library/ui-bindings';
+import {PlaylistController} from '@js/features/playlists/PlaylistController';
+import {PlaybackAppController} from '@js/features/playback/ui-bindings/PlaybackAppController';
 
 import {cacheManager} from "@js/shared/cache";
-import {playbackController as playbackFeatureController} from "@js/features/playback";
+import {playbackController as playbackFeatureController} from "@js/features/playback/PlaybackController";
 import type {MusicBoxAPIEvents, ScanProgress} from "@api/types/events";
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";

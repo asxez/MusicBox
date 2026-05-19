@@ -3,8 +3,9 @@
  */
 
 import {formatTime, sanitizeHTML} from "@utils/index.js";
-import {coverLookupService, coverUpdateManager} from "@js/features/mediaAssets/service";
-import type {CoverUpdateData} from "@js/features/mediaAssets/service";
+import {coverLookupService} from "@js/features/mediaAssets/service/CoverLookupService";
+import {coverUpdateManager} from "@js/features/mediaAssets/service/CoverUpdateManager";
+import type {CoverUpdateData} from "@js/features/mediaAssets/service/CoverUpdateManager";
 import {trackCoverDisplayPreferenceService} from "@js/features/settings/service";
 import {Component} from "@ui/base/Component";
 import type {Unsubscribe} from "@api/types/common";

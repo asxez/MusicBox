@@ -113,6 +113,22 @@ export class PlaybackService {
         return playbackApiAdapter.getCurrentTrack();
     }
 
+    getVolume(state?: Readonly<PlaybackState>): number {
+        return state?.volume ?? playbackApiAdapter.getInitialState().volume;
+    }
+
+    getDuration(state?: Readonly<PlaybackState>): number {
+        return state?.duration ?? playbackApiAdapter.getInitialState().duration;
+    }
+
+    getCurrentIndex(state?: Readonly<PlaybackState>): number {
+        return state?.currentIndex ?? playbackApiAdapter.getInitialState().currentIndex;
+    }
+
+    getPlaylist(state?: Readonly<PlaybackState>): Track[] {
+        return state?.playlist ?? playbackApiAdapter.getInitialState().playlist;
+    }
+
     togglePlayMode(): PlayMode {
         return playbackApiAdapter.togglePlayMode();
     }

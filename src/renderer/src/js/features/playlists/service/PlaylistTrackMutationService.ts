@@ -1,5 +1,5 @@
-import {libraryController} from "@js/features/library";
 import {appConfirmationService, appNotificationService} from "@js/features/appShell/service";
+import {libraryDataService} from "@js/features/library/service/LibraryDataService";
 import type {Track} from "@api/types/library";
 
 export type PlaylistMutationTrack = Track & {
@@ -36,7 +36,7 @@ class PlaylistTrackMutationService {
 
         try {
             const trackIds = tracks.map((track) => track.fileId).filter((fileId): fileId is string => Boolean(fileId));
-            const result = await libraryController.removeFromPlaylist(playlist.id, trackIds);
+            const result = await libraryDataService.removeFromPlaylist(playlist.id, trackIds);
 
             if (result.success) {
                 appNotificationService.showInfo(`歌单"${playlist.name}"已清空`);
@@ -76,7 +76,7 @@ class PlaylistTrackMutationService {
 
         for (const track of tracks) {
             try {
-                const result = await libraryController.removeFromPlaylist(
+                const result = await libraryDataService.removeFromPlaylist(
                     playlistId,
                     track.fileId ? [track.fileId] : []
                 );
@@ -115,7 +115,7 @@ class PlaylistTrackMutationService {
         }
 
         try {
-            const result = await libraryController.removeFromPlaylist(
+            const result = await libraryDataService.removeFromPlaylist(
                 playlistId,
                 track.fileId ? [track.fileId] : []
             );
@@ -136,4 +136,3 @@ class PlaylistTrackMutationService {
 }
 
 export const playlistTrackMutationService = new PlaylistTrackMutationService();
-

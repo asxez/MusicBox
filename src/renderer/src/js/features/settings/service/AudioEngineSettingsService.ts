@@ -1,5 +1,5 @@
-import {playbackController} from "@js/features/playback";
-import type {AudioEngineType} from "@js/features/playback";
+import {playbackService} from "@js/features/playback/service/PlaybackService";
+import type {AudioEngineType} from "@js/features/playback/service/AudioEngineAdapter";
 import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
 
 interface ExclusiveModeSettingsView {
@@ -27,7 +27,7 @@ class AudioEngineSettingsService {
         const engineType: AudioEngineType = enabled ? 'wasapi' : 'webaudio';
 
         try {
-            const success = await playbackController.switchAudioEngine(engineType);
+            const success = await playbackService.switchAudioEngine(engineType);
             if (!success) {
                 return {
                     success: false,
@@ -49,7 +49,7 @@ class AudioEngineSettingsService {
 
     async switchWasapiShareMode(mode: WasapiShareMode): Promise<AudioEngineSettingResult> {
         try {
-            const success = await playbackController.switchWasapiShareMode(mode);
+            const success = await playbackService.switchWasapiShareMode(mode);
             if (!success) {
                 return {
                     success: false,

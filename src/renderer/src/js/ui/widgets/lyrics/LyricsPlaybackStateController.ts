@@ -1,5 +1,5 @@
-import {playbackController} from "@js/features/playback";
-import type {PlaybackState, PlaybackStoreChange, Unsubscribe} from "@js/features/playback";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
+import type {PlaybackState, PlaybackStoreChange, Unsubscribe} from "@js/features/playback/PlaybackStore";
 import type {PlayMode} from "@api/types/playback";
 import type {LyricsTrack} from "@ui/widgets/lyrics/LyricsTypes";
 
@@ -38,7 +38,7 @@ class LyricsPlaybackStateController {
             return;
         }
 
-        this.playbackStateUnsubscribe = playbackController.subscribe((state, change) => {
+        this.playbackStateUnsubscribe = playbackUiStateService.subscribe((state, change) => {
             return this.handlePlaybackStateChange(state, change);
         });
     }

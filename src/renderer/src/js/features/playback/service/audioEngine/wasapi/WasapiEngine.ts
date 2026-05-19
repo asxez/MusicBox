@@ -5,11 +5,11 @@
 import {audioDriverController} from "@js/features/audioDriver";
 import ParametricEqualizer from "@js/features/equalizer/service/ParametricEqualizer";
 import WasapiEqualizer from "@js/features/equalizer/service/WasapiEqualizer";
-import {libraryController} from "@js/features/library";
 import {cacheManager} from "@js/shared/cache";
 import type {MusicBoxSettings} from "@api/types/settings";
 import {getTrackFilePath, type AudioTrack, type TrackSource} from "../AudioTrack";
 import type {AudioEngineState} from "../AudioEngineContract";
+import {trackMetadataLookupService} from "../TrackMetadataLookupService";
 
 type WasapiShareMode = 'exclusive' | 'shared';
 type EqualizerMode = 'graphic' | 'parametric';
@@ -143,7 +143,7 @@ class WasapiEngine {
             }
 
             // 获取音频元数据
-            const metadata = await libraryController.getTrackMetadata(filePath);
+            const metadata = await trackMetadataLookupService.getTrackMetadata(filePath);
             this.duration = metadata?.duration || result.duration || 0;
 
             this.currentTrack = {

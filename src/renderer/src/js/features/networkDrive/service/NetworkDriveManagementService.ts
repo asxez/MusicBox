@@ -1,5 +1,6 @@
 import {networkDriveGateway} from "@js/infrastructure/electron";
-import {libraryController} from "@js/features/library";
+import {libraryGateway} from "@js/infrastructure/electron";
+import {libraryDataService} from "@js/features/library/service/LibraryDataService";
 import type {Unsubscribe} from "@api/types/common";
 import type {ScanProgress} from "@api/types/events";
 import type {MountedNetworkDrive, NetworkDriveConfig} from "@api/types/electron";
@@ -26,7 +27,7 @@ class NetworkDriveManagementService {
     }
 
     scanNetworkDrive(driveId: string, relativePath = '/'): Promise<boolean> {
-        return libraryController.scanNetworkDrive(driveId, relativePath);
+        return libraryDataService.scanNetworkDrive(driveId, relativePath);
     }
 
     unmount(driveId: string): Promise<boolean> {
@@ -54,7 +55,7 @@ class NetworkDriveManagementService {
     }
 
     onScanProgress(handler: (progress: ScanProgress) => void): Unsubscribe {
-        return libraryController.onScanProgress(handler);
+        return libraryGateway.onScanProgress(handler);
     }
 }
 

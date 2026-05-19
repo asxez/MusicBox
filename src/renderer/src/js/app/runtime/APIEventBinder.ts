@@ -1,5 +1,5 @@
-import {appEventController} from "@js/features/events";
-import {playbackController} from "@js/features/playback";
+import {appEventService} from "@js/features/events/service/AppEventService";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import type {MusicBoxAPIEvents} from '@api/types/events';
 import type {APIEventBindingHost, AppComponentPort} from './AppRuntimePorts';
 import type {ManagedAPIListener} from '@js/shared/types/AppContracts';
@@ -23,14 +23,14 @@ export class APIEventBinder {
         event: K,
         handler: (payload: MusicBoxAPIEvents[K]) => void | Promise<void>
     ): void {
-        appEventController.on(event, handler);
+        appEventService.on(event, handler);
         this.apiEventListeners.push({event, handler} as ManagedAPIListener);
     }
 
     dispose(): void {
         this.apiEventListeners.forEach(({event, handler}) => {
             try {
-                appEventController.off(event, handler as any);
+                appEventService.off(event, handler as any);
             } catch (error) {
                 console.warn('Failed to remove API event listener:', error);
             }
@@ -46,7 +46,7 @@ export class APIEventBinder {
         this.addManagedAPIEventListener('playlistChanged', (tracks) => {
             console.log('🎵 API播放列表改变:', tracks.length, '首歌曲');
             if (tracks.length > 0) {
-                this.ui.syncQueueTracks(tracks, playbackController.getCurrentIndex());
+                this.ui.syncQueueTracks(tracks, playbackUiStateService.getState().currentIndex);
             }
         });
 
@@ -65,8 +65,8 @@ export class APIEventBinder {
 
         this.addManagedAPIEventListener('positionChanged', (position) => {
             if (this.ui.isLyricsVisible()) {
-                const currentTrack = playbackController.getCurrentTrackSnapshot();
-                const duration = currentTrack?.duration || playbackController.getDuration();
+                const currentTrack = playbackUiStateService.getCurrentTrackSnapshot();
+                const duration = currentTrack?.duration || playbackUiStateService.getDuration();
                 this.ui.updateLyricsProgress(position, duration);
             }
         });

@@ -1,6 +1,6 @@
-import {libraryController} from "@js/features/library";
 import {mediaFileDialogService} from "@js/features/media/service";
 import {appConfirmationService, appNotificationService} from "@js/features/appShell/service";
+import {libraryDataService} from "@js/features/library/service/LibraryDataService";
 
 export interface PlaylistCoverActionResult {
     changed: boolean;
@@ -39,7 +39,7 @@ class PlaylistCoverActionService {
             }
 
             console.log(`🖼️ 设置歌单封面: ${playlistId} -> ${imagePath}`);
-            const result = await libraryController.updatePlaylistCover(playlistId, imagePath);
+            const result = await libraryDataService.updatePlaylistCover(playlistId, imagePath);
 
             if (result.success) {
                 appNotificationService.showInfo('歌单封面设置成功');
@@ -67,7 +67,7 @@ class PlaylistCoverActionService {
             }
 
             console.log(`🗑️ 移除歌单封面: ${playlistId}`);
-            const result = await libraryController.removePlaylistCover(playlistId);
+            const result = await libraryDataService.removePlaylistCover(playlistId);
 
             if (result.success) {
                 appNotificationService.showInfo('歌单封面已移除');
@@ -97,4 +97,3 @@ function getErrorMessage(error: unknown): string {
 }
 
 export const playlistCoverActionService = new PlaylistCoverActionService();
-

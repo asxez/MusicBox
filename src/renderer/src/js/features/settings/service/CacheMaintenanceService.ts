@@ -1,4 +1,5 @@
-import {libraryController} from "@js/features/library";
+import {libraryDataService} from "@js/features/library/service/LibraryDataService";
+import {libraryService} from "@js/features/library/service/LibraryService";
 import type {Result} from "@api/types/common";
 import type {CacheValidationResult} from "@api/types/events";
 
@@ -11,19 +12,19 @@ export interface CacheStatisticsView {
 
 class CacheMaintenanceService {
     getStatistics(): Promise<CacheStatisticsView | null> {
-        return libraryController.getCacheStatistics() as Promise<CacheStatisticsView | null>;
+        return libraryDataService.getCacheStatistics() as Promise<CacheStatisticsView | null>;
     }
 
     validate(): Promise<CacheValidationResult | null> {
-        return libraryController.validateCache();
+        return libraryService.validateCache();
     }
 
     clear(): Promise<boolean> {
-        return libraryController.clearCache();
+        return libraryDataService.clearCache();
     }
 
     clearIgnoreList(): Promise<Result> {
-        return libraryController.clearIgnoreList();
+        return libraryDataService.clearIgnoreList();
     }
 }
 

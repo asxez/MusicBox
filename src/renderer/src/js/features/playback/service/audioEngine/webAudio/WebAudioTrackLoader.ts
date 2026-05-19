@@ -1,6 +1,6 @@
-import {libraryController} from '@js/features/library';
 import {audioFileReaderService} from '@js/features/media/service';
-import {embeddedCoverManager} from '@js/features/mediaAssets/service';
+import {embeddedCoverManager} from '@js/features/mediaAssets/service/EmbeddedCoverManager';
+import {trackMetadataLookupService} from '../TrackMetadataLookupService';
 import type WebAudioObjectUrlStore from './WebAudioObjectUrlStore';
 import type {CoverData, LoadedWebAudioTrack, TrackMetadata, WebAudioTrack} from './WebAudioTypes';
 
@@ -58,7 +58,7 @@ class WebAudioTrackLoader {
     }
 
     private async getTrackMetadata(filePath: string): Promise<TrackMetadata> {
-        const metadata = await libraryController.getTrackMetadata(filePath);
+        const metadata = await trackMetadataLookupService.getTrackMetadata(filePath);
         if (!metadata) {
             return {};
         }

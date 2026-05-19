@@ -1,4 +1,4 @@
-import {playbackController} from "@js/features/playback";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import {LyricsCoverArtController} from "@ui/widgets/lyrics/LyricsCoverArtController";
 import {resolveLyricsElements} from "@ui/widgets/lyrics/LyricsElementRegistry";
 import {LyricsLayoutController} from "@ui/widgets/lyrics/LyricsLayoutController";
@@ -60,7 +60,7 @@ class LyricsWidgetComposition {
             lyricsDisplay: this.elements.lyricsDisplay,
             isVisible: this.isVisible,
             seek: async (time) => {
-                await playbackController.seek(time);
+                await playbackUiStateService.seek(time);
             }
         });
 
@@ -170,7 +170,7 @@ class LyricsWidgetComposition {
     }
 
     updatePlayButton(): void {
-        this.playbackControls.setPlaying(playbackController.getState().isPlaying);
+        this.playbackControls.setPlaying(playbackUiStateService.getState().isPlaying);
     }
 
     async setVolume(volume: number): Promise<void> {
@@ -178,7 +178,7 @@ class LyricsWidgetComposition {
     }
 
     updateVolumeDisplay(): void {
-        this.playbackControls.setVolumeFromRuntime(playbackController.getState().volume);
+        this.playbackControls.setVolumeFromRuntime(playbackUiStateService.getState().volume);
     }
 
     updatePlayModeDisplay(mode: PlayMode): void {

@@ -1,13 +1,14 @@
 import {windowShellService} from "@js/features/appShell/service";
-import {libraryController} from "@js/features/library";
 import {networkDriveManagementService} from "@js/features/networkDrive/service";
+import {libraryGateway} from "@js/infrastructure/electron";
+import {libraryDataService} from "@js/features/library/service/LibraryDataService";
 import type {Result, Unsubscribe} from "@api/types/common";
 import type {MountedNetworkDrive} from "@api/types/electron";
 import type {Playlist, Track} from "@api/types/library";
 
 class NavigationDataService {
     onLibraryUpdated(handler: (tracks: Track[]) => void | Promise<void>): Unsubscribe {
-        return libraryController.onLibraryUpdated(handler);
+        return libraryGateway.onLibraryUpdated(handler);
     }
 
     onWindowMaximizedChanged(handler: (isMaximized: boolean) => void): Unsubscribe {
@@ -39,11 +40,11 @@ class NavigationDataService {
     }
 
     async getPlaylists(): Promise<Playlist[]> {
-        return libraryController.getPlaylists();
+        return libraryDataService.getPlaylists();
     }
 
     async deletePlaylist(playlistId: string): Promise<Result> {
-        return libraryController.deletePlaylist(playlistId);
+        return libraryDataService.deletePlaylist(playlistId);
     }
 
     async getMountedNetworkDrives(): Promise<MountedNetworkDrive[]> {

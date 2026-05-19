@@ -1,5 +1,5 @@
 import type {Track} from "@api/types/library";
-import {coverLookupService} from "@js/features/mediaAssets/service";
+import {coverLookupService} from "@js/features/mediaAssets/service/CoverLookupService";
 import {userDataService} from "@js/features/userData/service";
 import type {DiaryData, MoodData} from "@api/types/userdata";
 import {libraryDataService} from "./LibraryDataService";

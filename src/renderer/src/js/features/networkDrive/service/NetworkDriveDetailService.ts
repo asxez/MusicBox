@@ -1,5 +1,6 @@
 import {networkDriveGateway} from "@js/infrastructure/electron";
-import {libraryController} from "@js/features/library";
+import {libraryGateway} from "@js/infrastructure/electron";
+import {libraryDataService} from "@js/features/library/service/LibraryDataService";
 import type {Result, Unsubscribe} from "@api/types/common";
 import type {ScanProgress} from "@api/types/events";
 import type {
@@ -21,7 +22,7 @@ class NetworkDriveDetailService {
     }
 
     getTracksByDrive(driveId: string): Promise<Track[]> {
-        return libraryController.getTracksByDrive(driveId) as Promise<Track[]>;
+        return libraryDataService.getTracksByDrive(driveId) as Promise<Track[]>;
     }
 
     getDirectoryStructure(driveId: string, path: string): Promise<NetworkDriveDirectoryResult> {
@@ -33,15 +34,15 @@ class NetworkDriveDetailService {
     }
 
     scanNetworkDrive(driveId: string, relativePath = '/'): Promise<boolean> {
-        return libraryController.scanNetworkDrive(driveId, relativePath);
+        return libraryDataService.scanNetworkDrive(driveId, relativePath);
     }
 
     scanSingleFile(networkPath: string): Promise<SingleFileScanResult> {
-        return libraryController.scanSingleFile(networkPath) as Promise<SingleFileScanResult>;
+        return libraryDataService.scanSingleFile(networkPath) as Promise<SingleFileScanResult>;
     }
 
     removeTracksByDrive(driveId: string): Promise<Result> {
-        return libraryController.removeTracksByDrive(driveId);
+        return libraryDataService.removeTracksByDrive(driveId);
     }
 
     unmount(driveId: string): Promise<boolean> {
@@ -49,7 +50,7 @@ class NetworkDriveDetailService {
     }
 
     onScanProgress(handler: (progress: ScanProgress) => void): Unsubscribe {
-        return libraryController.onScanProgress(handler);
+        return libraryGateway.onScanProgress(handler);
     }
 }
 

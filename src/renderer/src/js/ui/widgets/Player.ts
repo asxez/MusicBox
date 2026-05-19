@@ -1,7 +1,7 @@
 // 播放器组件
 
 import {Component} from "@ui/base/Component";
-import {playbackController} from "@js/features/playback";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import {DesktopLyricsButtonController} from "@ui/widgets/player/DesktopLyricsButtonController";
 import {PlayerCoverInteractionController} from "@ui/widgets/player/PlayerCoverInteractionController";
 import {resolvePlayerElements} from "@ui/widgets/player/PlayerElementRegistry";
@@ -69,7 +69,7 @@ class Player extends Component {
 
         this.coverArtController = new PlayerCoverArtController({
             trackCover: track.cover,
-            getCurrentTrack: () => playbackController.getCurrentTrack(),
+            getCurrentTrack: () => playbackUiStateService.getCurrentTrack(),
             onCoverReady: async () => {
                 await this.miniModeController.updateBackground();
             }
@@ -85,7 +85,7 @@ class Player extends Component {
                 this.addEventListenerManaged(element, event, handler, options);
             },
             onSeekCommitted: async () => {
-                const currentTrack = playbackController.getCurrentTrack();
+                const currentTrack = playbackUiStateService.getCurrentTrack();
                 if (currentTrack && currentTrack !== this.trackInfoController.getCurrentTrack()) {
                     await this.updateTrackInfo(currentTrack);
                 }

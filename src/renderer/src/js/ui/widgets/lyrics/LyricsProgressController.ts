@@ -1,5 +1,5 @@
 import {formatTime} from "@js/utils";
-import {playbackController} from "@js/features/playback";
+import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import type {Track} from "@api/types/track";
 import type {AddLyricsDomListener} from "@ui/widgets/lyrics/LyricsDomEvents";
 
@@ -86,7 +86,7 @@ class LyricsProgressController {
         const rect = this.elements.progressBar.getBoundingClientRect();
         const clickX = event.clientX - rect.left;
         const percentage = clickX / rect.width;
-        await playbackController.seek(percentage * duration);
+        await playbackUiStateService.seek(percentage * duration);
     }
 
     private startProgressDrag(event: MouseEvent): void {
@@ -114,12 +114,12 @@ class LyricsProgressController {
 
         const percentage = parseFloat(this.elements.progressFill.style.width) / 100;
         const duration = this.getPlaybackDuration();
-        await playbackController.seek(percentage * (duration || 0));
+        await playbackUiStateService.seek(percentage * (duration || 0));
     }
 
     private getPlaybackDuration(): number {
         const currentTrack = this.getCurrentTrack();
-        return currentTrack?.duration || playbackController.getState().duration;
+        return currentTrack?.duration || playbackUiStateService.getState().duration;
     }
 }
 

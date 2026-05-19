@@ -1,5 +1,5 @@
 import {showToast} from '@utils/index.js';
-import {libraryController} from "../LibraryController";
+import {libraryDataService} from "@js/features/library/service/LibraryDataService";
 
 export interface FileImportHost {
     addManagedEventListener(
@@ -45,7 +45,7 @@ export class FileImportController {
             const folderPath = await this.integrations.openDirectory();
             if (folderPath) {
                 this.app.showScanProgress();
-                const success = await libraryController.scanDirectory(folderPath);
+                const success = await libraryDataService.scanDirectory(folderPath);
                 if (success) {
                     showToast('音乐目录扫描成功', 'success');
                 } else {
@@ -63,9 +63,9 @@ export class FileImportController {
             if (filePaths.length > 0) {
                 let successCount = 0;
                 for (const filePath of filePaths) {
-                    const metadata = await libraryController.getTrackMetadata(filePath);
+                    const metadata = await libraryDataService.getTrackMetadata(filePath);
                     if (metadata) {
-                        const result = await libraryController.addTrackToLibrary(metadata);
+                        const result = await libraryDataService.addTrackToLibrary(metadata);
                         if (result && result.success) {
                             successCount++;
                             console.log('🎉 [App] 文件添加成功:', metadata.title);
@@ -165,7 +165,7 @@ export class FileImportController {
     async scanDirectory(directoryPath: string): Promise<void> {
         try {
             this.app.showInfo('扫描音乐文件...');
-            const success = await libraryController.scanDirectory(directoryPath);
+            const success = await libraryDataService.scanDirectory(directoryPath);
             if (success) {
                 this.app.showSuccess('音乐目录扫描完成');
             } else {

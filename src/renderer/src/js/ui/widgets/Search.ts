@@ -4,7 +4,7 @@
 
 import {debounce, showToast} from "@utils/index.js";
 import {Component} from "@ui/base/Component";
-import {libraryController} from "@js/features/library";
+import {libraryDataService} from "@js/features/library/service/LibraryDataService";
 
 type DebouncedSearch = ((query: string) => void) & {
     cancel?: () => void;
@@ -49,7 +49,7 @@ class Search extends Component {
 
     async performSearch(query: string): Promise<void> {
         try {
-            const results = await libraryController.searchLibrary(query);
+            const results = await libraryDataService.searchLibrary(query);
             this.emit('searchResults', results);
         } catch (error) {
             console.error('Search failed:', error);

@@ -1,6 +1,6 @@
-import {appEventController} from '@js/features/events';
+import {appEventService} from '@js/features/events/service/AppEventService';
 import type {MusicBoxAPIEvents} from '@api/types/events';
-import type {Unsubscribe} from '@js/features/events';
+import type {Unsubscribe} from '@js/features/events/service/AppEventService';
 import {equalizerService} from './service';
 import type {AudioEngineManagerBridge} from './service';
 
@@ -24,7 +24,7 @@ class EqualizerController {
     }
 
     onAudioEngineChanged(handler: AudioEngineChangedHandler): Unsubscribe {
-        return appEventController.on('audioEngineChanged', handler);
+        return appEventService.on('audioEngineChanged', handler);
     }
 }
 

@@ -1,5 +1,5 @@
-import {desktopLyricsController} from "@js/features/desktopLyrics";
-import {lyricsContentService} from "@js/features/mediaAssets/service";
+import {desktopLyricsService} from "@js/features/desktopLyrics/service/DesktopLyricsService";
+import {lyricsContentService} from "@js/features/mediaAssets/service/LyricsContentService";
 import type {LyricsTrack, RenderLyricLine} from "@ui/widgets/lyrics/LyricsTypes";
 
 interface LyricsLoaderControllerOptions {
@@ -61,7 +61,7 @@ class LyricsLoaderController {
                 const lyrics = result.lyrics as RenderLyricLine[];
                 this.setLyrics(lyrics);
                 this.renderLyrics();
-                await desktopLyricsController.syncLyrics(lyrics);
+                await desktopLyricsService.syncLyrics(lyrics);
             } else {
                 this.showNoLyrics();
                 console.log(`❌ Lyrics: ${result.error || '歌词获取失败'}`);

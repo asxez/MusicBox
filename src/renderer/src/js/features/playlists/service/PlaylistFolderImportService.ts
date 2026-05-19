@@ -1,6 +1,6 @@
-import {libraryController} from "@js/features/library";
 import {mediaFileDialogService} from "@js/features/media/service";
 import {appNotificationService} from "@js/features/appShell/service";
+import {libraryDataService} from "@js/features/library/service/LibraryDataService";
 import type {Track} from "@api/types/library";
 
 type AudioFileCandidate = Partial<Track> & {
@@ -64,7 +64,7 @@ class PlaylistFolderImportService {
 
     async scanFolderForAudioFiles(folderPath: string): Promise<AudioFileCandidate[]> {
         try {
-            const result = await libraryController.scanDirectoryForFiles(folderPath);
+            const result = await libraryDataService.scanDirectoryForFiles(folderPath);
             if (result?.success && Array.isArray(result.files)) {
                 return result.files as AudioFileCandidate[];
             }
@@ -89,9 +89,9 @@ class PlaylistFolderImportService {
 
             for (const audioFile of audioFiles) {
                 try {
-                    const addToLibraryResult = await libraryController.addTrackToLibrary(audioFile);
+                    const addToLibraryResult = await libraryDataService.addTrackToLibrary(audioFile);
                     if (addToLibraryResult?.success && addToLibraryResult.track) {
-                        const addToPlaylistResult = await libraryController.addToPlaylist(
+                        const addToPlaylistResult = await libraryDataService.addToPlaylist(
                             playlistId,
                             addToLibraryResult.track.fileId ? [addToLibraryResult.track.fileId] : []
                         );
@@ -142,4 +142,3 @@ function getErrorMessage(error: unknown): string {
 }
 
 export const playlistFolderImportService = new PlaylistFolderImportService();
-

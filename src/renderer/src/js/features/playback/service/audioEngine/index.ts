@@ -25,3 +25,9 @@ export {
 } from './AudioEngineFactory';
 
 export {default as AudioEngineManager} from './AudioEngineManager';
+
+export {
+    TrackMetadataLookupService,
+    trackMetadataLookupService
+} from './TrackMetadataLookupService';
+export type {AudioTrackMetadata} from './TrackMetadataLookupService';

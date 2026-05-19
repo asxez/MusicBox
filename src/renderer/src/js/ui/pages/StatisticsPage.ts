@@ -3,12 +3,12 @@
  */
 
 import {Component} from "@ui/base/Component";
-import {libraryPageDataService} from "@js/features/library/service";
+import {libraryPageDataService} from "@js/features/library/service/LibraryPageDataService";
 import {
     recentPlaybackHistoryService,
     type PlayStats,
     type RecentTrack
-} from "@js/features/playback/service";
+} from "@js/features/playback/service/RecentPlaybackHistoryService";
 import type {Track} from "@api/types/library";
 import type {DiaryData, MoodData} from "@api/types/userdata";
 
