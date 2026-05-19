@@ -5,14 +5,9 @@
 import {Component} from "@ui/base/Component";
 import {
     networkDriveDetailService,
-    type SingleFileScanResult
+    networkDriveActionService
 } from "@js/features/networkDrive/service";
 import {trackCoverDisplayPreferenceService} from "@js/features/settings/service";
-import {
-    appConfirmationService,
-    appNavigationService,
-    appNotificationService
-} from "@js/features/appShell/service";
 import type {Unsubscribe} from "@api/types/common";
 import type {Track} from "@api/types/track";
 import type {ScanProgress} from "@api/types/events";
@@ -301,15 +296,10 @@ class NetworkDriveDetailPage extends Component {
             return;
         }
 
-        try {
-            await networkDriveDetailService.refreshConnection(this.currentDrive.id);
+        const result = await networkDriveActionService.refreshDrive(this.currentDrive);
+        if (result.refreshed) {
             await this.loadDriveStatus();
             this.render();
-            const displayName = this.currentDrive.config?.displayName || this.currentDrive.displayName || '未命名磁盘';
-            appNotificationService.showInfo(`网络磁盘 "${displayName}" 已刷新`);
-        } catch (error) {
-            console.error('❌ NetworkDriveDetailPage: 刷新失败', error);
-            appNotificationService.showError('刷新失败，请重试');
         }
     }
 
@@ -318,29 +308,17 @@ class NetworkDriveDetailPage extends Component {
             return;
         }
 
-        // 显示扫描进度提示
         this.showScanTip();
 
-        // 监听扫描进度
-        const removeListener = networkDriveDetailService.onScanProgress((progress) => {
-            this.updateScanTip(progress);
-        });
-
         try {
-            const result = await networkDriveDetailService.scanNetworkDrive(this.currentDrive.id, '/');
-
-            if (result) {
-                await this.loadDriveTracks();
+            const result = await networkDriveActionService.scanDrive(this.currentDrive, (progress) => {
+                this.updateScanTip(progress);
+            });
+            if (result.scanned) {
+                this.tracks = result.tracks || [];
                 this.render();
-                appNotificationService.showInfo(`扫描完成，找到 ${this.tracks.length} 首歌曲`);
-            } else {
-                appNotificationService.showError('扫描失败，请检查网络连接');
             }
-        } catch (error) {
-            console.error('❌ NetworkDriveDetailPage: 扫描失败', error);
-            appNotificationService.showError('扫描失败，请重试');
         } finally {
-            removeListener();
             this.hideScanTip();
         }
     }
@@ -396,35 +374,9 @@ class NetworkDriveDetailPage extends Component {
             return;
         }
 
-        const displayName = this.currentDrive.config?.displayName || this.currentDrive.displayName || '未命名磁盘';
-
-        const confirmOptions = {
-            title: '移除网络磁盘',
-            message: `确定要移除网络磁盘 "${displayName}" 吗？\n\n这将删除该磁盘下的所有音乐缓存，但不会删除网络磁盘上的文件。`,
-            confirmText: '移除',
-            type: 'warning' as const
-        };
-        const confirmed = await appConfirmationService.confirm(confirmOptions);
-
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-            const result = await networkDriveDetailService.removeTracksByDrive(this.currentDrive.id);
-            if (result.success) {
-                await networkDriveDetailService.unmount(this.currentDrive.id);
-
-                this.emit('driveRemoved', this.currentDrive);
-
-                appNotificationService.showInfo(`网络磁盘 "${displayName}" 已移除`);
-                await appNavigationService.navigateToLibrary();
-            } else {
-                appNotificationService.showError('移除失败，请重试');
-            }
-        } catch (error) {
-            console.error('❌ NetworkDriveDetailPage: 移除失败', error);
-            appNotificationService.showError('移除失败，请重试');
+        const result = await networkDriveActionService.removeDrive(this.currentDrive);
+        if (result.removed) {
+            this.emit('driveRemoved', this.currentDrive);
         }
     }
 
@@ -444,44 +396,16 @@ class NetworkDriveDetailPage extends Component {
             return;
         }
 
-        try {
-            // 构建完整的网络路径
-            const networkPath = `network://${this.currentDrive.id}${filePath}`;
-
-            // 从缓存中查找该音乐文件
-            let track = this.tracks.find(t => t.filePath === networkPath);
-
-            if (track) {
-                // 如果已经在缓存中，直接播放
-                console.log('✅ NetworkDriveDetailPage: 文件已在缓存中，直接播放');
-                this.emit('playTrack', track, 0);
-            } else {
-                // 如果不在缓存中，自动扫描该文件
-                console.log('🎵 NetworkDriveDetailPage: 文件未在缓存中，开始扫描...');
-                appNotificationService.showInfo('正在加载音乐...');
-
-                const result = await networkDriveDetailService.scanSingleFile(networkPath) as SingleFileScanResult;
-
-                if (result.success && result.track) {
-                    // 扫描成功，添加到本地 tracks 列表
-                    this.tracks.push(result.track);
-                    console.log(`✅ NetworkDriveDetailPage: 文件扫描成功 - ${result.track.title}`);
-
-                    // 播放该音乐
-                    this.emit('playTrack', result.track, 0);
-
-                    if (result.isNew) {
-                        appNotificationService.showSuccess('音乐已添加到音乐库');
-                    }
-                } else {
-                    // 扫描失败
-                    console.error('❌ NetworkDriveDetailPage: 文件扫描失败', result.error);
-                    appNotificationService.showError(result.error || '无法加载此音乐文件');
-                }
-            }
-        } catch (error) {
-            console.error('❌ NetworkDriveDetailPage: 播放音乐文件失败', error);
-            appNotificationService.showError('播放失败，请重试');
+        const result = await networkDriveActionService.resolveMusicFileForPlayback(
+            this.currentDrive.id,
+            filePath,
+            this.tracks
+        );
+        if (result.addedTrack) {
+            this.tracks.push(result.addedTrack);
+        }
+        if (result.track) {
+            this.emit('playTrack', result.track, 0);
         }
     }
 
@@ -491,34 +415,13 @@ class NetworkDriveDetailPage extends Component {
             return;
         }
 
-        try {
-            // 构建完整的网络路径
-            const networkPath = `network://${this.currentDrive.id}${filePath}`;
-
-            // 从缓存中查找该音乐文件
-            let track = this.tracks.find(t => t.filePath === networkPath);
-
-            if (track) {
-                // 如果已经在缓存中，显示完整的右键菜单
-                this.emit('trackRightClick', track, 0, x, y);
-            } else {
-                // 如果不在缓存中，创建临时 track 对象并显示右键菜单
-                // 当用户点击播放等操作时，会自动触发扫描
-                track = {
-                    filePath: networkPath,
-                    title: (fileName || filePath.split('/').pop() || '未知歌曲').replace(/\.[^/.]+$/, ''), // 移除文件扩展名
-                    artist: '未知艺术家',
-                    album: '未知专辑',
-                    duration: 0,
-                    isNetworkFile: true,
-                    needsScan: true // 标记需要扫描
-                };
-
-                this.emit('trackRightClick', track, 0, x, y);
-            }
-        } catch (error) {
-            console.error('❌ NetworkDriveDetailPage: 显示右键菜单失败', error);
-        }
+        const track = networkDriveActionService.createContextMenuTrack(
+            this.currentDrive.id,
+            filePath,
+            fileName,
+            this.tracks
+        );
+        this.emit('trackRightClick', track, 0, x, y);
     }
 
     calculateTotalDuration(): number {

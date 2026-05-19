@@ -4,10 +4,14 @@
 
 import {Component} from "@ui/base/Component";
 import {libraryController} from "@js/features/library";
-import {mediaFileDialogService} from "@js/features/media/service";
 import {coverLookupService} from "@js/features/mediaAssets/service";
 import {trackCoverDisplayPreferenceService} from "@js/features/settings/service";
-import {appConfirmationService, appNotificationService} from "@js/features/appShell/service";
+import {appNotificationService} from "@js/features/appShell/service";
+import {
+    playlistCoverActionService,
+    playlistFolderImportService,
+    playlistTrackMutationService
+} from "@js/features/playlists";
 import type {Unsubscribe} from "@api/types/common";
 import type {Playlist, Track} from "@api/types/library";
 
@@ -32,15 +36,6 @@ interface CoverResult {
     type?: string;
     filePath?: string;
     error?: string;
-}
-
-interface AddTracksResult {
-    success: boolean;
-    error?: string;
-    successCount?: number;
-    failCount?: number;
-    errors?: string[];
-    totalCount?: number;
 }
 
 class PlaylistDetailPage extends Component {
@@ -631,90 +626,24 @@ class PlaylistDetailPage extends Component {
 
     // 从文件夹添加音乐
     async addFromFolder(): Promise<void> {
-        try {
-            // 显示进度提示
-            appNotificationService.showInfo('正在选择文件夹...');
+        if (!this.currentPlaylist) {
+            return;
+        }
 
-            // 打开文件夹选择对话框
-            const folderPath = await mediaFileDialogService.openDirectory();
-            if (!folderPath) {
-                return;
-            }
-
-            // 显示扫描进度
-            appNotificationService.showInfo('正在扫描文件夹中的音频文件...');
-
-            // 扫描文件夹中的音频文件
-            const audioFiles = await this.scanFolderForAudioFiles(folderPath);
-
-            if (audioFiles.length === 0) {
-                appNotificationService.showInfo('在选择的文件夹中未找到音频文件');
-                return;
-            }
-
-            // 显示添加进度
-            appNotificationService.showInfo(`正在添加 ${audioFiles.length} 首歌曲到歌单...`);
-
-            // 批量添加到歌单
-            const result = await this.addTracksToPlaylist(audioFiles);
-
-            // 显示结果
-            if (result.success) {
-                const successCount = result.successCount || 0;
-                const failCount = result.failCount || 0;
-
-                let message = `成功添加 ${successCount} 首歌曲到歌单`;
-                if (failCount > 0) {
-                    message += `，${failCount} 首歌曲添加失败`;
-                }
-                appNotificationService.showSuccess(message);
-                await this.loadPlaylistTracks();
-                this.emit('playlistUpdated', this.currentPlaylist);
-            } else {
-                appNotificationService.showError(result.error || '添加歌曲到歌单失败');
-            }
-
-        } catch (error) {
-            appNotificationService.showError('从文件夹添加音乐失败，请重试');
+        const result = await playlistFolderImportService.addFromFolder(this.currentPlaylist.id);
+        if (result.changed) {
+            await this.loadPlaylistTracks();
+            this.emit('playlistUpdated', this.currentPlaylist);
         }
     }
 
     async clearPlaylist(): Promise<void> {
         if (!this.currentPlaylist || !this.tracks.length) return;
 
-        const confirmMessage = `确定要清空歌单"${this.currentPlaylist.name}"吗？\n这将移除歌单中的所有 ${this.tracks.length} 首歌曲，此操作无法撤销。`;
-        const confirmed = await appConfirmationService.confirm({
-            title: '清空歌单',
-            message: confirmMessage,
-            confirmText: '清空',
-            type: 'warning'
-        });
-
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-            // 批量移除所有歌曲
-            const trackIds = this.tracks.map((track) => track.fileId).filter((fileId): fileId is string => Boolean(fileId));
-            const result = await libraryController.removeFromPlaylist(
-                this.currentPlaylist.id,
-                trackIds
-            );
-
-            if (result.success) {
-                // 重新加载歌单
-                await this.loadPlaylistTracks();
-
-                // 触发歌单更新事件
-                this.emit('playlistUpdated', this.currentPlaylist);
-
-                appNotificationService.showInfo(`歌单"${this.currentPlaylist.name}"已清空`);
-            } else {
-                appNotificationService.showError(result.error || '清空歌单失败');
-            }
-        } catch (error) {
-            appNotificationService.showError('清空歌单失败，请重试');
+        const changed = await playlistTrackMutationService.clearPlaylist(this.currentPlaylist, this.tracks);
+        if (changed) {
+            await this.loadPlaylistTracks();
+            this.emit('playlistUpdated', this.currentPlaylist);
         }
     }
 
@@ -797,61 +726,17 @@ class PlaylistDetailPage extends Component {
     async removeSelectedTracks(): Promise<void> {
         if (this.selectedTracks.size === 0) return;
 
-        const selectedCount = this.selectedTracks.size;
-        const confirmed = await appConfirmationService.confirm({
-            title: '移除歌曲',
-            message: `确定要从歌单中移除选中的 ${selectedCount} 首歌曲吗？`,
-            confirmText: '移除',
-            type: 'warning'
-        });
+        if (!this.currentPlaylist) return;
 
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-            const selectedIndices = Array.from(this.selectedTracks).sort((a, b) => b - a); // 从后往前删除
-            let successCount = 0;
-            let failCount = 0;
-
-            for (const index of selectedIndices) {
-                const track = this.tracks[index];
-                if (track) {
-                    try {
-                        const result = await libraryController.removeFromPlaylist(
-                            this.currentPlaylist!.id,
-                            track.fileId ? [track.fileId] : []
-                        );
-
-                        if (result.success) {
-                            successCount++;
-                        } else {
-                            failCount++;
-                            console.warn('❌ 移除歌曲失败:', track.title, result.error);
-                        }
-                    } catch (error) {
-                        failCount++;
-                        console.error('❌ 移除歌曲异常:', track.title, error);
-                    }
-                }
-            }
-
-            // 清除选择状态
+        const selectedTracks = Array.from(this.selectedTracks)
+            .sort((a, b) => b - a)
+            .map((index) => this.tracks[index])
+            .filter((track): track is PlaylistDetailTrack => Boolean(track));
+        const result = await playlistTrackMutationService.removeSelectedTracks(this.currentPlaylist.id, selectedTracks);
+        if (result.completed) {
             this.clearSelection();
-
-            // 重新加载歌单
             await this.loadPlaylistTracks();
-
-            // 触发歌单更新事件
             this.emit('playlistUpdated', this.currentPlaylist);
-
-            if (failCount === 0) {
-                appNotificationService.showInfo(`成功移除 ${successCount} 首歌曲`);
-            } else {
-                appNotificationService.showInfo(`移除完成：成功 ${successCount} 首，失败 ${failCount} 首`);
-            }
-        } catch (error) {
-            appNotificationService.showError('批量移除失败，请重试');
         }
     }
 
@@ -862,34 +747,12 @@ class PlaylistDetailPage extends Component {
     }
 
     async removeTrackFromPlaylist(track: PlaylistDetailTrack, _index: number): Promise<void> {
-        const confirmed = await appConfirmationService.confirm({
-            title: '移除歌曲',
-            message: `确定要从歌单中移除 "${track.title}" 吗？`,
-            confirmText: '移除',
-            type: 'warning'
-        });
-        if (!confirmed) {
-            return;
-        }
+        if (!this.currentPlaylist) return;
 
-        try {
-            const result = await libraryController.removeFromPlaylist(
-                this.currentPlaylist!.id,
-                track.fileId ? [track.fileId] : []
-            );
-
-            if (result.success) {
-                // 重新加载歌单
-                await this.loadPlaylistTracks();
-
-                // 触发歌单更新事件
-                this.emit('playlistUpdated', this.currentPlaylist);
-                appNotificationService.showInfo(`已从歌单中移除 "${track.title}"`);
-            } else {
-                appNotificationService.showError(result.error || '移除失败');
-            }
-        } catch (error) {
-            appNotificationService.showError('移除失败，请重试');
+        const changed = await playlistTrackMutationService.removeTrack(this.currentPlaylist.id, track);
+        if (changed) {
+            await this.loadPlaylistTracks();
+            this.emit('playlistUpdated', this.currentPlaylist);
         }
     }
 
@@ -1128,76 +991,40 @@ class PlaylistDetailPage extends Component {
 
     // 选择并设置封面
     async selectAndSetCover(): Promise<void> {
-        try {
-            const result = await mediaFileDialogService.selectImageFile();
-            if (result.success && result.path) {
-                console.log('✅ 选择的图片路径:', result.path);
-                await this.setCover(result.path);
-            }
-        } catch (error) {
-            appNotificationService.showError('选择图片失败，请重试');
+        if (!this.currentPlaylist) return;
+
+        const result = await playlistCoverActionService.selectAndSetCover(this.currentPlaylist.id);
+        if (result.changed) {
+            this.currentPlaylist.coverImage = result.coverImage || null;
+            this.updateCoverDisplay();
+            this.emit('playlistUpdated', this.currentPlaylist);
+            this.emit('playlistCoverUpdated', this.currentPlaylist);
         }
     }
 
     // 设置歌单封面
     async setCover(imagePath: string): Promise<void> {
         if (!this.currentPlaylist) return;
-        try {
-            if (!this.isValidImageFile(imagePath)) {
-                throw new Error('不支持的图片格式，请选择 JPG、PNG、GIF、WebP 或 BMP 格式的图片');
-            }
 
-            console.log(`🖼️ 设置歌单封面: ${this.currentPlaylist.id} -> ${imagePath}`);
-            const result = await libraryController.updatePlaylistCover(this.currentPlaylist.id, imagePath);
-
-            if (result.success) {
-                // 更新当前歌单对象
-                this.currentPlaylist.coverImage = imagePath;
-                this.updateCoverDisplay();
-
-                // 触发歌单更新事件
-                this.emit('playlistUpdated', this.currentPlaylist);
-                this.emit('playlistCoverUpdated', this.currentPlaylist);
-                appNotificationService.showInfo('歌单封面设置成功');
-            } else {
-                throw new Error(result.error || '设置封面失败');
-            }
-        } catch (error) {
-            appNotificationService.showError(getErrorMessage(error) || '设置封面失败，请重试');
+        const result = await playlistCoverActionService.setCover(this.currentPlaylist.id, imagePath);
+        if (result.changed) {
+            this.currentPlaylist.coverImage = result.coverImage || null;
+            this.updateCoverDisplay();
+            this.emit('playlistUpdated', this.currentPlaylist);
+            this.emit('playlistCoverUpdated', this.currentPlaylist);
         }
     }
 
     // 移除歌单封面
     async removeCover(): Promise<void> {
         if (!this.currentPlaylist) return;
-        try {
-            const confirmed = await appConfirmationService.confirm({
-                title: '移除歌单封面',
-                message: '确定要移除歌单封面吗？',
-                confirmText: '移除',
-                type: 'warning'
-            });
-            if (!confirmed) {
-                return;
-            }
 
-            console.log(`🗑️ 移除歌单封面: ${this.currentPlaylist.id}`);
-            const result = await libraryController.removePlaylistCover(this.currentPlaylist.id);
-
-            if (result.success) {
-                // 更新当前歌单对象
-                this.currentPlaylist.coverImage = null;
-                this.updateCoverDisplay();
-
-                // 触发歌单更新事件
-                this.emit('playlistUpdated', this.currentPlaylist);
-                this.emit('playlistCoverUpdated', this.currentPlaylist);
-                appNotificationService.showInfo('歌单封面已移除');
-            } else {
-                throw new Error(result.error || '移除封面失败');
-            }
-        } catch (error) {
-            appNotificationService.showError(getErrorMessage(error) || '移除封面失败，请重试');
+        const result = await playlistCoverActionService.removeCover(this.currentPlaylist.id);
+        if (result.changed) {
+            this.currentPlaylist.coverImage = result.coverImage || null;
+            this.updateCoverDisplay();
+            this.emit('playlistUpdated', this.currentPlaylist);
+            this.emit('playlistCoverUpdated', this.currentPlaylist);
         }
     }
 
@@ -1210,103 +1037,9 @@ class PlaylistDetailPage extends Component {
         }
     }
 
-    // 验证图片文件
-    isValidImageFile(filePath: unknown): filePath is string {
-        if (!filePath || typeof filePath !== 'string') {
-            return false;
-        }
-
-        const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
-        const extension = filePath.toLowerCase().substring(filePath.lastIndexOf('.'));
-        return validExtensions.includes(extension);
-    }
-
     showTrackContextMenu(x: number, y: number, track: PlaylistDetailTrack, index: number): void {
         this.emit('trackRightClick', track, index, x, y, this.selectedTracks);
     }
-
-    // 扫描文件夹中的音频文件
-    async scanFolderForAudioFiles(folderPath: string): Promise<any[]> {
-        try {
-            const result = await libraryController.scanDirectoryForFiles(folderPath);
-            if (result && result.success && result.files) {
-                return result.files;
-            } else {
-                console.warn('📁 扫描文件夹失败或未找到音频文件');
-                return [];
-            }
-        } catch (error) {
-            console.error('❌ 扫描文件夹失败:', error);
-            return [];
-        }
-    }
-
-    // 批量添加音频文件到歌单
-    async addTracksToPlaylist(audioFiles: any[]): Promise<AddTracksResult> {
-        try {
-            if (!this.currentPlaylist || !audioFiles || audioFiles.length === 0) {
-                return {success: false, error: '无效的参数'};
-            }
-
-            let successCount = 0;
-            let failCount = 0;
-            const errors: string[] = [];
-
-            // 批量处理音频文件
-            for (const audioFile of audioFiles) {
-                try {
-                    // 首先确保文件在音乐库中
-                    const addToLibraryResult = await libraryController.addTrackToLibrary(audioFile);
-                    if (addToLibraryResult && addToLibraryResult.success && addToLibraryResult.track) {
-                        // 添加到歌单
-                        const addToPlaylistResult = await libraryController.addToPlaylist(
-                            this.currentPlaylist.id,
-                            addToLibraryResult.track.fileId ? [addToLibraryResult.track.fileId] : []
-                        );
-
-                        if (addToPlaylistResult && addToPlaylistResult.success) {
-                            successCount++;
-                        } else {
-                            failCount++;
-                            const error = `添加到歌单失败: ${audioFile.fileName || audioFile.filePath}`;
-                            errors.push(error);
-                            console.warn(`⚠️ ${error}`);
-                        }
-                    } else {
-                        failCount++;
-                        const error = `添加到音乐库失败: ${audioFile.fileName || audioFile.filePath}`;
-                        errors.push(error);
-                        console.warn(`⚠️ ${error}`);
-                    }
-                } catch (error) {
-                    failCount++;
-                    const errorMsg = `处理文件失败: ${audioFile.fileName || audioFile.filePath} - ${getErrorMessage(error)}`;
-                    errors.push(errorMsg);
-                    console.error(`❌ ${errorMsg}`);
-                }
-            }
-
-            return {
-                success: successCount > 0,
-                successCount,
-                failCount,
-                errors,
-                totalCount: audioFiles.length
-            };
-        } catch (error) {
-            console.error('❌ 批量添加音频文件到歌单失败:', error);
-            return {
-                success: false,
-                error: getErrorMessage(error) || '批量添加失败',
-                successCount: 0,
-                failCount: audioFiles ? audioFiles.length : 0
-            };
-        }
-    }
-}
-
-function getErrorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
 }
 
 export { PlaylistDetailPage };
