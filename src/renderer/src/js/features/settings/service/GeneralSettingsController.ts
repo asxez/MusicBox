@@ -1,6 +1,6 @@
 import {showToast} from "@utils/index.js";
 import {displayModeSettingsController} from "./DisplayModeSettingsController";
-import {appInteractionService} from "@js/features/appShell/service";
+import {appModalService} from "@js/features/appShell/service";
 import {settingsPanelVisibilityService} from "./SettingsPanelVisibilityService";
 import type {SettingValue} from "./SettingsStore";
 
@@ -98,7 +98,7 @@ class GeneralSettingsController {
 
     private bindNetworkDriveModal(elements: GeneralSettingsElements): void {
         elements.addNetworkDriveButton?.addEventListener('click', () => {
-            if (!appInteractionService.showNetworkDriveModal()) {
+            if (!appModalService.showNetworkDriveModal()) {
                 showToast('网络磁盘功能不可用', 'error');
             }
         });

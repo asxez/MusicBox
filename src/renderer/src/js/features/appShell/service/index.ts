@@ -1,5 +1,10 @@
 export {AppShellService, appShellService} from './AppShellService';
-export {AppInteractionService, appInteractionService} from './AppInteractionService';
+export {AppConfirmationService, appConfirmationService} from './AppConfirmationService';
+export {AppFileImportActionService, appFileImportActionService} from './AppFileImportActionService';
+export {AppModalService, appModalService} from './AppModalService';
+export {AppNavigationService, appNavigationService} from './AppNavigationService';
+export {AppNotificationService, appNotificationService} from './AppNotificationService';
+export {appShellRuntimeHost} from './AppShellRuntimeHost';
 export {HardwareAccelerationShellService, hardwareAccelerationShellService} from './HardwareAccelerationShellService';
 export {MiniModeWindowService, miniModeWindowService} from './MiniModeWindowService';
 export {SettingsShellService, settingsShellService} from './SettingsShellService';
@@ -34,4 +39,4 @@ export type {
     WindowShellMiniModeResult,
     WindowShellSetBoundsResult
 } from './WindowShellService';
-export type {AppInteractionHost} from './AppInteractionService';
+export type {AppShellRuntimeHost} from './AppShellRuntimeHost';

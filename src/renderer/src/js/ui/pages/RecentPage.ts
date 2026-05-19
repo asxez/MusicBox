@@ -4,7 +4,7 @@
 
 import {cacheManager} from "@js/shared/cache";
 import {coverLookupService, localCoverManager} from "@js/features/mediaAssets/service";
-import {appInteractionService} from "@js/features/appShell/service";
+import {appConfirmationService} from "@js/features/appShell/service";
 import {formatTime} from "@utils/index.js";
 import {Component} from "@ui/base/Component";
 import type {Track} from "@api/types/library";
@@ -387,7 +387,7 @@ class RecentPage extends Component {
         const clearBtn = this.container.querySelector('#clear-history');
         if (clearBtn) {
             clearBtn.addEventListener('click', async () => {
-                const confirmed = await appInteractionService.confirm({
+                const confirmed = await appConfirmationService.confirm({
                     title: '清空播放历史',
                     message: '确定要清空播放历史吗？此操作无法撤销。',
                     confirmText: '清空',

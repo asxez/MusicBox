@@ -47,7 +47,7 @@ import {desktopLyricsController} from '@js/features/desktopLyrics';
 import {equalizerController} from '@js/features/equalizer';
 import {mediaFileDialogService} from '@js/features/media/service';
 import {extensionHostService} from '@js/features/extensions/service';
-import {appInteractionService} from '@js/features/appShell/service';
+import {appShellRuntimeHost} from '@js/features/appShell/service';
 import type {AudioEngineManagerBridge} from '@js/features/equalizer/service';
 
 interface AppCompositionRootOptions {
@@ -220,7 +220,7 @@ export function createAppComposition({
     });
 
     configureSharedFeatureDependencies();
-    appInteractionService.bindApp(app);
+    appShellRuntimeHost.bindApp(app);
     extensionHostService.bindApp(app);
 
     const lifecycleController = new AppLifecycleController({

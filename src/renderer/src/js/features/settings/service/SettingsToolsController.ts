@@ -9,7 +9,7 @@ import {lyricsAppearanceSettingsRenderer} from "./LyricsAppearanceSettingsRender
 import {lyricsAppearanceSettingsService} from "./LyricsAppearanceSettingsService";
 import {mediaDirectorySettingsRenderer} from "./MediaDirectorySettingsRenderer";
 import {mediaDirectorySettingsService} from "./MediaDirectorySettingsService";
-import {appInteractionService} from "@js/features/appShell/service";
+import {appConfirmationService} from "@js/features/appShell/service";
 import type {SettingValue} from "./SettingsStore";
 
 export interface SettingsToolsElements {
@@ -174,7 +174,7 @@ class SettingsToolsController {
     }
 
     private async clearCache(elements: SettingsToolsElements): Promise<void> {
-        const confirmed = await appInteractionService.confirm({
+        const confirmed = await appConfirmationService.confirm({
             title: '清空缓存',
             message: '确定要清空所有缓存吗？这将删除所有已缓存的音乐文件信息，下次启动时需要重新扫描。',
             type: 'warning',

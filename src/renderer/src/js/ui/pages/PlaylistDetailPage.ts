@@ -7,7 +7,7 @@ import {libraryController} from "@js/features/library";
 import {mediaFileDialogService} from "@js/features/media/service";
 import {coverLookupService} from "@js/features/mediaAssets/service";
 import {trackCoverDisplayPreferenceService} from "@js/features/settings/service";
-import {appInteractionService} from "@js/features/appShell/service";
+import {appConfirmationService, appNotificationService} from "@js/features/appShell/service";
 import type {Unsubscribe} from "@api/types/common";
 import type {Playlist, Track} from "@api/types/library";
 
@@ -608,7 +608,7 @@ class PlaylistDetailPage extends Component {
 
     async playAllTracks(): Promise<void> {
         if (this.tracks.length === 0) {
-            appInteractionService.showInfo('歌单为空，无法播放');
+            appNotificationService.showInfo('歌单为空，无法播放');
             return;
         }
         this.emit('playAllTracks', this.tracks);
@@ -616,7 +616,7 @@ class PlaylistDetailPage extends Component {
 
     async shufflePlayTracks(): Promise<void> {
         if (this.tracks.length === 0) {
-            appInteractionService.showInfo('歌单为空，无法播放');
+            appNotificationService.showInfo('歌单为空，无法播放');
             return;
         }
 
@@ -633,7 +633,7 @@ class PlaylistDetailPage extends Component {
     async addFromFolder(): Promise<void> {
         try {
             // 显示进度提示
-            appInteractionService.showInfo('正在选择文件夹...');
+            appNotificationService.showInfo('正在选择文件夹...');
 
             // 打开文件夹选择对话框
             const folderPath = await mediaFileDialogService.openDirectory();
@@ -642,18 +642,18 @@ class PlaylistDetailPage extends Component {
             }
 
             // 显示扫描进度
-            appInteractionService.showInfo('正在扫描文件夹中的音频文件...');
+            appNotificationService.showInfo('正在扫描文件夹中的音频文件...');
 
             // 扫描文件夹中的音频文件
             const audioFiles = await this.scanFolderForAudioFiles(folderPath);
 
             if (audioFiles.length === 0) {
-                appInteractionService.showInfo('在选择的文件夹中未找到音频文件');
+                appNotificationService.showInfo('在选择的文件夹中未找到音频文件');
                 return;
             }
 
             // 显示添加进度
-            appInteractionService.showInfo(`正在添加 ${audioFiles.length} 首歌曲到歌单...`);
+            appNotificationService.showInfo(`正在添加 ${audioFiles.length} 首歌曲到歌单...`);
 
             // 批量添加到歌单
             const result = await this.addTracksToPlaylist(audioFiles);
@@ -667,15 +667,15 @@ class PlaylistDetailPage extends Component {
                 if (failCount > 0) {
                     message += `，${failCount} 首歌曲添加失败`;
                 }
-                appInteractionService.showSuccess(message);
+                appNotificationService.showSuccess(message);
                 await this.loadPlaylistTracks();
                 this.emit('playlistUpdated', this.currentPlaylist);
             } else {
-                appInteractionService.showError(result.error || '添加歌曲到歌单失败');
+                appNotificationService.showError(result.error || '添加歌曲到歌单失败');
             }
 
         } catch (error) {
-            appInteractionService.showError('从文件夹添加音乐失败，请重试');
+            appNotificationService.showError('从文件夹添加音乐失败，请重试');
         }
     }
 
@@ -683,7 +683,7 @@ class PlaylistDetailPage extends Component {
         if (!this.currentPlaylist || !this.tracks.length) return;
 
         const confirmMessage = `确定要清空歌单"${this.currentPlaylist.name}"吗？\n这将移除歌单中的所有 ${this.tracks.length} 首歌曲，此操作无法撤销。`;
-        const confirmed = await appInteractionService.confirm({
+        const confirmed = await appConfirmationService.confirm({
             title: '清空歌单',
             message: confirmMessage,
             confirmText: '清空',
@@ -709,12 +709,12 @@ class PlaylistDetailPage extends Component {
                 // 触发歌单更新事件
                 this.emit('playlistUpdated', this.currentPlaylist);
 
-                appInteractionService.showInfo(`歌单"${this.currentPlaylist.name}"已清空`);
+                appNotificationService.showInfo(`歌单"${this.currentPlaylist.name}"已清空`);
             } else {
-                appInteractionService.showError(result.error || '清空歌单失败');
+                appNotificationService.showError(result.error || '清空歌单失败');
             }
         } catch (error) {
-            appInteractionService.showError('清空歌单失败，请重试');
+            appNotificationService.showError('清空歌单失败，请重试');
         }
     }
 
@@ -798,7 +798,7 @@ class PlaylistDetailPage extends Component {
         if (this.selectedTracks.size === 0) return;
 
         const selectedCount = this.selectedTracks.size;
-        const confirmed = await appInteractionService.confirm({
+        const confirmed = await appConfirmationService.confirm({
             title: '移除歌曲',
             message: `确定要从歌单中移除选中的 ${selectedCount} 首歌曲吗？`,
             confirmText: '移除',
@@ -846,12 +846,12 @@ class PlaylistDetailPage extends Component {
             this.emit('playlistUpdated', this.currentPlaylist);
 
             if (failCount === 0) {
-                appInteractionService.showInfo(`成功移除 ${successCount} 首歌曲`);
+                appNotificationService.showInfo(`成功移除 ${successCount} 首歌曲`);
             } else {
-                appInteractionService.showInfo(`移除完成：成功 ${successCount} 首，失败 ${failCount} 首`);
+                appNotificationService.showInfo(`移除完成：成功 ${successCount} 首，失败 ${failCount} 首`);
             }
         } catch (error) {
-            appInteractionService.showError('批量移除失败，请重试');
+            appNotificationService.showError('批量移除失败，请重试');
         }
     }
 
@@ -862,7 +862,7 @@ class PlaylistDetailPage extends Component {
     }
 
     async removeTrackFromPlaylist(track: PlaylistDetailTrack, _index: number): Promise<void> {
-        const confirmed = await appInteractionService.confirm({
+        const confirmed = await appConfirmationService.confirm({
             title: '移除歌曲',
             message: `确定要从歌单中移除 "${track.title}" 吗？`,
             confirmText: '移除',
@@ -884,12 +884,12 @@ class PlaylistDetailPage extends Component {
 
                 // 触发歌单更新事件
                 this.emit('playlistUpdated', this.currentPlaylist);
-                appInteractionService.showInfo(`已从歌单中移除 "${track.title}"`);
+                appNotificationService.showInfo(`已从歌单中移除 "${track.title}"`);
             } else {
-                appInteractionService.showError(result.error || '移除失败');
+                appNotificationService.showError(result.error || '移除失败');
             }
         } catch (error) {
-            appInteractionService.showError('移除失败，请重试');
+            appNotificationService.showError('移除失败，请重试');
         }
     }
 
@@ -1135,7 +1135,7 @@ class PlaylistDetailPage extends Component {
                 await this.setCover(result.path);
             }
         } catch (error) {
-            appInteractionService.showError('选择图片失败，请重试');
+            appNotificationService.showError('选择图片失败，请重试');
         }
     }
 
@@ -1158,12 +1158,12 @@ class PlaylistDetailPage extends Component {
                 // 触发歌单更新事件
                 this.emit('playlistUpdated', this.currentPlaylist);
                 this.emit('playlistCoverUpdated', this.currentPlaylist);
-                appInteractionService.showInfo('歌单封面设置成功');
+                appNotificationService.showInfo('歌单封面设置成功');
             } else {
                 throw new Error(result.error || '设置封面失败');
             }
         } catch (error) {
-            appInteractionService.showError(getErrorMessage(error) || '设置封面失败，请重试');
+            appNotificationService.showError(getErrorMessage(error) || '设置封面失败，请重试');
         }
     }
 
@@ -1171,7 +1171,7 @@ class PlaylistDetailPage extends Component {
     async removeCover(): Promise<void> {
         if (!this.currentPlaylist) return;
         try {
-            const confirmed = await appInteractionService.confirm({
+            const confirmed = await appConfirmationService.confirm({
                 title: '移除歌单封面',
                 message: '确定要移除歌单封面吗？',
                 confirmText: '移除',
@@ -1192,12 +1192,12 @@ class PlaylistDetailPage extends Component {
                 // 触发歌单更新事件
                 this.emit('playlistUpdated', this.currentPlaylist);
                 this.emit('playlistCoverUpdated', this.currentPlaylist);
-                appInteractionService.showInfo('歌单封面已移除');
+                appNotificationService.showInfo('歌单封面已移除');
             } else {
                 throw new Error(result.error || '移除封面失败');
             }
         } catch (error) {
-            appInteractionService.showError(getErrorMessage(error) || '移除封面失败，请重试');
+            appNotificationService.showError(getErrorMessage(error) || '移除封面失败，请重试');
         }
     }
 

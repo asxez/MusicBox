@@ -7,7 +7,7 @@ import {Validator} from '@extensions/api/common/validation';
 import {ErrorUtils} from '@extensions/api/common/errors';
 import {IDisposable, toDisposable} from '@extensions/core/Lifecycle';
 import {onDOMReady, showToast, theme} from '@js/utils';
-import {appInteractionService} from "@js/features/appShell/service";
+import {appConfirmationService} from "@js/features/appShell/service";
 import {settingsExtensionNavigationService} from "@js/features/settings/service";
 import {ExtensionContext} from "@extensions/core";
 import {
@@ -513,7 +513,7 @@ export function createUIAPI(_context: ExtensionContext): UIAPI {
                     ? options.type
                     : 'default';
 
-                return await appInteractionService.confirm({
+                return await appConfirmationService.confirm({
                     title: title,
                     message: message,
                     confirmText: confirmText,

@@ -1,6 +1,6 @@
 import {showToast} from "@utils/index.js";
 import {hardwareAccelerationSettingsService} from "./HardwareAccelerationSettingsService";
-import {appInteractionService} from "@js/features/appShell/service";
+import {appConfirmationService} from "@js/features/appShell/service";
 
 interface HardwareAccelerationChangeResult {
     checked: boolean;
@@ -67,7 +67,7 @@ class HardwareAccelerationSettingsController {
     }
 
     private async confirmDisableAndRestart(): Promise<boolean> {
-        return await appInteractionService.confirm({
+        return await appConfirmationService.confirm({
             title: '硬件加速设置',
             message: '关闭硬件加速可能会降低应用性能，但可以解决某些显卡兼容性问题。\n\n更改此设置需要重启应用才能生效。\n\n是否要关闭硬件加速并立即重启应用？',
             confirmText: '重启应用',

@@ -6,7 +6,7 @@ import {Component} from "@ui/base/Component";
 import {libraryController} from "@js/features/library";
 import {mediaFileDialogService, mediaFileSystemService} from "@js/features/media/service";
 import {coverLookupService, coverUpdateManager} from "@js/features/mediaAssets/service";
-import {appInteractionService} from "@js/features/appShell/service";
+import {appNotificationService} from "@js/features/appShell/service";
 import type {Track} from "@api/types/library";
 
 type EditableTrack = Omit<Track, 'cover' | 'year'> & {
@@ -842,7 +842,7 @@ class EditTrackInfoDialog extends Component {
 
     showError(message: string): void {
         console.error('❌ EditTrackInfoDialog:', message);
-        appInteractionService.showError(message);
+        appNotificationService.showError(message);
     }
 
     clearForm(): void {

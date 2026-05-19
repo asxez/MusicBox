@@ -6,7 +6,7 @@ import {equalizerController} from "@js/features/equalizer";
 import type {AudioEngineManagerBridge} from "@js/features/equalizer/service";
 import {Component} from "@ui/base/Component";
 import {showInputDialog} from "@js/utils/InputDialog";
-import {appInteractionService} from "@js/features/appShell/service";
+import {appNotificationService} from "@js/features/appShell/service";
 import type ParametricEqualizer from "@js/features/equalizer/service/ParametricEqualizer";
 import type {ParametricFilterType} from "@js/features/equalizer/service/ParametricEqualizerPresets";
 import type {AudioEngineChangedEvent} from "@api/types/events";
@@ -710,10 +710,10 @@ class ParametricEqualizerComponent extends Component {
 
             // 选中新保存的预设
             this.presetSelector.value = `custom:${result.id}`;
-            appInteractionService.showSuccess('预设保存成功！');
+            appNotificationService.showSuccess('预设保存成功！');
         } else {
             console.error('❌ 保存自定义预设失败:', result.error);
-            appInteractionService.showError('保存预设失败');
+            appNotificationService.showError('保存预设失败');
         }
     }
 
@@ -725,13 +725,13 @@ class ParametricEqualizerComponent extends Component {
         if (result.success && result.preset) {
             await this.refresh();
             await this.equalizer.saveCurrentState(); // 保存状态
-            appInteractionService.showSuccess('导入成功');
+            appNotificationService.showSuccess('导入成功');
 
             // 重置预设选择器
             this.presetSelector.value = '';
         } else if (result.error) {
             console.error('❌ 导入设置失败:', result.error);
-            appInteractionService.showError('导入失败');
+            appNotificationService.showError('导入失败');
         }
     }
 
@@ -746,10 +746,10 @@ class ParametricEqualizerComponent extends Component {
 
         const result = await this.equalizer.exportCurrentSettings(name.trim());
         if (result.success && result.filePath) {
-            appInteractionService.showSuccess('导出成功！');
+            appNotificationService.showSuccess('导出成功！');
         } else if (result.error) {
             console.error('❌ 导出设置失败:', result.error);
-            appInteractionService.showError('导出失败');
+            appNotificationService.showError('导出失败');
         }
     }
 

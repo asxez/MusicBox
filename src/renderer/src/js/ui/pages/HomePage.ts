@@ -7,7 +7,7 @@ import {libraryController} from "@js/features/library";
 import {mediaFileDialogService} from "@js/features/media/service";
 import {playbackController} from "@js/features/playback";
 import {userDataController} from "@js/features/userData";
-import {appInteractionService} from "@js/features/appShell/service";
+import {appFileImportActionService} from "@js/features/appShell/service";
 import type {Track} from "@api/types/library";
 
 type BreathingPhase = 'inhale' | 'hold' | 'exhale';
@@ -677,7 +677,7 @@ class HomePage extends Component {
         if (addFilesBtn) {
             addFilesBtn.addEventListener('click', async () => {
                 try {
-                    await appInteractionService.addMusicFiles();
+                    await appFileImportActionService.addMusicFiles();
                     this.tracks = await libraryController.getTracks();
                     this.render();
                 } catch (error) {

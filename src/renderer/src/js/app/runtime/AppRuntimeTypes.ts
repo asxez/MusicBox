@@ -44,11 +44,6 @@ export type {
     ViewRouterHost
 } from './AppRuntimePorts';
 
-export interface AppInteractionHost extends AppComponentPort, AppNotificationPort, AppConfirmationPort {
-    handleViewChange(view: AppView): Promise<void>;
-    addMusicFiles(): Promise<void>;
-}
-
 export interface ExtensionHostApp extends AppComponentPort, AppEventEmitterPort, AppViewStatePort, AppLibraryStatePort {
     handleDeleteTrack(track: Track, index: number): Promise<void>;
     loadAndPlayFile?(filePath: string): Promise<void>;

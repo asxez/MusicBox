@@ -1,7 +1,7 @@
 import {showToast} from "@utils/index.js";
 import {cacheMaintenanceService} from "./CacheMaintenanceService";
 import {musicFolderSettingsService} from "./MusicFolderSettingsService";
-import {appInteractionService} from "@js/features/appShell/service";
+import {appConfirmationService} from "@js/features/appShell/service";
 
 interface AutoScanToggleResult {
     checked: boolean;
@@ -32,7 +32,7 @@ class MusicFolderSettingsController {
     }
 
     async removeMusicFolder(folderPath: string): Promise<string[] | null> {
-        const confirmed = await appInteractionService.confirm({
+        const confirmed = await appConfirmationService.confirm({
             title: '移除文件夹',
             message: `确定要移除文件夹吗？\n\n${folderPath}\n\n移除后该文件夹中的音乐将不会被自动扫描。`,
             confirmText: '移除',
@@ -87,7 +87,7 @@ class MusicFolderSettingsController {
     }
 
     async clearIgnoreList(): Promise<void> {
-        const confirmed = await appInteractionService.confirm({
+        const confirmed = await appConfirmationService.confirm({
             title: '清空忽略列表',
             message: '确定要清空忽略列表吗？\n\n清空后,之前手动删除的歌曲在下次自动扫描时会被重新添加到音乐库。',
             confirmText: '清空',
@@ -108,7 +108,7 @@ class MusicFolderSettingsController {
     }
 
     private async confirmAndScan(folderPath: string): Promise<void> {
-        const shouldScan = await appInteractionService.confirm({
+        const shouldScan = await appConfirmationService.confirm({
             title: '扫描文件夹',
             message: '是否立即扫描该文件夹？',
             confirmText: '扫描'

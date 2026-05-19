@@ -3,7 +3,7 @@
  */
 
 import {cacheManager} from "@js/shared/cache";
-import {appInteractionService} from "@js/features/appShell/service";
+import {appConfirmationService} from "@js/features/appShell/service";
 import {Component} from "@ui/base/Component";
 import {equalizerController} from "@js/features/equalizer";
 
@@ -611,7 +611,7 @@ class EqualizerComponent extends Component {
             const customPresets = this.getCustomPresets();
             // 检查是否已存在同名预设
             if (customPresets[name]) {
-                const shouldOverwrite = await appInteractionService.confirm({
+                const shouldOverwrite = await appConfirmationService.confirm({
                     title: '覆盖预设',
                     message: `预设"${name}"已存在，是否覆盖？`,
                     confirmText: '覆盖',
@@ -687,7 +687,7 @@ class EqualizerComponent extends Component {
     }
 
     async deleteCustomPreset(name: string): Promise<void> {
-        const shouldDelete = await appInteractionService.confirm({
+        const shouldDelete = await appConfirmationService.confirm({
             title: '删除预设',
             message: `确定要删除预设"${name}"吗？此操作无法撤销。`,
             confirmText: '删除',

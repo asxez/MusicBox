@@ -8,7 +8,7 @@ import {
     pluginManagerService,
     type PluginExtension
 } from "@js/features/extensions/service";
-import {appInteractionService} from "@js/features/appShell/service";
+import {appConfirmationService} from "@js/features/appShell/service";
 import type {ConfirmOptions} from "@js/shared/types/AppContracts";
 
 type ToastType = 'info' | 'success' | 'error' | 'warning';
@@ -326,7 +326,7 @@ class PluginManagerModal extends Component {
                 confirmText: '卸载',
                 type: 'warning'
             };
-            const confirmed = await appInteractionService.confirm(confirmOptions);
+            const confirmed = await appConfirmationService.confirm(confirmOptions);
 
             if (!confirmed) {
                 return;

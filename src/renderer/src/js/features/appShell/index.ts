@@ -1,6 +1,14 @@
-export {AppInteractionService, appInteractionService, updateService} from './service';
+export {
+    appConfirmationService,
+    appFileImportActionService,
+    appModalService,
+    appNavigationService,
+    appNotificationService,
+    appShellRuntimeHost,
+    updateService
+} from './service';
 export type {
-    AppInteractionHost,
+    AppShellRuntimeHost,
     FolderSelectionResult,
     GitHubRelease,
     GitHubReleaseAsset,
