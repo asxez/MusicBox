@@ -3,7 +3,6 @@ export * from './AppNotifier';
 export * from './AppRuntimePorts';
 export * from './AppRuntimeState';
 export * from './AppRuntimeTypes';
-export * from './AppUIFacade';
 export * from './DesktopLyricsButtonSync';
 export * from './DOMEventBinder';
 export * from './NetworkDriveRouteController';

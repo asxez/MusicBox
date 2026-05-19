@@ -1,6 +1,6 @@
 import {updateNotificationService} from '@js/features/appShell/service';
 import {cacheManager} from '@js/shared/cache';
-import type {AppUIFacade} from '@js/app/runtime/AppUIFacade';
+import type {PlaybackUIFacade} from '@js/app/runtime/ui/PlaybackUIFacade';
 import type {PlayMode} from '@api/types/playback';
 
 export interface InitResult {
@@ -22,7 +22,7 @@ interface AppLifecycleHost {
 interface AppLifecycleControllerOptions {
     app: AppLifecycleHost;
     playback: AppLifecyclePlayback;
-    ui: AppUIFacade;
+    playbackUI: PlaybackUIFacade;
 }
 
 interface AppLifecyclePlayback {
@@ -36,12 +36,12 @@ interface AppLifecyclePlayback {
 export class AppLifecycleController {
     private readonly app: AppLifecycleHost;
     private readonly playback: AppLifecyclePlayback;
-    private readonly ui: AppUIFacade;
+    private readonly playbackUI: PlaybackUIFacade;
 
-    constructor({app, playback, ui}: AppLifecycleControllerOptions) {
+    constructor({app, playback, playbackUI}: AppLifecycleControllerOptions) {
         this.app = app;
         this.playback = playback;
-        this.ui = ui;
+        this.playbackUI = playbackUI;
     }
 
     async init(): Promise<InitResult> {
@@ -94,7 +94,7 @@ export class AppLifecycleController {
         }
 
         await this.playback.setVolume(savedVolume);
-        await this.ui.updatePlayerUI();
+        await this.playbackUI.updatePlayerUI();
     }
 
     private async initializePlaybackAPI(): Promise<void> {
@@ -110,7 +110,7 @@ export class AppLifecycleController {
     }
 
     private async saveCurrentVolume(): Promise<void> {
-        const volume = this.ui.getPlayerVolume();
+        const volume = this.playbackUI.getPlayerVolume();
         if (volume !== null) {
             await cacheManager.setLocalCache('volume', volume);
         }

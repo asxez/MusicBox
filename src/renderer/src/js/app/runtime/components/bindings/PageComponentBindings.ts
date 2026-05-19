@@ -16,18 +16,18 @@ export class PageComponentBindings {
             return;
         }
 
-        const {app, components, ui} = this.context;
+        const {app, components, content, playback} = this.context;
 
         components.homePage.on('trackPlayed', async (track: Track, index: number) => {
             await app.handleTrackPlayed(track, index);
         });
 
         components.homePage.on('viewChange', (view: AppView) => {
-            ui.navigateToView(view);
+            content.navigateToView(view);
         });
 
         components.homePage.on('toggleLyricsFullscreen', () => {
-            ui.toggleLyricsFullscreen(false);
+            playback.toggleLyricsFullscreen(false);
         });
 
         if (components.recentPage) {
@@ -56,7 +56,7 @@ export class PageComponentBindings {
     }
 
     setupSingleComponentEvents(componentName: ComponentEventName | string): void {
-        const {app, components, notify, ui} = this.context;
+        const {app, components, content, notify} = this.context;
 
         switch (componentName) {
             case 'recentPage':
@@ -74,7 +74,7 @@ export class PageComponentBindings {
                     });
 
                     components.recentPage.on('viewChange', (view: AppView) => {
-                        ui.navigateToView(view);
+                        content.navigateToView(view);
                     });
                 }
                 break;
@@ -139,7 +139,7 @@ export class PageComponentBindings {
                     components.networkDriveDetailPage.on(
                         'trackRightClick',
                         (track: Track, index: number, x: number, y: number) => {
-                            ui.showContextMenu(x, y, track, index);
+                            content.showContextMenu(x, y, track, index);
                         }
                     );
                 }

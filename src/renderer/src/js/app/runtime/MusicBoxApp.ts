@@ -3,7 +3,6 @@ import {EventEmitter} from '@utils/index.js';
 import {APIEventBinder} from './APIEventBinder';
 import {AppNotifier} from './AppNotifier';
 import {AppRuntimeState} from './AppRuntimeState';
-import {AppUIFacade} from './AppUIFacade';
 import {ComponentEventBinder} from './components/ComponentEventBinder';
 import {ComponentRegistry} from './components/ComponentRegistry';
 import {DesktopLyricsButtonSync} from './DesktopLyricsButtonSync';
@@ -25,6 +24,7 @@ import type {MusicBoxAPIEvents, ScanProgress} from "@api/types/events";
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
 import type {ComponentMap} from "./components/ComponentTypes";
+import type {AppUIPorts} from './ui/AppUIPorts';
 import type {
     AppView,
     ConfirmOptions,
@@ -47,7 +47,7 @@ export class MusicBoxApp extends EventEmitter {
     private readonly libraryController: LibraryAppController;
     private readonly playbackController: PlaybackAppController;
     private readonly playlistController: PlaylistController;
-    private readonly ui: AppUIFacade;
+    private readonly ui: AppUIPorts;
     private readonly desktopLyricsButtonSync: DesktopLyricsButtonSync;
     private readonly lifecycleController: AppLifecycleController;
     private readonly networkDriveRouteController: NetworkDriveRouteController;
@@ -337,7 +337,7 @@ export class MusicBoxApp extends EventEmitter {
     }
 
     showCreatePlaylistDialog(): void {
-        this.ui.showCreatePlaylistDialog();
+        this.ui.dialogs.showCreatePlaylistDialog();
     }
 
     // 处理添加到自定义歌单
@@ -458,19 +458,19 @@ export class MusicBoxApp extends EventEmitter {
     }
 
     async confirm(options: ConfirmOptions): Promise<boolean> {
-        return await this.ui.confirm(options);
+        return await this.ui.dialogs.confirm(options);
     }
 
     showNetworkDriveModal(): boolean {
-        return this.ui.showNetworkDriveModal();
+        return this.ui.dialogs.showNetworkDriveModal();
     }
 
     async showPluginManager(): Promise<boolean> {
-        return await this.ui.showPluginManager();
+        return await this.ui.dialogs.showPluginManager();
     }
 
     navigateToView(viewId: string): void {
-        this.ui.navigateToView(viewId);
+        this.ui.content.navigateToView(viewId);
     }
 
     // Playlist event handlers
@@ -520,7 +520,7 @@ export class MusicBoxApp extends EventEmitter {
 
     // 处理编辑歌曲信息
     async handleEditTrackInfo(track: Track, _index: number): Promise<void> {
-        await this.ui.showEditTrackInfoDialog(track);
+        await this.ui.dialogs.showEditTrackInfoDialog(track);
     }
 
     // 处理歌曲信息更新

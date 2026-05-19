@@ -1,5 +1,5 @@
 import type {AppView} from '@js/shared/types/AppContracts';
-import type {AppUIFacade} from './AppUIFacade';
+import type {ContentUIFacade} from './ui/ContentUIFacade';
 
 interface NetworkDriveLike {
     id: string | number;
@@ -22,20 +22,20 @@ interface NetworkDriveLibrary {
 interface NetworkDriveRouteControllerOptions {
     app: NetworkDriveRouteHost;
     library: NetworkDriveLibrary;
-    ui: AppUIFacade;
+    content: ContentUIFacade;
     viewRouter: NetworkDriveViewRouter;
 }
 
 export class NetworkDriveRouteController {
     private readonly app: NetworkDriveRouteHost;
     private readonly library: NetworkDriveLibrary;
-    private readonly ui: AppUIFacade;
+    private readonly content: ContentUIFacade;
     private readonly viewRouter: NetworkDriveViewRouter;
 
-    constructor({app, library, ui, viewRouter}: NetworkDriveRouteControllerOptions) {
+    constructor({app, library, content, viewRouter}: NetworkDriveRouteControllerOptions) {
         this.app = app;
         this.library = library;
-        this.ui = ui;
+        this.content = content;
         this.viewRouter = viewRouter;
     }
 
@@ -45,11 +45,11 @@ export class NetworkDriveRouteController {
         this.viewRouter.hideAllPages();
         this.viewRouter.updateSidebarSelection('network-drive', String(networkDrive.id));
         this.app.currentView = 'network-drive-detail';
-        await this.ui.showNetworkDriveDetail(networkDrive);
+        await this.content.showNetworkDriveDetail(networkDrive);
     }
 
     async handleDriveRemoved(): Promise<void> {
-        await this.ui.loadNetworkDrives();
+        await this.content.loadNetworkDrives();
         await this.library.refreshLibrary();
     }
 }

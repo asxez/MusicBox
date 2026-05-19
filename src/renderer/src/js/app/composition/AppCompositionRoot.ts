@@ -1,6 +1,5 @@
 import {APIEventBinder} from '@js/app/runtime/APIEventBinder';
 import {AppNotifier} from '@js/app/runtime/AppNotifier';
-import {AppUIFacade} from '@js/app/runtime/AppUIFacade';
 import {ComponentEventBinder, type ComponentBindingPorts} from '@js/app/runtime/components/ComponentEventBinder';
 import {ComponentRegistry} from '@js/app/runtime/components/ComponentRegistry';
 import {DesktopLyricsButtonSync} from '@js/app/runtime/DesktopLyricsButtonSync';
@@ -9,6 +8,7 @@ import {NetworkDriveRouteController} from '@js/app/runtime/NetworkDriveRouteCont
 import {PluginBootstrap} from '@js/app/runtime/PluginBootstrap';
 import {ShortcutController} from '@js/app/runtime/ShortcutController';
 import {ViewRouter} from '@js/app/runtime/ViewRouter';
+import {createAppUIPorts, type AppUIPorts} from '@js/app/runtime/ui/AppUIPorts';
 import type {
     AppAPIEventPort,
     AppComponentPort,
@@ -125,7 +125,7 @@ export interface AppComposition {
     pluginBootstrap: PluginBootstrap;
     shellView: AppShellView;
     shortcutController: ShortcutController;
-    ui: AppUIFacade;
+    ui: AppUIPorts;
     viewRouter: ViewRouter;
 }
 
@@ -136,13 +136,17 @@ export function createAppComposition({
     apiEventListeners
 }: AppCompositionRootOptions): AppComposition {
     const componentPort: AppComponentPort = {components};
-    const ui = new AppUIFacade(componentPort);
+    const ui = createAppUIPorts(componentPort);
     const componentRegistry = new ComponentRegistry({
         components,
         setupComponentEvents: (componentName: string) => app.setupComponentEvents(componentName)
     });
     const domEventBinder = new DOMEventBinder({eventListeners});
-    const apiEventBinder = new APIEventBinder({apiEventListeners, components: componentPort});
+    const apiEventBinder = new APIEventBinder({
+        apiEventListeners,
+        playbackUI: ui.playback,
+        queueUI: ui.queue
+    });
     const shellView = new AppShellView({
         onScanMusicFolder: () => app.scanMusicFolder(),
         onAddMusicFiles: () => app.addMusicFiles(),
@@ -156,10 +160,14 @@ export function createAppComposition({
         settings: app,
         notifications: app
     };
-    const componentEventBinder = new ComponentEventBinder({ports: componentBindingPorts, components: componentPort});
-    const viewRouter = new ViewRouter({app, components: componentPort});
+    const componentEventBinder = new ComponentEventBinder({
+        ports: componentBindingPorts,
+        components: componentPort,
+        ui
+    });
+    const viewRouter = new ViewRouter({app, content: ui.content});
     const notifier = new AppNotifier(shellView);
-    const desktopLyricsButtonSync = new DesktopLyricsButtonSync(ui);
+    const desktopLyricsButtonSync = new DesktopLyricsButtonSync(ui.playback);
 
     const shortcutController = new ShortcutController({
         app,
@@ -172,7 +180,13 @@ export function createAppComposition({
             seekBackward: (seconds) => playbackController.seekBackward(seconds),
             getCurrentTrackSnapshot: () => playbackController.getCurrentTrackSnapshot()
         },
-        ui
+        ui: {
+            getActivePlayer: () => ui.playback.getActivePlayer(),
+            focusSearchInput: () => ui.content.focusSearchInput(),
+            toggleLyricsPanel: (track) => ui.playback.toggleLyricsPanel(track),
+            exitLyricsPanel: () => ui.playback.exitLyricsPanel(),
+            toggleLyricsFullscreen: () => ui.playback.toggleLyricsFullscreen()
+        }
     });
 
     const fileImportController = new FileImportController({
@@ -193,7 +207,20 @@ export function createAppComposition({
         integrations: {
             getCurrentPlaybackTrack: () => playbackController.getCurrentTrackSnapshot()
         },
-        ui
+        ui: {
+            setTrackListTracks: (tracks) => ui.content.setTrackListTracks(tracks),
+            updateQueuedTrack: (filePath, updatedData) => ui.queue.updateQueuedTrack(filePath, updatedData),
+            findQueueIndex: (predicate) => ui.queue.findQueueIndex(predicate),
+            removeQueueTrack: (index) => ui.queue.removeQueueTrack(index),
+            removeTrackFromPlaylistDetail: (track, index) => ui.content.removeTrackFromPlaylistDetail(track, index),
+            removeSelectedTracksFromPlaylistDetail: () => ui.content.removeSelectedTracksFromPlaylistDetail(),
+            clearTrackListSelection: () => ui.content.clearTrackListSelection(),
+            updatePlayerTrackInfo: (track) => ui.playback.updatePlayerTrackInfo(track),
+            isPlaylistDetailVisible: () => ui.content.isPlaylistDetailVisible(),
+            updatePlaylistDetailTrack: (filePath, updatedData) => (
+                ui.content.updatePlaylistDetailTrack(filePath, updatedData)
+            )
+        }
     });
 
     const playbackAppController = new PlaybackAppController({
@@ -207,7 +234,15 @@ export function createAppComposition({
             setPlayMode: (mode) => playbackController.setPlayMode(mode),
             getPlaybackSnapshot: () => playbackController.getPlaybackSnapshot()
         },
-        ui
+        ui: {
+            hasQueue: () => ui.queue.hasQueue(),
+            getQueueTracks: () => ui.queue.getQueueTracks(),
+            isQueueEmpty: () => ui.queue.isQueueEmpty(),
+            syncQueueTracks: (tracks, currentIndex) => ui.queue.syncQueueTracks(tracks, currentIndex),
+            setQueueCurrentTrack: (index) => ui.queue.setQueueCurrentTrack(index),
+            findQueueIndex: (predicate) => ui.queue.findQueueIndex(predicate),
+            addQueueTrack: (track) => ui.queue.addQueueTrack(track)
+        }
     });
 
     const playlistController = new PlaylistController({
@@ -217,12 +252,23 @@ export function createAppComposition({
             getCurrentIndex: () => playbackController.getCurrentIndex(),
             pause: () => playbackController.pause()
         },
-        ui
+        ui: {
+            hasQueue: () => ui.queue.hasQueue(),
+            getQueueTracks: () => ui.queue.getQueueTracks(),
+            getQueueCurrentIndex: () => ui.queue.getQueueCurrentIndex(),
+            addQueueTrack: (track) => ui.queue.addQueueTrack(track),
+            showAddToPlaylistDialog: (track) => ui.dialogs.showAddToPlaylistDialog(track),
+            showPlaylistDetail: (playlist) => ui.content.showPlaylistDetail(playlist),
+            showMusicLibrarySelectionDialog: (playlist) => ui.dialogs.showMusicLibrarySelectionDialog(playlist),
+            reloadPlaylistDetailTracks: () => ui.content.reloadPlaylistDetailTracks(),
+            updateNavigationPlaylistInfo: (playlist) => ui.content.updateNavigationPlaylistInfo(playlist),
+            refreshNavigationPlaylists: () => ui.content.refreshNavigationPlaylists()
+        }
     });
     const networkDriveRouteController = new NetworkDriveRouteController({
         app,
         library: libraryController,
-        ui,
+        content: ui.content,
         viewRouter
     });
 
@@ -239,7 +285,7 @@ export function createAppComposition({
             setPlayMode: (mode) => playbackController.setPlayMode(mode),
             setVolume: (volume) => playbackController.setVolume(volume)
         },
-        ui
+        playbackUI: ui.playback
     });
 
     return {

@@ -1,5 +1,4 @@
 import type {Track} from "@api/types/track";
-import {playbackController} from "../PlaybackController";
 
 interface ComponentEventSource {
     on(event: string, handler: (...args: any[]) => void | Promise<void>): void;
@@ -16,6 +15,10 @@ interface PlaybackBindingUI {
     showContextMenu(x: number, y: number, track: Track, index: number, selectedTracks?: Set<number>): void;
     toggleQueue(): void;
     toggleLyricsForTrack(track: Track | null): Promise<void>;
+}
+
+interface PlaybackBindingIntegrations {
+    getCurrentTrackSnapshot(): Track | null;
 }
 
 export interface PlaybackComponentBindingHost {
@@ -35,6 +38,7 @@ export interface PlaybackComponentBindingHost {
 interface PlaybackComponentBindingContext {
     app: PlaybackComponentBindingHost;
     components: PlaybackBindingComponents;
+    integrations: PlaybackBindingIntegrations;
     ui: PlaybackBindingUI;
 }
 
@@ -51,6 +55,7 @@ interface ContextMenuPayload extends TrackEventPayload {
 export function bindPlaybackComponentEvents({
     app,
     components,
+    integrations,
     ui
 }: PlaybackComponentBindingContext): void {
     components.trackList.on('trackPlayed', async (track: Track, index: number) => {
@@ -69,7 +74,7 @@ export function bindPlaybackComponentEvents({
     });
 
     components.player.on('toggleLyrics', async () => {
-        await ui.toggleLyricsForTrack(playbackController.getCurrentTrackSnapshot());
+        await ui.toggleLyricsForTrack(integrations.getCurrentTrackSnapshot());
     });
 
     components.player.on('trackIndexChanged', (index: number) => {

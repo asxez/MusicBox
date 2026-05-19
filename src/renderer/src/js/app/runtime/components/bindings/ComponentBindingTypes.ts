@@ -1,6 +1,9 @@
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
-import type {AppUIFacade} from "@js/app/runtime/AppUIFacade";
+import type {ContentUIFacade} from "@js/app/runtime/ui/ContentUIFacade";
+import type {DialogUIFacade} from "@js/app/runtime/ui/DialogUIFacade";
+import type {PlaybackUIFacade} from "@js/app/runtime/ui/PlaybackUIFacade";
+import type {QueueUIFacade} from "@js/app/runtime/ui/QueueUIFacade";
 import type {AppView} from "@js/shared/types/AppContracts";
 import type {AppNotificationPort} from "@js/app/runtime/AppRuntimePorts";
 import type {ComponentMap} from "@js/app/runtime/components/ComponentTypes";
@@ -30,7 +33,10 @@ export type ComponentEventName =
 
 export interface ComponentBindingContext {
     components: ComponentMap;
-    ui: AppUIFacade;
+    content: ContentUIFacade;
+    dialogs: DialogUIFacade;
+    playback: PlaybackUIFacade;
+    queue: QueueUIFacade;
     notify(data: ComponentNotificationPayload): void;
 }
 

@@ -1,9 +1,9 @@
 import {cacheManager} from '@js/shared/cache';
 
-import type {AppUIFacade} from './AppUIFacade';
+import type {PlaybackUIFacade} from './ui/PlaybackUIFacade';
 
 export class DesktopLyricsButtonSync {
-    constructor(private readonly ui: AppUIFacade) {}
+    constructor(private readonly playback: PlaybackUIFacade) {}
 
     async syncButtonState(): Promise<void> {
         try {
@@ -12,7 +12,7 @@ export class DesktopLyricsButtonSync {
                 ? settings.desktopLyrics
                 : true;
 
-            await this.ui.updateDesktopLyricsButtonVisibility(Boolean(desktopLyricsEnabled));
+            await this.playback.updateDesktopLyricsButtonVisibility(Boolean(desktopLyricsEnabled));
         } catch (error) {
             console.error('❌ App: 同步桌面歌词按钮状态失败:', error);
         }

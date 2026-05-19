@@ -1,22 +1,26 @@
 import {appEventService} from "@js/features/events/service/AppEventService";
 import {playbackUiStateService} from "@js/features/playback/service/PlaybackUiStateService";
 import type {MusicBoxAPIEvents} from '@api/types/events';
-import type {APIEventBindingHost, AppComponentPort} from './AppRuntimePorts';
+import type {APIEventBindingHost} from './AppRuntimePorts';
 import type {ManagedAPIListener} from '@js/shared/types/AppContracts';
-import {AppUIFacade} from './AppUIFacade';
+import type {PlaybackUIFacade} from './ui/PlaybackUIFacade';
+import type {QueueUIFacade} from './ui/QueueUIFacade';
 
 interface APIEventBinderOptions {
     apiEventListeners: ManagedAPIListener[];
-    components: AppComponentPort;
+    playbackUI: PlaybackUIFacade;
+    queueUI: QueueUIFacade;
 }
 
 export class APIEventBinder {
     private readonly apiEventListeners: ManagedAPIListener[];
-    private readonly ui: AppUIFacade;
+    private readonly playbackUI: PlaybackUIFacade;
+    private readonly queueUI: QueueUIFacade;
 
-    constructor({apiEventListeners, components}: APIEventBinderOptions) {
+    constructor({apiEventListeners, playbackUI, queueUI}: APIEventBinderOptions) {
         this.apiEventListeners = apiEventListeners;
-        this.ui = new AppUIFacade(components);
+        this.playbackUI = playbackUI;
+        this.queueUI = queueUI;
     }
 
     addManagedAPIEventListener<K extends keyof MusicBoxAPIEvents>(
@@ -46,7 +50,7 @@ export class APIEventBinder {
         this.addManagedAPIEventListener('playlistChanged', (tracks) => {
             console.log('🎵 API播放列表改变:', tracks.length, '首歌曲');
             if (tracks.length > 0) {
-                this.ui.syncQueueTracks(tracks, playbackUiStateService.getState().currentIndex);
+                this.queueUI.syncQueueTracks(tracks, playbackUiStateService.getState().currentIndex);
             }
         });
 
@@ -56,23 +60,23 @@ export class APIEventBinder {
         });
 
         this.addManagedAPIEventListener('playModeChanged', (mode) => {
-            this.ui.updatePlayModeDisplay(mode);
+            this.playbackUI.updatePlayModeDisplay(mode);
         });
 
         this.addManagedAPIEventListener('trackChanged', async (track) => {
-            await this.ui.showLyricsForTrack(track);
+            await this.playbackUI.showLyricsForTrack(track);
         });
 
         this.addManagedAPIEventListener('positionChanged', (position) => {
-            if (this.ui.isLyricsVisible()) {
+            if (this.playbackUI.isLyricsVisible()) {
                 const currentTrack = playbackUiStateService.getCurrentTrackSnapshot();
                 const duration = currentTrack?.duration || playbackUiStateService.getDuration();
-                this.ui.updateLyricsProgress(position, duration);
+                this.playbackUI.updateLyricsProgress(position, duration);
             }
         });
 
         this.addManagedAPIEventListener('playbackStateChanged', (_state) => {
-            this.ui.updateLyricsPlayButton();
+            this.playbackUI.updateLyricsPlayButton();
         });
 
         this.addManagedAPIEventListener('scanProgress', (progress) => {

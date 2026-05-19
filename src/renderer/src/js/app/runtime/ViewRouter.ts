@@ -1,19 +1,19 @@
-import type {AppComponentPort, ViewRouterHost} from './AppRuntimePorts';
+import type {ViewRouterHost} from './AppRuntimePorts';
 import type {AppView} from '@js/shared/types/AppContracts';
-import {AppUIFacade} from './AppUIFacade';
+import type {ContentUIFacade} from './ui/ContentUIFacade';
 
 interface ViewRouterOptions {
     app: ViewRouterHost;
-    components: AppComponentPort;
+    content: ContentUIFacade;
 }
 
 export class ViewRouter {
     private readonly app: ViewRouterHost;
-    private readonly ui: AppUIFacade;
+    private readonly content: ContentUIFacade;
 
-    constructor({app, components}: ViewRouterOptions) {
+    constructor({app, content}: ViewRouterOptions) {
         this.app = app;
-        this.ui = new AppUIFacade(components);
+        this.content = content;
     }
 
     async handleViewChange(view: AppView): Promise<void> {
@@ -28,30 +28,30 @@ export class ViewRouter {
 
         switch (view) {
             case 'home-page':
-                await this.ui.showHomePage();
+                await this.content.showHomePage();
                 break;
             case 'library':
-                this.ui.showTrackList();
+                this.content.showTrackList();
                 app.updateTrackList('navigation');
                 break;
             case 'recent':
-                await this.ui.showRecentPage();
+                await this.content.showRecentPage();
                 break;
             case 'artists':
-                await this.ui.showArtistsPage();
+                await this.content.showArtistsPage();
                 break;
             case 'albums':
-                await this.ui.showAlbumsPage();
+                await this.content.showAlbumsPage();
                 break;
             case 'statistics':
-                await this.ui.showStatisticsPage();
+                await this.content.showStatisticsPage();
                 break;
             case 'playlist-detail':
                 break;
             default:
                 console.warn('Unknown view:', view);
                 if (app.currentView !== 'playlist-detail') {
-                    this.ui.showTrackList();
+                    this.content.showTrackList();
                     app.updateTrackList('default-fallback');
                 }
                 break;
@@ -59,10 +59,10 @@ export class ViewRouter {
     }
 
     hideAllPages(): void {
-        this.ui.hideAllPages();
+        this.content.hideAllPages();
     }
 
     updateSidebarSelection(type: string, id: string | null = null): void {
-        this.ui.updateSidebarSelection(type, id);
+        this.content.updateSidebarSelection(type, id);
     }
 }

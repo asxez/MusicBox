@@ -7,7 +7,7 @@ import type {NavigationComponentBindingContext} from "./ComponentBindingTypes";
 export function bindNavigationComponentEvents({
     app,
     components,
-    ui
+    dialogs
 }: NavigationComponentBindingContext): void {
     components.search.on('searchResults', (results: Track[]) => {
         app.handleSearchResults(results);
@@ -22,7 +22,7 @@ export function bindNavigationComponentEvents({
     });
 
     components.navigation.on('showSettings', async () => {
-        await ui.toggleSettings();
+        await dialogs.toggleSettings();
     });
 
     components.navigation.on('playlistSelected', async (playlist: Playlist) => {
@@ -34,6 +34,6 @@ export function bindNavigationComponentEvents({
     });
 
     components.navigation.on('showRenameDialog', (playlist: Playlist) => {
-        ui.showRenamePlaylistDialog(playlist);
+        dialogs.showRenamePlaylistDialog(playlist);
     });
 }
