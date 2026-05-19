@@ -58,7 +58,7 @@ export interface AppConfirmationPort {
 }
 
 export interface APIEventBindingHost {
-    refreshLibrary(): Promise<void>;
+    refreshLibrary(tracks?: Track[]): Promise<void>;
     updateLibraryTrackDuration(filePath: string, duration: number): void;
     updateScanProgress(progress: ScanProgress): void;
 }

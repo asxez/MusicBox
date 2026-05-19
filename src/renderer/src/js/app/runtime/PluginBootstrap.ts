@@ -12,15 +12,18 @@ import type {ComponentMap} from './components/ComponentTypes';
 
 interface PluginBootstrapOptions {
     app: PluginBootstrapHost;
+    legacyApp?: LegacyMusicBoxApp;
     legacyComponents?: ComponentMap;
 }
 
 export class PluginBootstrap {
     private readonly app: PluginBootstrapHost;
+    private readonly legacyApp?: LegacyMusicBoxApp;
     private readonly legacyComponents?: ComponentMap;
 
-    constructor({app, legacyComponents}: PluginBootstrapOptions) {
+    constructor({app, legacyApp, legacyComponents}: PluginBootstrapOptions) {
         this.app = app;
+        this.legacyApp = legacyApp;
         this.legacyComponents = legacyComponents;
     }
 
@@ -81,7 +84,7 @@ export class PluginBootstrap {
             const detail: AppReadyEventDetail = {
                 pluginHost,
                 host: pluginHost,
-                app: app as unknown as LegacyMusicBoxApp,
+                app: this.legacyApp ?? app as unknown as LegacyMusicBoxApp,
                 components: this.legacyComponents,
                 isInitialized: app.isInitialized
             };

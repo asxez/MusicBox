@@ -19,7 +19,7 @@ interface ShortcutDefinition {
 
 type ShortcutMap = Record<string, ShortcutDefinition>;
 
-interface ShortcutHost extends AppDOMEventPort {
+export interface ShortcutHost extends AppDOMEventPort {
     openDirectoryDialog(): Promise<void>;
     addMusicFiles(): Promise<void>;
 }

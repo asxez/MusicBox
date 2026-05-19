@@ -8,7 +8,7 @@ export interface InitResult {
     error?: unknown;
 }
 
-interface AppLifecycleHost {
+export interface AppLifecycleHost {
     isInitialized: boolean;
     initializeComponents(): void;
     setupEventListeners(): Promise<void>;

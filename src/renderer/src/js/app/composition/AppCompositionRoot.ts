@@ -9,25 +9,9 @@ import {PluginBootstrap} from '@js/app/runtime/PluginBootstrap';
 import {ShortcutController} from '@js/app/runtime/ShortcutController';
 import {ViewRouter} from '@js/app/runtime/ViewRouter';
 import {createAppUIPorts, type AppUIPorts} from '@js/app/runtime/ui/AppUIPorts';
-import type {
-    AppAPIEventPort,
-    AppComponentPort,
-    AppConfirmationPort,
-    AppCoverPreloadPort,
-    AppDOMEventPort,
-    AppEventEmitterPort,
-    AppInitializationPort,
-    AppLibraryStatePort,
-    AppNotificationPort,
-    AppViewStatePort,
-    ViewRouterHost
-} from '@js/app/runtime/AppRuntimePorts';
+import {createAppHostPorts, type MusicBoxCompositionHost} from './AppHostPorts';
 import type {ComponentMap} from '@js/app/runtime/components/ComponentTypes';
 import type {ManagedAPIListener, ManagedDOMListener} from '@js/shared/types/AppContracts';
-import type {
-    NavigationComponentBindingHost,
-    PageComponentBindingHost
-} from '@js/app/runtime/components/bindings/ComponentBindingTypes';
 import {AppLifecycleController} from '@js/app/lifecycle';
 import {AppShellView} from '@js/app/shell';
 import {
@@ -35,14 +19,9 @@ import {
     LibraryAppController
 } from '@js/features/library/ui-bindings';
 import {libraryDataService} from '@js/features/library/service/LibraryDataService';
-import type {FileImportHost, LibraryAppHost} from '@js/features/library/ui-bindings';
-import {PlaylistController, type PlaylistAppHost} from '@js/features/playlists/PlaylistController';
-import type {PlaylistComponentBindingHost} from '@js/features/playlists/ui-bindings';
+import {PlaylistController} from '@js/features/playlists/PlaylistController';
 import {playbackController} from '@js/features/playback/PlaybackController';
 import {PlaybackAppController} from '@js/features/playback/ui-bindings/PlaybackAppController';
-import type {PlaybackAppHost} from '@js/features/playback/ui-bindings';
-import type {PlaybackComponentBindingHost} from '@js/features/playback/ui-bindings';
-import type {SettingsComponentBindingHost} from '@js/features/settings/ui-bindings';
 import {playbackService} from '@js/features/playback/service/PlaybackService';
 import {desktopLyricsService} from '@js/features/desktopLyrics/service/DesktopLyricsService';
 import {equalizerService} from '@js/features/equalizer/service/EqualizerService';
@@ -52,61 +31,10 @@ import {appShellRuntimeHost} from '@js/features/appShell/service';
 import type {AudioEngineManagerBridge} from '@js/features/equalizer/service';
 
 interface AppCompositionRootOptions {
-    app: MusicBoxAppHost;
+    app: MusicBoxCompositionHost;
     components: ComponentMap;
     eventListeners: ManagedDOMListener[];
     apiEventListeners: ManagedAPIListener[];
-}
-
-interface MusicBoxAppHost
-    extends AppAPIEventPort,
-        AppComponentPort,
-        AppConfirmationPort,
-        AppCoverPreloadPort,
-        AppDOMEventPort,
-        AppEventEmitterPort,
-        AppInitializationPort,
-        AppLibraryStatePort,
-        AppNotificationPort,
-        AppViewStatePort,
-        FileImportHost,
-        LibraryAppHost,
-        NavigationComponentBindingHost,
-        PageComponentBindingHost,
-        PlaybackAppHost,
-        PlaybackComponentBindingHost,
-        PlaylistAppHost,
-        PlaylistComponentBindingHost,
-        SettingsComponentBindingHost,
-        ViewRouterHost {
-    addMusicFiles(): Promise<void>;
-    clearRuntimeData(): void;
-    cleanup(): Promise<void>;
-    hideAllPages(): void;
-    handleViewChange(view: string): Promise<void>;
-    hideCacheLoadingStatus(): void;
-    initializeComponents(): void;
-    initGlobalShortcuts(): Promise<void>;
-    initKeyboardShortcuts(): void;
-    loadAndPlayFile?(filePath: string): Promise<void>;
-    loadInitialData(): Promise<void>;
-    openDirectoryDialog(): Promise<void>;
-    scanMusicFolder(): Promise<void>;
-    schedulePluginSystemInitialization(): void;
-    setupComponentEvents(componentName?: string | null): void;
-    setupEventListeners(): Promise<void>;
-    setupFileLoading(): void;
-    showApp(): void;
-    showCacheLoadingStatus(): void;
-    showCreatePlaylistDialog(): void;
-    showFatalError(message: string): void;
-    showNetworkDriveModal(): boolean;
-    showPluginManager(): Promise<boolean>;
-    showScanProgress(): void;
-    showWelcomeScreen(): void;
-    syncDesktopLyricsButtonState(): Promise<void>;
-    updateSidebarSelection(type: string, id?: string | null): void;
-    navigateToView(viewId: string): void;
 }
 
 export interface AppComposition {
@@ -135,14 +63,19 @@ export function createAppComposition({
     eventListeners,
     apiEventListeners
 }: AppCompositionRootOptions): AppComposition {
-    const componentPort: AppComponentPort = {components};
-    const ui = createAppUIPorts(componentPort);
+    const hostPorts = createAppHostPorts(app);
+    const componentPort = hostPorts.components;
+    const ui = createAppUIPorts(hostPorts.components);
     const componentRegistry = new ComponentRegistry({
         components,
         setupComponentEvents: (componentName: string) => app.setupComponentEvents(componentName)
     });
-    const domEventBinder = new DOMEventBinder({eventListeners});
+    const domEventBinder = new DOMEventBinder({
+        app: hostPorts.domEvents,
+        eventListeners
+    });
     const apiEventBinder = new APIEventBinder({
+        app: hostPorts.apiEvents,
         apiEventListeners,
         playbackUI: ui.playback,
         queueUI: ui.queue
@@ -153,24 +86,24 @@ export function createAppComposition({
         onShowHomePage: () => app.handleViewChange('home-page')
     });
     const componentBindingPorts: ComponentBindingPorts = {
-        navigation: app,
-        pages: app,
-        playback: app,
-        playlists: app,
-        settings: app,
-        notifications: app
+        navigation: hostPorts.navigationBindings,
+        pages: hostPorts.pageBindings,
+        playback: hostPorts.playbackBindings,
+        playlists: hostPorts.playlistBindings,
+        settings: hostPorts.settingsBindings,
+        notifications: hostPorts.appShellRuntime
     };
     const componentEventBinder = new ComponentEventBinder({
         ports: componentBindingPorts,
         components: componentPort,
         ui
     });
-    const viewRouter = new ViewRouter({app, content: ui.content});
+    const viewRouter = new ViewRouter({app: hostPorts.viewRouter, content: ui.content});
     const notifier = new AppNotifier(shellView);
     const desktopLyricsButtonSync = new DesktopLyricsButtonSync(ui.playback);
 
     const shortcutController = new ShortcutController({
-        app,
+        app: hostPorts.shortcuts,
         integrations: {
             toggleCurrentPlayback: () => playbackController.toggleCurrentPlayback(),
             previousTrack: () => playbackController.previousTrack(),
@@ -190,7 +123,7 @@ export function createAppComposition({
     });
 
     const fileImportController = new FileImportController({
-        app,
+        app: hostPorts.fileImport,
         integrations: {
             openDirectory: () => mediaFileDialogService.openDirectory(),
             openDirectoryDialog: () => mediaFileDialogService.openDirectoryDialog(),
@@ -200,10 +133,14 @@ export function createAppComposition({
         }
     });
 
-    const pluginBootstrap = new PluginBootstrap({app, legacyComponents: components});
+    const pluginBootstrap = new PluginBootstrap({
+        app: hostPorts.pluginBootstrap,
+        legacyApp: hostPorts.legacyPluginApp as any,
+        legacyComponents: components
+    });
 
     const libraryController = new LibraryAppController({
-        app,
+        app: hostPorts.library,
         integrations: {
             getCurrentPlaybackTrack: () => playbackController.getCurrentTrackSnapshot()
         },
@@ -224,7 +161,7 @@ export function createAppComposition({
     });
 
     const playbackAppController = new PlaybackAppController({
-        app,
+        app: hostPorts.playback,
         integrations: {
             getLibraryTracks: () => libraryDataService.getTracks(),
             setPlaylist: (tracks, startIndex) => playbackController.setPlaylist(tracks, startIndex),
@@ -246,7 +183,7 @@ export function createAppComposition({
     });
 
     const playlistController = new PlaylistController({
-        app,
+        app: hostPorts.playlist,
         playback: {
             setPlaylist: (tracks, startIndex) => playbackController.setPlaylist(tracks, startIndex),
             getCurrentIndex: () => playbackController.getCurrentIndex(),
@@ -266,18 +203,18 @@ export function createAppComposition({
         }
     });
     const networkDriveRouteController = new NetworkDriveRouteController({
-        app,
+        app: hostPorts.networkDriveRoute,
         library: libraryController,
         content: ui.content,
         viewRouter
     });
 
     configureSharedFeatureDependencies();
-    appShellRuntimeHost.bindApp(app);
-    extensionHostService.bindApp(app);
+    appShellRuntimeHost.bindApp(hostPorts.appShellRuntime);
+    extensionHostService.bindApp(hostPorts.extensionHost);
 
     const lifecycleController = new AppLifecycleController({
-        app,
+        app: hostPorts.lifecycle,
         playback: {
             initializeAudio: () => playbackController.initializeAudio(),
             restorePlaybackState: () => playbackAppController.restorePlaybackState(),

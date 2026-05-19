@@ -164,11 +164,13 @@ export class LibraryAppController {
         }
     }
 
-    async refreshLibrary(): Promise<void> {
+    async refreshLibrary(tracks?: Track[]): Promise<void> {
         const app = this.app;
 
         try {
-            app.library = await libraryDataService.getTracks();
+            app.library = Array.isArray(tracks)
+                ? tracks
+                : await libraryDataService.getTracks();
             app.filteredLibrary = [...app.library];
             app.updateTrackList('refresh');
         } catch (error) {

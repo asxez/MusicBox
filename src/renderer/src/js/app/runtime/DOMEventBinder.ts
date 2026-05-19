@@ -3,13 +3,16 @@ import type {DOMEventBindingHost} from './AppRuntimePorts';
 import type {ManagedDOMListener} from '@js/shared/types/AppContracts';
 
 interface DOMEventBinderOptions {
+    app: DOMEventBindingHost;
     eventListeners: ManagedDOMListener[];
 }
 
 export class DOMEventBinder {
+    private readonly app: DOMEventBindingHost;
     private readonly eventListeners: ManagedDOMListener[];
 
-    constructor({eventListeners}: DOMEventBinderOptions) {
+    constructor({app, eventListeners}: DOMEventBinderOptions) {
+        this.app = app;
         this.eventListeners = eventListeners;
     }
 
@@ -36,7 +39,9 @@ export class DOMEventBinder {
         this.eventListeners.length = 0;
     }
 
-    async bindAppEvents(app: DOMEventBindingHost): Promise<void> {
+    async bindAppEvents(): Promise<void> {
+        const app = this.app;
+
         this.addManagedEventListener(window, 'beforeunload', async () => {
             await app.cleanup();
         });

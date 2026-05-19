@@ -6,7 +6,7 @@ interface NetworkDriveLike {
     [key: string]: any;
 }
 
-interface NetworkDriveRouteHost {
+export interface NetworkDriveRouteHost {
     currentView: AppView;
 }
 

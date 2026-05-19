@@ -20,7 +20,7 @@ class CacheMaintenanceService {
     }
 
     clear(): Promise<boolean> {
-        return libraryDataService.clearCache();
+        return libraryService.clearCache();
     }
 
     clearIgnoreList(): Promise<Result> {

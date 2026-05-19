@@ -7,17 +7,20 @@ import type {PlaybackUIFacade} from './ui/PlaybackUIFacade';
 import type {QueueUIFacade} from './ui/QueueUIFacade';
 
 interface APIEventBinderOptions {
+    app: APIEventBindingHost;
     apiEventListeners: ManagedAPIListener[];
     playbackUI: PlaybackUIFacade;
     queueUI: QueueUIFacade;
 }
 
 export class APIEventBinder {
+    private readonly app: APIEventBindingHost;
     private readonly apiEventListeners: ManagedAPIListener[];
     private readonly playbackUI: PlaybackUIFacade;
     private readonly queueUI: QueueUIFacade;
 
-    constructor({apiEventListeners, playbackUI, queueUI}: APIEventBinderOptions) {
+    constructor({app, apiEventListeners, playbackUI, queueUI}: APIEventBinderOptions) {
+        this.app = app;
         this.apiEventListeners = apiEventListeners;
         this.playbackUI = playbackUI;
         this.queueUI = queueUI;
@@ -42,9 +45,11 @@ export class APIEventBinder {
         this.apiEventListeners.length = 0;
     }
 
-    bindAppEvents(app: APIEventBindingHost): void {
-        this.addManagedAPIEventListener('libraryUpdated', async () => {
-            await app.refreshLibrary();
+    bindAppEvents(): void {
+        const app = this.app;
+
+        this.addManagedAPIEventListener('libraryUpdated', async (tracks) => {
+            await app.refreshLibrary(tracks);
         });
 
         this.addManagedAPIEventListener('playlistChanged', (tracks) => {

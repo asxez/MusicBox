@@ -197,8 +197,8 @@ export class MusicBoxApp extends EventEmitter {
     }
 
     async setupEventListeners(): Promise<void> {
-        await this.domEventBinder.bindAppEvents(this);
-        this.apiEventBinder.bindAppEvents(this);
+        await this.domEventBinder.bindAppEvents();
+        this.apiEventBinder.bindAppEvents();
     }
 
     async loadInitialData(): Promise<void> {
@@ -251,8 +251,8 @@ export class MusicBoxApp extends EventEmitter {
         this.shellView.updateScanProgress(progress);
     }
 
-    async refreshLibrary(): Promise<void> {
-        await this.libraryController.refreshLibrary();
+    async refreshLibrary(tracks?: Track[]): Promise<void> {
+        await this.libraryController.refreshLibrary(tracks);
     }
 
     updateTrackList(source = 'unknown'): void {
