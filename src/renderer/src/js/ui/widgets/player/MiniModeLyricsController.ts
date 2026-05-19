@@ -1,5 +1,6 @@
-import {mediaController} from "@js/features/media";
+import {lyricsContentService} from "@js/features/mediaAssets/service";
 import {playbackController} from "@js/features/playback";
+import {LyricsWordHighlightController} from "@js/shared/lyrics";
 import type {Unsubscribe} from "@js/features/playback";
 import type {LyricLine} from "@api/types/lyrics";
 import type {Track} from "@api/types/track";
@@ -17,11 +18,9 @@ interface MiniModeLyricLine extends LyricLine {
 
 class MiniModeLyricsController {
     private readonly rootElement: Element | null;
-    private readonly lyricsUpdateInterval = 16;
+    private readonly wordHighlightController = new LyricsWordHighlightController();
 
     private active = false;
-    private lyricsRafId: number | null = null;
-    private lyricsLastUpdateTime = 0;
     private currentLyricIndex = -1;
     private lyrics: MiniModeLyricLine[] = [];
     private positionUnsubscribe: Unsubscribe | null = null;
@@ -38,7 +37,7 @@ class MiniModeLyricsController {
     stop(): void {
         this.active = false;
         this.unsubscribePositionChanges();
-        this.cancelLyricsFrame();
+        this.wordHighlightController.reset();
         this.resetLyrics(false);
         this.removeElement();
     }
@@ -98,32 +97,19 @@ class MiniModeLyricsController {
     private resetLyrics(renderEmptyState: boolean): void {
         this.lyrics = [];
         this.currentLyricIndex = -1;
+        this.wordHighlightController.resetPlaybackPosition();
         if (renderEmptyState) {
             this.showNoLyrics();
         }
     }
 
     private async resolveLyrics(track: Track): Promise<MiniModeLyricLine[] | null> {
-        if (track.lyrics) {
-            return Array.isArray(track.lyrics) ? track.lyrics as MiniModeLyricLine[] : null;
-        }
-
-        const lyricsResult = await mediaController.getLyrics(track.title, track.artist, track.album, track.filePath);
-        if (!lyricsResult.success) {
+        const result = await lyricsContentService.loadTrackLyrics(track);
+        if (!result.success || result.lyrics.length === 0) {
             return null;
         }
 
-        if (lyricsResult.format === 'ttml' && lyricsResult.content) {
-            return mediaController.parseTTML(lyricsResult.content) as MiniModeLyricLine[];
-        }
-        if (lyricsResult.lrc) {
-            return mediaController.parseLRC(lyricsResult.lrc) as MiniModeLyricLine[];
-        }
-        if (lyricsResult.content) {
-            return mediaController.parseLyrics(lyricsResult.content, lyricsResult.format) as MiniModeLyricLine[];
-        }
-
-        return null;
+        return result.lyrics as MiniModeLyricLine[];
     }
 
     private findLyricIndex(currentTime: number): number {
@@ -206,47 +192,16 @@ class MiniModeLyricsController {
             return;
         }
 
-        const now = performance.now();
-        if (now - this.lyricsLastUpdateTime < this.lyricsUpdateInterval) {
-            return;
-        }
-        this.lyricsLastUpdateTime = now;
+        const currentLyric = this.lyrics[this.currentLyricIndex];
+        if (!currentLyric || !currentLyric.words || currentLyric.words.length === 0) return;
 
-        const words = miniLyricsElement.querySelectorAll<HTMLElement>('.lyric-word');
-        if (words.length === 0) return;
-
-        this.cancelLyricsFrame();
-        this.lyricsRafId = requestAnimationFrame(() => {
-            this.lyricsRafId = null;
-            this.renderWordProgress(words, currentTime);
+        this.wordHighlightController.updateWordHighlight({
+            lineElement: miniLyricsElement,
+            words: currentLyric.words,
+            currentTime,
+            lineEndTime: currentLyric.endTime,
+            preservePlayedProgress: false
         });
-    }
-
-    private renderWordProgress(words: NodeListOf<HTMLElement>, currentTime: number): void {
-        for (let i = 0; i < words.length; i++) {
-            const wordElement = words[i];
-            const wordStartTime = parseFloat(wordElement.getAttribute('data-word-time') || '0');
-            const wordEndTime = i < words.length - 1
-                ? parseFloat(words[i + 1].getAttribute('data-word-time') || '0')
-                : wordStartTime + 0.5;
-
-            if (currentTime < wordStartTime) {
-                wordElement.classList.remove('highlight', 'played');
-                wordElement.style.setProperty('--word-progress', '0');
-            } else if (currentTime >= wordEndTime) {
-                wordElement.classList.remove('highlight');
-                wordElement.classList.add('played');
-                wordElement.style.setProperty('--word-progress', '1');
-            } else {
-                const duration = wordEndTime - wordStartTime;
-                const progress = duration > 0 ? (currentTime - wordStartTime) / duration : 1;
-                const clampedProgress = Math.max(0, Math.min(1, progress));
-
-                wordElement.classList.add('highlight');
-                wordElement.classList.remove('played');
-                wordElement.style.setProperty('--word-progress', clampedProgress.toFixed(2));
-            }
-        }
     }
 
     private showNoLyrics(): void {
@@ -274,12 +229,6 @@ class MiniModeLyricsController {
         return miniLyricsElement;
     }
 
-    private cancelLyricsFrame(): void {
-        if (!this.lyricsRafId) return;
-
-        cancelAnimationFrame(this.lyricsRafId);
-        this.lyricsRafId = null;
-    }
 }
 
 export {MiniModeLyricsController};

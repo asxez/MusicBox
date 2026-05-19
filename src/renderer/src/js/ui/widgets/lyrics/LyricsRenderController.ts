@@ -1,4 +1,5 @@
 import type {RenderLyricLine} from "@ui/widgets/lyrics/LyricsTypes";
+import {LyricsWordHighlightController} from "@js/shared/lyrics";
 
 interface LyricsRenderControllerOptions {
     lyricsDisplay: HTMLElement;
@@ -12,11 +13,7 @@ class LyricsRenderController {
     private readonly seek: (time: number) => Promise<void>;
     private lyrics: RenderLyricLine[] = [];
     private currentLyricIndex = -1;
-    private currentPlaybackPosition = 0;
-    private lastMonotonicPosition = 0;
-    private rafId: number | null = null;
-    private lastWordUpdateTime = 0;
-    private readonly wordUpdateInterval = 16;
+    private readonly wordHighlightController = new LyricsWordHighlightController();
 
     constructor(options: LyricsRenderControllerOptions) {
         this.lyricsDisplay = options.lyricsDisplay;
@@ -85,40 +82,26 @@ class LyricsRenderController {
         });
 
         this.currentLyricIndex = -1;
-        this.lastMonotonicPosition = 0;
+        this.wordHighlightController.resetPlaybackPosition();
     }
 
     handlePlaybackPositionChanged(position: number): void {
-        const timeDiff = position - this.lastMonotonicPosition;
-
-        if (timeDiff < -0.5) {
-            this.lastMonotonicPosition = position;
-            this.currentPlaybackPosition = position;
-            this.resetWordHighlightStates(position);
-        } else if (timeDiff >= -0.05) {
-            const monotonicTime = Math.max(position, this.lastMonotonicPosition);
-            this.lastMonotonicPosition = monotonicTime;
-            this.currentPlaybackPosition = monotonicTime;
-            position = monotonicTime;
-        } else {
-            this.lastMonotonicPosition = position;
-            this.currentPlaybackPosition = position;
+        const updateResult = this.wordHighlightController.updatePlaybackPosition(position);
+        if (updateResult.seeked) {
             this.resetWordHighlightStates(position);
         }
 
-        this.updateLyricHighlight(position);
+        this.updateLyricHighlight(updateResult.position);
     }
 
     resetPlaybackPosition(): void {
-        this.lastMonotonicPosition = 0;
-        this.currentPlaybackPosition = 0;
+        this.wordHighlightController.resetPlaybackPosition();
     }
 
     reset(): void {
-        this.cancelPendingFrame();
+        this.wordHighlightController.reset();
         this.lyrics = [];
         this.currentLyricIndex = -1;
-        this.resetPlaybackPosition();
     }
 
     private updateLyricHighlight(currentTime: number): void {
@@ -179,83 +162,17 @@ class LyricsRenderController {
             return;
         }
 
-        const now = performance.now();
-        const timeSinceLastUpdate = now - this.lastWordUpdateTime;
-        if (timeSinceLastUpdate < this.wordUpdateInterval) {
-            return;
-        }
-
-        this.lastWordUpdateTime = now;
-        const lyricWords = lyric.words || [];
-        const words = currentLine.querySelectorAll<HTMLElement>('.lyric-word');
-
-        this.cancelPendingFrame();
-        this.rafId = requestAnimationFrame(() => {
-            this.rafId = null;
-            const latestTime = this.currentPlaybackPosition !== undefined ? this.currentPlaybackPosition : currentTime;
-
-            for (let i = 0; i < lyricWords.length; i++) {
-                const word = lyricWords[i];
-                const wordElement = words[i];
-
-                if (!wordElement) continue;
-                if (wordElement.classList.contains('played')) {
-                    continue;
-                }
-
-                const wordStartTime = word.time;
-                const wordEndTime = word.endTime || (lyricWords[i + 1] ? lyricWords[i + 1].time : lyric.endTime || wordStartTime + 0.5);
-                if (latestTime < wordStartTime) {
-                    if (wordElement.classList.contains('highlight')) {
-                        wordElement.classList.remove('highlight');
-                        wordElement.style.setProperty('--word-progress', '0');
-                    }
-                } else if (latestTime >= wordEndTime) {
-                    wordElement.classList.remove('highlight');
-                    wordElement.classList.add('played');
-                    wordElement.style.setProperty('--word-progress', '1');
-                } else {
-                    const duration = wordEndTime - wordStartTime;
-                    const progress = duration > 0 ? (latestTime - wordStartTime) / duration : 1;
-                    const clampedProgress = Math.max(0, Math.min(1, progress));
-
-                    if (!wordElement.classList.contains('highlight')) {
-                        wordElement.classList.add('highlight');
-                    }
-
-                    const currentProgress = parseFloat(wordElement.style.getPropertyValue('--word-progress')) || 0;
-                    const newProgress = parseFloat(clampedProgress.toFixed(2));
-                    if (newProgress > currentProgress) {
-                        wordElement.style.setProperty('--word-progress', newProgress.toString());
-                    }
-                }
-            }
+        this.wordHighlightController.updateWordHighlight({
+            lineElement: currentLine,
+            words: lyric.words,
+            currentTime,
+            lineEndTime: lyric.endTime
         });
     }
 
     private resetWordHighlightStates(seekPosition: number): void {
         if (!this.lyricsDisplay) return;
-
-        const allLines = this.lyricsDisplay.querySelectorAll<HTMLElement>('.lyrics-line.lyrics-word-by-word');
-        for (const line of allLines) {
-            const words = line.querySelectorAll<HTMLElement>('.lyric-word');
-
-            for (const wordElement of words) {
-                const wordTime = parseFloat(wordElement.dataset.wordTime || '');
-
-                if (wordTime > seekPosition) {
-                    wordElement.classList.remove('highlight', 'played');
-                    wordElement.style.setProperty('--word-progress', '0');
-                }
-            }
-        }
-    }
-
-    private cancelPendingFrame(): void {
-        if (!this.rafId) return;
-
-        cancelAnimationFrame(this.rafId);
-        this.rafId = null;
+        this.wordHighlightController.resetWordHighlightStates(this.lyricsDisplay, seekPosition);
     }
 }
 

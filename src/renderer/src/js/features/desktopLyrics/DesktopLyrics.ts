@@ -5,6 +5,7 @@
 import type {DesktopLyricsPlaybackState} from '@api/types/playback';
 import type {DesktopLyricsSettings as ApiDesktopLyricsSettings} from '@api/types/settings';
 import type {Track} from '@api/types/library';
+import {LyricsWordHighlightController} from '@js/shared/lyrics';
 import {desktopLyricsWindowService} from './service';
 
 interface DesktopLyricWord {
@@ -51,11 +52,7 @@ class DesktopLyrics {
     isDragging: boolean;
     dragStartPos: DragPosition;
     private settings: DesktopLyricsSettings;
-    private _currentPlaybackPosition: number;
-    private _lastMonotonicPosition: number;
-    private _rafId: number | null;
-    private _lastWordUpdateTime: number;
-    private _wordUpdateInterval: number;
+    private readonly wordHighlightController: LyricsWordHighlightController;
 
     constructor() {
         this.container = document.getElementById('desktop-lyrics') as HTMLElement;
@@ -93,12 +90,7 @@ class DesktopLyrics {
             fontSize: 48
         };
 
-        // 逐字高亮相关
-        this._currentPlaybackPosition = 0;
-        this._lastMonotonicPosition = 0;
-        this._rafId = null;
-        this._lastWordUpdateTime = 0;
-        this._wordUpdateInterval = 16;
+        this.wordHighlightController = new LyricsWordHighlightController();
 
         this.init();
     }
@@ -188,29 +180,13 @@ class DesktopLyrics {
             return;
         }
 
-        // 单调时间处理（防止时间回跳导致歌词闪烁）
-        const timeDiff = position - this._lastMonotonicPosition;
-
-        if (timeDiff < -0.5) {
-            // 大幅回退，重置状态
-            this._lastMonotonicPosition = position;
-            this._currentPlaybackPosition = position;
-            this.resetWordHighlightStates(position);
-        } else if (timeDiff >= -0.05) {
-            // 正常前进或微小回退
-            const monotonicTime = Math.max(position, this._lastMonotonicPosition);
-            this._lastMonotonicPosition = monotonicTime;
-            this._currentPlaybackPosition = monotonicTime;
-            position = monotonicTime;
-        } else {
-            // 中等回退，也当作seek处理
-            this._lastMonotonicPosition = position;
-            this._currentPlaybackPosition = position;
+        const updateResult = this.wordHighlightController.updatePlaybackPosition(position);
+        if (updateResult.seeked) {
             this.resetWordHighlightStates(position);
         }
 
-        this.currentPosition = position;
-        this.updateLyricHighlight(position);
+        this.currentPosition = updateResult.position;
+        this.updateLyricHighlight(updateResult.position);
     }
 
     // 更新歌词高亮
@@ -280,96 +256,24 @@ class DesktopLyrics {
         if (!lyric || !lyric.words || lyric.words.length === 0) {
             return;
         }
-        const lyricWords = lyric.words;
-
-        // 节流控制
-        const now = performance.now();
-        const timeSinceLastUpdate = now - this._lastWordUpdateTime;
-
-        if (timeSinceLastUpdate < this._wordUpdateInterval) {
-            return;
-        }
-
-        this._lastWordUpdateTime = now;
-
-        // 取消之前的RAF
-        if (this._rafId) {
-            cancelAnimationFrame(this._rafId);
-        }
-
-        // 使用RAF优化DOM操作
-        this._rafId = requestAnimationFrame(() => {
-            this._rafId = null;
-
-            const latestTime = this._currentPlaybackPosition !== undefined ? this._currentPlaybackPosition : currentTime;
-            const words = this.currentLyricEl.querySelectorAll<HTMLElement>('.lyric-word');
-
-            for (let i = 0; i < lyricWords.length; i++) {
-                const word = lyricWords[i];
-                const wordElement = words[i];
-
-                if (!wordElement) continue;
-
-                // 已经播放完的字跳过
-                if (wordElement.classList.contains('played')) {
-                    continue;
-                }
-
-                const wordStartTime = word.time;
-                const wordEndTime = word.endTime || (lyricWords[i + 1] ? lyricWords[i + 1].time : lyric.endTime || wordStartTime + 0.5);
-
-                if (latestTime < wordStartTime) {
-                    // 未播放
-                    if (wordElement.classList.contains('highlight')) {
-                        wordElement.classList.remove('highlight');
-                        wordElement.style.setProperty('--word-progress', '0');
-                    }
-                } else if (latestTime >= wordEndTime) {
-                    // 已播放
-                    wordElement.classList.remove('highlight');
-                    wordElement.classList.add('played');
-                    wordElement.style.setProperty('--word-progress', '1');
-                } else {
-                    // 正在播放 - 计算进度并应用渐进填充效果
-                    const duration = wordEndTime - wordStartTime;
-                    const progress = duration > 0 ? (latestTime - wordStartTime) / duration : 1;
-                    const clampedProgress = Math.max(0, Math.min(1, progress));
-
-                    if (!wordElement.classList.contains('highlight')) {
-                        wordElement.classList.add('highlight');
-                    }
-
-                    // 更新进度（实现填充扫过效果）
-                    const currentProgress = parseFloat(wordElement.style.getPropertyValue('--word-progress')) || 0;
-                    const newProgress = parseFloat(clampedProgress.toFixed(2));
-
-                    // 确保进度只能前进，不能后退
-                    if (newProgress > currentProgress) {
-                        wordElement.style.setProperty('--word-progress', newProgress.toString());
-                    }
-                }
-            }
+        this.wordHighlightController.updateWordHighlight({
+            lineElement: this.currentLyricEl,
+            words: lyric.words,
+            currentTime,
+            lineEndTime: lyric.endTime
         });
     }
 
     // 重置逐字高亮状态
     resetWordHighlightStates(seekPosition: number): void {
-        const words = this.currentLyricEl.querySelectorAll('.lyric-word');
-        words.forEach(wordElement => {
-            const wordTime = parseFloat((wordElement as HTMLElement).dataset.wordTime || '0');
-            if (wordTime > seekPosition) {
-                wordElement.classList.remove('highlight', 'played');
-                (wordElement as HTMLElement).style.setProperty('--word-progress', '0');
-            }
-        });
+        this.wordHighlightController.resetWordHighlightStates(this.currentLyricEl, seekPosition);
     }
 
     // 重置歌词
     resetLyrics(): void {
         this.lyrics = [];
         this.currentLyricIndex = -1;
-        this._lastMonotonicPosition = 0;
-        this._currentPlaybackPosition = 0;
+        this.wordHighlightController.reset();
         this.showDefaultLyrics();
     }
 

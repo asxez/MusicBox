@@ -1,6 +1,6 @@
 import {desktopLyricsGateway} from '@js/infrastructure/electron/DesktopLyricsGateway';
 import {windowGateway} from '@js/infrastructure/electron/WindowGateway';
-import {lyricsLookupService} from '@js/features/mediaAssets/service';
+import {lyricsContentService} from '@js/features/mediaAssets/service';
 import type {Result} from '@api/types/common';
 import type {LyricLine} from '@api/types/lyrics';
 import type {DesktopLyricsPlaybackState} from '@api/types/playback';
@@ -59,33 +59,10 @@ export class DesktopLyricsSync {
 
     async loadLyricsForDesktop(track: Track): Promise<void> {
         try {
-            const lyricsResult = await lyricsLookupService.getLyrics(track.title, track.artist, track.album, track.filePath);
-            if (lyricsResult.success) {
-                let parsedLyrics: LyricLine[] | undefined;
-
-                if (lyricsResult.format === 'ttml' && lyricsResult.content) {
-                    parsedLyrics = lyricsLookupService.parseTTML(lyricsResult.content);
-                    console.log('🎵 loadLyricsForDesktop: 解析 TTML 格式');
-                } else if (lyricsResult.lrc) {
-                    parsedLyrics = lyricsLookupService.parseLRC(lyricsResult.lrc);
-                    console.log('🎵 loadLyricsForDesktop: 解析 LRC 格式');
-                } else if (lyricsResult.content) {
-                    parsedLyrics = lyricsLookupService.parse(lyricsResult.content, lyricsResult.format);
-                    console.log('🎵 loadLyricsForDesktop: 解析其他格式:', lyricsResult.format);
-                }
-
-                if (parsedLyrics && parsedLyrics.length > 0) {
-                    const updateResult = await this.syncToDesktopLyrics('lyrics', parsedLyrics);
-                    console.log('🎵 loadLyricsForDesktop: syncToDesktopLyrics 结果', updateResult);
-
-                    track.lyrics = parsedLyrics;
-                    if (lyricsResult.lrc) {
-                        track.lrcText = lyricsResult.lrc;
-                    } else if (lyricsResult.content) {
-                        track.lyricsContent = lyricsResult.content;
-                        track.lyricsFormat = lyricsResult.format;
-                    }
-                }
+            const result = await lyricsContentService.loadTrackLyrics(track);
+            if (result.success && result.lyrics.length > 0) {
+                await this.syncToDesktopLyrics('lyrics', result.lyrics);
+                console.log(`🎵 loadLyricsForDesktop: 歌词已同步，来源=${result.source || 'unknown'}`);
             }
         } catch (error) {
             console.error('❌ 为桌面歌词加载歌词失败:', error);
