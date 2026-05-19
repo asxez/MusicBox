@@ -61,6 +61,7 @@ export type ComponentMap = ComponentRegistryMap & Record<string, any>;
 export interface PlayerLike {
     togglePlayPause?: () => Promise<void> | void;
     updatePlayModeDisplay?: (mode: PlayMode) => void;
+    getVolume?: () => number;
 }
 
 export interface LyricsLike {

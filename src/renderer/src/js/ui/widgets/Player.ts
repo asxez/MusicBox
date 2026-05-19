@@ -1,13 +1,14 @@
 // 播放器组件
 
-import {formatTime, showToast} from "@js/utils";
-import {cacheManager} from "@js/shared/cache";
+import {showToast} from "@js/utils";
 import {Component} from "@ui/base/Component";
 import {miniModeWindowService} from "@js/features/appShell/service";
-import {desktopLyricsController} from "@js/features/desktopLyrics";
 import {playbackController} from "@js/features/playback";
+import {DesktopLyricsButtonController} from "@ui/widgets/player/DesktopLyricsButtonController";
 import {MiniModePlayerView} from "@ui/widgets/player/MiniModePlayerView";
 import {PlayerCoverArtController} from "@ui/widgets/player/PlayerCoverArtController";
+import {PlayerProgressController} from "@ui/widgets/player/PlayerProgressController";
+import {PlayerVolumeController} from "@ui/widgets/player/PlayerVolumeController";
 import type {PlaybackState, PlaybackStoreChange, Unsubscribe} from "@js/features/playback";
 import type {PlayMode} from "@api/types/playback";
 import type {Track} from "@api/types/track";
@@ -17,18 +18,10 @@ interface PlayerUpdateResult {
     error?: unknown;
 }
 
-interface MusicBoxSettingsCache {
-    desktopLyrics?: boolean;
-}
-
 class Player extends Component {
     isPlaying: boolean;
     currentTime: number;
     duration: number;
-    volume: number;
-    previousVolume: number;
-    isDraggingProgress: boolean;
-    isDraggingVolume: boolean;
     isMiniMode: boolean;
     currentTrack: Track | null;
 
@@ -71,6 +64,9 @@ class Player extends Component {
     private playbackStateUnsubscribe: Unsubscribe | null = null;
     private miniModeView!: MiniModePlayerView;
     private coverArtController!: PlayerCoverArtController;
+    private progressController!: PlayerProgressController;
+    private volumeController!: PlayerVolumeController;
+    private desktopLyricsButtonController!: DesktopLyricsButtonController;
 
     private _updateLock: boolean;
     private _pendingTrack: Track | null;
@@ -81,10 +77,6 @@ class Player extends Component {
         this.isPlaying = false;
         this.currentTime = 0;
         this.duration = 0;
-        this.volume = 0.7;
-        this.previousVolume = 0.7;
-        this.isDraggingProgress = false;
-        this.isDraggingVolume = false;
         this.isMiniMode = false;
         this.currentTrack = null;
         this.miniModeButton = null;
@@ -174,6 +166,44 @@ class Player extends Component {
                 }
             }
         });
+
+        this.progressController = new PlayerProgressController({
+            progressBarContainer: this.progressBarContainer,
+            progressTrack: this.progressTrack,
+            progressFill: this.progressFill,
+            progressHandle: this.progressHandle,
+            progressTooltip: this.progressTooltip,
+            addDomListener: (element, event, handler, options) => {
+                this.addEventListenerManaged(element, event, handler, options);
+            },
+            onSeekCommitted: async () => {
+                const currentTrack = playbackController.getCurrentTrack();
+                if (currentTrack && currentTrack !== this.currentTrack) {
+                    await this.updateTrackInfo(currentTrack);
+                }
+            }
+        });
+
+        this.volumeController = new PlayerVolumeController({
+            volumeBtn: this.volumeBtn,
+            volumeSlider: this.volumeSlider,
+            volumeSliderContainer: this.volumeSliderContainer,
+            volumeFill: this.volumeFill,
+            volumeHandle: this.volumeHandle,
+            volumeHighIcon: this.volumeHighIcon,
+            volumeHalfIcon: this.volumeHalfIcon,
+            volumeMuteIcon: this.volumeMuteIcon,
+            addDomListener: (element, event, handler, options) => {
+                this.addEventListenerManaged(element, event, handler, options);
+            }
+        });
+
+        this.desktopLyricsButtonController = new DesktopLyricsButtonController({
+            button: this.desktopLyricsBtn,
+            addDomListener: (element, event, handler, options) => {
+                this.addEventListenerManaged(element, event, handler, options);
+            }
+        });
     }
 
     setupEventListeners(): void {
@@ -191,89 +221,8 @@ class Player extends Component {
             await playbackController.nextTrack();
         });
 
-        // Progress bar - improved interaction
-        this.addEventListenerManaged(this.progressBarContainer, 'mousedown', (e: Event) => {
-            const mouseEvent = e as MouseEvent;
-            this.isDraggingProgress = true;
-            this.progressBarContainer.classList.add('dragging');
-            this.updateProgress(mouseEvent);
-            mouseEvent.preventDefault();
-        });
-
-        // Show tooltip on hover
-        this.addEventListenerManaged(this.progressBarContainer, 'mousemove', (e: Event) => {
-            if (!this.isDraggingProgress) {
-                this.updateProgressTooltip(e as MouseEvent);
-            }
-        });
-
-        this.addEventListenerManaged(this.progressBarContainer, 'mouseleave', () => {
-            if (!this.isDraggingProgress) {
-                this.progressTooltip.style.opacity = '0';
-            }
-        });
-
-        this.addEventListenerManaged(document, 'mousemove', (e: Event) => {
-            if (this.isDraggingProgress) {
-                this.updateProgress(e as MouseEvent);
-            }
-        });
-
-        this.addEventListenerManaged(document, 'mouseup', async () => {
-            if (this.isDraggingProgress) {
-                this.isDraggingProgress = false;
-                this.progressBarContainer.classList.remove('dragging');
-                this.progressTooltip.style.opacity = '0';
-                const progress = parseFloat(this.progressFill.style.width) / 100;
-                await playbackController.seek(this.duration * progress);
-
-                // 拖动结束后，强制同步当前播放状态
-                const currentTrack = playbackController.getCurrentTrack();
-                if (currentTrack && currentTrack !== this.currentTrack) {
-                    await this.updateTrackInfo(currentTrack);
-                }
-            }
-        });
-
-        // Volume slider
-        this.addEventListenerManaged(this.volumeSlider, 'mousedown', async (e: Event) => {
-            this.isDraggingVolume = true;
-            this.updateVolume(e as MouseEvent);
-            const volume = parseFloat(this.volumeFill.style.width) / 100;
-            await playbackController.setVolume(volume);
-        });
-
-        this.addEventListenerManaged(this.volumeSlider, 'input', async (e: Event) => {
-            this.updateVolume((e.target as HTMLInputElement).value);
-            const volume = parseFloat(this.volumeFill.style.width) / 100;
-            await playbackController.setVolume(volume);
-        });
-
-        this.addEventListenerManaged(this.volumeSliderContainer, 'mousewheel', async (e: Event) => {
-            const wheelEvent = e as WheelEvent & {wheelDelta?: number};
-            if ((wheelEvent.wheelDelta ?? -wheelEvent.deltaY) < 0) await playbackController.adjustVolume(0.01);
-            else await playbackController.adjustVolume(-0.01);
-        });
-
-        this.addEventListenerManaged(document, 'mousemove', async (e: Event) => {
-            if (this.isDraggingVolume) {
-                this.updateVolume(e as MouseEvent);
-                const volume = parseFloat(this.volumeFill.style.width) / 100;
-                await playbackController.setVolume(volume);
-            }
-        });
-
-        this.addEventListenerManaged(document, 'mouseup', async () => {
-            if (this.isDraggingVolume) {
-                this.isDraggingVolume = false;
-                const volume = parseFloat(this.volumeFill.style.width) / 100;
-                await playbackController.setVolume(volume);
-            }
-        });
-
-        this.addEventListenerManaged(this.volumeBtn, 'click', async () => {
-            await this.toggleMute();
-        });
+        this.progressController.bind();
+        this.volumeController.bind();
         this.addEventListenerManaged(this.playModeBtn, 'click', () => {
             const newMode = playbackController.togglePlayMode();
             this.updatePlayModeDisplay(newMode);
@@ -310,12 +259,7 @@ class Player extends Component {
         };
         this.addEventListenerManaged(this.trackCoverContainer, 'mouseleave', this.coverMouseLeaveHandler);
 
-        // 桌面歌词按钮事件
-        if (this.desktopLyricsBtn) {
-            this.addEventListenerManaged(this.desktopLyricsBtn, 'click', async () => {
-                await this.toggleDesktopLyrics();
-            });
-        }
+        this.desktopLyricsButtonController.bind();
 
         // 迷你模式按钮
         if (this.miniModeButton) {
@@ -345,13 +289,13 @@ class Player extends Component {
         switch (change.type) {
             case 'durationChanged':
                 this.duration = state.duration;
-                this.updateProgressDisplay();
+                this.progressController.setDuration(state.duration);
                 break;
 
             case 'positionChanged':
-                if (!this.isDraggingProgress) {
+                if (!this.progressController.isDragging()) {
                     this.currentTime = state.position;
-                    this.updateProgressDisplay();
+                    this.progressController.setPosition(state.position);
                 }
                 break;
 
@@ -361,8 +305,7 @@ class Player extends Component {
                 break;
 
             case 'volumeChanged':
-                this.volume = state.volume;
-                this.updateVolumeDisplay();
+                this.volumeController.setVolume(state.volume);
                 break;
 
             case 'trackChanged':
@@ -414,46 +357,14 @@ class Player extends Component {
         this.playbackStateUnsubscribe = null;
     }
 
-    updateProgress(e: MouseEvent): void {
-        const rect = this.progressTrack.getBoundingClientRect();
-        const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        this.progressFill.style.width = `${progress * 100}%`;
-        this.progressHandle.style.left = `${progress * 100}%`;
-
-        // 更新进度条位置和内容
-        const time = this.duration * progress;
-        this.progressTooltip.textContent = formatTime(time);
-        this.progressTooltip.style.left = `${progress * 100}%`;
-        this.progressTooltip.style.opacity = '1';
-    }
-
-    updateProgressTooltip(e: MouseEvent): void {
-        const rect = this.progressTrack.getBoundingClientRect();
-        const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        const time = this.duration * progress;
-
-        this.progressTooltip.textContent = formatTime(time);
-        this.progressTooltip.style.left = `${progress * 100}%`;
-        this.progressTooltip.style.opacity = '1';
-    }
-
-    updateVolume(e: MouseEvent | string | number): void {
-        let volume: number;
-        if (typeof e === 'string' || typeof e === 'number') {
-            volume = Math.max(0, Math.min(1, Number(e)));
-        } else {
-            const rect = this.volumeSlider.getBoundingClientRect();
-            volume = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        }
-        this.volumeFill.style.width = `${volume * 100}%`;
-        this.volumeHandle.style.left = `${volume * 100}%`;
-    }
-
     async updateTrackInfo(track: Track | null): Promise<void> {
+        this.currentTrack = track;
+
         if (track) {
             this.trackTitle.textContent = track.title || '未知歌曲';
             this.trackArtist.textContent = track.artist || '未知艺术家';
             this.duration = track.duration || 0;
+            this.progressController.setDuration(this.duration);
 
             // 在迷你模式下，立即清理旧状态
             if (this.isMiniMode) {
@@ -483,32 +394,19 @@ class Player extends Component {
     }
 
     updateProgressDisplay(): void {
-        if (!this.isDraggingProgress) {
-            const progress = this.duration > 0 ? (this.currentTime / this.duration) * 100 : 0;
-            this.progressFill.style.width = `${progress}%`;
-            this.progressHandle.style.left = `${progress}%`;
-        }
+        this.progressController.updateDisplay();
     }
 
     updateVolumeDisplay(): void {
-        const volumePercent = this.volume * 100;
-        this.volumeFill.style.width = `${volumePercent}%`;
-        this.volumeHandle.style.left = `${volumePercent}%`;
-        this.updateVolumeIcon();
+        this.volumeController.updateDisplay();
     }
 
     updateVolumeIcon(): void {
-        if (this.volumeHighIcon) this.volumeHighIcon.style.display = 'none';
-        if (this.volumeHalfIcon) this.volumeHalfIcon.style.display = 'none';
-        if (this.volumeMuteIcon) this.volumeMuteIcon.style.display = 'none';
+        this.volumeController.updateDisplay();
+    }
 
-        if (this.volume === 0) {
-            if (this.volumeMuteIcon) this.volumeMuteIcon.style.display = 'block';
-        } else if (this.volume <= 0.5) {
-            if (this.volumeHalfIcon) this.volumeHalfIcon.style.display = 'block';
-        } else {
-            if (this.volumeHighIcon) this.volumeHighIcon.style.display = 'block';
-        }
+    getVolume(): number {
+        return playbackController.getVolume();
     }
 
     updatePlayModeDisplay(mode: PlayMode): void {
@@ -539,10 +437,14 @@ class Player extends Component {
     async updateUI(): Promise<PlayerUpdateResult> {
         try {
             this.updatePlayButton();
-            this.updateProgressDisplay();
-            this.updateVolumeDisplay();
+            const state = playbackController.getState();
+            this.currentTime = state.position;
+            this.duration = state.duration;
+            this.progressController.setDuration(state.duration);
+            this.progressController.setPosition(state.position);
+            this.volumeController.setVolume(state.volume);
             this.updatePlayModeDisplay(playbackController.getPlayMode());
-            await this.initDesktopLyricsButton();
+            await this.desktopLyricsButtonController.initialize();
             await this.restoreMiniModeState();
             return {
                 status: true
@@ -635,98 +537,8 @@ class Player extends Component {
         }
     }
 
-    async toggleMute(): Promise<void> {
-        if (this.volume > 0) {
-            this.previousVolume = this.volume;
-            await playbackController.setVolume(0);
-        } else {
-            await playbackController.setVolume(this.previousVolume || 0.7);
-        }
-    }
-
-    // 桌面歌词控制方法
-    async toggleDesktopLyrics(): Promise<void> {
-        try {
-            const result = await desktopLyricsController.toggle();
-
-            if (result.success) {
-                this.updateDesktopLyricsButton(result.visible);
-
-                if (result.visible) {
-                    showToast('桌面歌词已显示', 'success');
-                } else {
-                    showToast('桌面歌词已隐藏', 'info');
-                }
-            } else {
-                showToast('桌面歌词操作失败', 'error');
-            }
-        } catch (error) {
-            showToast('桌面歌词操作异常', 'error');
-        }
-    }
-
-    updateDesktopLyricsButton(isVisible: boolean | undefined): void {
-        if (!this.desktopLyricsBtn) return;
-        if (isVisible) {
-            this.desktopLyricsBtn.classList.add('active');
-        } else {
-            this.desktopLyricsBtn.classList.remove('active');
-        }
-    }
-
     async updateDesktopLyricsButtonVisibility(enabled: boolean): Promise<void> {
-        if (!this.desktopLyricsBtn) {
-            return;
-        }
-
-        // 根据设置显示或隐藏按钮
-        if (enabled) {
-            // 启用时显示按钮并启用功能
-            this.desktopLyricsBtn.style.display = '';
-            this.desktopLyricsBtn.disabled = false;
-
-            // 如果启用，检查当前桌面歌词窗口状态
-            await this.checkDesktopLyricsWindowState();
-        } else {
-            // 禁用时隐藏按钮并禁用功能
-            this.desktopLyricsBtn.style.display = 'none';
-            this.desktopLyricsBtn.disabled = true;
-        }
-    }
-
-    // 检查桌面歌词窗口状态的独立方法
-    async checkDesktopLyricsWindowState(): Promise<void> {
-        try {
-            const isVisible = await desktopLyricsController.isVisible();
-            this.updateDesktopLyricsButton(isVisible);
-        } catch (error) {
-            console.error('❌ Player: 检查桌面歌词窗口状态失败:', error);
-        }
-    }
-
-    // 初始化桌面歌词按钮状态
-    async initDesktopLyricsButton(): Promise<void> {
-        if (!this.desktopLyricsBtn) return;
-
-        try {
-            // 检查设置中是否启用了桌面歌词功能
-            const settings = cacheManager.getLocalCache<MusicBoxSettingsCache>('musicbox-settings') || {};
-            // 如果设置中没有明确的值，默认启用；如果有明确的值，使用该值
-            const desktopLyricsEnabled = Object.prototype.hasOwnProperty.call(settings, 'desktopLyrics') ? settings.desktopLyrics === true : true;
-
-            console.log('🎵 Player: 初始化桌面歌词按钮，设置状态:', desktopLyricsEnabled, '(来源: CacheManager)');
-
-            // 首先设置按钮的显示/隐藏状态
-            await this.updateDesktopLyricsButtonVisibility(desktopLyricsEnabled);
-
-            // 如果功能启用，检查桌面歌词窗口的当前状态
-            if (desktopLyricsEnabled) {
-                const isVisible = await desktopLyricsController.isVisible();
-                this.updateDesktopLyricsButton(isVisible);
-            }
-        } catch (error) {
-            console.error('❌ Player: 初始化桌面歌词按钮状态失败:', error);
-        }
+        await this.desktopLyricsButtonController.updateVisibility(enabled);
     }
 
     destroy(): void {
@@ -742,8 +554,9 @@ class Player extends Component {
         this.isPlaying = false;
         this.currentTime = 0;
         this.duration = 0;
-        this.isDraggingProgress = false;
-        this.isDraggingVolume = false;
+        this.currentTrack = null;
+        this.progressController.reset();
+        this.volumeController.reset();
         this.removePlaybackStateSubscription();
         super.destroy();
     }

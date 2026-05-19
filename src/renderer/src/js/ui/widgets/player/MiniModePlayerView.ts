@@ -1,13 +1,9 @@
 import {mediaController} from "@js/features/media";
 import {playbackController} from "@js/features/playback";
 import type {Unsubscribe} from "@js/features/playback";
+import type {AddManagedDomListener, ManagedDomTarget, RemoveManagedDomListener} from "@ui/widgets/player/PlayerDomEvents";
 import type {LyricLine} from "@api/types/lyrics";
 import type {Track} from "@api/types/track";
-
-type ManagedDomTarget = EventTarget & {
-    addEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean): void;
-    removeEventListener(type: string, callback: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean): void;
-};
 
 interface MiniModeLyricWord {
     text: string;
@@ -24,17 +20,8 @@ interface MiniModePlayerViewOptions {
     rootElement: Element | null;
     trackCover: HTMLImageElement;
     miniModeButton: HTMLButtonElement | null;
-    addDomListener: (
-        element: ManagedDomTarget,
-        event: string,
-        handler: EventListenerOrEventListenerObject,
-        options?: AddEventListenerOptions | boolean
-    ) => void;
-    removeDomListener: (
-        element: ManagedDomTarget,
-        event: string,
-        handler: EventListenerOrEventListenerObject
-    ) => void;
+    addDomListener: AddManagedDomListener;
+    removeDomListener: RemoveManagedDomListener;
 }
 
 class MiniModePlayerView {

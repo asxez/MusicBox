@@ -23,7 +23,7 @@ export class PlaybackUIFacade {
     }
 
     getPlayerVolume(): number | null {
-        return this.app.components.player?.volume ?? null;
+        return this.app.components.player?.getVolume?.() ?? null;
     }
 
     async updateDesktopLyricsButtonVisibility(enabled: boolean): Promise<void> {
