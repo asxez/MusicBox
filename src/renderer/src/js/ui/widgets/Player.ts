@@ -5,7 +5,7 @@ import {cacheManager} from "@js/shared/cache";
 import {coverUpdateManager} from "@js/features/mediaAssets/service";
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@ui/base/Component";
-import {windowShellService} from "@js/features/appShell/service";
+import {miniModeWindowService} from "@js/features/appShell/service";
 import {desktopLyricsController} from "@js/features/desktopLyrics";
 import {mediaController} from "@js/features/media";
 import {playbackController} from "@js/features/playback";
@@ -39,11 +39,6 @@ interface PlayerUpdateResult {
 
 interface MusicBoxSettingsCache {
     desktopLyrics?: boolean;
-}
-
-interface WindowSizeCache {
-    width?: number;
-    height?: number;
 }
 
 class Player extends Component {
@@ -99,8 +94,6 @@ class Player extends Component {
     private miniModeAppContainer: Element | null = null;
     private miniModePositionChangeHandler: ((position: number) => void) | null;
     private miniModePositionUnsubscribe: Unsubscribe | null = null;
-    private miniModeResizeHandler: (() => void) | null = null;
-    private miniModeResizeGuardTimer: ReturnType<typeof setTimeout> | null = null;
     private playbackStateUnsubscribe: Unsubscribe | null = null;
 
     private _miniModeLyricsRafId: number | null;
@@ -667,7 +660,7 @@ class Player extends Component {
                 await this.exitMiniMode();
             }
 
-            cacheManager.setLocalCache('miniModeEnabled', this.isMiniMode);
+            miniModeWindowService.setPersistedMiniModeEnabled(this.isMiniMode);
         } catch (error) {
             console.error('❌ Player: 切换迷你模式失败:', error);
             showToast('迷你模式切换失败', 'error');
@@ -675,20 +668,10 @@ class Player extends Component {
     }
 
     async enterMiniMode(): Promise<void> {
-        // 调整窗口大小
-        const currentBounds = await windowShellService.getBounds();
-        const result = await windowShellService.setMiniModeWindowState({
-            enabled: true,
-            x: currentBounds?.x ?? 0,
-            y: currentBounds?.y ?? 0
-        });
-        if (!result.success) {
-            throw new Error(result.error || '设置迷你模式窗口状态失败');
-        }
+        await miniModeWindowService.enterMiniMode();
 
         // 添加迷你模式类
         document.body.classList.add('mini-mode');
-        this.startMiniModeResizeGuard();
 
         // 更新按钮状态
         if (this.miniModeButton) {
@@ -744,21 +727,11 @@ class Player extends Component {
 
     async exitMiniMode(): Promise<void> {
         this.removeMiniModeLyricsElement();
-        this.stopMiniModeResizeGuard();
 
         // 移除迷你模式类
         document.body.classList.remove('mini-mode');
 
-        // 恢复窗口
-        const {width, height} = this.getRestoredMainWindowSize();
-        const restoreResult = await windowShellService.setMiniModeWindowState({
-            enabled: false,
-            width,
-            height
-        });
-        if (!restoreResult.success) {
-            throw new Error(restoreResult.error || '恢复主窗口状态失败');
-        }
+        await miniModeWindowService.exitMiniMode();
 
         // 更新按钮状态
         if (this.miniModeButton) {
@@ -808,8 +781,7 @@ class Player extends Component {
     }
 
     async restoreMiniModeState(): Promise<void> {
-        const savedState = cacheManager.getLocalCache('miniModeEnabled');
-        if (savedState === true) {
+        if (miniModeWindowService.getPersistedMiniModeEnabled()) {
             this.isMiniMode = false;
             await this.toggleMiniMode();
         }
@@ -1035,75 +1007,6 @@ class Player extends Component {
         document.querySelectorAll('.mini-mode-lyrics').forEach((element) => {
             element.remove();
         });
-    }
-
-    getRestoredMainWindowSize(): {width: number; height: number} {
-        const savedSize = cacheManager.getLocalCache<WindowSizeCache | [number, number]>('mainWindow-size');
-        const width = Array.isArray(savedSize) ? savedSize[0] : savedSize?.width;
-        const height = Array.isArray(savedSize) ? savedSize[1] : savedSize?.height;
-
-        if (typeof width === 'number' && typeof height === 'number' && width >= 1080 && height >= 720) {
-            return {width, height};
-        }
-
-        if (savedSize) {
-            cacheManager.removeLocalCache('mainWindow-size');
-        }
-
-        return {width: 1440, height: 900};
-    }
-
-    startMiniModeResizeGuard(): void {
-        this.stopMiniModeResizeGuard();
-
-        this.miniModeResizeHandler = () => {
-            if (!this.isMiniMode) {
-                return;
-            }
-
-            if (this.miniModeResizeGuardTimer) {
-                clearTimeout(this.miniModeResizeGuardTimer);
-            }
-
-            this.miniModeResizeGuardTimer = setTimeout(() => {
-                void this.enforceMiniModeWindowBounds();
-            }, 80);
-        };
-
-        this.addEventListenerManaged(window, 'resize', this.miniModeResizeHandler);
-    }
-
-    stopMiniModeResizeGuard(): void {
-        if (this.miniModeResizeHandler) {
-            this.removeEventListenerManaged(window, 'resize', this.miniModeResizeHandler);
-            this.miniModeResizeHandler = null;
-        }
-
-        if (this.miniModeResizeGuardTimer) {
-            clearTimeout(this.miniModeResizeGuardTimer);
-            this.miniModeResizeGuardTimer = null;
-        }
-    }
-
-    async enforceMiniModeWindowBounds(): Promise<void> {
-        if (!this.isMiniMode) {
-            return;
-        }
-
-        try {
-            if (await windowShellService.isMaximized()) {
-                await windowShellService.unmaximize();
-            }
-
-            const bounds = await windowShellService.getBounds();
-            const x = bounds?.x ?? 0;
-            const y = bounds?.y ?? 0;
-            if (!bounds || bounds.width !== 400 || bounds.height !== 145) {
-                await windowShellService.setBounds({x, y, width: 400, height: 145});
-            }
-        } catch (error) {
-            console.warn('⚠️ Player: 迷你模式窗口尺寸守卫失败:', error);
-        }
     }
 
     // 迷你模式：更新歌词显示
@@ -1337,7 +1240,7 @@ class Player extends Component {
             this.clearMiniModeBackground();
         }
 
-        this.stopMiniModeResizeGuard();
+        miniModeWindowService.stopResizeGuard();
 
         if (this.miniModeMouseEnterHandler && this.miniModeMouseLeaveHandler && this.miniModeAppContainer) {
             this.removeEventListenerManaged(this.miniModeAppContainer, 'mouseenter', this.miniModeMouseEnterHandler);

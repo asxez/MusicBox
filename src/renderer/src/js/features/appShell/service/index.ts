@@ -1,6 +1,7 @@
 export {AppShellService, appShellService} from './AppShellService';
 export {AppInteractionService, appInteractionService} from './AppInteractionService';
 export {HardwareAccelerationShellService, hardwareAccelerationShellService} from './HardwareAccelerationShellService';
+export {MiniModeWindowService, miniModeWindowService} from './MiniModeWindowService';
 export {SettingsShellService, settingsShellService} from './SettingsShellService';
 export {SystemShellService, systemShellService} from './SystemShellService';
 export {TrayShellService, trayShellService} from './TrayShellService';
@@ -18,6 +19,7 @@ export type {
     HardwareAccelerationSettingsResult,
     OperationResult
 } from './HardwareAccelerationShellService';
+export type {RestoredMainWindowSize} from './MiniModeWindowService';
 export type {
     FolderSelectionResult,
     MainSettingsPayload,
