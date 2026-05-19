@@ -1,27 +1,56 @@
-import type {MusicBoxAPIEvents} from '@api/types/events';
 import type {PlaybackStateSnapshot, PlayMode} from '@api/types/playback';
 import type {WasapiShareMode} from '@api/types/settings';
 import type {Track} from '@api/types/track';
-import type {PlaybackState, Unsubscribe} from '../PlaybackStore';
+import type {PlaybackState, PlaybackStoreChange, Unsubscribe} from '../PlaybackStore';
 import type {AudioEngineManagerBridge, AudioEngineType} from './AudioEngineAdapter';
 import {playbackApiAdapter} from './PlaybackApiAdapter';
-
-export type PlaybackEventName =
-    | 'durationChanged'
-    | 'positionChanged'
-    | 'playbackStateChanged'
-    | 'volumeChanged'
-    | 'trackChanged'
-    | 'trackIndexChanged'
-    | 'playlistChanged'
-    | 'playModeChanged'
-    | 'audioEngineChanged';
-
-export type PlaybackEventHandler<K extends PlaybackEventName> = (payload: MusicBoxAPIEvents[K]) => void;
+import type {PlaybackEventHandler, PlaybackEventName} from './PlaybackRuntimePort';
 
 export class PlaybackService {
     getInitialState(): PlaybackState {
         return playbackApiAdapter.getInitialState();
+    }
+
+    syncStateFromRuntime(state: Readonly<PlaybackState>): PlaybackStoreChange[] {
+        const runtimeState = playbackApiAdapter.getInitialState();
+        const changes: PlaybackStoreChange[] = [];
+
+        if (state.currentTrack !== runtimeState.currentTrack) {
+            changes.push({type: 'trackChanged', payload: runtimeState.currentTrack});
+        }
+
+        if (state.currentIndex !== runtimeState.currentIndex) {
+            changes.push({type: 'trackIndexChanged', payload: runtimeState.currentIndex});
+        }
+
+        if (state.playlist !== runtimeState.playlist) {
+            changes.push({type: 'playlistChanged', payload: runtimeState.playlist});
+        }
+
+        if (state.isPlaying !== runtimeState.isPlaying) {
+            changes.push({
+                type: 'playbackStateChanged',
+                payload: runtimeState.isPlaying ? 'playing' : 'paused'
+            });
+        }
+
+        if (state.position !== runtimeState.position) {
+            changes.push({type: 'positionChanged', payload: runtimeState.position});
+        }
+
+        if (state.duration !== runtimeState.duration) {
+            changes.push({type: 'durationChanged', payload: runtimeState.duration});
+        }
+
+        if (state.volume !== runtimeState.volume) {
+            changes.push({type: 'volumeChanged', payload: runtimeState.volume});
+        }
+
+        if (state.playMode !== runtimeState.playMode) {
+            changes.push({type: 'playModeChanged', payload: runtimeState.playMode});
+        }
+
+        return changes;
     }
 
     async play(): Promise<boolean> {

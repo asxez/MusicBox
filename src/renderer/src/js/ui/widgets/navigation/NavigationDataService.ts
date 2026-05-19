@@ -1,7 +1,8 @@
 import {appShellController} from "@js/features/appShell";
 import {libraryController} from "@js/features/library";
+import {networkDriveManagementService} from "@js/features/networkDrive/service";
 import type {Result, Unsubscribe} from "@api/types/common";
-import type {MountedNetworkDrive, NetworkDriveConfig} from "@api/types/electron";
+import type {MountedNetworkDrive} from "@api/types/electron";
 import type {Playlist, Track} from "@api/types/library";
 
 class NavigationDataService {
@@ -14,11 +15,11 @@ class NavigationDataService {
     }
 
     onNetworkDriveConnected(handler: () => void | Promise<void>): Unsubscribe {
-        return appShellController.onNetworkDriveConnected(handler as (driveId: string, config: NetworkDriveConfig) => void | Promise<void>);
+        return networkDriveManagementService.onConnected(handler);
     }
 
     onNetworkDriveDisconnected(handler: () => void | Promise<void>): Unsubscribe {
-        return appShellController.onNetworkDriveDisconnected(handler as (driveId: string, config: NetworkDriveConfig) => void | Promise<void>);
+        return networkDriveManagementService.onDisconnected(handler);
     }
 
     async minimizeWindow(): Promise<void> {
@@ -46,11 +47,11 @@ class NavigationDataService {
     }
 
     async getMountedNetworkDrives(): Promise<MountedNetworkDrive[]> {
-        return appShellController.getMountedNetworkDrives();
+        return networkDriveManagementService.getMountedDrives();
     }
 
     async refreshNetworkDrive(driveId: string): Promise<boolean> {
-        return appShellController.refreshNetworkDriveConnection(driveId);
+        return networkDriveManagementService.refreshConnection(driveId);
     }
 }
 

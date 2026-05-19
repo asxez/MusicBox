@@ -1,5 +1,6 @@
-import {networkDriveGateway, settingsSystemGateway, trayGateway, windowGateway} from '@js/infrastructure/electron';
+import {settingsSystemGateway, trayGateway, windowGateway} from '@js/infrastructure/electron';
 import {systemGateway} from '@js/infrastructure/electron/SystemGateway';
+import {networkDriveDetailService, networkDriveManagementService} from '@js/features/networkDrive/service';
 import {cacheManager} from '@js/shared/cache';
 import {showToast} from '@js/utils';
 import {type GitHubRelease, updateService} from './UpdateService';
@@ -270,55 +271,47 @@ export class AppShellService {
     }
 
     async testNetworkDriveConnection(config: NetworkDriveConfig): Promise<boolean> {
-        return await networkDriveGateway.testConnection(config);
+        return await networkDriveManagementService.testConnection(config);
     }
 
     async mountNetworkDrive(config: NetworkDriveConfig): Promise<boolean> {
-        if (config.type === 'smb') {
-            return await networkDriveGateway.mountSMB(config);
-        }
-
-        if (config.type === 'webdav') {
-            return await networkDriveGateway.mountWebDAV(config);
-        }
-
-        return false;
+        return await networkDriveManagementService.mount(config);
     }
 
     async getMountedNetworkDrives(): Promise<MountedNetworkDrive[]> {
-        return await networkDriveGateway.getMountedDrives();
+        return await networkDriveManagementService.getMountedDrives();
     }
 
     async getNetworkDriveStatus(driveId: string): Promise<NetworkDriveStatus | null> {
-        return await networkDriveGateway.getStatus(driveId);
+        return await networkDriveDetailService.getStatus(driveId);
     }
 
     async getNetworkDriveDirectoryStructure(driveId: string, path: string): Promise<NetworkDriveDirectoryResult> {
-        return await networkDriveGateway.getDirectoryStructure(driveId, path);
+        return await networkDriveDetailService.getDirectoryStructure(driveId, path);
     }
 
     async refreshNetworkDriveConnection(driveId: string): Promise<boolean> {
-        return await networkDriveGateway.refreshConnection(driveId);
+        return await networkDriveManagementService.refreshConnection(driveId);
     }
 
     async refreshNetworkDriveConnections(): Promise<boolean> {
-        return await networkDriveGateway.refreshConnections();
+        return await networkDriveManagementService.refreshConnections();
     }
 
     async unmountNetworkDrive(driveId: string): Promise<boolean> {
-        return await networkDriveGateway.unmount(driveId);
+        return await networkDriveManagementService.unmount(driveId);
     }
 
     onNetworkDriveConnected(handler: (driveId: string, config: NetworkDriveConfig) => void | Promise<void>): Unsubscribe {
-        return networkDriveGateway.onConnected(handler);
+        return networkDriveManagementService.onConnected(handler);
     }
 
     onNetworkDriveDisconnected(handler: (driveId: string, config: NetworkDriveConfig) => void | Promise<void>): Unsubscribe {
-        return networkDriveGateway.onDisconnected(handler);
+        return networkDriveManagementService.onDisconnected(handler);
     }
 
     onNetworkDriveError(handler: (driveId: string, error: string) => void): Unsubscribe {
-        return networkDriveGateway.onError(handler);
+        return networkDriveManagementService.onError(handler);
     }
 
     async getMusicFolders(): Promise<string[]> {

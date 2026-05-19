@@ -211,6 +211,40 @@ class PlaybackController {
             this.store.setPlayMode(mode);
         });
     }
+
+    syncStateFromRuntime(): void {
+        const changes = playbackService.syncStateFromRuntime(this.store.getState());
+        changes.forEach((change) => {
+            switch (change.type) {
+                case 'trackChanged':
+                    this.store.setTrack(change.payload);
+                    break;
+                case 'trackIndexChanged':
+                    this.store.setTrackIndex(change.payload);
+                    break;
+                case 'playlistChanged':
+                    this.store.setPlaylist(change.payload);
+                    break;
+                case 'playbackStateChanged':
+                    this.store.setPlaybackState(change.payload);
+                    break;
+                case 'positionChanged':
+                    this.store.setPosition(change.payload);
+                    break;
+                case 'durationChanged':
+                    this.store.setDuration(change.payload);
+                    break;
+                case 'volumeChanged':
+                    this.store.setVolume(change.payload);
+                    break;
+                case 'playModeChanged':
+                    this.store.setPlayMode(change.payload);
+                    break;
+                default:
+                    break;
+            }
+        });
+    }
 }
 
 export const playbackController = new PlaybackController();

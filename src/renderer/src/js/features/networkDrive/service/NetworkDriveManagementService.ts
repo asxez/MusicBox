@@ -1,4 +1,4 @@
-import {appShellController} from "@js/features/appShell";
+import {networkDriveGateway} from "@js/infrastructure/electron";
 import {libraryController} from "@js/features/library";
 import type {Unsubscribe} from "@api/types/common";
 import type {ScanProgress} from "@api/types/events";
@@ -6,15 +6,23 @@ import type {MountedNetworkDrive, NetworkDriveConfig} from "@api/types/electron"
 
 class NetworkDriveManagementService {
     testConnection(config: NetworkDriveConfig): Promise<boolean> {
-        return appShellController.testNetworkDriveConnection(config);
+        return networkDriveGateway.testConnection(config);
     }
 
     mount(config: NetworkDriveConfig): Promise<boolean> {
-        return appShellController.mountNetworkDrive(config);
+        if (config.type === 'smb') {
+            return networkDriveGateway.mountSMB(config);
+        }
+
+        if (config.type === 'webdav') {
+            return networkDriveGateway.mountWebDAV(config);
+        }
+
+        return Promise.resolve(false);
     }
 
     getMountedDrives(): Promise<MountedNetworkDrive[]> {
-        return appShellController.getMountedNetworkDrives();
+        return networkDriveGateway.getMountedDrives();
     }
 
     scanNetworkDrive(driveId: string, relativePath = '/'): Promise<boolean> {
@@ -22,23 +30,27 @@ class NetworkDriveManagementService {
     }
 
     unmount(driveId: string): Promise<boolean> {
-        return appShellController.unmountNetworkDrive(driveId);
+        return networkDriveGateway.unmount(driveId);
     }
 
     refreshConnections(): Promise<boolean> {
-        return appShellController.refreshNetworkDriveConnections();
+        return networkDriveGateway.refreshConnections();
+    }
+
+    refreshConnection(driveId: string): Promise<boolean> {
+        return networkDriveGateway.refreshConnection(driveId);
     }
 
     onConnected(handler: (driveId: string, config: NetworkDriveConfig) => void | Promise<void>): Unsubscribe {
-        return appShellController.onNetworkDriveConnected(handler);
+        return networkDriveGateway.onConnected(handler);
     }
 
     onDisconnected(handler: (driveId: string, config: NetworkDriveConfig) => void | Promise<void>): Unsubscribe {
-        return appShellController.onNetworkDriveDisconnected(handler);
+        return networkDriveGateway.onDisconnected(handler);
     }
 
     onError(handler: (driveId: string, error: string) => void): Unsubscribe {
-        return appShellController.onNetworkDriveError(handler);
+        return networkDriveGateway.onError(handler);
     }
 
     onScanProgress(handler: (progress: ScanProgress) => void): Unsubscribe {

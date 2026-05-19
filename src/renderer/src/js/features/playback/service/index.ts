@@ -6,4 +6,4 @@ export {PlaybackService, playbackService} from './PlaybackService';
 export {PlaybackStateSynchronizer} from './PlaybackStateSynchronizer';
 export type {AudioEngineManagerBridge, AudioEngineType} from './AudioEngineAdapter';
 export type {AudioEngineBridge, AudioEngineState, TrackSource} from './audioEngine';
-export type {PlaybackEventHandler, PlaybackEventName} from './PlaybackService';
+export type {PlaybackEventHandler, PlaybackEventName, PlaybackRuntimePort} from './PlaybackRuntimePort';
