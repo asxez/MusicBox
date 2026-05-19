@@ -1,5 +1,5 @@
 import {audioDriverController} from '@js/features/audioDriver';
-import {WebAudioEngine} from '@services/audio/WebAudioEngine';
+import {WebAudioEngine} from './webAudio/WebAudioEngine';
 import type {AudioEngineBridge, AudioEngineConstructor, AudioEngineType} from './AudioEngineContract';
 
 class AudioEngineFactory {
@@ -7,7 +7,7 @@ class AudioEngineFactory {
 
     async ensureWasapiAvailable(): Promise<boolean> {
         try {
-            const {default: WasapiEngine} = await import('@services/audio/WasapiEngine') as {default: AudioEngineConstructor};
+            const {default: WasapiEngine} = await import('./wasapi/WasapiEngine') as {default: AudioEngineConstructor};
             this.WasapiEngine = WasapiEngine;
 
             if (!audioDriverController.isNativeAudioAvailable()) {

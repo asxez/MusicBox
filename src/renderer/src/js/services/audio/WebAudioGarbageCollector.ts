@@ -1,8 +1,2 @@
-async function forceWebAudioGarbageCollection(): Promise<void> {
-    const maybeWindowWithGc = window as Window & {gc?: () => void};
-    if (typeof maybeWindowWithGc.gc === 'function') {
-        maybeWindowWithGc.gc();
-    }
-}
+export * from '@js/features/playback/service/audioEngine/webAudio/WebAudioGarbageCollector';
 
-export {forceWebAudioGarbageCollection};
