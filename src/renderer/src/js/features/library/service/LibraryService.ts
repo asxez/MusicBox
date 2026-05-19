@@ -1,10 +1,10 @@
-import {libraryAPI} from '@api/modules';
 import type {Result} from '@api/types/common';
 import type {CacheValidationResult, MusicBoxAPIEvents, ScanProgress} from '@api/types/events';
 import type {CacheStatistics, GetTracksOptions, Playlist, Track} from '@api/types/library';
 import {appEventController} from '@js/features/events';
 import {libraryGateway} from '@js/infrastructure/electron';
 import {LibraryBridge} from './LibraryBridge';
+import {libraryDataService} from './LibraryDataService';
 
 type Emit = <K extends keyof MusicBoxAPIEvents>(event: K, data: MusicBoxAPIEvents[K]) => void;
 type LibraryUpdatedHandler = (tracks: Track[]) => void | Promise<void>;
@@ -35,11 +35,11 @@ export class LibraryService {
     }
 
     async getTracks(options: GetTracksOptions = {}): Promise<Track[]> {
-        return await libraryAPI.getTracks(options);
+        return await libraryDataService.getTracks(options);
     }
 
     async hasCachedLibrary(): Promise<boolean> {
-        return await libraryAPI.hasCachedLibrary();
+        return await libraryDataService.hasCachedLibrary();
     }
 
     async loadCachedTracks(): Promise<Track[]> {
@@ -47,11 +47,11 @@ export class LibraryService {
     }
 
     async getCacheStatistics(): Promise<CacheStatistics | null> {
-        return await libraryAPI.getCacheStatistics();
+        return await libraryDataService.getCacheStatistics();
     }
 
     async searchLibrary(query: string): Promise<Track[]> {
-        return await libraryAPI.searchLibrary(query);
+        return await libraryDataService.searchLibrary(query);
     }
 
     async scanDirectory(directoryPath: string): Promise<boolean> {
@@ -71,7 +71,7 @@ export class LibraryService {
     }
 
     async getTrackMetadata(filePath: string): Promise<Partial<Track> | null> {
-        return await libraryAPI.getTrackMetadata(filePath);
+        return await libraryDataService.getTrackMetadata(filePath);
     }
 
     async addTrackToLibrary(track: Partial<Track> | unknown): Promise<AddTrackResult> {
@@ -79,7 +79,7 @@ export class LibraryService {
     }
 
     async removeTrack(trackFileId: string): Promise<Result> {
-        return await libraryAPI.removeTrack(trackFileId);
+        return await libraryDataService.removeTrack(trackFileId);
     }
 
     async validateCache(): Promise<CacheValidationResult | null> {
@@ -95,59 +95,59 @@ export class LibraryService {
     }
 
     async clearIgnoreList(): Promise<Result> {
-        return await libraryGateway.clearIgnoreList();
+        return await libraryDataService.clearIgnoreList();
     }
 
     async getPlaylists(): Promise<Playlist[]> {
-        return await libraryAPI.getPlaylists();
+        return await libraryDataService.getPlaylists();
     }
 
     async createPlaylist(name: string, description = ''): Promise<{success: boolean; playlist?: Playlist; error?: string}> {
-        return await libraryAPI.createPlaylist(name, description);
+        return await libraryDataService.createPlaylist(name, description);
     }
 
     async deletePlaylist(playlistId: string): Promise<Result> {
-        return await libraryAPI.deletePlaylist(playlistId);
+        return await libraryDataService.deletePlaylist(playlistId);
     }
 
     async renamePlaylist(playlistId: string, newName: string): Promise<{success: boolean; playlist?: Playlist; error?: string}> {
-        return await libraryAPI.renamePlaylist(playlistId, newName);
+        return await libraryDataService.renamePlaylist(playlistId, newName);
     }
 
     async addToPlaylist(playlistId: string, trackIds: string | string[]): Promise<Result> {
-        return await libraryAPI.addToPlaylist(playlistId, trackIds);
+        return await libraryDataService.addToPlaylist(playlistId, trackIds);
     }
 
     async removeFromPlaylist(playlistId: string, trackIds: string | string[]): Promise<Result> {
-        return await libraryAPI.removeFromPlaylist(playlistId, trackIds);
+        return await libraryDataService.removeFromPlaylist(playlistId, trackIds);
     }
 
     async getPlaylistDetail(playlistId: string): Promise<{success: boolean; playlist?: Playlist; tracks?: Track[]; error?: string}> {
-        return await libraryAPI.getPlaylistDetail(playlistId);
+        return await libraryDataService.getPlaylistDetail(playlistId);
     }
 
     async scanNetworkDrive(driveId: string | number, relativePath = '/'): Promise<boolean> {
-        return await libraryAPI.scanNetworkDrive(driveId, relativePath);
+        return await this.bridge.scanNetworkDrive(driveId, relativePath);
     }
 
     async scanSingleFile(networkPath: string): Promise<{success: boolean; track?: Track; error?: string; isNew?: boolean}> {
-        return await libraryAPI.scanSingleFile(networkPath);
+        return await libraryDataService.scanSingleFile(networkPath);
     }
 
     async scanDirectoryForFiles(path: string): Promise<{success: boolean; files: unknown[]; error?: string}> {
-        return await libraryAPI.scanDirectoryForFiles(path);
+        return await libraryDataService.scanDirectoryForFiles(path);
     }
 
     async getTracksByDrive(driveId: string): Promise<Track[]> {
-        return await libraryAPI.getTracksByDrive(driveId);
+        return await libraryDataService.getTracksByDrive(driveId);
     }
 
     async removeTracksByDrive(driveId: string): Promise<Result> {
-        return await libraryAPI.removeTracksByDrive(driveId);
+        return await libraryDataService.removeTracksByDrive(driveId);
     }
 
     async updateTrackMetadata(data: unknown): Promise<Result & {updatedMetadata?: Track}> {
-        return await libraryAPI.updateTrackMetadata(data);
+        return await libraryDataService.updateTrackMetadata(data);
     }
 
     async getPlaylistCover(playlistId: string): Promise<PlaylistCoverResult> {

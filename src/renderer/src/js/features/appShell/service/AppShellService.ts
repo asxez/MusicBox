@@ -1,9 +1,9 @@
-import {windowAPI} from '@api/modules/WindowAPI';
 import {networkDriveGateway, settingsSystemGateway, trayGateway, windowGateway} from '@js/infrastructure/electron';
 import {systemGateway} from '@js/infrastructure/electron/SystemGateway';
 import {cacheManager} from '@js/shared/cache';
 import {showToast} from '@js/utils';
 import {type GitHubRelease, updateService} from './UpdateService';
+import {windowShellService} from './WindowShellService';
 import type {Result, Unsubscribe} from '@api/types/common';
 import type {
     MountedNetworkDrive,
@@ -100,47 +100,47 @@ export class AppShellService {
     private readonly showUpdateDetailsHandlers = new Set<ShowUpdateDetailsHandler>();
 
     initWindowStateManagement(): void {
-        windowAPI.initWindowStateManagement();
+        windowShellService.initWindowStateManagement();
     }
 
     disposeWindowStateManagement(): void {
-        windowAPI.disposeWindowStateManagement();
+        windowShellService.disposeWindowStateManagement();
     }
 
     onWindowMaximizedChanged(handler: (isMaximized: boolean) => void): Unsubscribe {
-        return windowAPI.onMaximizedChanged(handler);
+        return windowShellService.onMaximizedChanged(handler);
     }
 
     async minimizeWindow(): Promise<void> {
-        await windowAPI.minimize();
+        await windowShellService.minimize();
     }
 
     async toggleMaximizeWindow(): Promise<void> {
-        await windowAPI.maximize();
+        await windowShellService.maximize();
     }
 
     async closeWindow(): Promise<void> {
-        await windowAPI.close();
+        await windowShellService.close();
     }
 
     async isWindowMaximized(): Promise<boolean> {
-        return await windowAPI.isMaximized();
+        return await windowShellService.isMaximized();
     }
 
     async unmaximizeWindow(): Promise<void> {
-        await windowAPI.unmaximize();
+        await windowShellService.unmaximize();
     }
 
     async getWindowBounds(): Promise<WindowBoundsResult | null> {
-        return await windowAPI.getBounds();
+        return await windowShellService.getBounds();
     }
 
     async setWindowBounds(bounds: WindowBounds): Promise<SetBoundsResult> {
-        return await windowAPI.setBounds(bounds);
+        return await windowShellService.setBounds(bounds);
     }
 
     async setMiniModeWindowState(options: MiniModeWindowStateOptions): Promise<MiniModeWindowStateResult> {
-        return await windowAPI.setMiniModeWindowState(options);
+        return await windowShellService.setMiniModeWindowState(options);
     }
 
     async getWindowPosition(): Promise<[number, number]> {

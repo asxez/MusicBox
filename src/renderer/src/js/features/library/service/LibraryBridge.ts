@@ -1,8 +1,8 @@
 import {libraryGateway} from '@js/infrastructure/electron';
-import {libraryAPI} from '@api/modules';
 import type {Result} from '@api/types/common';
 import type {CacheValidationResult, MusicBoxAPIEvents, ScanProgress} from '@api/types/events';
 import type {Track} from '@api/types/track';
+import {libraryDataService} from './LibraryDataService';
 
 type Emit = <K extends keyof MusicBoxAPIEvents>(event: K, data: MusicBoxAPIEvents[K]) => void;
 
@@ -33,9 +33,9 @@ export class LibraryBridge {
 
     async scanDirectory(path: string): Promise<boolean> {
         try {
-            const result = await libraryGateway.scanDirectory(path);
+            const result = await libraryDataService.scanDirectory(path);
             if (result) {
-                const tracks = await libraryAPI.getTracks();
+                const tracks = await libraryDataService.getTracks();
                 this.emit('libraryUpdated', tracks);
             }
             return result;
@@ -47,9 +47,9 @@ export class LibraryBridge {
 
     async scanNetworkDrive(driveId: string | number, relativePath = '/'): Promise<boolean> {
         try {
-            const result = await libraryGateway.scanNetworkDrive(driveId, relativePath);
+            const result = await libraryDataService.scanNetworkDrive(driveId, relativePath);
             if (result) {
-                const tracks = await libraryAPI.getTracks();
+                const tracks = await libraryDataService.getTracks();
                 this.emit('libraryUpdated', tracks);
             }
             return result;
@@ -61,9 +61,9 @@ export class LibraryBridge {
 
     async addTrackToLibrary(audioFile: Partial<Track> | unknown): Promise<{success: boolean; track?: Track; error?: string; isNew?: boolean}> {
         try {
-            const result = await libraryGateway.addTrackToLibrary(audioFile);
+            const result = await libraryDataService.addTrackToLibrary(audioFile);
             if (result && result.success) {
-                const tracks = await libraryAPI.getTracks();
+                const tracks = await libraryDataService.getTracks();
                 this.emit('libraryUpdated', tracks);
             }
             return result;
@@ -75,7 +75,7 @@ export class LibraryBridge {
 
     async loadCachedTracks(): Promise<Track[]> {
         try {
-            const tracks = await libraryGateway.loadCachedTracks();
+            const tracks = await libraryDataService.loadCachedTracks();
             if (tracks && tracks.length > 0) {
                 return tracks;
             }
@@ -118,7 +118,7 @@ export class LibraryBridge {
 
     async clearCache(): Promise<boolean> {
         try {
-            const success = await libraryGateway.clearCache();
+            const success = await libraryDataService.clearCache();
             if (success) {
                 this.emit('libraryUpdated', []);
                 return true;
@@ -132,7 +132,7 @@ export class LibraryBridge {
     }
 
     async updatePlaylistCover(playlistId: string, imagePath: string): Promise<Result> {
-        const result = await libraryGateway.updatePlaylistCover(playlistId, imagePath);
+        const result = await libraryDataService.updatePlaylistCover(playlistId, imagePath);
         if (result.success) {
             this.emit('playlistCoverUpdated', {playlistId, imagePath});
             return {success: true};
@@ -142,7 +142,7 @@ export class LibraryBridge {
     }
 
     async getPlaylistCover(playlistId: string): Promise<{success: boolean; coverPath?: string; error?: string}> {
-        const result = await libraryGateway.getPlaylistCover(playlistId);
+        const result = await libraryDataService.getPlaylistCover(playlistId);
         if (result.success) {
             return {success: true, coverPath: result.coverPath};
         }
@@ -151,7 +151,7 @@ export class LibraryBridge {
     }
 
     async removePlaylistCover(playlistId: string): Promise<Result> {
-        const result = await libraryGateway.removePlaylistCover(playlistId);
+        const result = await libraryDataService.removePlaylistCover(playlistId);
         if (result.success) {
             this.emit('playlistCoverRemoved', {playlistId});
             return {success: true};
