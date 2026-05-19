@@ -1,7 +1,7 @@
 import {AppUIFacade} from "@js/app/runtime/AppUIFacade";
 import type {AppComponentPort, AppNotificationPort} from "@js/app/runtime/AppRuntimePorts";
 import type {ComponentMap} from "@js/app/runtime/components/ComponentTypes";
-import {appShellController} from "@js/features/appShell";
+import {updateNotificationService} from "@js/features/appShell/service";
 import {playbackController} from "@js/features/playback";
 import {trackCoverDisplayPreferenceService} from "@js/features/settings/service";
 import {settingsExtensionNavigationService} from "@js/features/settings/service";
@@ -71,7 +71,7 @@ export class ComponentEventBinder {
             app: this.ports.settings,
             integrations: {
                 onShowUpdateDetails: (handler) => {
-                    appShellController.onShowUpdateDetails(handler);
+                    updateNotificationService.onShowUpdateDetails(handler);
                 },
                 onNavigateToSettingsSection: (handler) => {
                     settingsExtensionNavigationService.onNavigate(handler);

@@ -5,7 +5,7 @@ import {cacheManager} from "@js/shared/cache";
 import {coverUpdateManager} from "@js/features/mediaAssets/service";
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@ui/base/Component";
-import {appShellController} from "@js/features/appShell";
+import {windowShellService} from "@js/features/appShell/service";
 import {desktopLyricsController} from "@js/features/desktopLyrics";
 import {mediaController} from "@js/features/media";
 import {playbackController} from "@js/features/playback";
@@ -676,8 +676,8 @@ class Player extends Component {
 
     async enterMiniMode(): Promise<void> {
         // 调整窗口大小
-        const currentBounds = await appShellController.getWindowBounds();
-        const result = await appShellController.setMiniModeWindowState({
+        const currentBounds = await windowShellService.getBounds();
+        const result = await windowShellService.setMiniModeWindowState({
             enabled: true,
             x: currentBounds?.x ?? 0,
             y: currentBounds?.y ?? 0
@@ -751,7 +751,7 @@ class Player extends Component {
 
         // 恢复窗口
         const {width, height} = this.getRestoredMainWindowSize();
-        const restoreResult = await appShellController.setMiniModeWindowState({
+        const restoreResult = await windowShellService.setMiniModeWindowState({
             enabled: false,
             width,
             height
@@ -1091,15 +1091,15 @@ class Player extends Component {
         }
 
         try {
-            if (await appShellController.isWindowMaximized()) {
-                await appShellController.unmaximizeWindow();
+            if (await windowShellService.isMaximized()) {
+                await windowShellService.unmaximize();
             }
 
-            const bounds = await appShellController.getWindowBounds();
+            const bounds = await windowShellService.getBounds();
             const x = bounds?.x ?? 0;
             const y = bounds?.y ?? 0;
             if (!bounds || bounds.width !== 400 || bounds.height !== 145) {
-                await appShellController.setWindowBounds({x, y, width: 400, height: 145});
+                await windowShellService.setBounds({x, y, width: 400, height: 145});
             }
         } catch (error) {
             console.warn('⚠️ Player: 迷你模式窗口尺寸守卫失败:', error);

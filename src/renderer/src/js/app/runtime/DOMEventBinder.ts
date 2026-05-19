@@ -1,4 +1,4 @@
-import {appShellController} from "@js/features/appShell";
+import {trayShellService, windowShellService} from "@js/features/appShell/service";
 import type {DOMEventBindingHost} from './AppRuntimePorts';
 import type {ManagedDOMListener} from '@js/shared/types/AppContracts';
 
@@ -24,7 +24,7 @@ export class DOMEventBinder {
     }
 
     dispose(): void {
-        appShellController.disposeWindowStateManagement();
+        windowShellService.disposeWindowStateManagement();
 
         this.eventListeners.forEach(({element, event, handler}) => {
             try {
@@ -41,8 +41,8 @@ export class DOMEventBinder {
             await app.cleanup();
         });
 
-        appShellController.initWindowStateManagement();
-        await appShellController.initSystemTray();
+        windowShellService.initWindowStateManagement();
+        await trayShellService.initSystemTray();
 
         app.initKeyboardShortcuts();
         await app.initGlobalShortcuts();

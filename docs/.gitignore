@@ -3,4 +3,4 @@ node_modules
 .vitepress/cache
 .DS_Store
 *.log
-RendererArchitectureRefactorPlan.md
+renderer-architecture-refactor.md

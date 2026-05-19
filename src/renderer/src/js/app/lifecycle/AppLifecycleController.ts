@@ -1,4 +1,4 @@
-import {appShellController} from '@js/features/appShell';
+import {updateNotificationService} from '@js/features/appShell/service';
 import {cacheManager} from '@js/shared/cache';
 import type {AppUIFacade} from '@js/app/runtime/AppUIFacade';
 import type {PlayMode} from '@api/types/playback';
@@ -118,7 +118,7 @@ export class AppLifecycleController {
 
     private scheduleUpdateCheck(): void {
         setTimeout(() => {
-            appShellController.autoCheckForUpdates();
+            updateNotificationService.autoCheckForUpdates();
         }, 2000);
     }
 }

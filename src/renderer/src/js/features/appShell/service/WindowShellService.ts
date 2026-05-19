@@ -251,6 +251,15 @@ export class WindowShellService {
         );
     }
 
+    async toggleMaximize(): Promise<void> {
+        const maximized = await this.isMaximized();
+        if (maximized) {
+            await this.unmaximize();
+        } else {
+            await this.maximize();
+        }
+    }
+
     async close(): Promise<void> {
         await this.callGateway(
             () => windowGateway.close(),

@@ -55,7 +55,7 @@ export class AppShellService {
     }
 
     async toggleMaximizeWindow(): Promise<void> {
-        await windowShellService.maximize();
+        await windowShellService.toggleMaximize();
     }
 
     async closeWindow(): Promise<void> {
