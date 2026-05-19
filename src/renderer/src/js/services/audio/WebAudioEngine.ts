@@ -7,8 +7,8 @@ import {
     getTrackTitle,
     type AudioEngineState,
     type TrackSource
-} from '@services/audio/domain';
-import WebAudioEqualizer from "@services/audio/WebAudioEqualizer";
+} from '@js/features/playback/service/audioEngine';
+import WebAudioEqualizer from "@js/features/equalizer/service/WebAudioEqualizer";
 import WebAudioCurrentTrackStore from "@services/audio/WebAudioCurrentTrackStore";
 import {forceWebAudioGarbageCollection} from "@services/audio/WebAudioGarbageCollector";
 import WebAudioMixerController from "@services/audio/WebAudioMixerController";

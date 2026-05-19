@@ -1,5 +1,5 @@
 import type {Track} from '@api/types/track';
-import type {AudioEngineState} from '@services/audio/domain';
+import type {AudioEngineState} from './audioEngine';
 import type {AudioEngineManagerBridge} from './AudioEngineAdapter';
 
 type PlaybackState = {

@@ -3,11 +3,11 @@
  */
 
 import {audioDriverController} from "@js/features/audioDriver";
+import ParametricEqualizer from "@js/features/equalizer/service/ParametricEqualizer";
+import WasapiEqualizer from "@js/features/equalizer/service/WasapiEqualizer";
 import {libraryController} from "@js/features/library";
+import {getTrackFilePath, type AudioEngineState, type AudioTrack, type TrackSource} from "@js/features/playback/service/audioEngine";
 import {cacheManager} from "@js/shared/cache";
-import {getTrackFilePath, type AudioEngineState, type AudioTrack, type TrackSource} from "@services/audio/domain";
-import ParametricEqualizer from "@services/audio/ParametricEqualizer";
-import WasapiEqualizer from "@services/audio/WasapiEqualizer";
 import type {MusicBoxSettings} from "@api/types/settings";
 
 type WasapiShareMode = 'exclusive' | 'shared';

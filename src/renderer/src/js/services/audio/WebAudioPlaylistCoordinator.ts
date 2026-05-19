@@ -4,7 +4,7 @@ import {
     getTrackTitle,
     normalizeTrack,
     type TrackSource
-} from '@services/audio/domain';
+} from '@js/features/playback/service/audioEngine';
 import type WebAudioPreloadCoordinator from './WebAudioPreloadCoordinator';
 import type {WebAudioTrack} from './WebAudioTypes';
 

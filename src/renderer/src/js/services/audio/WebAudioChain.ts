@@ -1,4 +1,4 @@
-import type WebAudioEqualizer from './WebAudioEqualizer';
+import type WebAudioEqualizer from '@js/features/equalizer/service/WebAudioEqualizer';
 
 type WebAudioChainOptions = {
     audioContext: AudioContext;

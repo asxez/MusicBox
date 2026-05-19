@@ -1,5 +1,5 @@
 import {webAudioChain} from './WebAudioChain';
-import WebAudioEqualizer from './WebAudioEqualizer';
+import WebAudioEqualizer from '@js/features/equalizer/service/WebAudioEqualizer';
 
 type VolumeChangedCallback = ((volume: number) => void) | null;
 type EqualizerChangedCallback = ((state: {enabled: boolean}) => void) | null;

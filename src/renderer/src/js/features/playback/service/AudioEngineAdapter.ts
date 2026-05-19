@@ -1,7 +1,7 @@
 import {cacheManager} from '@js/shared/cache';
-import AudioEngineManager from '@services/audio/AudioEngineManager';
 import type {MusicBoxSettings, WasapiShareMode} from '@api/types/settings';
-import type {AudioEngineState} from '@services/audio/domain';
+import {AudioEngineManager} from './audioEngine';
+import type {AudioEngineState} from './audioEngine';
 
 export type AudioEngineType = 'webaudio' | 'wasapi';
 

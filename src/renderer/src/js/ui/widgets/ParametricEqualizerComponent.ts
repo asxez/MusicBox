@@ -7,8 +7,8 @@ import type {AudioEngineManagerBridge} from "@js/features/equalizer/service";
 import {Component} from "@ui/base/Component";
 import {showInputDialog} from "@js/utils/InputDialog";
 import {appInteractionService} from "@js/features/appShell/service";
-import type ParametricEqualizer from "@services/audio/ParametricEqualizer";
-import type {ParametricFilterType} from "@services/audio/ParametricEqualizerPresets";
+import type ParametricEqualizer from "@js/features/equalizer/service/ParametricEqualizer";
+import type {ParametricFilterType} from "@js/features/equalizer/service/ParametricEqualizerPresets";
 import type {AudioEngineChangedEvent} from "@api/types/events";
 
 type ParametricBand = ReturnType<ParametricEqualizer["getBands"]>[number];

@@ -3,7 +3,7 @@ import {
     getTrackFilePath,
     getTrackTitle,
     type TrackSource
-} from '@services/audio/domain';
+} from '@js/features/playback/service/audioEngine';
 
 type PreloadedTrack = {
     buffer: AudioBuffer;

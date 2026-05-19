@@ -1,4 +1,4 @@
-import type {TrackSource} from '@services/audio/domain';
+import type {TrackSource} from '@js/features/playback/service/audioEngine';
 
 type WebAudioSessionState = {
     playlist: TrackSource[];

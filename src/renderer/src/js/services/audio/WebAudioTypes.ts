@@ -1,4 +1,4 @@
-import type {AudioTrack} from '@services/audio/domain';
+import type {AudioTrack} from '@js/features/playback/service/audioEngine';
 
 export interface WebAudioTrack extends AudioTrack {
     filePath: string;
