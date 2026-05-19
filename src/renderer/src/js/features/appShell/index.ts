@@ -1,4 +1,3 @@
-export {AppShellController, appShellController} from './AppShellController';
 export {AppInteractionService, appInteractionService, updateService} from './service';
 export type {
     AppInteractionHost,
