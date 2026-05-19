@@ -1,5 +1,5 @@
 import type {RenderLyricLine} from "@ui/widgets/lyrics/LyricsTypes";
-import {LyricsWordHighlightController} from "@js/shared/lyrics";
+import {appendLyricsWordSpans, LyricsWordHighlightController} from "@js/shared/lyrics";
 
 interface LyricsRenderControllerOptions {
     lyricsDisplay: HTMLElement;
@@ -52,24 +52,8 @@ class LyricsRenderController {
             return;
         }
 
-        const lyricsHTML = this.lyrics.map((lyric, index) => {
-            if (lyric.type === 'word-by-word' && lyric.words && lyric.words.length > 0) {
-                const wordsHTML = lyric.words.map((word, wordIndex) => {
-                    return `<span class="lyric-word" data-word-index="${wordIndex}" data-word-time="${word.time}" data-word-text="${word.text}">${word.text}</span>`;
-                }).join('');
-                return `<p class="lyrics-line lyrics-word-by-word" data-time="${lyric.time}" data-index="${index}">${wordsHTML}</p>`;
-            }
-
-            return `<p class="lyrics-line" data-time="${lyric.time}" data-index="${index}">${lyric.content}</p>`;
-        }).join('');
-
-        this.lyricsDisplay.innerHTML = `
-            <div class="lyrics-text">
-                <div class="lyrics-line-spacer"></div>
-                ${lyricsHTML}
-                <div class="lyrics-line-spacer"></div>
-            </div>
-        `;
+        this.lyricsDisplay.textContent = '';
+        this.lyricsDisplay.appendChild(this.createLyricsContent());
 
         this.lyricsDisplay.scrollTop = 0;
         this.lyricsDisplay.querySelectorAll<HTMLElement>('.lyrics-line').forEach((line) => {
@@ -83,6 +67,44 @@ class LyricsRenderController {
 
         this.currentLyricIndex = -1;
         this.wordHighlightController.resetPlaybackPosition();
+    }
+
+    private createLyricsContent(): DocumentFragment {
+        const fragment = document.createDocumentFragment();
+        const lyricsText = document.createElement('div');
+        lyricsText.className = 'lyrics-text';
+        lyricsText.appendChild(this.createSpacer());
+
+        this.lyrics.forEach((lyric, index) => {
+            lyricsText.appendChild(this.createLyricsLine(lyric, index));
+        });
+
+        lyricsText.appendChild(this.createSpacer());
+        fragment.appendChild(lyricsText);
+
+        return fragment;
+    }
+
+    private createLyricsLine(lyric: RenderLyricLine, index: number): HTMLElement {
+        const line = document.createElement('p');
+        line.className = 'lyrics-line';
+        line.dataset.time = String(lyric.time);
+        line.dataset.index = String(index);
+
+        if (lyric.type === 'word-by-word' && lyric.words && lyric.words.length > 0) {
+            line.classList.add('lyrics-word-by-word');
+            appendLyricsWordSpans(line, lyric.words);
+            return line;
+        }
+
+        line.textContent = lyric.content;
+        return line;
+    }
+
+    private createSpacer(): HTMLElement {
+        const spacer = document.createElement('div');
+        spacer.className = 'lyrics-line-spacer';
+        return spacer;
     }
 
     handlePlaybackPositionChanged(position: number): void {

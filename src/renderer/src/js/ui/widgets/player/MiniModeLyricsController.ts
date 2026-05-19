@@ -1,6 +1,6 @@
 import {lyricsContentService} from "@js/features/mediaAssets/service";
 import {playbackController} from "@js/features/playback";
-import {LyricsWordHighlightController} from "@js/shared/lyrics";
+import {appendLyricsWordSpans, LyricsWordHighlightController} from "@js/shared/lyrics";
 import type {Unsubscribe} from "@js/features/playback";
 import type {LyricLine} from "@api/types/lyrics";
 import type {Track} from "@api/types/track";
@@ -170,18 +170,7 @@ class MiniModeLyricsController {
 
     private renderWordByWordLyrics(element: HTMLElement, words: MiniModeLyricWord[]): void {
         element.classList.add('lyrics-word-by-word');
-        element.innerHTML = '';
-
-        words.forEach((word, index) => {
-            const wordSpan = document.createElement('span');
-            wordSpan.className = 'lyric-word';
-            wordSpan.setAttribute('data-word-index', String(index));
-            wordSpan.setAttribute('data-word-time', String(word.time));
-            wordSpan.setAttribute('data-word-text', word.text);
-            wordSpan.textContent = word.text;
-            wordSpan.style.setProperty('--word-progress', '0');
-            element.appendChild(wordSpan);
-        });
+        appendLyricsWordSpans(element, words);
     }
 
     private updateLyricsWordHighlight(currentTime: number): void {

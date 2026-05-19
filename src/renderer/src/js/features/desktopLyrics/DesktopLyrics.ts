@@ -1,96 +1,27 @@
-/**
- * 桌面歌词页面
- */
-
 import type {DesktopLyricsPlaybackState} from '@api/types/playback';
-import type {DesktopLyricsSettings as ApiDesktopLyricsSettings} from '@api/types/settings';
 import type {Track} from '@api/types/library';
-import {LyricsWordHighlightController} from '@js/shared/lyrics';
 import {desktopLyricsWindowService} from './service';
-
-interface DesktopLyricWord {
-    time: number;
-    endTime?: number;
-    text: string;
-}
-
-interface DesktopLyricLine {
-    time: number;
-    endTime?: number;
-    content?: string;
-    type?: string;
-    words?: DesktopLyricWord[];
-}
-
-interface DesktopLyricsSettings extends ApiDesktopLyricsSettings {
-    layoutMode: 'default' | 'center';
-    themeColor: string;
-    fontColor: string;
-    opacity: number;
-    fontSize: number;
-}
-
-interface DragPosition {
-    x: number;
-    y: number;
-}
+import {resolveDesktopLyricsElements} from './DesktopLyricsElements';
+import {DesktopLyricsLockController} from './DesktopLyricsLockController';
+import {DesktopLyricsRenderController} from './DesktopLyricsRenderController';
+import {DesktopLyricsSettingsController} from './DesktopLyricsSettingsController';
+import type {DesktopLyricsElements, DesktopLyricsSettings} from './DesktopLyricsTypes';
 
 class DesktopLyrics {
-    private container: HTMLElement;
-    private currentLyricEl: HTMLElement;
-    private nextLyricEl: HTMLElement;
-    private lockBtn: HTMLElement;
-    private lockIcon: HTMLElement;
-    private unlockIcon: HTMLElement;
-    private closeBtn: HTMLElement;
-    private lyrics: DesktopLyricLine[];
-    private currentLyricIndex: number;
+    private readonly elements: DesktopLyricsElements;
+    private readonly lockController: DesktopLyricsLockController;
+    private readonly renderController: DesktopLyricsRenderController;
+    private readonly settingsController: DesktopLyricsSettingsController;
     isPlaying: boolean;
     currentPosition: number;
-    private isLocked: boolean;
-    isHovering: boolean;
-    isDragging: boolean;
-    dragStartPos: DragPosition;
-    private settings: DesktopLyricsSettings;
-    private readonly wordHighlightController: LyricsWordHighlightController;
 
     constructor() {
-        this.container = document.getElementById('desktop-lyrics') as HTMLElement;
-        this.currentLyricEl = document.querySelector('.current-lyric .lyric-text') as HTMLElement;
-        this.nextLyricEl = document.querySelector('.next-lyric .lyric-text') as HTMLElement;
-        this.lockBtn = document.getElementById('lock-btn') as HTMLElement;
-        this.lockIcon = this.lockBtn.querySelector('.lock-icon') as HTMLElement;
-        this.unlockIcon = this.lockBtn.querySelector('.unlock-icon') as HTMLElement;
-        this.closeBtn = document.getElementById('close-btn') as HTMLElement;
-
-        // 歌词数据
-        this.lyrics = [];
-        this.currentLyricIndex = -1;
-
-        // 播放状态
+        this.elements = resolveDesktopLyricsElements();
+        this.lockController = new DesktopLyricsLockController(this.elements);
+        this.renderController = new DesktopLyricsRenderController(this.elements);
+        this.settingsController = new DesktopLyricsSettingsController(this.elements, this.lockController);
         this.isPlaying = false;
         this.currentPosition = 0;
-
-        // 窗口状态
-        this.isLocked = false;
-
-        // 鼠标悬停状态
-        this.isHovering = false;
-
-        // 拖动状态
-        this.isDragging = false;
-        this.dragStartPos = {x: 0, y: 0};
-
-        // 设置
-        this.settings = {
-            layoutMode: 'default',
-            themeColor: '#64b5f6',
-            fontColor: '#000',
-            opacity: 0.9,
-            fontSize: 48
-        };
-
-        this.wordHighlightController = new LyricsWordHighlightController();
 
         this.init();
     }
@@ -98,323 +29,47 @@ class DesktopLyrics {
     init(): void {
         this.setupEventListeners();
         this.setupIPCListeners();
-        this.loadSettings();
-        this.applySettings();
-        this.showDefaultLyrics();
+        this.settingsController.loadSettings();
+        void this.settingsController.applySettings();
+        this.renderController.showDefaultLyrics();
     }
 
     setupEventListeners(): void {
-        // 锁定/解锁按钮
-        this.lockBtn.addEventListener('click', () => {
-            this.toggleLock();
+        this.elements.lockBtn.addEventListener('click', () => {
+            void this.lockController.toggle();
         });
 
-        // 关闭按钮
-        this.closeBtn.addEventListener('click', async () => {
-            await this.close();
+        this.elements.closeBtn.addEventListener('click', () => {
+            void desktopLyricsWindowService.close();
         });
 
-        // 控制栏鼠标事件（锁定状态下动态控制穿透）
-        const controlsBar = document.querySelector('.controls-bar') as HTMLElement;
-        controlsBar.addEventListener('mouseenter', () => {
-            if (this.isLocked) {
-                desktopLyricsWindowService.setIgnoreMouseEvents(false);
-            }
-        });
-
-        controlsBar.addEventListener('mouseleave', () => {
-            if (this.isLocked) {
-                desktopLyricsWindowService.setIgnoreMouseEvents(true, {forward: true});
-            }
-        });
+        this.lockController.bindControlHover();
     }
 
     setupIPCListeners(): void {
-        // 监听歌词更新
         desktopLyricsWindowService.onLyricsUpdated((lyricsData) => {
-            this.updateLyrics(lyricsData as DesktopLyricLine[] | string);
+            this.renderController.updateLyrics(lyricsData);
         });
 
-        // 监听播放进度变化
         desktopLyricsWindowService.onPositionChanged((position) => {
-            this.updatePosition(position);
+            const normalizedPosition = this.renderController.updatePosition(position);
+            if (normalizedPosition !== null) {
+                this.currentPosition = normalizedPosition;
+            }
         });
 
-        // 监听播放状态变化
         desktopLyricsWindowService.onPlaybackStateChanged((state: DesktopLyricsPlaybackState) => {
             this.isPlaying = state?.isPlaying || false;
         });
 
-        // 监听歌曲变化
         desktopLyricsWindowService.onTrackChanged((_track: Track | null) => {
-            this.resetLyrics();
+            this.currentPosition = 0;
+            this.renderController.reset();
         });
 
-        // 监听设置变化
         desktopLyricsWindowService.onSettingsChanged((settings) => {
-            this.updateSettings(settings as Partial<DesktopLyricsSettings>);
+            void this.settingsController.updateSettings(settings as Partial<DesktopLyricsSettings>);
         });
-    }
-
-    showDefaultLyrics(): void {
-        this.currentLyricEl.textContent = '暂无歌词';
-        this.nextLyricEl.textContent = '';
-    }
-
-    // 更新歌词数据
-    updateLyrics(lyricsData: DesktopLyricLine[] | string): void {
-        if (!lyricsData || !Array.isArray(lyricsData)) {
-            this.lyrics = [];
-            this.showDefaultLyrics();
-            return;
-        }
-
-        this.lyrics = lyricsData;
-        this.currentLyricIndex = -1;
-        this.renderCurrentLyric();
-    }
-
-    // 更新播放进度
-    updatePosition(position: number): void {
-        if (typeof position !== 'number' || isNaN(position)) {
-            return;
-        }
-
-        const updateResult = this.wordHighlightController.updatePlaybackPosition(position);
-        if (updateResult.seeked) {
-            this.resetWordHighlightStates(position);
-        }
-
-        this.currentPosition = updateResult.position;
-        this.updateLyricHighlight(updateResult.position);
-    }
-
-    // 更新歌词高亮
-    updateLyricHighlight(currentTime: number): void {
-        if (!this.lyrics || this.lyrics.length === 0) {
-            return;
-        }
-
-        // 找到当前时间对应的歌词索引
-        let newIndex = -1;
-        for (let i = 0; i < this.lyrics.length; i++) {
-            if (currentTime >= this.lyrics[i].time) {
-                newIndex = i;
-            } else {
-                break;
-            }
-        }
-
-        // 如果索引变化，更新显示
-        if (newIndex !== this.currentLyricIndex) {
-            this.currentLyricIndex = newIndex;
-            this.renderCurrentLyric();
-        }
-
-        // 处理逐字高亮
-        if (newIndex >= 0 && this.lyrics[newIndex].type === 'word-by-word') {
-            this.updateWordHighlight(newIndex, currentTime);
-        }
-    }
-
-    // 渲染当前歌词
-    renderCurrentLyric(): void {
-        if (this.currentLyricIndex < 0 || this.currentLyricIndex >= this.lyrics.length) {
-            this.currentLyricEl.textContent = '暂无歌词';
-            this.nextLyricEl.textContent = '';
-            return;
-        }
-
-        const currentLyric = this.lyrics[this.currentLyricIndex];
-        const nextLyric = this.lyrics[this.currentLyricIndex + 1];
-
-        // 渲染当前歌词
-        if (currentLyric.type === 'word-by-word' && currentLyric.words) {
-            const wordsHTML = currentLyric.words.map((word, index) => {
-                return `<span class="lyric-word" data-word-index="${index}" data-word-time="${word.time}" data-word-text="${word.text}">${word.text}</span>`;
-            }).join('');
-            this.currentLyricEl.innerHTML = wordsHTML;
-        } else {
-            this.currentLyricEl.textContent = currentLyric.content || '';
-        }
-
-        // 渲染下一句歌词
-        if (nextLyric) {
-            if (nextLyric.type === 'word-by-word' && nextLyric.words) {
-                this.nextLyricEl.textContent = nextLyric.words.map(w => w.text).join('');
-            } else {
-                this.nextLyricEl.textContent = nextLyric.content || '';
-            }
-        } else {
-            this.nextLyricEl.textContent = '';
-        }
-    }
-
-    // 更新逐字高亮
-    updateWordHighlight(lineIndex: number, currentTime: number): void {
-        const lyric = this.lyrics[lineIndex];
-        if (!lyric || !lyric.words || lyric.words.length === 0) {
-            return;
-        }
-        this.wordHighlightController.updateWordHighlight({
-            lineElement: this.currentLyricEl,
-            words: lyric.words,
-            currentTime,
-            lineEndTime: lyric.endTime
-        });
-    }
-
-    // 重置逐字高亮状态
-    resetWordHighlightStates(seekPosition: number): void {
-        this.wordHighlightController.resetWordHighlightStates(this.currentLyricEl, seekPosition);
-    }
-
-    // 重置歌词
-    resetLyrics(): void {
-        this.lyrics = [];
-        this.currentLyricIndex = -1;
-        this.wordHighlightController.reset();
-        this.showDefaultLyrics();
-    }
-
-    // 切换锁定状态
-    toggleLock(): void {
-        this.isLocked = !this.isLocked;
-        this.applyLockState();
-    }
-
-    // 应用锁定状态
-    async applyLockState(): Promise<void> {
-        if (this.isLocked) {
-            this.container.classList.add('locked');
-            this.lockBtn.classList.add('locked');
-            this.lockBtn.title = '解锁';
-            // 切换图标显示
-            this.lockIcon.style.display = 'none';
-            this.unlockIcon.style.display = 'block';
-            // 锁定时启用鼠标穿透
-            await desktopLyricsWindowService.setIgnoreMouseEvents(true, {forward: true});
-        } else {
-            this.container.classList.remove('locked');
-            this.lockBtn.classList.remove('locked');
-            this.lockBtn.title = '锁定';
-            // 切换图标显示
-            this.lockIcon.style.display = 'block';
-            this.unlockIcon.style.display = 'none';
-            // 解锁时禁用鼠标穿透
-            await desktopLyricsWindowService.setIgnoreMouseEvents(false);
-        }
-    }
-
-    // 关闭窗口
-    async close(): Promise<void> {
-        await desktopLyricsWindowService.close();
-    }
-
-    // 加载设置
-    loadSettings(): void {
-        try {
-            const savedSettings = localStorage.getItem('desktop-lyrics-settings');
-            if (savedSettings) {
-                this.settings = {...this.settings, ...JSON.parse(savedSettings) as Partial<DesktopLyricsSettings>};
-            }
-        } catch (error) {
-            console.error('❌ 桌面歌词: 加载设置失败', error);
-        }
-    }
-
-    // 保存设置
-    saveSettings(): void {
-        try {
-            localStorage.setItem('desktop-lyrics-settings', JSON.stringify(this.settings));
-        } catch (error) {
-            console.error('❌ 桌面歌词: 保存设置失败', error);
-        }
-    }
-
-    // 更新设置
-    updateSettings(newSettings?: Partial<DesktopLyricsSettings>): void {
-        if (!newSettings) return;
-
-        this.settings = {...this.settings, ...newSettings};
-        this.saveSettings();
-        this.applySettings();
-    }
-
-    // 应用设置
-    async applySettings(): Promise<void> {
-        const {layoutMode, themeColor, fontColor, opacity, fontSize} = this.settings;
-
-        // 应用主题颜色
-        document.documentElement.style.setProperty('--theme-color', themeColor);
-
-        // 应用字体颜色
-        if (fontColor) {
-            document.documentElement.style.setProperty('--dl-font-color', fontColor);
-        }
-
-        // 应用字体大小
-        document.documentElement.style.setProperty('--lyric-font-size', `${fontSize}px`);
-
-        // 应用透明度
-        try {
-            await desktopLyricsWindowService.setOpacity(opacity);
-        } catch (error) {
-            console.error('❌ 桌面歌词: 设置透明度失败', error);
-        }
-
-        // 应用布局模式
-        if (layoutMode === 'center') {
-            // 居中模式
-            this.container.classList.add('center-mode');
-
-            // 设置为不置顶（置于最下层）
-            try {
-                await desktopLyricsWindowService.setAlwaysOnTop(false);
-            } catch (error) {
-                console.error('❌ 桌面歌词: 设置置顶状态失败', error);
-            }
-
-            // 居中模式下启用真正的鼠标穿透
-            try {
-                await desktopLyricsWindowService.setIgnoreMouseEvents(true, {forward: true});
-            } catch (error) {
-                console.error('❌ 桌面歌词: 设置鼠标穿透失败', error);
-            }
-
-            // 居中窗口到屏幕底部
-            try {
-                await desktopLyricsWindowService.centerOnScreen();
-            } catch (error) {
-                console.error('❌ 桌面歌词: 居中窗口失败', error);
-            }
-
-            // 居中模式下自动解锁（因为无法交互）
-            if (this.isLocked) {
-                this.isLocked = false;
-                this.container.classList.remove('locked');
-                this.lockBtn.classList.remove('locked');
-            }
-        } else {
-            // 默认模式
-            this.container.classList.remove('center-mode');
-
-            // 设置为置顶
-            try {
-                await desktopLyricsWindowService.setAlwaysOnTop(true);
-            } catch (error) {
-                console.error('❌ 桌面歌词: 设置置顶状态失败', error);
-            }
-
-            // 默认模式下根据锁定状态设置穿透
-            if (this.isLocked) {
-                await desktopLyricsWindowService.setIgnoreMouseEvents(true, {forward: true});
-            } else {
-                await desktopLyricsWindowService.setIgnoreMouseEvents(false);
-            }
-        }
-
-        console.log('🎵 桌面歌词: 设置已应用', this.settings);
     }
 }
 
