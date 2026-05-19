@@ -4,7 +4,7 @@
 
 import {Component} from "@ui/base/Component";
 import {libraryController} from "@js/features/library";
-import {mediaController} from "@js/features/media";
+import {mediaFileDialogService} from "@js/features/media/service";
 import {playbackController} from "@js/features/playback";
 import {userDataController} from "@js/features/userData";
 import {appInteractionService} from "@js/features/appShell/service";
@@ -658,7 +658,7 @@ class HomePage extends Component {
         if (scanBtn) {
             scanBtn.addEventListener('click', async () => {
                 try {
-                    const directory = await mediaController.openDirectory();
+                    const directory = await mediaFileDialogService.openDirectory();
                     if (directory) {
                         const success = await libraryController.scanDirectory(directory);
                         if (success) {

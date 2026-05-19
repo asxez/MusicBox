@@ -45,7 +45,7 @@ import type {SettingsComponentBindingHost} from '@js/features/settings/ui-bindin
 import {playbackService} from '@js/features/playback/service';
 import {desktopLyricsController} from '@js/features/desktopLyrics';
 import {equalizerController} from '@js/features/equalizer';
-import {mediaController} from '@js/features/media';
+import {mediaFileDialogService} from '@js/features/media/service';
 import {extensionHostService} from '@js/features/extensions/service';
 import {appInteractionService} from '@js/features/appShell/service';
 import type {AudioEngineManagerBridge} from '@js/features/equalizer/service';
@@ -177,9 +177,9 @@ export function createAppComposition({
     const fileImportController = new FileImportController({
         app,
         integrations: {
-            openDirectory: () => mediaController.openDirectory(),
-            openDirectoryDialog: () => mediaController.openDirectoryDialog(),
-            openFiles: () => mediaController.openFiles(),
+            openDirectory: () => mediaFileDialogService.openDirectory(),
+            openDirectoryDialog: () => mediaFileDialogService.openDirectoryDialog(),
+            openFiles: () => mediaFileDialogService.openFiles(),
             loadTrack: (filePath) => playbackController.loadTrack(filePath),
             play: () => playbackController.play()
         }

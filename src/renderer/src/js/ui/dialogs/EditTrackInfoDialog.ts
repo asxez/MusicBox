@@ -4,8 +4,8 @@
 
 import {Component} from "@ui/base/Component";
 import {libraryController} from "@js/features/library";
-import {mediaController} from "@js/features/media";
-import {coverUpdateManager} from "@js/features/mediaAssets/service";
+import {mediaFileDialogService, mediaFileSystemService} from "@js/features/media/service";
+import {coverLookupService, coverUpdateManager} from "@js/features/mediaAssets/service";
 import {appInteractionService} from "@js/features/appShell/service";
 import type {Track} from "@api/types/library";
 
@@ -239,7 +239,7 @@ class EditTrackInfoDialog extends Component {
     // 使用API加载封面
     async loadCoverFromAPI(track: EditableTrack): Promise<boolean> {
         try {
-            const result = await mediaController.getCover(track.title, track.artist, track.album, track.filePath);
+            const result = await coverLookupService.getCover(track.title, track.artist, track.album, track.filePath);
             if (result.success && typeof result.imageUrl === 'string') {
                 track.cover = result.imageUrl;
 
@@ -654,7 +654,7 @@ class EditTrackInfoDialog extends Component {
             // 优先使用通用的dialog API
             if (apiStatus.showOpenDialog) {
                 console.log('🎵 EditTrackInfoDialog: 使用通用dialog API');
-                result = await mediaController.showOpenDialog({
+                result = await mediaFileDialogService.showOpenDialog({
                     title: '选择专辑封面',
                     filters: [
                         {name: '图片文件', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']}
@@ -664,7 +664,7 @@ class EditTrackInfoDialog extends Component {
             } else {
                 // 备用方案：使用现有的openImageFile API
                 console.log('🎵 EditTrackInfoDialog: 使用备用openImageFile API');
-                const imageResult = await mediaController.selectImageFile();
+                const imageResult = await mediaFileDialogService.selectImageFile();
                 const filePath = imageResult.path || null;
                 result = {canceled: !filePath, filePaths: filePath ? [filePath] : []};
             }
@@ -678,7 +678,7 @@ class EditTrackInfoDialog extends Component {
                 // 验证文件大小（限制为5MB）
                 if (apiStatus.stat) {
                     try {
-                        const stats = await mediaController.stat(filePath);
+                        const stats = await mediaFileSystemService.stat(filePath);
                         console.log('🎵 EditTrackInfoDialog: 文件统计信息', stats);
 
                         if (stats.size > 5 * 1024 * 1024) {
@@ -697,7 +697,7 @@ class EditTrackInfoDialog extends Component {
                 if (apiStatus.readFile) {
                     try {
                         console.log('🎵 EditTrackInfoDialog: 开始读取文件数据');
-                        const fileData = await mediaController.readFile(filePath, null);
+                        const fileData = await mediaFileSystemService.readFile(filePath, null);
                         console.log('🎵 EditTrackInfoDialog: 文件数据读取完成，大小:', fileData.length);
 
                         // 创建File对象
@@ -901,7 +901,7 @@ class EditTrackInfoDialog extends Component {
                 // 如果保存了新封面，更新封面URL
                 if (this.selectedCoverFile && result.updatedMetadata && result.updatedMetadata.cover) {
                     try {
-                        const coverResult = await mediaController.getCover(
+                        const coverResult = await coverLookupService.getCover(
                             result.updatedMetadata.title,
                             result.updatedMetadata.artist,
                             result.updatedMetadata.album,

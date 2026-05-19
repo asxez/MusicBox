@@ -4,7 +4,7 @@
  */
 
 import {settingsShellService} from "@js/features/appShell/service";
-import {mediaController} from "@js/features/media";
+import {mediaFileDialogService, mediaFileSystemService} from "@js/features/media/service";
 import ParametricEqualizerPresets, {
     ParametricFilterType,
     ParametricPreset,
@@ -432,7 +432,7 @@ class ParametricEqualizer {
             const jsonString = this.presets.exportPreset(preset);
 
             // 使用文件对话框保存
-            const result = await mediaController.saveFile({
+            const result = await mediaFileDialogService.saveFile({
                 title: '导出参量均衡器设置',
                 defaultPath: `${name}.peq.json`,
                 filters: [
@@ -442,7 +442,7 @@ class ParametricEqualizer {
             });
 
             if (result.success && result.filePath) {
-                await mediaController.writeFile(result.filePath, jsonString);
+                await mediaFileSystemService.writeFile(result.filePath, jsonString);
                 console.log('✅ 导出设置成功:', result.filePath);
                 return {success: true, filePath: result.filePath};
             }
@@ -459,7 +459,7 @@ class ParametricEqualizer {
      */
     async importSettings(): Promise<{success: boolean; preset?: ParametricPreset; cancelled?: boolean; error?: string}> {
         try {
-            const result = await mediaController.openFile({
+            const result = await mediaFileDialogService.openFile({
                 title: '导入参量均衡器设置',
                 filters: [
                     {name: '参量均衡器预设', extensions: ['peq.json', 'json']},
@@ -470,7 +470,7 @@ class ParametricEqualizer {
 
             if (result.success && result.filePaths && result.filePaths.length > 0) {
                 const filePath = result.filePaths[0];
-                const jsonString = await mediaController.readFile(filePath, 'utf-8');
+                const jsonString = await mediaFileSystemService.readFile(filePath, 'utf-8');
                 if (typeof jsonString !== 'string') {
                     return {success: false, error: '无法读取预设文件内容'};
                 }

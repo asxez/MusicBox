@@ -1,4 +1,4 @@
-import {mediaController} from "@js/features/media";
+import {mediaFileDialogService} from "@js/features/media/service";
 import {embeddedLyricsManager} from "@js/features/mediaAssets/service";
 
 interface DebugEmbeddedLyricsResult {
@@ -32,7 +32,7 @@ export interface EmbeddedLyricsDiagnosticsReport {
 
 class EmbeddedLyricsDiagnosticsService {
     async chooseFileAndBuildReport(): Promise<EmbeddedLyricsDiagnosticsReport> {
-        const filePaths = await mediaController.openFiles();
+        const filePaths = await mediaFileDialogService.openFiles();
         if (!filePaths || filePaths.length === 0) {
             return {selected: false, foundLyrics: false};
         }

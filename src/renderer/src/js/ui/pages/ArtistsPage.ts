@@ -5,7 +5,7 @@
 import {urlValidator} from "@utils/URLValidator";
 import {Component} from "@ui/base/Component";
 import {libraryController} from "@js/features/library";
-import {mediaController} from "@js/features/media";
+import {coverLookupService} from "@js/features/mediaAssets/service";
 import type {Track} from "@api/types/track";
 
 type ArtistViewMode = 'constellation' | 'galaxy';
@@ -546,7 +546,7 @@ class ArtistsPage extends Component {
 
             // 调用API获取艺术家封面
             // 只传艺术家名称，不传专辑名
-            const result = await mediaController.getCover('', artistName, '', null, false) as CoverResult;
+            const result = await coverLookupService.getCover('', artistName, '', null, false) as CoverResult;
             if (result && result.success && result.imageUrl) {
                 // 更新艺术家数据
                 artist.cover = result.imageUrl;
@@ -1408,7 +1408,7 @@ class ArtistsPage extends Component {
             this._coverLoading.add(albumKey);
 
             // 调用API获取专辑封面
-            const result = await mediaController.getCover('', artistName, albumName, null, false) as CoverResult;
+            const result = await coverLookupService.getCover('', artistName, albumName, null, false) as CoverResult;
             if (result && result.success && result.imageUrl) {
                 // 更新专辑封面显示
                 this.updateAlbumCoverDisplay(albumName, result.imageUrl);

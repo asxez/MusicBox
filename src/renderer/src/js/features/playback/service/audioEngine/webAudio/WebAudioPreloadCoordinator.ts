@@ -1,4 +1,4 @@
-import {mediaController} from '@js/features/media';
+import {audioFileReaderService} from '@js/features/media/service';
 import {
     getTrackFilePath,
     getTrackTitle,
@@ -76,7 +76,7 @@ class WebAudioPreloadCoordinator {
         try {
             console.log(`🔄 预加载下一首歌曲: ${getTrackTitle(trackInfo) || filePath}`);
 
-            let arrayBuffer: ArrayBuffer | null = await mediaController.readAudioFile(filePath);
+            let arrayBuffer: ArrayBuffer | null = await audioFileReaderService.readAudioFile(filePath);
             const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
             arrayBuffer = null;
 

@@ -3,11 +3,10 @@
  */
 
 import {cacheManager} from "@js/shared/cache";
-import {localCoverManager} from "@js/features/mediaAssets/service";
+import {coverLookupService, localCoverManager} from "@js/features/mediaAssets/service";
 import {appInteractionService} from "@js/features/appShell/service";
 import {formatTime} from "@utils/index.js";
 import {Component} from "@ui/base/Component";
-import {mediaController} from "@js/features/media";
 import type {Track} from "@api/types/library";
 
 interface RecentTrack extends Track {
@@ -301,7 +300,7 @@ class RecentPage extends Component {
         try {
             // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
             const loadCover = async () => {
-                const coverResult = await mediaController.getCover(
+                const coverResult = await coverLookupService.getCover(
                     track.title, track.artist, track.album, track.filePath
                 );
 

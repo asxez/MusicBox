@@ -1,5 +1,5 @@
 import {libraryController} from '@js/features/library';
-import {mediaController} from '@js/features/media';
+import {audioFileReaderService} from '@js/features/media/service';
 import {embeddedCoverManager} from '@js/features/mediaAssets/service';
 import type WebAudioObjectUrlStore from './WebAudioObjectUrlStore';
 import type {CoverData, LoadedWebAudioTrack, TrackMetadata, WebAudioTrack} from './WebAudioTypes';
@@ -46,7 +46,7 @@ class WebAudioTrackLoader {
 
     private async readAudioData(filePath: string): Promise<ArrayBuffer> {
         try {
-            return await mediaController.readAudioFile(filePath);
+            return await audioFileReaderService.readAudioFile(filePath);
         } catch {
             const fileUrl = filePath.startsWith('file://') ? filePath : `file:///${filePath.replace(/\\/g, '/')}`;
             const response = await fetch(fileUrl);

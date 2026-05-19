@@ -1,5 +1,4 @@
-import {coverUpdateManager} from "@js/features/mediaAssets/service";
-import {mediaController} from "@js/features/media";
+import {coverLookupService, coverUpdateManager} from "@js/features/mediaAssets/service";
 import {urlValidator} from "@utils/URLValidator";
 import type {Track} from "@api/types/track";
 
@@ -44,7 +43,7 @@ class PlayerCoverArtController {
 
         try {
             if (track.title && track.artist) {
-                const coverResult = await mediaController.getCover(track.title, track.artist, track.album, track.filePath, true);
+                const coverResult = await coverLookupService.getCover(track.title, track.artist, track.album, track.filePath, true);
                 if (coverResult.success && coverResult.imageUrl) {
                     await this.applyCover(track, coverResult.imageUrl);
                 } else {

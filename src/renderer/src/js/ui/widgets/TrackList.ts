@@ -3,11 +3,10 @@
  */
 
 import {formatTime, sanitizeHTML} from "@utils/index.js";
-import {coverUpdateManager} from "@js/features/mediaAssets/service";
+import {coverLookupService, coverUpdateManager} from "@js/features/mediaAssets/service";
 import type {CoverUpdateData} from "@js/features/mediaAssets/service";
 import {trackCoverDisplayPreferenceService} from "@js/features/settings/service";
 import {Component} from "@ui/base/Component";
-import {mediaController} from "@js/features/media";
 import type {Unsubscribe} from "@api/types/common";
 import type {Track} from "@api/types/track";
 
@@ -232,7 +231,7 @@ class TrackList extends Component {
             // 使用requestIdleCallback优化性能，在浏览器空闲时加载封面
             const loadCover = async (): Promise<void> => {
                 try {
-                    const coverResult = await mediaController.getCover(
+                    const coverResult = await coverLookupService.getCover(
                         track.title, track.artist, track.album, track.filePath
                     );
 
@@ -416,7 +415,7 @@ class TrackList extends Component {
     async refreshTrackCoverInDOM(track: Track): Promise<void> {
         try {
             // 强制重新获取封面
-            const coverResult = await mediaController.getCover(track.title, track.artist, track.album, track.filePath, true);
+            const coverResult = await coverLookupService.getCover(track.title, track.artist, track.album, track.filePath, true);
             if (coverResult.success && coverResult.imageUrl) {
                 track.cover = coverResult.imageUrl;
                 this.updateTrackCoverInDOM(track);
