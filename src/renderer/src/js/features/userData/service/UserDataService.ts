@@ -1,4 +1,4 @@
-import {userDataAPI} from '@api/modules';
+import {userDataGateway} from '@js/infrastructure/electron';
 import type {
     DiaryData,
     DiaryHistory,
@@ -10,19 +10,41 @@ import type {
 
 export class UserDataService {
     async getMoodHistory(): Promise<MoodHistory> {
-        return await userDataAPI.getMoodHistory();
+        try {
+            return await userDataGateway.getMoodHistory() as MoodHistory || [];
+        } catch (error) {
+            console.error('❌ UserDataService: 获取心情历史失败', error);
+            return [];
+        }
     }
 
     async saveMood(moodData: MoodData): Promise<SaveMoodResult> {
-        return await userDataAPI.saveMood(moodData);
+        try {
+            const result = await userDataGateway.saveMood(moodData) as SaveMoodResult | null;
+            return result || {success: true, data: moodData};
+        } catch (error) {
+            console.error('❌ UserDataService: 保存心情记录失败', error);
+            return {success: false, error: error instanceof Error ? error.message : String(error)};
+        }
     }
 
     async getDiaryHistory(): Promise<DiaryHistory> {
-        return await userDataAPI.getDiaryHistory();
+        try {
+            return await userDataGateway.getDiaryHistory() as DiaryHistory || [];
+        } catch (error) {
+            console.error('❌ UserDataService: 获取日记历史失败', error);
+            return [];
+        }
     }
 
     async saveDiary(diaryData: DiaryData): Promise<SaveDiaryResult> {
-        return await userDataAPI.saveDiary(diaryData);
+        try {
+            const result = await userDataGateway.saveDiary(diaryData) as SaveDiaryResult | null;
+            return result || {success: true, data: diaryData};
+        } catch (error) {
+            console.error('❌ UserDataService: 保存日记记录失败', error);
+            return {success: false, error: error instanceof Error ? error.message : String(error)};
+        }
     }
 }
 

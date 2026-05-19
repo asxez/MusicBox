@@ -1,4 +1,4 @@
-import {appShellController} from "../AppShellController";
+import {systemGateway} from '@js/infrastructure/electron/SystemGateway';
 
 export interface GitHubReleaseAsset {
     name: string;
@@ -97,7 +97,7 @@ class UpdateService {
     }
 
     async openReleasePage(url = this.releasesUrl): Promise<{success: boolean; error?: string}> {
-        return await appShellController.openExternal(url);
+        return await systemGateway.openExternal(url);
     }
 
     getFallbackReleaseUrl(): string {

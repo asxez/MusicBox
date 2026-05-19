@@ -1,4 +1,5 @@
-import {coverAPI, fileAPI, lyricsAPI} from '@api/modules';
+import {coverLookupService, lyricsLookupService} from '@js/features/mediaAssets/service';
+import {fileGateway} from '@js/infrastructure/electron';
 import type {LyricsFormat} from '@api/types/common';
 import type {CoverResult} from '@api/types/cover';
 import type {DirectoryResult, ImageFileResult} from '@api/types/file';
@@ -38,7 +39,7 @@ export class MediaService {
         filePath: string | null = null,
         forceRefresh = false
     ): Promise<CoverResult> {
-        return await coverAPI.getCover(title, artist, album, filePath, forceRefresh);
+        return await coverLookupService.getCover(title, artist, album, filePath, forceRefresh);
     }
 
     async getLyrics(
@@ -47,67 +48,103 @@ export class MediaService {
         album = '',
         filePath: string | null = null
     ): Promise<LyricsResult> {
-        return await lyricsAPI.getLyrics(title, artist, album, filePath);
+        return await lyricsLookupService.getLyrics(title, artist, album, filePath);
     }
 
     parseLyrics(content: string, format?: LyricsFormat | null): LyricLine[] {
-        return lyricsAPI.parse(content, format as any);
+        return lyricsLookupService.parse(content, format);
     }
 
     parseLRC(content: string): LyricLine[] {
-        return lyricsAPI.parseLRC(content);
+        return lyricsLookupService.parseLRC(content);
     }
 
     parseTTML(content: string): LyricLine[] {
-        return lyricsAPI.parseTTML(content);
+        return lyricsLookupService.parseTTML(content);
     }
 
     async openDirectory(): Promise<string | null> {
-        return await fileAPI.openDirectory();
+        return await this.wrapFileOperation(() => fileGateway.openDirectory(), null);
     }
 
     async openDirectoryDialog(): Promise<string | null> {
-        return await fileAPI.openDirectoryDialog();
+        return await this.openDirectory();
     }
 
     async openFiles(): Promise<string[]> {
-        return await fileAPI.openFiles();
+        return await this.wrapFileOperation(() => fileGateway.openFiles(), []);
     }
 
     async selectMusicFolder(): Promise<DirectoryResult> {
-        return await fileAPI.selectMusicFolder();
+        try {
+            const result = await fileGateway.selectFolder();
+            if (result && result.filePaths && result.filePaths.length > 0 && !result.canceled) {
+                return {path: result.filePaths[0], success: true};
+            }
+
+            return {success: false};
+        } catch (error) {
+            return {success: false, error: error instanceof Error ? error.message : String(error)};
+        }
     }
 
     async selectImageFile(): Promise<ImageFileResult> {
-        return await fileAPI.selectImageFile();
+        try {
+            const imagePath = await fileGateway.openImageFile();
+            if (imagePath) {
+                return {path: imagePath, success: true};
+            }
+
+            return {success: false};
+        } catch (error) {
+            return {success: false, error: error instanceof Error ? error.message : String(error)};
+        }
     }
 
     async readFile(filePath: string, encoding: string | null = null): Promise<string | ArrayLike<number>> {
-        return await fileAPI.readFile(filePath, encoding);
+        return await this.wrapFileOperation(() => fileGateway.readFile(filePath, encoding), '');
     }
 
     async stat(filePath: string): Promise<FileStatResult> {
-        return await fileAPI.stat(filePath);
+        return await fileGateway.stat(filePath);
     }
 
     async showOpenDialog(options: Record<string, unknown>): Promise<OpenDialogResult> {
-        return await fileAPI.showOpenDialog(options);
+        return await this.wrapFileOperation(
+            () => fileGateway.showOpenDialog(options),
+            {canceled: true, filePaths: []}
+        );
     }
 
     async openFile(options: Record<string, unknown>): Promise<OpenFileResult> {
-        return await fileAPI.openFile(options);
+        return await this.wrapFileOperation(
+            () => fileGateway.openFile(options),
+            {success: false, filePaths: [], canceled: true}
+        );
     }
 
     async saveFile(options: Record<string, unknown>): Promise<SaveFileResult> {
-        return await fileAPI.saveFile(options);
+        return await this.wrapFileOperation(
+            () => fileGateway.saveFile(options),
+            {success: false, canceled: true}
+        );
     }
 
     async writeFile(filePath: string, data: string, encoding: string | null = null): Promise<boolean> {
-        return await fileAPI.writeFile(filePath, data, encoding);
+        return await this.wrapFileOperation(() => fileGateway.writeFile(filePath, data, encoding), false);
     }
 
     async readAudioFile(filePath: string): Promise<ArrayBuffer> {
-        return await fileAPI.readAudioFile(filePath);
+        return await fileGateway.readAudioFile(filePath);
+    }
+
+    private async wrapFileOperation<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
+        try {
+            return await operation();
+        } catch (error) {
+            console.error('❌ MediaService: 文件操作失败', error);
+            return fallback;
+        }
     }
 }
 

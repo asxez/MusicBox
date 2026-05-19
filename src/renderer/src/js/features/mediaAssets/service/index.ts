@@ -1,7 +1,9 @@
 export {MediaAssetsService, mediaAssetsService} from './MediaAssetsService';
+export {CoverLookupService, coverLookupService} from './CoverLookupService';
 export {coverUpdateManager} from './CoverUpdateManager';
 export {embeddedCoverManager} from './EmbeddedCoverManager';
 export {embeddedLyricsManager} from './EmbeddedLyricsManager';
+export {LyricsLookupService, lyricsLookupService} from './LyricsLookupService';
 export {localCoverManager} from './LocalCoverManager';
 export {localLyricsManager} from './LocalLyricsManager';
 export {ttmlParser} from './TTMLParser';

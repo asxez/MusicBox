@@ -1,6 +1,6 @@
 import {desktopLyricsGateway} from '@js/infrastructure/electron/DesktopLyricsGateway';
 import {windowGateway} from '@js/infrastructure/electron/WindowGateway';
-import {lyricsAPI} from '@api/modules';
+import {lyricsLookupService} from '@js/features/mediaAssets/service';
 import type {Result} from '@api/types/common';
 import type {LyricLine} from '@api/types/lyrics';
 import type {DesktopLyricsPlaybackState} from '@api/types/playback';
@@ -59,18 +59,18 @@ export class DesktopLyricsSync {
 
     async loadLyricsForDesktop(track: Track): Promise<void> {
         try {
-            const lyricsResult = await lyricsAPI.getLyrics(track.title, track.artist, track.album, track.filePath);
+            const lyricsResult = await lyricsLookupService.getLyrics(track.title, track.artist, track.album, track.filePath);
             if (lyricsResult.success) {
                 let parsedLyrics: LyricLine[] | undefined;
 
                 if (lyricsResult.format === 'ttml' && lyricsResult.content) {
-                    parsedLyrics = lyricsAPI.parseTTML(lyricsResult.content);
+                    parsedLyrics = lyricsLookupService.parseTTML(lyricsResult.content);
                     console.log('🎵 loadLyricsForDesktop: 解析 TTML 格式');
                 } else if (lyricsResult.lrc) {
-                    parsedLyrics = lyricsAPI.parseLRC(lyricsResult.lrc);
+                    parsedLyrics = lyricsLookupService.parseLRC(lyricsResult.lrc);
                     console.log('🎵 loadLyricsForDesktop: 解析 LRC 格式');
                 } else if (lyricsResult.content) {
-                    parsedLyrics = lyricsAPI.parse(lyricsResult.content, lyricsResult.format);
+                    parsedLyrics = lyricsLookupService.parse(lyricsResult.content, lyricsResult.format);
                     console.log('🎵 loadLyricsForDesktop: 解析其他格式:', lyricsResult.format);
                 }
 

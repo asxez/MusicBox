@@ -1,6 +1,9 @@
-import {trayAPI, updateAPI, windowAPI} from '@api/modules';
-import {networkDriveGateway, settingsSystemGateway, windowGateway} from '@js/infrastructure/electron';
+import {windowAPI} from '@api/modules/WindowAPI';
+import {networkDriveGateway, settingsSystemGateway, trayGateway, windowGateway} from '@js/infrastructure/electron';
 import {systemGateway} from '@js/infrastructure/electron/SystemGateway';
+import {cacheManager} from '@js/shared/cache';
+import {showToast} from '@js/utils';
+import {type GitHubRelease, updateService} from './UpdateService';
 import type {Result, Unsubscribe} from '@api/types/common';
 import type {
     MountedNetworkDrive,
@@ -91,7 +94,11 @@ export type HardwareAccelerationSettingsResult = {
     error?: string;
 };
 
+type ShowUpdateDetailsHandler = () => void;
+
 export class AppShellService {
+    private readonly showUpdateDetailsHandlers = new Set<ShowUpdateDetailsHandler>();
+
     initWindowStateManagement(): void {
         windowAPI.initWindowStateManagement();
     }
@@ -149,7 +156,31 @@ export class AppShellService {
     }
 
     async initSystemTray(): Promise<void> {
-        await trayAPI.initSystemTray();
+        try {
+            const settings = cacheManager.getLocalCache<Record<string, unknown>>('musicbox-settings') || {};
+            const trayEnabled = Object.prototype.hasOwnProperty.call(settings, 'systemTray')
+                ? settings.systemTray
+                : true;
+
+            if (trayEnabled) {
+                await trayGateway.create();
+                await trayGateway.updateSettings({
+                    enabled: true,
+                    closeToTray: Object.prototype.hasOwnProperty.call(settings, 'trayCloseBehavior')
+                        ? settings.trayCloseBehavior === 'minimize'
+                        : false,
+                    startMinimized: Object.prototype.hasOwnProperty.call(settings, 'trayStartMinimized')
+                        ? Boolean(settings.trayStartMinimized)
+                        : false
+                });
+            }
+
+            trayGateway.onQuit(() => {
+                window.close();
+            });
+        } catch (error) {
+            console.error('❌ AppShellService: 初始化系统托盘失败', error);
+        }
     }
 
     async updateTraySettings(settings: TraySettings): Promise<void> {
@@ -205,19 +236,37 @@ export class AppShellService {
     }
 
     async autoCheckForUpdates(): Promise<void> {
-        await updateAPI.autoCheckForUpdates();
+        try {
+            const {currentVersion, latestVersion, releaseInfo, hasUpdate} = await updateService.checkForUpdates();
+
+            if (hasUpdate) {
+                this.showUpdateNotification(currentVersion, latestVersion, releaseInfo);
+            }
+        } catch (error) {
+            console.error('❌ AppShellService: 检查更新失败', error);
+            showToast('检查更新失败，请检查网络连接', 'error');
+        }
     }
 
     onShowUpdateDetails(handler: () => void): Unsubscribe {
-        return updateAPI.onShowUpdateDetails(handler);
+        this.showUpdateDetailsHandlers.add(handler);
+        return () => {
+            this.showUpdateDetailsHandlers.delete(handler);
+        };
     }
 
     async openReleasePage(): Promise<void> {
-        await updateAPI.openReleasePage();
+        try {
+            const releaseInfo = await updateService.getLatestRelease();
+            await this.openDownloadPage(releaseInfo.html_url || updateService.getFallbackReleaseUrl());
+        } catch (error) {
+            console.error('❌ AppShellService: 打开 Release 页面失败', error);
+            await updateService.openReleasePage();
+        }
     }
 
     async openDownloadPage(url: string): Promise<Result> {
-        return await updateAPI.openDownloadPage(url);
+        return await updateService.openReleasePage(url);
     }
 
     async testNetworkDriveConnection(config: NetworkDriveConfig): Promise<boolean> {
@@ -310,6 +359,72 @@ export class AppShellService {
 
     async ensureDirectoryExists(directoryPath: string): Promise<PathResult> {
         return await settingsSystemGateway.ensureDirectoryExists(directoryPath) as PathResult;
+    }
+
+    private showUpdateNotification(
+        currentVersion: string,
+        latestVersion: string,
+        releaseInfo?: GitHubRelease
+    ): void {
+        const message = `发现新版本 v${latestVersion}（当前版本：v${currentVersion}）`;
+        const toastElement = document.createElement('div');
+        toastElement.className = 'update-notification-toast';
+        toastElement.innerHTML = `
+            <div class="update-toast-content">
+                <div class="update-toast-header">
+                    <div class="update-toast-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M11,16.5L18,9.5L16.59,8.09L11,13.67L7.41,10.09L6,11.5L11,16.5Z"/>
+                        </svg>
+                    </div>
+                    <div class="update-toast-text">
+                        <div class="update-toast-title">发现新版本</div>
+                        <div class="update-toast-message">${message}</div>
+                    </div>
+                    <button class="update-toast-close">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="update-toast-actions">
+                    <button class="update-toast-btn update-toast-btn-primary">查看详情</button>
+                    <button class="update-toast-btn update-toast-btn-secondary">稍后提醒</button>
+                </div>
+            </div>
+        `;
+
+        const removeToast = () => {
+            if (!toastElement.parentNode) {
+                return;
+            }
+
+            toastElement.classList.remove('show');
+            setTimeout(() => {
+                if (toastElement.parentNode) {
+                    toastElement.remove();
+                }
+            }, 300);
+        };
+
+        toastElement.querySelector('.update-toast-close')?.addEventListener('click', removeToast);
+        toastElement.querySelector('.update-toast-btn-secondary')?.addEventListener('click', removeToast);
+        toastElement.querySelector('.update-toast-btn-primary')?.addEventListener('click', () => {
+            if (this.showUpdateDetailsHandlers.size > 0) {
+                this.showUpdateDetailsHandlers.forEach(handler => handler());
+            } else if (releaseInfo) {
+                updateService.openReleasePage(releaseInfo.html_url).catch(error => {
+                    console.error('❌ AppShellService: 打开 Release 页面失败', error);
+                });
+            }
+            removeToast();
+        });
+
+        document.body.appendChild(toastElement);
+        requestAnimationFrame(() => {
+            toastElement.classList.add('show');
+        });
+        setTimeout(removeToast, 8000);
     }
 }
 

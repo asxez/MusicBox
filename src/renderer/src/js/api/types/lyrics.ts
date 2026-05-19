@@ -36,6 +36,7 @@ export interface LyricsResult extends Result<LyricsData> {
     format?: LyricsFormat;
     lyrics?: LyricsData;
     data?: object;
+    metadata?: object;
     success?: boolean;
     filePath?: string;
     fileName?: string;

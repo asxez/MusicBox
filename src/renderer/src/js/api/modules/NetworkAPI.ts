@@ -3,7 +3,8 @@
  * 提供网络请求功能，支持重试机制
  */
 
-import {BaseAPI, Logger, NetworkError, TimeoutError, Validator} from "@api/core";
+import {networkRequestClient, NetworkRequestError} from '@js/shared/network';
+import {BaseAPI, NetworkError, Validator} from "@api/core";
 import {HTTPMethod, NetworkResponse, RequestOptions} from "@api/types";
 
 /**
@@ -41,60 +42,7 @@ export class NetworkAPI extends BaseAPI {
             ...options
         };
 
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                Logger.network(`网络请求 (尝试 ${attempt}/${maxRetries}): ${url}`);
-
-                const controller = new AbortController();
-                const timeoutId = setTimeout(
-                    () => controller.abort(),
-                    defaultOptions.timeout || this.defaultTimeout
-                );
-
-                const response = await fetch(url, {
-                    ...defaultOptions,
-                    signal: controller.signal
-                });
-
-                clearTimeout(timeoutId);
-
-                if (!response.ok) {
-                    throw new NetworkError(
-                        `HTTP ${response.status}: ${response.statusText}`,
-                        url,
-                        response.status,
-                        attempt
-                    );
-                }
-
-                Logger.network(`网络请求成功: ${url}`);
-                return response;
-            } catch (error: any) {
-                Logger.warn(`网络请求失败 (尝试 ${attempt}/${maxRetries}): ${error.message}`);
-
-                if (error.name === 'AbortError') {
-                    if (attempt === maxRetries) {
-                        throw new TimeoutError('fetch request', defaultOptions.timeout || this.defaultTimeout);
-                    }
-                } else if (attempt === maxRetries) {
-                    Logger.networkError(`网络请求最终失败: ${url}`);
-                    if (error instanceof NetworkError) {
-                        throw error;
-                    }
-                    throw new NetworkError(error.message || 'Unknown error', url);
-                }
-
-                // 指数退避重试
-                if (attempt < maxRetries) {
-                    const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-                    Logger.loading(`${delay}ms 后重试...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-            }
-        }
-
-        // 理论上不会到达这里
-        throw new NetworkError('Max retries exceeded', url);
+        return await networkRequestClient.fetchWithRetry(url, defaultOptions, maxRetries);
     }
 
     /**
@@ -194,9 +142,17 @@ export class NetworkAPI extends BaseAPI {
             return {
                 success: false,
                 error: (error as Error).message,
-                status: (error as NetworkError).statusCode
+                status: this.getNetworkStatus(error)
             };
         }
+    }
+
+    private getNetworkStatus(error: unknown): number | undefined {
+        if (error instanceof NetworkError || error instanceof NetworkRequestError) {
+            return error.statusCode;
+        }
+
+        return undefined;
     }
 
     /**
