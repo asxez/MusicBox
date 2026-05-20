@@ -9,6 +9,7 @@ function getExtensionAPI(context) {
 
 let config = {};
 let currentTheme = 'light';
+let floatingThemePanelDisposable = null;
 
 const PRESET_THEMES = {
     light: {
@@ -92,6 +93,7 @@ async function activate(context) {
     await setupConfigurationListener(context, api);
     await setupThemeListener(context, api);
     await restoreTheme(api);
+    await registerFloatingThemePanel(context, api);
 
     return {
         setTheme(themeName) {
@@ -113,6 +115,7 @@ async function activate(context) {
  * 停用扩展
  */
 async function deactivate() {
+    await disposeFloatingThemePanel();
     console.log('主题增强已停用');
 }
 
@@ -191,6 +194,61 @@ async function registerSettingsContributions(context, api) {
         ]
     });
     context.subscriptions.add(pageDisposable);
+}
+
+/**
+ * 注册浮动主题面板
+ */
+async function registerFloatingThemePanel(context, api) {
+    await refreshFloatingThemePanel(api);
+    context.subscriptions.add({
+        dispose() {
+            return disposeFloatingThemePanel();
+        }
+    });
+}
+
+async function refreshFloatingThemePanel(api) {
+    if (floatingThemePanelDisposable) {
+        await floatingThemePanelDisposable.dispose();
+        floatingThemePanelDisposable = null;
+    }
+
+    floatingThemePanelDisposable = await api.ui.registerFloatingPanel({
+        id: 'themeEnhancer.themePanel',
+        title: '主题增强',
+        buttonLabel: '🎨',
+        buttonTitle: '主题增强',
+        panelTitle: '选择主题',
+        order: 50,
+        selectionMode: 'single',
+        closeOnSelect: true,
+        items: Object.entries(PRESET_THEMES).map(([value, theme]) => ({
+            id: value,
+            label: theme.name,
+            description: value,
+            selected: value === currentTheme,
+            swatches: [
+                theme.colors['color-primary'],
+                theme.colors['color-body-bg'],
+                theme.colors['color-secondary-bg'],
+                theme.colors['color-border']
+            ],
+            async onClick(themeName) {
+                await applyTheme(themeName, api);
+            }
+        }))
+    });
+}
+
+async function disposeFloatingThemePanel() {
+    if (!floatingThemePanelDisposable) {
+        return;
+    }
+
+    const disposable = floatingThemePanelDisposable;
+    floatingThemePanelDisposable = null;
+    await disposable.dispose();
 }
 
 /**
@@ -302,6 +360,8 @@ async function applyTheme(themeName, api, showNotification = true) {
     if (showNotification) {
         await api.ui.showNotification(`已切换到${theme.name}主题`, 'success');
     }
+
+    await refreshFloatingThemePanel(api);
 
     console.log(`🎨 主题已应用: ${themeName}`);
 }

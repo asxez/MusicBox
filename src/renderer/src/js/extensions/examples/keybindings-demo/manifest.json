@@ -5,6 +5,7 @@
   "description": "演示如何使用快捷键 API 的示例扩展",
   "author": "MusicBox Team",
   "main": "extension.js",
+  "module": "keybindingsDemoExtension",
   "activationEvents": [
     "onStartUp"
   ],

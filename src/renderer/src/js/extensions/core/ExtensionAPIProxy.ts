@@ -75,6 +75,7 @@ const API_PERMISSION_MAP: Record<string, string> = {
     'ui.registerSettingsSection': Permissions.UI_WEBVIEW,
     'ui.registerSettingsPage': Permissions.UI_WEBVIEW,
     'ui.registerSettingsPageSchema': Permissions.UI_WEBVIEW,
+    'ui.registerFloatingPanel': Permissions.UI_WEBVIEW,
     'ui.createToggleSetting': Permissions.UI_WEBVIEW,
     'ui.createSelectSetting': Permissions.UI_WEBVIEW,
     'ui.createInputSetting': Permissions.UI_WEBVIEW,

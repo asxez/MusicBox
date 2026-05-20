@@ -5,6 +5,7 @@
   "description": "MusicBox 插件系统测试",
   "author": "MusicBox Team",
   "main": "extension.js",
+  "module": "helloWorldExtension",
   "canDisable": true,
   "activationEvents": [
     "onStartUp"

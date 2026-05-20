@@ -11,6 +11,7 @@ interface SandboxedApiHostOptions {
     extensionId: string;
     context: ExtensionContext;
     permissionManager: PermissionManager | null;
+
     invokeRemoteCallback(callbackId: string, args: unknown[]): Promise<unknown>;
 }
 
@@ -139,7 +140,8 @@ const EXTERNAL_PLUGIN_ALLOWED_API = new Set<string>([
     'ui.setCSSVariable',
     'ui.getCSSVariable',
     'ui.registerSettingsSection',
-    'ui.registerSettingsPageSchema'
+    'ui.registerSettingsPageSchema',
+    'ui.registerFloatingPanel'
 ]);
 
 export class SandboxedExtensionApiHost {

@@ -5273,6 +5273,177 @@ a {
   line-height: 1.35;
 }
 
+.extension-floating-panels {
+  position: fixed;
+  right: 24px;
+  bottom: 88px;
+  z-index: 98;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--spacing-sm);
+}
+
+.extension-floating-panel-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--spacing-sm);
+}
+
+.extension-floating-panel-button {
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.extension-floating-panel-button-label {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.extension-floating-panel {
+  width: min(320px, calc(100vw - 48px));
+  max-height: min(420px, calc(100vh - 180px));
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-body-bg);
+  color: var(--color-text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+.extension-floating-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.extension-floating-panel-title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.extension-floating-panel-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: var(--font-size-md);
+  line-height: 1;
+
+  &:hover {
+    background: var(--color-secondary-bg);
+    color: var(--color-text);
+  }
+}
+
+.extension-floating-panel-list {
+  max-height: 340px;
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+}
+
+.extension-floating-panel-item {
+  width: 100%;
+  min-height: 64px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: left;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    background: var(--color-secondary-bg);
+  }
+
+  &.active {
+    background: rgba(var(--color-primary-rgb), 0.1);
+  }
+}
+
+.extension-floating-panel-swatches {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.extension-floating-panel-swatch {
+  min-width: 0;
+  min-height: 0;
+}
+
+.extension-floating-panel-item-content {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.extension-floating-panel-item-label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.extension-floating-panel-item-description {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.extension-floating-panel-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
 // 音乐文件夹列表样式
 .folder-list {
   list-style: none;

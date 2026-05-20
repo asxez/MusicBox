@@ -6,6 +6,7 @@
   "description": "用于测试新的模块化 API 系统",
   "publisher": "MusicBox",
   "main": "test.js",
+  "module": "extensionApiTestExtension",
   "canDisable": true,
   "activationEvents": [
     "onStartUp"

@@ -76,7 +76,8 @@ const SANDBOX_RUNTIME_SCRIPT = String.raw`
             'clearTimeout',
             'setInterval',
             'clearInterval',
-            '"use strict";\n' + message.code + '\n;return window[' + JSON.stringify(message.moduleVarName) + '] || globalThis[' + JSON.stringify(message.moduleVarName) + '] || null;'
+            'resolveExtensionModule',
+            '"use strict";\n' + message.code + '\n;return resolveExtensionModule(window, globalThis, ' + JSON.stringify(message.moduleVarName) + ');'
         );
 
         activeModule = runner(
@@ -94,11 +95,47 @@ const SANDBOX_RUNTIME_SCRIPT = String.raw`
             fakeWindow.setTimeout,
             fakeWindow.clearTimeout,
             fakeWindow.setInterval,
-            fakeWindow.clearInterval
+            fakeWindow.clearInterval,
+            resolveExtensionModule
         );
 
         if (!activeModule || typeof activeModule !== 'object') {
             throw new Error('外部插件没有导出有效模块');
+        }
+    }
+
+    function resolveExtensionModule(windowObject, globalObject, moduleVarName) {
+        if (moduleVarName && typeof moduleVarName === 'string') {
+            return windowObject[moduleVarName] || globalObject[moduleVarName] || null;
+        }
+
+        if (windowObject.musicboxExtension || globalObject.musicboxExtension) {
+            return windowObject.musicboxExtension || globalObject.musicboxExtension;
+        }
+
+        const candidates = [];
+        collectExtensionModuleCandidates(candidates, windowObject);
+        if (globalObject !== windowObject) {
+            collectExtensionModuleCandidates(candidates, globalObject);
+        }
+
+        if (candidates.length === 1) {
+            return candidates[0];
+        }
+
+        return null;
+    }
+
+    function collectExtensionModuleCandidates(candidates, container) {
+        for (const key of Object.keys(container)) {
+            const value = container[key];
+            if (!value || typeof value !== 'object') {
+                continue;
+            }
+
+            if (typeof value.activate === 'function' || typeof value.default === 'function') {
+                candidates.push(value);
+            }
         }
     }
 

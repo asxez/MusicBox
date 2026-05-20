@@ -280,7 +280,7 @@ export class ExtensionActivator extends Disposable {
             console.log(`   - extensionLocation: ${descriptor.extensionLocation}`);
             console.log(`   - isBuiltin: ${descriptor.isBuiltin}`);
 
-            const moduleVarName = this._pathToModuleVarName(descriptor.id);
+            const moduleVarName = descriptor.module || null;
             const code = await this._readExtensionCode(descriptor);
             console.log(`📦 ExtensionActivator: 插件通过 sandbox host 加载 ${descriptor.id}`);
             return await this._createSandboxExtensionModule(descriptor, moduleVarName, context, storageSnapshots, code);
@@ -293,7 +293,7 @@ export class ExtensionActivator extends Disposable {
 
     private async _createSandboxExtensionModule(
         descriptor: ExtensionDescriptor,
-        moduleVarName: string,
+        moduleVarName: string | null,
         context: ExtensionContext,
         storageSnapshots: ExtensionStorageSnapshots,
         code: string
@@ -377,10 +377,9 @@ export class ExtensionActivator extends Disposable {
             );
         }
 
-        const moduleVarName = this._pathToModuleVarName(descriptor.id);
-        if (!content.includes(moduleVarName)) {
+        if (descriptor.module && !content.includes(descriptor.module)) {
             throw new Error(
-                `内置扩展 ${descriptor.id} 源码未导出 ${moduleVarName}: ${url}; ` +
+                `内置扩展 ${descriptor.id} 源码未导出 ${descriptor.module}: ${url}; ` +
                 `preview=${trimmedStart.slice(0, 120).replace(/\s+/g, ' ')}`
             );
         }
@@ -413,10 +412,6 @@ export class ExtensionActivator extends Disposable {
         }
 
         return main;
-    }
-
-    private _pathToModuleVarName(extensionId: string): string {
-        return extensionId.replace(/-([a-z])/g, (g) => g[1].toUpperCase()) + 'Extension';
     }
 
     private _isDeactivatableExports(exports: ExtensionExports | undefined): exports is DeactivatableExtensionExports {

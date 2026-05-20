@@ -5,6 +5,7 @@
   "publisher": "MusicBox",
   "description": "演示新插件系统的高级功能",
   "main": "extension.js",
+  "module": "advancedExampleExtension",
   "canDisable": true,
   "categories": ["Other"],
   "keywords": ["example", "demo", "advanced"],

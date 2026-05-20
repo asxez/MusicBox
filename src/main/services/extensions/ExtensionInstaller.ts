@@ -14,6 +14,7 @@ export interface ExtensionManifest {
     description?: string;
     author?: string;
     main: string;
+    module?: string;
     activationEvents?: string[];
     contributes?: Record<string, any>;
 }
@@ -110,6 +111,7 @@ export class ExtensionInstaller {
                 description: manifest.description,
                 author: manifest.author,
                 main: this._normalizeManifestMain(manifest.main, manifest.id, prefix),
+                module: manifest.module,
                 extensionLocation: `userData://extensions/${manifest.id}`,
                 activationEvents: manifest.activationEvents || [],
                 contributes: manifest.contributes || {},

@@ -109,6 +109,33 @@ export interface SettingsContributionPage {
 }
 
 /**
+ * 浮动面板条目
+ */
+export interface FloatingPanelItem {
+    id: string;
+    label: string;
+    description?: string;
+    swatches?: string[];
+    selected?: boolean;
+    onClick?: (itemId: string) => void | Promise<void>;
+}
+
+/**
+ * 浮动面板注册选项
+ */
+export interface FloatingPanelOptions {
+    id: string;
+    title: string;
+    buttonLabel?: string;
+    buttonTitle?: string;
+    panelTitle?: string;
+    order?: number;
+    selectionMode?: 'none' | 'single';
+    closeOnSelect?: boolean;
+    items: FloatingPanelItem[];
+}
+
+/**
  * 主题对象类型
  */
 export interface Theme {
@@ -256,6 +283,13 @@ export interface UIAPI {
      * @returns 可释放对象
      */
     registerSettingsPageSchema(sectionId: string, page: SettingsContributionPage): IDisposable;
+
+    /**
+     * 注册宿主渲染的浮动面板
+     * @param options - 浮动面板 schema
+     * @returns 可释放对象
+     */
+    registerFloatingPanel(options: FloatingPanelOptions): IDisposable;
 
     /**
      * 创建开关设置项

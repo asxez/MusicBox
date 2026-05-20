@@ -21,7 +21,7 @@ import {deserializeError, serializeError} from './SandboxSerialization';
 interface SandboxExtensionHostOptions {
     descriptor: ExtensionDescriptor;
     code: string;
-    moduleVarName: string;
+    moduleVarName: string | null;
     context: ExtensionContext;
     storageSnapshots: {
         global: Record<string, unknown>;

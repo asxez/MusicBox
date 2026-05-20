@@ -13,7 +13,7 @@ export type SandboxMessage =
 export interface SandboxInitMessage {
     type: 'sandbox:init';
     code: string;
-    moduleVarName: string;
+    moduleVarName: string | null;
     context: SandboxExtensionContextData;
 }
 

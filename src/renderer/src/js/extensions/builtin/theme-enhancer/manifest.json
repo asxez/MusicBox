@@ -5,6 +5,7 @@
   "description": "提供多种预设主题和自定义主题功能，让您的音乐播放器更加个性化",
   "author": "ASXE",
   "main": "extension.js",
+  "module": "themeEnhancerExtension",
   "canDisable": true,
   "enabledByDefault": false,
   "activationEvents": [

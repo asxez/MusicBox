@@ -11,6 +11,7 @@ export interface ExtensionInfo {
     activationEvents?: string[];
     extensionLocation?: string;
     main?: string;
+    module?: string;
     contributes?: any;
     extensionDependencies?: string[];
     enabledByDefault?: boolean;

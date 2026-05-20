@@ -73,6 +73,7 @@ export interface ExtensionManifest {
     description?: string;
     author?: string;
     main?: string;
+    module?: string;
     activationEvents?: string[];
     contributes?: Record<string, any>;
     engines?: Record<string, string>;
@@ -96,6 +97,7 @@ export class ExtensionDescriptor {
     readonly description: string;
     readonly author: string;
     readonly main?: string;
+    readonly module?: string;
     readonly activationEvents: string[];
     readonly contributes: Record<string, any>;
     readonly engines: Record<string, string>;
@@ -117,6 +119,7 @@ export class ExtensionDescriptor {
         this.description = manifest.description || '';
         this.author = manifest.author || '';
         this.main = manifest.main;
+        this.module = manifest.module;
         this.activationEvents = manifest.activationEvents || [];
         this.contributes = manifest.contributes || {};
         this.engines = manifest.engines || {};

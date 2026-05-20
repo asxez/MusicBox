@@ -14,6 +14,8 @@ import {
     ButtonSettingOptions,
     ChoiceGridOption,
     ConfirmDialogOptions,
+    FloatingPanelItem,
+    FloatingPanelOptions,
     InputBoxOptions,
     InputSettingOptions,
     NotificationTypeValue,
@@ -35,6 +37,240 @@ export const NotificationType = {
     WARNING: 'warning',
     ERROR: 'error'
 } as const;
+
+class FloatingPanelManagerClass {
+    private panels: Map<string, FloatingPanelOptions> = new Map();
+    private container: HTMLElement | null = null;
+    private openPanelId: string | null = null;
+    private documentClickHandler: ((event: MouseEvent) => void) | null = null;
+
+    registerPanel(options: FloatingPanelOptions): IDisposable {
+        if (this.panels.has(options.id)) {
+            console.warn(`浮动面板 ${options.id} 已存在，将被覆盖`);
+        }
+
+        this.panels.set(options.id, options);
+        this._render();
+
+        return toDisposable(() => {
+            this.panels.delete(options.id);
+            if (this.openPanelId === options.id) {
+                this.openPanelId = null;
+            }
+            this._render();
+        });
+    }
+
+    private _render(): void {
+        const container = this._getContainer();
+        container.innerHTML = '';
+
+        const panels = Array.from(this.panels.values()).sort((a, b) => (a.order || 100) - (b.order || 100));
+        container.hidden = panels.length === 0;
+
+        for (const panel of panels) {
+            const shell = document.createElement('div');
+            shell.className = 'extension-floating-panel-shell';
+            shell.dataset.panelId = panel.id;
+
+            const panelElement = this._createPanelElement(panel);
+            shell.appendChild(panelElement);
+
+            const button = this._createButton(panel);
+            shell.appendChild(button);
+
+            container.appendChild(shell);
+        }
+    }
+
+    private _createButton(panel: FloatingPanelOptions): HTMLButtonElement {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'extension-floating-panel-button';
+        button.title = panel.buttonTitle || panel.title;
+        button.setAttribute('aria-label', panel.buttonTitle || panel.title);
+        button.setAttribute('aria-expanded', String(this.openPanelId === panel.id));
+
+        const icon = document.createElement('span');
+        icon.className = 'extension-floating-panel-button-label';
+        icon.textContent = panel.buttonLabel || '•';
+        button.appendChild(icon);
+
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.openPanelId = this.openPanelId === panel.id ? null : panel.id;
+            this._render();
+        });
+
+        return button;
+    }
+
+    private _createPanelElement(panel: FloatingPanelOptions): HTMLElement {
+        const panelElement = document.createElement('div');
+        panelElement.className = 'extension-floating-panel';
+        panelElement.hidden = this.openPanelId !== panel.id;
+
+        const header = document.createElement('div');
+        header.className = 'extension-floating-panel-header';
+
+        const title = document.createElement('h3');
+        title.className = 'extension-floating-panel-title';
+        title.textContent = panel.panelTitle || panel.title;
+        header.appendChild(title);
+
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'extension-floating-panel-close';
+        closeButton.textContent = 'x';
+        closeButton.setAttribute('aria-label', '关闭');
+        closeButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.openPanelId = null;
+            this._render();
+        });
+        header.appendChild(closeButton);
+
+        panelElement.appendChild(header);
+
+        const list = document.createElement('div');
+        list.className = 'extension-floating-panel-list';
+
+        for (const item of panel.items) {
+            list.appendChild(this._createPanelItem(panel, item));
+        }
+
+        panelElement.appendChild(list);
+
+        return panelElement;
+    }
+
+    private _createPanelItem(panel: FloatingPanelOptions, item: FloatingPanelItem): HTMLButtonElement {
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = 'extension-floating-panel-item';
+        option.classList.toggle('active', panel.selectionMode === 'single' && !!item.selected);
+        option.dataset.itemId = item.id;
+
+        const swatches = this._getSafeFloatingPanelSwatches(item);
+        if (swatches.length > 0) {
+            const preview = document.createElement('span');
+            preview.className = 'extension-floating-panel-swatches';
+
+            for (const color of swatches.slice(0, 4)) {
+                const swatch = document.createElement('span');
+                swatch.className = 'extension-floating-panel-swatch';
+                swatch.style.background = color;
+                preview.appendChild(swatch);
+            }
+
+            option.appendChild(preview);
+        }
+
+        const content = document.createElement('span');
+        content.className = 'extension-floating-panel-item-content';
+
+        const label = document.createElement('span');
+        label.className = 'extension-floating-panel-item-label';
+        label.textContent = item.label;
+        content.appendChild(label);
+
+        if (item.description) {
+            const description = document.createElement('span');
+            description.className = 'extension-floating-panel-item-description';
+            description.textContent = item.description;
+            content.appendChild(description);
+        }
+
+        option.appendChild(content);
+
+        if (panel.selectionMode === 'single' && item.selected) {
+            const check = document.createElement('span');
+            check.className = 'extension-floating-panel-check';
+            check.textContent = '✓';
+            option.appendChild(check);
+        }
+
+        option.addEventListener('click', () => {
+            Promise.resolve(this._runPanelItem(panel, item)).catch(error => {
+                console.error(`执行浮动面板条目 ${panel.id}/${item.id} 失败:`, error);
+            });
+        });
+
+        return option;
+    }
+
+    private async _runPanelItem(panel: FloatingPanelOptions, item: FloatingPanelItem): Promise<void> {
+        if (typeof item.onClick === 'function') {
+            await item.onClick(item.id);
+        }
+
+        if (panel.selectionMode === 'single') {
+            for (const candidate of panel.items) {
+                candidate.selected = candidate.id === item.id;
+            }
+        }
+
+        if (panel.closeOnSelect !== false) {
+            this.openPanelId = null;
+        }
+
+        this._render();
+    }
+
+    private _getContainer(): HTMLElement {
+        if (this.container && document.body.contains(this.container)) {
+            return this.container;
+        }
+
+        this.container = document.createElement('div');
+        this.container.className = 'extension-floating-panels';
+        this.container.hidden = true;
+        document.body.appendChild(this.container);
+        this._ensureDocumentClickHandler();
+        return this.container;
+    }
+
+    private _ensureDocumentClickHandler(): void {
+        if (this.documentClickHandler) {
+            return;
+        }
+
+        this.documentClickHandler = (event: MouseEvent) => {
+            if (!this.openPanelId || !this.container || this.container.contains(event.target as Node)) {
+                return;
+            }
+
+            this.openPanelId = null;
+            this._render();
+        };
+
+        document.addEventListener('click', this.documentClickHandler);
+    }
+
+    private _getSafeFloatingPanelSwatches(item: FloatingPanelItem): string[] {
+        if (!Array.isArray(item.swatches)) {
+            return [];
+        }
+
+        return item.swatches
+            .filter(color => this._isSafeColor(color))
+            .slice(0, 4);
+    }
+
+    private _isSafeColor(value: unknown): value is string {
+        if (typeof value !== 'string') {
+            return false;
+        }
+
+        const color = value.trim();
+        return /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color)
+            || /^rgba?\(\s*(?:\d{1,3}\s*,\s*){2}\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/.test(color)
+            || /^hsla?\(\s*\d{1,3}\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/.test(color)
+            || /^var\(--[a-zA-Z0-9-_]+\)$/.test(color);
+    }
+}
 
 /**
  * 设置页管理器
@@ -706,6 +942,7 @@ class SettingsManagerClass {
 
 // 创建单例
 const SettingsManager = new SettingsManagerClass();
+const FloatingPanelManager = new FloatingPanelManagerClass();
 
 // 初始化设置页管理器
 onDOMReady(() => SettingsManager.initialize());
@@ -876,6 +1113,64 @@ export function createUIAPI(_context: ExtensionContext): UIAPI {
             return ErrorUtils.wrapSync(() => {
                 return SettingsManager.registerPageSchema(sectionId, page);
             }, 'ui.registerSettingsPageSchema');
+        },
+
+        registerFloatingPanel(options: FloatingPanelOptions): IDisposable {
+            Validator.assertObject(options, 'options');
+            Validator.assertNonEmptyString(options.id, 'options.id');
+            Validator.assertNonEmptyString(options.title, 'options.title');
+            Validator.assertNonEmptyArray(options.items, 'options.items');
+
+            if (options.buttonLabel !== undefined) {
+                Validator.assertNonEmptyString(options.buttonLabel, 'options.buttonLabel');
+            }
+
+            if (options.buttonTitle !== undefined) {
+                Validator.assertNonEmptyString(options.buttonTitle, 'options.buttonTitle');
+            }
+
+            if (options.panelTitle !== undefined) {
+                Validator.assertNonEmptyString(options.panelTitle, 'options.panelTitle');
+            }
+
+            if (options.order !== undefined) {
+                Validator.assertNumber(options.order, 'options.order');
+            }
+
+            if (options.selectionMode !== undefined) {
+                Validator.assertEnum(options.selectionMode, ['none', 'single'], 'options.selectionMode');
+            }
+
+            if (options.closeOnSelect !== undefined) {
+                Validator.assertBoolean(options.closeOnSelect, 'options.closeOnSelect');
+            }
+
+            options.items.forEach((item, index) => {
+                Validator.assertObject(item, `options.items[${index}]`);
+                Validator.assertNonEmptyString(item.id, `options.items[${index}].id`);
+                Validator.assertNonEmptyString(item.label, `options.items[${index}].label`);
+
+                if (item.description !== undefined) {
+                    Validator.assertString(item.description, `options.items[${index}].description`);
+                }
+
+                if (item.swatches !== undefined) {
+                    Validator.assertArray(item.swatches, `options.items[${index}].swatches`);
+                    Validator.assertArrayOfType(item.swatches, 'string', `options.items[${index}].swatches`);
+                }
+
+                if (item.selected !== undefined) {
+                    Validator.assertBoolean(item.selected, `options.items[${index}].selected`);
+                }
+
+                if (item.onClick !== undefined) {
+                    Validator.assertFunction(item.onClick, `options.items[${index}].onClick`);
+                }
+            });
+
+            return ErrorUtils.wrapSync(() => {
+                return FloatingPanelManager.registerPanel(options);
+            }, 'ui.registerFloatingPanel');
         },
 
         createToggleSetting(label: string, description: string, defaultValue: boolean, onChange: (value: boolean) => void): HTMLElement {

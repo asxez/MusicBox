@@ -1,4 +1,4 @@
-import {readdirSync, readFileSync, statSync} from 'node:fs';
+import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 
@@ -78,15 +78,14 @@ const forbiddenPatterns = [
     {
         pattern: /\bregisterQuickAction\b|\bQuickAction\b|\bquickAction\b/g,
         message: 'Do not add ad-hoc plugin quick actions in the host; expose documented generic contribution protocols instead.'
+    },
+    {
+        pattern: /\bpathToModuleVarName\b|replace\(\s*\/-\(\[a-z\]\)\/g/g,
+        message: 'Do not infer plugin module globals from plugin ids; use the manifest module field or generic module discovery.'
     }
 ];
 
-const pluginSpecificPatterns = [
-    {
-        pattern: /\btheme-enhancer\b|\bthemeEnhancer\b|主题增强/g,
-        message: 'Plugin host/framework code must not hard-code concrete built-in plugin ids or product behavior; keep it in plugin-owned manifests/code or data indexes.'
-    }
-];
+const pluginSpecificPatterns = createPluginSpecificPatterns();
 
 const violations = [];
 
@@ -260,6 +259,127 @@ function exists(filePath) {
     } catch {
         return false;
     }
+}
+
+function createPluginSpecificPatterns() {
+    const identifiers = collectBuiltinPluginIdentifiers();
+    return identifiers.map((identifier) => ({
+        pattern: new RegExp(escapeRegExp(identifier), 'g'),
+        message: `Plugin host/framework code must not hard-code concrete plugin identifier "${identifier}"; keep plugin ids, command prefixes, labels, and behavior in plugin-owned manifests/code or data indexes.`
+    }));
+}
+
+function collectBuiltinPluginIdentifiers() {
+    const identifiers = new Set();
+    const builtinRoot = path.join(sourceRoot, 'js/extensions/builtin');
+    const indexPath = path.join(builtinRoot, 'extensions.json');
+
+    if (!existsSync(indexPath)) {
+        return [];
+    }
+
+    try {
+        const index = JSON.parse(readFileSync(indexPath, 'utf8'));
+        if (!index || !Array.isArray(index.extensions)) {
+            return [];
+        }
+
+        for (const entry of index.extensions) {
+            const dirName = normalizeBuiltinIndexEntry(entry);
+            if (!dirName) {
+                continue;
+            }
+
+            identifiers.add(dirName);
+
+            const manifestPath = path.join(builtinRoot, dirName, 'manifest.json');
+            if (!isWithin(builtinRoot, manifestPath) || !existsSync(manifestPath)) {
+                continue;
+            }
+
+            const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+            addPluginManifestIdentifiers(identifiers, manifest);
+        }
+    } catch (error) {
+        console.warn(`Architecture check could not load built-in plugin identifiers: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    return Array.from(identifiers)
+        .filter((identifier) => typeof identifier === 'string' && identifier.trim().length >= 3)
+        .sort((a, b) => b.length - a.length);
+}
+
+function normalizeBuiltinIndexEntry(entry) {
+    const rawPath = typeof entry === 'string' ? entry : entry && entry.path;
+    if (typeof rawPath !== 'string') {
+        return null;
+    }
+
+    const normalized = rawPath.trim().replace(/\\/g, '/');
+    if (!normalized || normalized.startsWith('/') || normalized.includes('..')) {
+        return null;
+    }
+
+    if (!normalized.split('/').every((part) => /^[a-zA-Z0-9._-]+$/.test(part))) {
+        return null;
+    }
+
+    return normalized;
+}
+
+function addPluginManifestIdentifiers(identifiers, manifest) {
+    if (!manifest || typeof manifest !== 'object') {
+        return;
+    }
+
+    addIdentifier(identifiers, manifest.id);
+    addIdentifier(identifiers, manifest.name);
+
+    if (manifest.contributes && typeof manifest.contributes === 'object') {
+        addCommandPrefixes(identifiers, manifest.contributes.commands);
+        addConfigurationPrefixes(identifiers, manifest.contributes.configuration);
+    }
+}
+
+function addCommandPrefixes(identifiers, commands) {
+    if (!Array.isArray(commands)) {
+        return;
+    }
+
+    for (const contribution of commands) {
+        if (!contribution || typeof contribution.command !== 'string') {
+            continue;
+        }
+
+        const [prefix] = contribution.command.split('.');
+        addIdentifier(identifiers, prefix);
+    }
+}
+
+function addConfigurationPrefixes(identifiers, configuration) {
+    if (!configuration || typeof configuration !== 'object' || !configuration.properties) {
+        return;
+    }
+
+    for (const key of Object.keys(configuration.properties)) {
+        const [prefix] = key.split('.');
+        addIdentifier(identifiers, prefix);
+    }
+}
+
+function addIdentifier(identifiers, value) {
+    if (typeof value !== 'string') {
+        return;
+    }
+
+    const trimmed = value.trim();
+    if (trimmed.length >= 3) {
+        identifiers.add(trimmed);
+    }
+}
+
+function escapeRegExp(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function computeLineStarts(contents) {
