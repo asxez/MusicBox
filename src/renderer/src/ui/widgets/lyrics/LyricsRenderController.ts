@@ -14,6 +14,8 @@ class LyricsRenderController {
     private lyrics: RenderLyricLine[] = [];
     private currentLyricIndex = -1;
     private readonly wordHighlightController = new LyricsWordHighlightController();
+    private scrollAnimationFrame: number | null = null;
+    private readonly lineScrollDurationMs = 220;
 
     constructor(options: LyricsRenderControllerOptions) {
         this.lyricsDisplay = options.lyricsDisplay;
@@ -26,6 +28,7 @@ class LyricsRenderController {
     }
 
     showLoading(): void {
+        this.cancelScrollAnimation();
         this.lyricsDisplay.innerHTML = `
             <div class="lyrics-text">
                 <p class="lyrics-line loading">正在加载歌词...</p>
@@ -34,6 +37,7 @@ class LyricsRenderController {
     }
 
     showNoLyrics(): void {
+        this.cancelScrollAnimation();
         this.lyrics = [];
         this.currentLyricIndex = -1;
         this.wordHighlightController.clearActiveHighlight();
@@ -53,6 +57,7 @@ class LyricsRenderController {
             return;
         }
 
+        this.cancelScrollAnimation();
         this.lyricsDisplay.textContent = '';
         this.lyricsDisplay.appendChild(this.createLyricsContent());
 
@@ -127,6 +132,7 @@ class LyricsRenderController {
     }
 
     reset(): void {
+        this.cancelScrollAnimation();
         this.wordHighlightController.reset();
         this.lyrics = [];
         this.currentLyricIndex = -1;
@@ -152,15 +158,12 @@ class LyricsRenderController {
             }
 
             if (newIndex >= 0) {
-                const currentLine = this.lyricsDisplay.querySelector(`[data-index="${newIndex}"]`);
+                const currentLine = this.lyricsDisplay.querySelector<HTMLElement>(`[data-index="${newIndex}"]`);
                 if (currentLine) {
                     currentLine.classList.add('highlight');
 
                     if (currentTime > 0 && this.currentLyricIndex >= 0) {
-                        currentLine.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'center'
-                        });
+                        this.scrollLineIntoView(currentLine);
                     }
                 }
             }
@@ -172,6 +175,55 @@ class LyricsRenderController {
         } else {
             this.wordHighlightController.clearActiveHighlight();
         }
+    }
+
+    private scrollLineIntoView(line: HTMLElement): void {
+        const containerRect = this.lyricsDisplay.getBoundingClientRect();
+        const lineRect = line.getBoundingClientRect();
+        const lineCenter = lineRect.top - containerRect.top + this.lyricsDisplay.scrollTop + lineRect.height / 2;
+        const targetScrollTop = lineCenter - this.lyricsDisplay.clientHeight / 2;
+        const maxScrollTop = Math.max(0, this.lyricsDisplay.scrollHeight - this.lyricsDisplay.clientHeight);
+        const clampedTarget = Math.max(0, Math.min(maxScrollTop, targetScrollTop));
+
+        this.animateScrollTop(clampedTarget);
+    }
+
+    private animateScrollTop(targetScrollTop: number): void {
+        this.cancelScrollAnimation();
+
+        const startScrollTop = this.lyricsDisplay.scrollTop;
+        const distance = targetScrollTop - startScrollTop;
+        if (Math.abs(distance) < 1) {
+            this.lyricsDisplay.scrollTop = targetScrollTop;
+            return;
+        }
+
+        const startTime = performance.now();
+        const step = (timestamp: number): void => {
+            const progress = Math.min(1, (timestamp - startTime) / this.lineScrollDurationMs);
+            const easedProgress = this.easeOutCubic(progress);
+            this.lyricsDisplay.scrollTop = startScrollTop + distance * easedProgress;
+
+            if (progress < 1) {
+                this.scrollAnimationFrame = requestAnimationFrame(step);
+                return;
+            }
+
+            this.scrollAnimationFrame = null;
+        };
+
+        this.scrollAnimationFrame = requestAnimationFrame(step);
+    }
+
+    private cancelScrollAnimation(): void {
+        if (this.scrollAnimationFrame === null) return;
+
+        cancelAnimationFrame(this.scrollAnimationFrame);
+        this.scrollAnimationFrame = null;
+    }
+
+    private easeOutCubic(progress: number): number {
+        return 1 - Math.pow(1 - progress, 3);
     }
 
     private updateWordHighlight(lineIndex: number, currentTime: number): void {

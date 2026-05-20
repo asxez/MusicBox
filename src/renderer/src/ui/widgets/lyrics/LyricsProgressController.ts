@@ -22,6 +22,7 @@ class LyricsProgressController {
     private readonly addDomListener: AddLyricsDomListener;
     private readonly getCurrentTrack: () => Track | null;
     private dragging = false;
+    private dragPercentage = 0;
     private bound = false;
 
     constructor(options: LyricsProgressControllerOptions) {
@@ -63,10 +64,14 @@ class LyricsProgressController {
     }
 
     updateProgress(currentTime: number, duration: number): void {
+        if (this.dragging) {
+            this.elements.durationEl.textContent = formatTime(duration);
+            return;
+        }
+
         if (duration > 0) {
             const percentage = (currentTime / duration) * 100;
-            this.elements.progressFill.style.width = `${percentage}%`;
-            this.elements.progressHandle.style.left = `${percentage}%`;
+            this.setProgressPercentage(percentage);
         }
 
         this.elements.currentTimeEl.textContent = formatTime(currentTime);
@@ -85,7 +90,9 @@ class LyricsProgressController {
 
         const rect = this.elements.progressBar.getBoundingClientRect();
         const clickX = event.clientX - rect.left;
-        const percentage = clickX / rect.width;
+        const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+        this.dragPercentage = percentage;
+        this.setProgressPercentage(percentage * 100);
         await playbackUiStateService.seek(percentage * duration);
     }
 
@@ -102,7 +109,8 @@ class LyricsProgressController {
         const rect = this.elements.progressBar.getBoundingClientRect();
         const dragX = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
         const percentage = dragX / rect.width;
-        this.elements.progressFill.style.width = `${percentage * 100}%`;
+        this.dragPercentage = percentage;
+        this.setProgressPercentage(percentage * 100);
         this.elements.currentTimeEl.textContent = formatTime(percentage * duration);
     }
 
@@ -112,14 +120,19 @@ class LyricsProgressController {
         this.dragging = false;
         this.elements.progressBar.classList.remove('dragging');
 
-        const percentage = parseFloat(this.elements.progressFill.style.width) / 100;
         const duration = this.getPlaybackDuration();
-        await playbackUiStateService.seek(percentage * (duration || 0));
+        await playbackUiStateService.seek(this.dragPercentage * (duration || 0));
     }
 
     private getPlaybackDuration(): number {
         const currentTrack = this.getCurrentTrack();
         return currentTrack?.duration || playbackUiStateService.getState().duration;
+    }
+
+    private setProgressPercentage(percentage: number): void {
+        const clampedPercentage = Math.max(0, Math.min(100, percentage));
+        this.elements.progressFill.style.width = `${clampedPercentage}%`;
+        this.elements.progressHandle.style.left = `${clampedPercentage}%`;
     }
 }
 

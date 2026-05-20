@@ -6,14 +6,23 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.6);
-  display: none;
+  display: flex;
   justify-content: center;
   align-items: center;
   z-index: 10000;
   backdrop-filter: blur(4px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 180ms cubic-bezier(0.2, 0, 0, 1),
+  visibility 0s linear 180ms;
 
   &.active {
-    display: flex;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 180ms cubic-bezier(0.2, 0, 0, 1),
+    visibility 0s linear 0s;
   }
 }
 
@@ -28,6 +37,23 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  opacity: 0;
+  transform: translateY(16px) scale(0.96);
+  transition: opacity 160ms cubic-bezier(0.2, 0, 0, 1),
+  transform 220ms cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform, opacity;
+
+  .parametric-equalizer-modal.active & {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parametric-equalizer-modal,
+  .parametric-equalizer-modal-content {
+    transition: none;
+  }
 }
 
 .parametric-equalizer-header {
