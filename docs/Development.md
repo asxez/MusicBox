@@ -4,7 +4,7 @@
 
 ## 环境要求
 
-- Node.js >= 20.0.0
+- Node.js >= 22.0.0
 - npm，使用项目 lockfile 对应版本即可
 - Python >= 3.8，用于 `src/main/metadata_editor.py` 及其打包
 - Rust toolchain with Cargo，推荐支持 Rust 2024 edition 的稳定版本
