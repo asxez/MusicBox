@@ -1,0 +1,507 @@
+// Player
+.player {
+  grid-area: player;
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  height: 64px;
+  backdrop-filter: saturate(180%) blur(30px);
+  background-color: var(--color-navbar-bg);
+  z-index: 100;
+}
+
+// Firefox fallback for backdrop-filter
+@supports (-moz-appearance: none) {
+  .player {
+    background-color: var(--color-body-bg);
+  }
+}
+
+// Progress bar at the top
+.progress-bar {
+  margin-top: -6px;
+  margin-bottom: -6px;
+  width: 100%;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.progress-track {
+  position: relative;
+  width: 100%;
+  height: 2px;
+  background: rgba(128, 128, 128, 0.18);
+  border-radius: 15px;
+  overflow: visible;
+}
+
+// Controls section
+.controls {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  height: 100%;
+  padding: 0 10vw;
+}
+
+@media (max-width: 1336px) {
+  .controls {
+    padding: 0 5vw;
+  }
+}
+
+.blank {
+  flex-grow: 1;
+}
+
+// Left section: Track info
+.playing {
+  display: flex;
+}
+
+.playing .container {
+  display: flex;
+  align-items: center;
+}
+
+// Track info
+.track-cover-container {
+  position: relative;
+  height: 46px;
+  width: 46px;
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--transition-normal);
+
+  &:hover {
+    transform: scale(1.05);
+  }
+
+  &.hover .track-cover-overlay {
+    opacity: 1;
+  }
+}
+
+.track-cover {
+  height: 100%;
+  width: 100%;
+  border-radius: 5px;
+  box-shadow: 0 6px 8px -2px rgba(0, 0, 0, 0.16);
+  object-fit: cover;
+  transition: all var(--transition-normal);
+
+  &.loading {
+    opacity: 0.6;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 0.6;
+    }
+    50% {
+      opacity: 0.3;
+    }
+  }
+}
+
+.track-cover-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  pointer-events: none;
+}
+
+.lyrics-hint-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+
+  img {
+    width: 12px;
+    height: 12px;
+    filter: invert(0.2);
+  }
+}
+
+.track-info {
+  height: 46px;
+  margin-left: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.track-name {
+  font-weight: 600;
+  font-size: 16px;
+  opacity: 0.88;
+  color: var(--color-text);
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+  word-break: break-all;
+  cursor: pointer;
+
+  &.has-list:hover {
+    text-decoration: underline;
+  }
+}
+
+.track-artist {
+  font-size: 12px;
+  opacity: 0.58;
+  color: var(--color-text);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+  word-break: break-all;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.like-button {
+  margin-left: 16px;
+}
+
+// ButtonIcon component
+.button-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px;
+  background: transparent;
+  margin: 4px;
+  border-radius: 25%;
+  transition: 0.2s;
+  border: none;
+  cursor: pointer;
+
+  .icon {
+    color: var(--color-text);
+    height: 16px;
+    width: 16px;
+    // 浅色主题：纯黑色图标
+    filter: brightness(0) saturate(100%) invert(0);
+    transition: filter var(--transition-fast);
+  }
+
+  &:first-child {
+    margin-left: 0;
+  }
+
+  &:hover {
+    background: var(--color-secondary-bg-for-transparent, var(--color-hover));
+
+    .icon {
+      // 悬停时保持纯黑色
+      filter: brightness(0) saturate(100%) invert(0);
+    }
+  }
+
+  &:active {
+    transform: scale(0.92);
+  }
+
+  &.active .icon {
+    // 激活状态保持主题色
+    filter: brightness(0) saturate(100%) invert(0.2) sepia(1) saturate(5) hue-rotate(220deg);
+  }
+
+  &.disabled {
+    cursor: default;
+    opacity: 0.38;
+
+    &:hover {
+      background: none;
+    }
+
+    &:active {
+      transform: unset;
+    }
+  }
+}
+
+// Middle control buttons
+.middle-control-buttons {
+  display: flex;
+}
+
+.middle-control-buttons .container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 8px;
+
+  .button-icon {
+    margin: 0 8px;
+  }
+
+  .play {
+    height: 42px;
+    width: 42px;
+
+    .icon {
+      width: 24px;
+      height: 24px;
+    }
+  }
+}
+
+// Right control buttons
+.right-control-buttons {
+  display: flex;
+}
+
+.right-control-buttons .container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+
+  .active .icon {
+    filter: brightness(0) saturate(100%) invert(0.2) sepia(1) saturate(5) hue-rotate(220deg);
+  }
+
+  .volume-control {
+    margin-left: 4px;
+    display: flex;
+    align-items: center;
+
+    .volume-bar {
+      width: 84px;
+    }
+  }
+}
+
+// Progress bar styles (updated for new structure)
+.progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 15px;
+  transition: width var(--transition-fast);
+  width: 0%;
+  position: relative;
+}
+
+.progress-handle {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0.5px 0.5px 2px 1px rgba(0, 0, 0, 0.12);
+  visibility: hidden;
+  transition: visibility var(--transition-fast);
+  left: 0%;
+  cursor: pointer;
+  z-index: 2;
+}
+
+// Show handle on hover or when dragging
+.progress-bar-container:hover .progress-handle,
+.progress-bar-container.dragging .progress-handle {
+  visibility: visible;
+}
+
+// Progress tooltip
+.progress-tooltip {
+  position: absolute;
+  bottom: 25px;
+  left: 0;
+  transform: translateX(-50%);
+  background: #ffffff;
+  color: #000000;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0.5px 0.5px 2px 1px rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.progress-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #ffffff;
+}
+
+.progress-bar-container.dragging .progress-tooltip {
+  opacity: 1;
+}
+
+// Volume control
+.volume-slider-container {
+  width: 84px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.volume-slider {
+  position: relative;
+  width: 100%;
+  height: 2px;
+  background: rgba(128, 128, 128, 0.18);
+  border-radius: 15px;
+  overflow: visible;
+}
+
+.volume-fill {
+  height: 100%;
+  background: var(--color-text);
+  border-radius: 15px;
+  transition: width var(--transition-fast), background-color var(--transition-fast);
+  width: 70%;
+  opacity: 0.8;
+}
+
+.volume-handle {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0.5px 0.5px 2px 1px rgba(0, 0, 0, 0.12);
+  visibility: hidden;
+  transition: visibility var(--transition-fast);
+  left: 70%;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.volume-slider-container:hover .volume-handle {
+  visibility: visible;
+}
+
+.volume-slider-container:hover .volume-fill {
+  background: var(--color-primary);
+  opacity: 1;
+}
+
+// Dark theme adjustments
+[data-theme='dark'] {
+  .button-icon .icon {
+    // 深色主题：纯白色图标
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  .button-icon:hover .icon {
+    // 悬停时保持纯白色
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  .button-icon.active .icon {
+    // 激活状态保持主题色
+    filter: brightness(0) saturate(100%) invert(0.9) sepia(1) saturate(5) hue-rotate(220deg);
+  }
+
+  // 全屏按钮深色主题样式
+  .lyrics-fullscreen-button .fullscreen-btn .icon {
+    // 深色主题：纯白色图标
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  .lyrics-fullscreen-button .fullscreen-btn:hover .icon {
+    // 悬停时保持纯白色
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  // 歌词页面新控件深色主题样式
+  .volume-control-section .volume-btn .icon,
+  .playmode-control-section .playmode-btn .icon {
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  .volume-control-section .volume-btn:hover .icon,
+  .playmode-control-section .playmode-btn:hover .icon {
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  .volume-slider::-webkit-slider-thumb {
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .volume-slider::-moz-range-thumb {
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .lyrics-progress-handle {
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  // 歌词页面音量滑块在暗色主题下的样式
+  .volume-control-section .volume-slider::-webkit-slider-thumb {
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .volume-control-section .volume-slider::-moz-range-thumb {
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .progress-handle,
+  .volume-handle {
+    background: #ffffff;
+    box-shadow: 0.5px 0.5px 2px 1px rgba(0, 0, 0, 0.3);
+  }
+
+  .progress-tooltip {
+    background: #2a2a2a;
+    color: #ffffff;
+    box-shadow: 0.5px 0.5px 2px 1px rgba(0, 0, 0, 0.3);
+  }
+
+  .progress-tooltip::after {
+    border-top-color: #2a2a2a;
+  }
+}

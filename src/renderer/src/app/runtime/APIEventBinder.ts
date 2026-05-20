@@ -1,0 +1,84 @@
+import {appEventService} from "@/features/events/service/AppEventService";
+import {playbackUiStateService} from "@/features/playback/service/PlaybackUiStateService";
+import type {MusicBoxAPIEvents} from '@api/types/events';
+import type {APIEventBindingHost} from './AppRuntimePorts';
+import type {ManagedAPIListener} from '@/shared/types/AppContracts';
+import type {PlaybackUIFacade} from './ui/PlaybackUIFacade';
+
+interface APIEventBinderOptions {
+    app: APIEventBindingHost;
+    apiEventListeners: ManagedAPIListener[];
+    playbackUI: PlaybackUIFacade;
+}
+
+export class APIEventBinder {
+    private readonly app: APIEventBindingHost;
+    private readonly apiEventListeners: ManagedAPIListener[];
+    private readonly playbackUI: PlaybackUIFacade;
+
+    constructor({app, apiEventListeners, playbackUI}: APIEventBinderOptions) {
+        this.app = app;
+        this.apiEventListeners = apiEventListeners;
+        this.playbackUI = playbackUI;
+    }
+
+    addManagedAPIEventListener<K extends keyof MusicBoxAPIEvents>(
+        event: K,
+        handler: (payload: MusicBoxAPIEvents[K]) => void | Promise<void>
+    ): void {
+        appEventService.on(event, handler);
+        this.apiEventListeners.push({event, handler} as ManagedAPIListener);
+    }
+
+    dispose(): void {
+        this.apiEventListeners.forEach(({event, handler}) => {
+            try {
+                appEventService.off(event, handler as any);
+            } catch (error) {
+                console.warn('Failed to remove API event listener:', error);
+            }
+        });
+        this.apiEventListeners.length = 0;
+    }
+
+    bindAppEvents(): void {
+        const app = this.app;
+
+        this.addManagedAPIEventListener('libraryUpdated', async (tracks) => {
+            await app.refreshLibrary(tracks);
+        });
+
+        this.addManagedAPIEventListener('playlistChanged', (tracks) => {
+            console.log('🎵 API播放列表改变:', tracks.length, '首歌曲');
+        });
+
+        this.addManagedAPIEventListener('libraryTrackDurationUpdated', ({filePath, duration}) => {
+            console.log('🎵 更新音乐库歌曲时长:', filePath, duration.toFixed(2) + 's');
+            app.updateLibraryTrackDuration(filePath, duration);
+        });
+
+        this.addManagedAPIEventListener('playModeChanged', (mode) => {
+            this.playbackUI.updatePlayModeDisplay(mode);
+        });
+
+        this.addManagedAPIEventListener('trackChanged', async (track) => {
+            await this.playbackUI.showLyricsForTrack(track);
+        });
+
+        this.addManagedAPIEventListener('positionChanged', (position) => {
+            if (this.playbackUI.isLyricsVisible()) {
+                const currentTrack = playbackUiStateService.getCurrentTrackSnapshot();
+                const duration = currentTrack?.duration || playbackUiStateService.getDuration();
+                this.playbackUI.updateLyricsProgress(position, duration);
+            }
+        });
+
+        this.addManagedAPIEventListener('playbackStateChanged', (_state) => {
+            this.playbackUI.updateLyricsPlayButton();
+        });
+
+        this.addManagedAPIEventListener('scanProgress', (progress) => {
+            app.updateScanProgress(progress);
+        });
+    }
+}

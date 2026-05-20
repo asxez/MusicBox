@@ -9,21 +9,21 @@ const configFiles = [
     path.join(rendererRoot, 'vite.config.js')
 ];
 const legacyCompatibilityRoots = [
-    path.join(sourceRoot, 'js/core'),
-    path.join(sourceRoot, 'js/services')
+    path.join(sourceRoot, 'core'),
+    path.join(sourceRoot, 'services')
 ];
-const sandboxRuntimeFile = path.join(sourceRoot, 'js/extensions/core/sandbox/SandboxFrameRuntime.ts');
+const sandboxRuntimeFile = path.join(sourceRoot, 'extensions/core/sandbox/SandboxFrameRuntime.ts');
 const pluginHostCodeRoots = [
-    path.join(sourceRoot, 'js/extensions/core'),
-    path.join(sourceRoot, 'js/extensions/api'),
-    path.join(sourceRoot, 'js/features/extensions'),
-    path.join(sourceRoot, 'js/services/plugins'),
+    path.join(sourceRoot, 'extensions/core'),
+    path.join(sourceRoot, 'extensions/api'),
+    path.join(sourceRoot, 'features/extensions'),
+    path.join(sourceRoot, 'services/plugins'),
     path.resolve(rendererRoot, '..', 'main/services/extensions'),
     path.resolve(rendererRoot, '..', 'main/controllers/ExtensionsController.ts')
 ];
 const pluginOwnedRoots = [
-    path.join(sourceRoot, 'js/extensions/builtin'),
-    path.join(sourceRoot, 'js/extensions/examples')
+    path.join(sourceRoot, 'extensions/builtin'),
+    path.join(sourceRoot, 'extensions/examples')
 ];
 
 const scannedExtensions = new Set(['.js', '.ts', '.mjs', '.cjs', '.html']);
@@ -36,32 +36,40 @@ const ignoredDirectories = new Set([
 
 const forbiddenPatterns = [
     {
-        pattern: /from\s+['"](?:@js\/core|@core)(?:\/[^'"]*)?['"]/g,
-        message: 'Use @js/app/* or @js/features/* instead of legacy core imports.'
+        pattern: /from\s+['"](?:@\/core|@core)(?:\/[^'"]*)?['"]/g,
+        message: 'Use @/app/* or @/features/* instead of legacy core imports.'
     },
     {
-        pattern: /import\s+['"](?:@js\/core|@core)(?:\/[^'"]*)?['"]/g,
-        message: 'Use @js/app/* or @js/features/* instead of legacy core side-effect imports.'
+        pattern: /import\s+['"](?:@\/core|@core)(?:\/[^'"]*)?['"]/g,
+        message: 'Use @/app/* or @/features/* instead of legacy core side-effect imports.'
     },
     {
-        pattern: /from\s+['"](?:@js\/services|@services)(?:\/[^'"]*)?['"]/g,
-        message: 'Use @js/features/*/service or @js/infrastructure/electron/* instead of legacy services imports.'
+        pattern: /from\s+['"](?:@\/services|@services)(?:\/[^'"]*)?['"]/g,
+        message: 'Use @/features/*/service or @/infrastructure/electron/* instead of legacy services imports.'
     },
     {
-        pattern: /import\s+['"](?:@js\/services|@services)(?:\/[^'"]*)?['"]/g,
-        message: 'Use @js/features/*/service or @js/infrastructure/electron/* instead of legacy services side-effect imports.'
+        pattern: /import\s+['"](?:@\/services|@services)(?:\/[^'"]*)?['"]/g,
+        message: 'Use @/features/*/service or @/infrastructure/electron/* instead of legacy services side-effect imports.'
     },
     {
-        pattern: /src=["']\.\/js\/core\/main\.ts["']/g,
-        message: 'HTML entries must use ./js/app/bootstrap/main.ts; js/core/main.ts is compatibility only.'
+        pattern: /src=["']\.\/core\/main\.ts["']/g,
+        message: 'HTML entries must use ./app/bootstrap/main.ts; core/main.ts is compatibility only.'
     },
     {
         pattern: /['"]@core(?:\/\*)?['"]\s*:/g,
-        message: 'Do not expose the legacy @core alias; import from @js/app/* or @js/features/*.'
+        message: 'Do not expose the legacy @core alias; import from @/app/* or @/features/*.'
     },
     {
         pattern: /['"]@services(?:\/\*)?['"]\s*:/g,
-        message: 'Do not expose the legacy @services alias; import from @js/features/*/service or @js/infrastructure/electron/*.'
+        message: 'Do not expose the legacy @services alias; import from @/features/*/service or @/infrastructure/electron/*.'
+    },
+    {
+        pattern: /from\s+['"]@js(?:\/[^'"]*)?['"]/g,
+        message: 'The renderer source root is now @/*; do not import through the removed @js alias.'
+    },
+    {
+        pattern: /import\s+['"]@js(?:\/[^'"]*)?['"]/g,
+        message: 'The renderer source root is now @/*; do not import through the removed @js alias.'
     },
     {
         pattern: /\bglobalThis\.eval\s*\(|\beval\s*\(/g,
@@ -271,7 +279,7 @@ function createPluginSpecificPatterns() {
 
 function collectBuiltinPluginIdentifiers() {
     const identifiers = new Set();
-    const builtinRoot = path.join(sourceRoot, 'js/extensions/builtin');
+    const builtinRoot = path.join(sourceRoot, 'extensions/builtin');
     const indexPath = path.join(builtinRoot, 'extensions.json');
 
     if (!existsSync(indexPath)) {

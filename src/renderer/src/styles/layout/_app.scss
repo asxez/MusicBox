@@ -1,0 +1,18 @@
+// Main app layout
+.app {
+  display: grid;
+  grid-template-areas:
+    "navbar navbar"
+    "sidebar main"
+    "player player";
+  grid-template-rows: 64px 1fr 64px;
+  grid-template-columns: 240px 1fr;
+  height: 100vh;
+  overflow: hidden;
+  transition: grid-template-columns var(--transition-normal);
+
+  // 收缩状态
+  &.sidebar-collapsed {
+    grid-template-columns: 64px 1fr;
+  }
+}

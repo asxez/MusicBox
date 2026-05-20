@@ -1,0 +1,237 @@
+// Context Menu
+.context-menu {
+  position: fixed;
+  background: var(--color-body-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  backdrop-filter: saturate(180%) blur(30px);
+  z-index: 1000;
+  min-width: 180px;
+  padding: var(--spacing-xs) 0;
+  user-select: none;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+
+  .icon {
+    width: 16px;
+    height: 16px;
+    margin-right: var(--spacing-sm);
+    fill: currentColor;
+  }
+
+  span {
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+  }
+
+  &:hover {
+    background: var(--color-hover);
+  }
+
+  &.danger {
+    color: var(--color-error);
+
+    &:hover {
+      background: rgba(var(--color-error-rgb), 0.1);
+    }
+  }
+}
+
+.context-menu-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--spacing-xs) 0;
+}
+
+/* 歌单封面右键菜单样式 */
+.cover-context-menu {
+  position: fixed;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-xs);
+  min-width: 160px;
+  z-index: 10000;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  .context-menu-item {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    cursor: pointer;
+    border-radius: var(--border-radius-sm);
+    transition: background var(--transition-fast);
+    user-select: none;
+
+    .menu-icon {
+      width: 16px;
+      height: 16px;
+      margin-right: var(--spacing-sm);
+      fill: currentColor;
+      opacity: 0.7;
+    }
+
+    span {
+      font-size: var(--font-size-sm);
+      color: var(--color-text);
+      font-weight: 500;
+    }
+
+    &:hover {
+      background: var(--color-hover);
+
+      .menu-icon {
+        opacity: 1;
+      }
+    }
+
+    &:active {
+      background: var(--color-active);
+    }
+  }
+}
+
+/* 歌单封面样式增强 */
+.playlist-cover {
+  position: relative;
+  cursor: pointer;
+  transition: transform var(--transition-normal);
+
+  &:hover {
+    transform: scale(1.02);
+  }
+
+  .cover-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+  }
+
+  .cover-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: var(--color-surface-variant);
+    border-radius: var(--border-radius-lg);
+    border: 2px dashed var(--color-border);
+    transition: all var(--transition-normal);
+
+    .cover-icon {
+      width: 48px;
+      height: 48px;
+      fill: var(--color-text-secondary);
+      opacity: 0.5;
+    }
+
+    &:hover {
+      border-color: var(--color-primary);
+      background: var(--color-primary-container);
+
+      .cover-icon {
+        fill: var(--color-primary);
+        opacity: 0.8;
+      }
+    }
+  }
+}
+
+/* 侧边栏歌单封面样式 */
+.sidebar-playlist-cover {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--border-radius-sm);
+  object-fit: cover;
+  margin-right: var(--spacing-sm);
+  flex-shrink: 0;
+  transition: all var(--transition-normal);
+}
+
+/* 收缩状态下的歌单项样式 */
+.playlist-sidebar-item.collapsed-item {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--spacing-xs) auto;
+  border-radius: var(--border-radius-md);
+  position: relative;
+  transition: all var(--transition-normal);
+  // 防止hover时的缩放效果影响容器滚动
+  transform-origin: center;
+  overflow: visible;
+  // 关键：确保元素不会因为hover效果而影响父容器的滚动计算
+  contain: layout;
+
+  &:hover {
+    background: var(--color-hover);
+    // 不使用transform缩放，改用box-shadow来实现视觉反馈
+    box-shadow: 0 0 0 2px var(--color-primary-container);
+
+    // 显示tooltip
+    &::after {
+      content: attr(title);
+      position: absolute;
+      left: calc(100% + var(--spacing-sm));
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--color-surface);
+      color: var(--color-text);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--border-radius-sm);
+      font-size: var(--font-size-xs);
+      white-space: nowrap;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--color-border);
+      z-index: 1000;
+      opacity: 1;
+      pointer-events: none;
+      // 确保tooltip不会影响父容器的滚动计算
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      // 关键：确保tooltip不会影响父容器的尺寸计算
+      width: max-content;
+      max-width: 200px;
+    }
+  }
+
+  .sidebar-playlist-cover {
+    width: 32px;
+    height: 32px;
+    margin-right: 0;
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .sidebar-icon {
+    width: 24px;
+    height: 24px;
+    margin-right: 0;
+    fill: var(--color-text-secondary);
+    transition: fill var(--transition-fast);
+  }
+
+  &:hover .sidebar-icon {
+    fill: var(--color-primary);
+  }
+
+  // 隐藏tooltip的默认状态
+  &::after {
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+  }
+}

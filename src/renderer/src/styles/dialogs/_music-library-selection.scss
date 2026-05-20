@@ -1,0 +1,135 @@
+// Music Library Selection Dialog
+.library-selection-header {
+  margin-bottom: var(--spacing-lg);
+
+  .search-container {
+    position: relative;
+    margin-bottom: var(--spacing-md);
+
+    .form-input {
+      padding-right: 40px;
+    }
+
+    .search-icon {
+      position: absolute;
+      right: var(--spacing-md);
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      fill: var(--color-text-secondary);
+      pointer-events: none;
+    }
+  }
+
+  .selection-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+
+    .selection-count {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      margin-left: auto;
+
+      #selected-count {
+        font-weight: 600;
+        color: var(--color-primary);
+      }
+    }
+  }
+}
+
+.library-track-list {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+}
+
+.library-track-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: var(--color-bg-hover);
+  }
+
+  &.selected {
+    background: rgba(var(--color-primary-rgb), 0.1);
+    border-color: var(--color-primary);
+  }
+
+  .track-checkbox {
+    width: 18px;
+    height: 18px;
+    margin-right: var(--spacing-md);
+    accent-color: var(--color-primary);
+    cursor: pointer;
+  }
+
+  .track-info {
+    flex: 1;
+    min-width: 0;
+
+    .track-title {
+      font-weight: 500;
+      color: var(--color-text);
+      margin-bottom: var(--spacing-xs);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .track-meta {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .track-duration {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin-left: var(--spacing-md);
+    min-width: 50px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.library-empty-state {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--color-text-secondary);
+
+  .empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto var(--spacing-md) auto;
+    opacity: 0.5;
+    fill: var(--color-text-secondary);
+  }
+
+  h3 {
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-text);
+  }
+
+  p {
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+  }
+}

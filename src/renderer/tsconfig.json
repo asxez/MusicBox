@@ -20,11 +20,10 @@
     "baseUrl": "./",
     "paths": {
       "@/*": ["src/*"],
-      "@js/*": ["src/js/*"],
-      "@utils/*": ["src/js/utils/*"],
-      "@api/*": ["src/js/api/*"],
-      "@ui/*": ["src/js/ui/*"],
-      "@extensions/*": ["src/js/extensions/*"],
+      "@utils/*": ["src/utils/*"],
+      "@api/*": ["src/api/*"],
+      "@ui/*": ["src/ui/*"],
+      "@extensions/*": ["src/extensions/*"],
       "@styles/*": ["src/styles/*"],
       "@assets/*": ["src/assets/*"]
     }
@@ -36,7 +35,6 @@
   ],
   "exclude": [
     "node_modules",
-    "public",
-    "src/js - 副本"
+    "public"
   ]
 }

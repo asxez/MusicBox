@@ -1,0 +1,106 @@
+// User playlists in sidebar
+#user-playlists-section {
+  .sidebar-menu {
+    max-height: 300px;
+    overflow-y: auto;
+  }
+}
+
+.playlist-sidebar-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-md); // 减小垂直内边距，使歌单列表更紧凑
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  position: relative;
+  margin-bottom: 2px; // 添加小间距分隔歌单项
+
+  &:hover {
+    background: var(--color-bg-hover);
+    color: var(--color-text);
+
+    .sidebar-playlist-actions {
+      opacity: 1;
+    }
+  }
+
+  &.active {
+    background: var(--color-primary-bg);
+    color: var(--color-primary);
+
+    .sidebar-icon {
+      fill: var(--color-primary);
+    }
+
+    // 确保封面图片在激活状态下仍然可见，但不显示边框
+    .sidebar-playlist-cover {
+      opacity: 1;
+      // 移除边框以保持简洁的视觉效果
+    }
+  }
+
+  .sidebar-icon {
+    width: 18px;
+    height: 18px;
+    margin-right: var(--spacing-md);
+    fill: var(--color-text-secondary);
+    transition: fill var(--transition-fast);
+  }
+
+  .playlist-name {
+    flex: 1;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0; // 确保flex项目可以正确收缩
+  }
+
+  .playlist-count {
+    font-size: var(--font-size-xs);
+    opacity: 0.7;
+    margin-left: var(--spacing-sm);
+    flex-shrink: 0; // 防止歌曲数量被压缩
+    min-width: 20px; // 确保数量显示有足够空间
+    text-align: right; // 右对齐数量显示
+  }
+
+  // 侧边栏歌单操作按钮区域 - 独立样式避免与歌单详情页面冲突
+  .sidebar-playlist-actions {
+    opacity: 0;
+    display: flex;
+    align-items: center;
+    gap: 2px; // 减小按钮间距，使布局更紧凑
+    margin-left: var(--spacing-xs); // 减小左边距
+    flex-shrink: 0; // 防止操作按钮被压缩
+    transition: opacity var(--transition-fast);
+  }
+
+  .sidebar-playlist-action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px; // 使用固定像素值确保一致的按钮尺寸
+    border-radius: var(--radius-sm);
+    transition: background-color var(--transition-fast);
+    display: flex; // 确保图标居中对齐
+    align-items: center;
+    justify-content: center;
+    width: 24px; // 固定宽度确保对齐
+    height: 24px; // 固定高度确保对齐
+
+    &:hover {
+      background: rgba(var(--color-text-rgb), 0.1); // 使用主题色变量
+    }
+
+    .icon {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+  }
+}

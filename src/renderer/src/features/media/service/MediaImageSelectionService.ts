@@ -1,0 +1,11 @@
+import {mediaGateway, type SelectedImageDataResult} from '@/infrastructure/electron/MediaGateway';
+
+export type {SelectedImageDataResult};
+
+export class MediaImageSelectionService {
+    selectImageData(maxSizeBytes: number): Promise<SelectedImageDataResult> {
+        return mediaGateway.selectImageData(maxSizeBytes);
+    }
+}
+
+export const mediaImageSelectionService = new MediaImageSelectionService();

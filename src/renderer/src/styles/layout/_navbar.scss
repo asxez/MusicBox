@@ -1,0 +1,176 @@
+// Navigation bar
+.navbar {
+  grid-area: navbar;
+  background: var(--color-navbar-bg);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--color-border);
+  z-index: 100;
+  -webkit-app-region: drag;
+}
+
+.navbar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 0 var(--spacing-lg);
+
+  // 拖拽区域样式
+  &:not(:has(button:hover)):not(:has(input:hover)):not(:has(.search-container:hover)) {
+    cursor: default;
+  }
+}
+
+.navbar-left,
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  -webkit-app-region: no-drag;
+}
+
+.navbar-center {
+  flex: 1;
+  max-width: 600px;
+  margin: 0 var(--spacing-xl);
+  -webkit-app-region: no-drag;
+}
+
+.nav-button {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+
+  &:hover:not(:disabled) {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .icon {
+    width: 20px;
+    height: 20px;
+    transition: all var(--transition-fast);
+    // 浅色主题：纯黑色图标
+    filter: brightness(0) saturate(100%) invert(0);
+  }
+
+  &:hover .icon {
+    // 悬停时保持纯黑色
+    filter: brightness(0) saturate(100%) invert(0);
+  }
+
+  // 窗口控制按钮特殊样式
+  &#minimize-btn:hover {
+    background: rgba(0, 122, 255, 0.1);
+  }
+
+  &#maximize-btn:hover {
+    background: rgba(0, 122, 255, 0.1);
+  }
+
+  &#close-btn:hover {
+    background: rgba(255, 59, 48, 0.1);
+
+    .icon {
+      filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%);
+    }
+  }
+}
+
+.search-container {
+  position: relative;
+  width: 100%;
+}
+
+.search-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--spacing-md) 0 40px;
+  background: var(--color-secondary-bg);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+
+  &::placeholder {
+    color: var(--color-text-secondary);
+  }
+
+  &:focus {
+    background: var(--color-body-bg);
+    box-shadow: 0 0 0 2px var(--color-primary);
+  }
+}
+
+.search-icon {
+  position: absolute;
+  left: var(--spacing-md);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  fill: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+// Icon styles
+.icon {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+
+  // For img icons - 浅色主题：纯黑色
+  &[src] {
+    filter: brightness(0) saturate(100%) invert(0);
+    transition: filter var(--transition-fast);
+  }
+}
+
+// Icon color adjustments for different states
+.control-button:hover .icon[src] {
+  // 悬停时保持纯黑色
+  filter: brightness(0) saturate(100%) invert(0);
+}
+
+.control-button.primary .icon[src] {
+  // 主要按钮保持白色（用于深色背景）
+  filter: brightness(0) saturate(100%) invert(1);
+}
+
+.control-button.active .icon[src] {
+  // 激活状态保持主题色
+  filter: brightness(0) saturate(100%) invert(0.2) sepia(1) saturate(5) hue-rotate(220deg);
+}
+
+// Dark theme icon adjustments
+[data-theme='dark'] {
+  .icon[src] {
+    // 深色主题：纯白色图标
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  .control-button:hover .icon[src] {
+    // 悬停时保持纯白色
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  .control-button.primary .icon[src] {
+    // 主要按钮保持白色
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  .control-button.active .icon[src] {
+    // 激活状态保持主题色
+    filter: brightness(0) saturate(100%) invert(0.9) sepia(1) saturate(5) hue-rotate(220deg);
+  }
+}

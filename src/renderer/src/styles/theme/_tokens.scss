@@ -1,0 +1,208 @@
+// Variables and theme system
+:root {
+  // Colors - Light theme
+  --color-body-bg: #ffffff;
+  --color-body-bg-rgb: 255, 255, 255;
+  --color-text: #000000;
+  --color-text-secondary: #7a7a7b;
+  --color-primary: #335eea;
+  --color-primary-rgb: 51, 94, 234;
+  --color-primary-hover: #2952e8;
+  --color-primary-bg: #eaeffd;
+  --color-primary-bg-rgb: 234, 239, 253;
+  --color-secondary-bg: #f5f5f7;
+  --color-surface: #ffffff;
+  --color-navbar-bg: rgba(255, 255, 255, 0.86);
+  --color-sidebar-bg: #fafafa;
+  --color-player-bg: #ffffff;
+  --color-border: #e5e5e7;
+  --color-hover: #f0f0f0;
+  --color-active: #335eea;
+  --color-error-rgb: 220, 38, 38;
+
+  // Status colors
+  --color-success: #10b981;
+  --color-success-hover: #059669;
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
+  --color-info: #3b82f6;
+  --color-info-hover: #2563eb;
+
+  // Shadows
+  --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.15);
+  --shadow-heavy: 0 8px 32px rgba(0, 0, 0, 0.2);
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover: 0 4px 20px rgba(0, 0, 0, 0.12);
+  --shadow-button: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  // Gradients
+  --gradient-primary: linear-gradient(135deg, var(--color-primary) 0%, #4f7cff 100%);
+  --gradient-secondary: linear-gradient(135deg, #f5f5f7 0%, #e8e8ea 100%);
+  --gradient-card: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.6) 100%);
+  --gradient-overlay: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.3) 100%);
+
+  // Card and Layout
+  --border-radius-sm: 8px;
+  --border-radius-md: 12px;
+  --border-radius-lg: 16px;
+  --border-radius-xl: 20px;
+  --border-radius-card: var(--border-radius-md);
+  --border-radius-cover: var(--border-radius-lg);
+
+  // Content spacing
+  --content-padding: 32px;
+  --section-gap: 48px;
+  --card-gap: 24px;
+
+  // Spacing
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  // Border radius
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  // Typography
+  --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 24px;
+
+  // Transitions
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+  --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  // Lyrics highlight opacity
+  --lyrics-highlight-opacity: 1.0;
+}
+
+// Dark theme
+[data-theme='dark'] {
+  --color-body-bg: #222222;
+  --color-body-bg-rgb: 34, 34, 34;
+  --color-text: #ffffff;
+  --color-text-secondary: #a0a0a0;
+  --color-primary: #335eea;
+  --color-primary-rgb: 51, 94, 234;
+  --color-primary-hover: #2952e8;
+  --color-primary-bg: #2a3a5c;
+  --color-primary-bg-rgb: 42, 58, 92;
+  --color-secondary-bg: #323232;
+  --color-surface: #2a2a2a;
+  --color-navbar-bg: rgba(34, 34, 34, 0.86);
+  --color-sidebar-bg: #1a1a1a;
+  --color-player-bg: #2a2a2a;
+  --color-border: #404040;
+  --color-hover: #3a3a3a;
+  --color-active: #335eea;
+
+  // Status colors for dark theme
+  --color-success: #10b981;
+  --color-success-hover: #059669;
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
+  --color-info: #3b82f6;
+  --color-info-hover: #2563eb;
+
+  // Dark theme gradients
+  --gradient-secondary: linear-gradient(135deg, #323232 0%, #2a2a2a 100%);
+  --gradient-card: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  --gradient-overlay: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.6) 100%);
+
+  // 深色主题下的图标颜色：纯白色
+  .sidebar-toggle-btn .icon {
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  .sidebar-toggle-btn:hover .icon {
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  .settings-close-btn .icon {
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  .settings-close-btn:hover .icon {
+    // 悬停时变为红色，在深色主题下保持可见性
+    filter: brightness(0) saturate(100%) invert(0.8) sepia(1) saturate(5) hue-rotate(0deg);
+  }
+
+  .nav-button .icon {
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  .nav-button:hover .icon {
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  // 侧边栏图标：深色主题下纯白色（非激活状态）
+  .sidebar-icon {
+    filter: brightness(0) saturate(100%) invert(1);
+  }
+
+  // 激活状态的图标颜色：深色主题下的蓝色主题色
+  .sidebar-link.active .sidebar-icon {
+    filter: brightness(0) saturate(100%) invert(0.9) sepia(1) saturate(5) hue-rotate(220deg) !important;
+  }
+
+  // 歌单项激活状态的图标颜色：深色主题下保持一致
+  .playlist-sidebar-item.active .sidebar-icon {
+    filter: brightness(0) saturate(100%) invert(0.9) sepia(1) saturate(5) hue-rotate(220deg) !important;
+  }
+
+  // 侧边栏导航链接文字：深色主题下纯白色
+  .sidebar-link {
+    color: #ffffff;
+
+    &:hover {
+      color: #ffffff;
+    }
+
+    &.active {
+      // 激活状态保持主题色
+      color: var(--color-primary);
+    }
+  }
+
+  // 歌单项文字：深色主题下保持一致
+  .playlist-sidebar-item {
+    color: #ffffff;
+
+    &:hover {
+      color: #ffffff;
+    }
+
+    &.active {
+      // 激活状态保持主题色，与导航链接一致
+      color: var(--color-primary);
+    }
+  }
+
+  // 侧边栏按钮文字：深色主题下纯白色
+  .sidebar-button {
+    color: #ffffff;
+
+    &:hover {
+      color: #ffffff;
+    }
+  }
+}
+
+.hide-cursor {
+  cursor: none !important;
+}

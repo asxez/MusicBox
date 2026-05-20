@@ -1,0 +1,1130 @@
+// 歌词页面样式
+.lyrics-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  background: var(--color-body-bg);
+  transform: translateY(100%);
+  transition: transform var(--transition-normal), opacity var(--transition-normal);
+  display: flex;
+  overflow: hidden;
+  opacity: 0;
+
+  &.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  // 背景渐变
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+                    135deg,
+                    rgba(var(--color-primary-rgb), 0.03) 0%,
+                    transparent 25%,
+                    transparent 75%,
+                    rgba(var(--color-primary-rgb), 0.05) 100%
+    );
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  // 添加微妙的纹理效果
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.01) 0%, transparent 50%);
+    z-index: 1;
+    pointer-events: none;
+  }
+}
+
+// 背景模糊层
+.lyrics-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(60px) contrast(80%) brightness(120%) saturate(120%);
+  opacity: 0.3;
+  z-index: 0;
+  transition: all var(--transition-slow);
+
+  // 添加动态效果
+  animation: backgroundPulse 20s ease-in-out infinite;
+
+  // 深色主题下的背景调整
+  [data-theme='dark'] & {
+    filter: blur(60px) contrast(110%) brightness(40%) saturate(130%);
+    opacity: 0.25;
+  }
+}
+
+// 背景脉动动画
+@keyframes backgroundPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.4;
+  }
+}
+
+// 深色主题下的背景脉动
+@keyframes backgroundPulseDark {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.25;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.35;
+  }
+}
+
+[data-theme='dark'] {
+  .lyrics-background {
+    animation: backgroundPulseDark 20s ease-in-out infinite;
+  }
+}
+
+// 全屏按钮
+.lyrics-fullscreen-button {
+  position: fixed;
+  top: var(--spacing-lg);
+  left: var(--spacing-lg);
+  z-index: 1002;
+
+  .fullscreen-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-lg);
+    background: var(--color-secondary-bg);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    backdrop-filter: blur(20px);
+    opacity: 0.8;
+
+    .icon {
+      width: 20px;
+      height: 20px;
+      // 浅色主题：纯黑色图标
+      filter: brightness(0) saturate(100%) invert(0);
+      transition: filter var(--transition-fast);
+    }
+
+    &:hover {
+      background: var(--color-hover);
+      opacity: 1;
+      transform: scale(1.05);
+
+      .icon {
+        // 悬停时保持纯黑色
+        filter: brightness(0) saturate(100%) invert(0);
+      }
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+}
+
+// 关闭按钮
+.lyrics-close-button {
+  position: fixed;
+  top: var(--spacing-lg);
+  right: var(--spacing-lg);
+  z-index: 1002;
+
+  .close-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-lg);
+    background: var(--color-secondary-bg);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    backdrop-filter: blur(20px);
+    opacity: 0.8;
+
+    .icon {
+      width: 20px;
+      height: 20px;
+      color: var(--color-text);
+    }
+
+    &:hover {
+      background: var(--color-hover);
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
+}
+
+// 主要内容区域
+.lyrics-main {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+// 左侧区域：封面和歌曲信息
+.lyrics-left-side {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  margin-right: 32px;
+  margin-top: 24px;
+  align-items: center;
+  transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+  justify-content 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+  margin-right 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform, justify-content, margin-right;
+  z-index: 2;
+
+  .lyrics-cover-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 54vh;
+    width: 100%;
+  }
+}
+
+// 封面容器
+.lyrics-cover-container {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 1;
+  margin-bottom: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  // 阴影效果
+  box-shadow: 0 28px 64px rgba(0, 0, 0, 0.12),
+  0 12px 24px rgba(0, 0, 0, 0.08),
+  0 4px 8px rgba(0, 0, 0, 0.04);
+
+  &:hover {
+    transform: scale(1.02);
+    box-shadow: 0 32px 72px rgba(0, 0, 0, 0.16),
+    0 16px 32px rgba(0, 0, 0, 0.12),
+    0 6px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  // 添加背景阴影
+  &::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    background: var(--color-primary);
+    opacity: 0.1;
+    border-radius: 8px;
+    z-index: -1;
+    filter: blur(20px);
+  }
+
+  .lyrics-cover-image {
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    object-fit: cover;
+    transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+    z-index: 1;
+
+    // 微妙反光效果
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(
+                      135deg,
+                      rgba(255, 255, 255, 0.1) 0%,
+                      transparent 25%,
+                      transparent 75%,
+                      rgba(255, 255, 255, 0.05) 100%
+      );
+      border-radius: 12px;
+      pointer-events: none;
+      opacity: 0.8;
+    }
+  }
+
+  .lyrics-cover-shadow {
+    position: absolute;
+    top: 30px;
+    left: 30px;
+    right: 30px;
+    bottom: 30px;
+    background: inherit;
+    border-radius: var(--radius-xl);
+    filter: blur(30px);
+    opacity: 0.4;
+    z-index: -1;
+    animation: shadowPulse 4s ease-in-out infinite;
+  }
+}
+
+// 封面浮动动画
+@keyframes coverFloat {
+  0%, 100% {
+    transform: translateY(0px) rotateY(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotateY(2deg);
+  }
+}
+
+// 封面发光动画
+@keyframes coverGlow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+// 阴影脉动动画
+@keyframes shadowPulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+// 歌曲信息
+.lyrics-track-info {
+  text-align: center;
+  margin-bottom: 20px;
+  color: var(--color-text);
+  max-width: 54vh;
+
+  .lyrics-track-title {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin: 8px 0 0 0;
+    opacity: 0.88;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .lyrics-track-artist {
+    font-size: 1rem;
+    margin: 4px 0 0 0;
+    color: var(--color-text);
+    font-weight: 400;
+    opacity: 0.58;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    overflow: hidden;
+    transition: all 0.3s ease;
+
+    &:hover {
+      opacity: 0.88;
+    }
+  }
+}
+
+// 标题闪烁动画
+@keyframes titleShimmer {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+// 控制区域
+.lyrics-function-area {
+  width: 100%;
+  max-width: 54vh;
+  margin-top: 24px;
+  color: var(--color-text);
+
+  .top-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 22px;
+  }
+}
+
+// 音量控制区域（歌词页面）
+.volume-control-section {
+  margin: 0 10px;
+  display: flex;
+  align-items: center;
+
+  .volume-btn {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .icon {
+      width: 18px;
+      height: 18px;
+      opacity: 0.88;
+      transition: opacity var(--transition-fast);
+    }
+
+    &:hover .icon {
+      opacity: 1;
+    }
+  }
+
+  // 使用与主页完全相同的音量条结构和样式
+  .volume-bar {
+    width: 84px; // 与主页保持一致
+  }
+
+  .volume-slider-container {
+    width: 84px; // 与主页音量条宽度保持一致
+    height: 20px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .volume-slider {
+    position: relative;
+    width: 100%;
+    height: 3px;
+    background: rgba(128, 128, 128, 0.18); // 与主页保持一致的轨道颜色
+    border-radius: 15px;
+    overflow: visible;
+  }
+
+  .volume-fill {
+    height: 100%;
+    background: var(--color-text); // 与主页保持一致
+    border-radius: 15px;
+    transition: width var(--transition-fast), background-color var(--transition-fast);
+    width: 70%; // 默认音量70%
+    opacity: 0.8; // 与主页保持一致的透明度
+  }
+
+  .volume-handle {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 12px;
+    height: 12px;
+    background: #ffffff; // 与主页保持一致的白色滑块
+    border-radius: 50%;
+    box-shadow: 0.5px 0.5px 2px 1px rgba(0, 0, 0, 0.12); // 与主页保持一致的阴影
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    left: 70%; // 对应默认音量位置
+
+    &:hover {
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+  }
+
+  // 悬停效果，与主页保持一致
+  &:hover {
+    .volume-fill {
+      background-color: #335eea; // 悬停时变为主色调
+    }
+  }
+}
+
+// 播放模式控制区域
+.playmode-control-section {
+  flex-shrink: 0;
+
+  .playmode-btn {
+    position: relative;
+
+    &.active .icon {
+      filter: brightness(0) saturate(100%) invert(0.2) sepia(1) saturate(5) hue-rotate(220deg);
+    }
+  }
+}
+
+// 播放控制按钮
+.lyrics-controls {
+  display: flex;
+  justify-content: center;
+  //margin-top: 18px;
+  align-items: center;
+
+  .button-icon {
+    margin: 0;
+
+    .icon {
+      opacity: 0.38;
+      height: 14px;
+      width: 14px;
+      transition: all 0.3s ease;
+    }
+
+    &.active .icon {
+      opacity: 0.88;
+    }
+  }
+
+  // 中间的播放控制区域
+  .middle {
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+
+    .button-icon {
+      margin: 0 8px;
+
+      .icon {
+        opacity: 0.88;
+        height: 22px;
+        width: 22px;
+      }
+
+      &#lyrics-play-btn .icon {
+        height: 28px;
+        width: 28px;
+        padding: 2px;
+      }
+    }
+  }
+}
+
+// 进度条区域
+.lyrics-progress-section {
+  width: 100%;
+  margin: var(--spacing-xs) 0 var(--spacing-xs) 0;
+
+  .lyrics-progress-bar {
+    position: relative;
+    width: 100%;
+    height: 20px; // 增加点击区域高度，提升用户体验
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin-bottom: var(--spacing-sm);
+
+    // 进度条轨道
+    .lyrics-progress-track {
+      position: relative;
+      width: 100%;
+      height: 2.5px;
+      background: rgba(128, 128, 128, 0.18); // 与主页保持一致的轨道颜色
+      border-radius: 15px;
+      overflow: visible;
+    }
+
+    // 进度条填充
+    .lyrics-progress-fill {
+      height: 100%;
+      background: var(--color-text);
+      //background: #060606;
+      border-radius: 15px;
+      transition: width var(--transition-fast);
+      width: 0%;
+      position: relative;
+    }
+
+    // 进度条滑块
+    .lyrics-progress-handle {
+      position: absolute;
+      top: 50%;
+      right: -6px;
+      width: 12px;
+      height: 12px;
+      background: var(--color-text);
+      //background: #060606;
+      border-radius: 50%;
+      transform: translateY(-50%) scale(0.8);
+      opacity: 0;
+      transition: all var(--transition-fast);
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      z-index: 2;
+
+      &:hover {
+        transform: translateY(-50%) scale(1.2);
+        opacity: 1;
+      }
+    }
+
+    // 悬停效果
+    &:hover {
+      .lyrics-progress-track {
+        height: 4px; // 悬停时轨道变粗
+      }
+
+      .lyrics-progress-fill {
+        height: 4px;
+      }
+
+      .lyrics-progress-handle {
+        opacity: 1;
+        transform: translateY(-50%) scale(1);
+      }
+    }
+
+    // 拖拽状态
+    &.dragging {
+      .lyrics-progress-handle {
+        opacity: 1;
+        transform: translateY(-50%) scale(1.1);
+      }
+    }
+  }
+
+  // 时间显示
+  .lyrics-time {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 15px;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    opacity: 0.58;
+    min-width: 28px; // 确保时间显示区域有足够宽度
+
+    span {
+      font-variant-numeric: tabular-nums; // 使数字等宽，避免时间跳动
+      letter-spacing: 0.5px;
+    }
+  }
+}
+
+// 右侧歌词区域
+.lyrics-right-side {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-xl) var(--spacing-lg);
+  transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  .lyrics-container {
+    width: 100%;
+    max-width: 720px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+// 歌词显示区域
+.lyrics-display {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+
+  // 隐藏滚动条
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  scrollbar-width: none;
+
+  .lyrics-text {
+    width: 100%;
+    text-align: center;
+    padding: var(--spacing-xl) 0;
+
+    // 歌词行间距
+    .lyrics-line-spacer {
+      height: 30vh;
+      min-height: 150px;
+    }
+
+    .lyrics-line {
+      font-size: 26px;
+      line-height: 1.6;
+      margin: var(--spacing-md) 0;
+      padding: var(--spacing-md) var(--spacing-lg);
+      color: var(--color-text-secondary);
+      transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      cursor: pointer;
+      border-radius: var(--radius-md);
+      transform: scale(0.95);
+      opacity: 0.6;
+      user-select: none;
+      font-weight: 400;
+      letter-spacing: 0.3px;
+
+      &:hover {
+        background: var(--color-secondary-bg);
+        opacity: 0.8;
+        transform: scale(0.98);
+      }
+
+      &.highlight {
+        color: var(--color-text);
+        font-weight: 600;
+        transform: scale(1);
+        opacity: 1;
+        background: rgba(var(--color-primary-bg-rgb), var(--lyrics-highlight-opacity));
+        box-shadow: 0 2px 8px rgba(0, 0, 0, calc(0.1 * var(--lyrics-highlight-opacity)));
+        border-radius: var(--radius-md);
+      }
+
+      &.loading {
+        opacity: 0.4;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      // 点击反馈
+      &:active {
+        transform: scale(0.92);
+      }
+
+      // 逐字歌词行
+      &.lyrics-word-by-word {
+        .lyric-word {
+          display: inline-block;
+          position: relative;
+          color: inherit;
+          transition: color ease;
+          --word-progress: 0;
+
+          // 使用伪元素实现渐进式填充效果
+          &::after {
+            content: attr(data-word-text);
+            position: absolute;
+            left: 0;
+            top: 0;
+            color: var(--lyrics-highlight-color, var(--color-primary));
+            font-weight: 600;
+            overflow: hidden;
+            width: calc(var(--word-progress) * 100%);
+            transition: width linear;
+            text-shadow: 0 0 8px rgba(var(--lyrics-highlight-color-rgb, var(--color-primary-rgb)), 0.35);
+          }
+
+          // 正在播放的字
+          &.highlight::after {
+            filter: drop-shadow(0 0 10px rgba(var(--lyrics-highlight-color-rgb, var(--color-primary-rgb)), 0.4));
+          }
+
+          // 已播放的字
+          &.played {
+            color: var(--lyrics-highlight-color, var(--color-primary));
+            font-weight: 600;
+            text-shadow: 0 0 8px rgba(var(--lyrics-highlight-color-rgb, var(--color-primary-rgb)), 0.35);
+
+            &::after {
+              display: none;
+            }
+          }
+        }
+
+        &.highlight {
+          .lyric-word {
+            // 未播放的字使用当前行颜色
+            &:not(.highlight):not(.played) {
+              color: var(--color-text);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+// 脉动动画
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+// 歌词页面响应式设计
+@media (max-width: 1024px) {
+  .lyrics-left-side {
+    flex: 0 0 380px;
+    padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-lg) var(--spacing-md);
+
+    .lyrics-cover-container {
+      width: 280px;
+      height: 280px;
+    }
+
+    .lyrics-track-info {
+      .lyrics-track-title {
+        font-size: var(--font-size-lg);
+      }
+
+      .lyrics-track-artist {
+        font-size: var(--font-size-md);
+      }
+    }
+  }
+
+  .lyrics-right-side {
+    padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-lg) var(--spacing-md);
+
+    .lyrics-text .lyrics-line {
+      font-size: 22px;
+    }
+  }
+
+  // 控制面板在中等屏幕上的调整
+  .lyrics-function-area {
+    margin: var(--spacing-sm) 0 var(--spacing-sm) 0;
+
+    .volume-control-section .volume-slider-container {
+      max-width: 100px;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .lyrics-main {
+    flex-direction: column;
+  }
+
+  .lyrics-left-side {
+    flex: 0 0 auto;
+    padding: var(--spacing-md);
+
+    .lyrics-cover-section {
+      flex-direction: row;
+      align-items: center;
+      gap: var(--spacing-lg);
+      max-width: none;
+      width: 100%;
+    }
+
+    .lyrics-cover-container {
+      width: 140px;
+      height: 140px;
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
+
+    .lyrics-track-info {
+      flex: 1;
+      text-align: left;
+      margin-bottom: 0;
+      min-width: 0;
+
+      .lyrics-track-title {
+        font-size: var(--font-size-lg);
+      }
+
+      .lyrics-track-artist {
+        font-size: var(--font-size-sm);
+      }
+    }
+
+    .lyrics-controls {
+      margin-bottom: 0;
+      gap: var(--spacing-md);
+    }
+
+    .lyrics-progress-section {
+      display: none;
+    }
+  }
+
+  .lyrics-right-side {
+    flex: 1;
+    padding: var(--spacing-md);
+
+    .lyrics-text {
+      .lyrics-line-spacer {
+        height: 20vh;
+        min-height: 100px;
+      }
+
+      .lyrics-line {
+        font-size: 18px;
+        margin: var(--spacing-sm) 0;
+        padding: var(--spacing-sm) var(--spacing-md);
+      }
+    }
+  }
+
+  // 小屏幕上隐藏预留功能区域
+  .lyrics-function-area {
+    display: none;
+  }
+
+  .lyrics-fullscreen-button {
+    top: var(--spacing-md);
+    left: var(--spacing-md);
+
+    .fullscreen-btn {
+      width: 36px;
+      height: 36px;
+
+      .icon {
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+
+  .lyrics-close-button {
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+
+    .close-btn {
+      width: 36px;
+      height: 36px;
+
+      .icon {
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .lyrics-left-side {
+    .lyrics-cover-container {
+      width: 110px;
+      height: 110px;
+    }
+
+    .lyrics-track-info {
+      .lyrics-track-title {
+        font-size: var(--font-size-md);
+      }
+
+      .lyrics-track-artist {
+        font-size: var(--font-size-xs);
+      }
+    }
+
+    .lyrics-controls {
+      gap: var(--spacing-sm);
+    }
+  }
+
+  .lyrics-right-side {
+    .lyrics-text .lyrics-line {
+      font-size: 16px;
+    }
+  }
+}
+
+// ===== 封面双击切换布局样式 =====
+
+// 右侧歌词区域的过渡动画
+.lyrics-right-side {
+  transition: opacity 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+  transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: opacity, transform;
+}
+
+// 优化动画性能
+.lyrics-page {
+  // 在布局切换时启用硬件加速
+  &.center-mode {
+    .lyrics-left-side,
+    .lyrics-right-side {
+      transform-style: preserve-3d;
+      backface-visibility: hidden;
+    }
+  }
+}
+
+// 居中模式状态类
+.lyrics-page.center-mode {
+  .lyrics-left-side {
+    // 默认的CSS居中方案（备用）
+    justify-content: center;
+    margin-right: 0;
+    transform: translateX(0);
+  }
+
+  .lyrics-right-side {
+    opacity: 0;
+    transform: translateX(40px);
+    pointer-events: none;
+  }
+}
+
+// 动态居中模式
+.lyrics-page.center-mode.dynamic-center {
+  .lyrics-left-side {
+    // 使用 JS 计算的动态transform值
+    justify-content: flex-end;
+    margin-right: 32px;
+    transform: var(--dynamic-center-transform, translateX(0));
+  }
+}
+
+// 封面双击提示效果
+.lyrics-cover-image {
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+
+  &:hover {
+    transform: scale(1.02);
+  }
+
+  &:active {
+    transform: scale(0.98);
+    transition: transform 0.1s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+}
+
+// 为封面容器添加双击提示
+.lyrics-cover-container {
+  position: relative;
+
+  // 双击提示图标
+  &::before {
+    content: '⚡';
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    pointer-events: none;
+    backdrop-filter: blur(10px);
+    z-index: 10;
+  }
+
+  // 悬停时显示提示
+  &:hover::before {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  // 双击反馈效果
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+    border-radius: 50%;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  // 点击时的反馈动画
+  &:active::after {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    transition: all 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+}
+
+// 响应式设计：在小屏幕上禁用双击切换功能
+@media (max-width: 768px) {
+  .lyrics-cover-container {
+    // 在小屏幕上隐藏双击提示
+    &::before {
+      display: none;
+    }
+
+    // 在小屏幕上禁用点击效果
+    &::after {
+      display: none;
+    }
+  }
+
+  .lyrics-cover-image {
+    cursor: default;
+
+    &:hover {
+      transform: none;
+    }
+
+    &:active {
+      transform: none;
+    }
+  }
+}
+
+// 中等屏幕的居中调整
+@media (max-width: 1024px) {
+  .lyrics-page.center-mode .lyrics-left-side {
+    // 在中等屏幕上，左侧内容宽度较小，调整居中计算
+    transform: translateX(calc(50% - 25vh));
+  }
+}
+
+// 大屏幕的居中调整
+@media (min-width: 1440px) {
+  .lyrics-page.center-mode .lyrics-left-side {
+    // 在大屏幕上，可能需要更精确的居中
+    transform: translateX(calc(50% - 30vh));
+  }
+}

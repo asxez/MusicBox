@@ -1,0 +1,109 @@
+// Track List Styles
+.track-list {
+  width: 100%;
+}
+
+.track-item {
+  display: grid;
+  grid-template-columns: 40px 1fr 200px 80px;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  align-items: center;
+  user-select: none;
+
+  // 带封面的布局
+  &.with-cover {
+    grid-template-columns: 40px 48px 1fr 200px 80px;
+  }
+
+  &:hover {
+    background: var(--color-hover);
+  }
+
+  &.selected {
+    background: var(--color-primary-bg);
+    color: var(--color-primary);
+    box-shadow: inset 3px 0 0 var(--color-primary);
+
+    .track-title, .track-artist, .track-album, .track-duration, .track-number {
+      color: var(--color-primary);
+    }
+  }
+
+  &.playing {
+    background: var(--color-primary-bg);
+
+    .track-number {
+      color: var(--color-primary);
+      font-weight: 600;
+    }
+  }
+}
+
+.track-number {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+// 歌曲列表封面样式
+.track-cover-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.track-item .track-cover {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-fast);
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.track-info {
+  min-width: 0;
+
+  .track-title {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+  }
+
+  .track-artist {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.track-album {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-duration {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

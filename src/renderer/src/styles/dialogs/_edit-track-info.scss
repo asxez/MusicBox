@@ -1,0 +1,117 @@
+// Edit Track Info Dialog styles
+#edit-track-info-dialog {
+  .modal-dialog {
+    max-width: 600px;
+    width: 90vw;
+  }
+}
+
+.track-info-form {
+  .cover-section {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .cover-container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+  }
+
+  .track-cover-preview {
+    width: 120px;
+    height: 120px;
+    border-radius: var(--radius-lg);
+    object-fit: cover;
+    border: 2px solid var(--color-border);
+    background: var(--color-bg-secondary);
+  }
+
+  .cover-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .form-group {
+    margin-bottom: var(--spacing-lg);
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .form-input {
+    transition: all var(--transition-fast);
+
+    &:focus {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.15);
+    }
+  }
+
+  .form-error {
+    color: var(--color-error);
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-xs);
+    display: none;
+
+    &.show {
+      display: block;
+    }
+  }
+}
+
+// Playlist selection list
+.playlist-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: var(--spacing-md);
+}
+
+.playlist-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    background: var(--color-bg-hover);
+    border-color: var(--color-primary);
+  }
+
+  &.selected {
+    background: rgba(var(--color-primary-rgb), 0.1);
+    border-color: var(--color-primary);
+  }
+
+  .playlist-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: var(--spacing-md);
+    fill: var(--color-text-secondary);
+  }
+
+  .playlist-info {
+    flex: 1;
+  }
+
+  .playlist-name {
+    font-weight: 500;
+    color: var(--color-text);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .playlist-count {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+  }
+}
+
+.create-new-playlist-option {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--spacing-md);
+}

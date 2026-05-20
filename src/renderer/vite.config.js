@@ -84,11 +84,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
-      '@js': path.resolve(__dirname, 'src/js'),
-      '@utils': path.resolve(__dirname, 'src/js/utils'),
-      '@api': path.resolve(__dirname, 'src/js/api'),
-      '@ui': path.resolve(__dirname, 'src/js/ui'),
-      '@extensions': path.resolve(__dirname, 'src/js/extensions'),
+      '@utils': path.resolve(__dirname, 'src/utils'),
+      '@api': path.resolve(__dirname, 'src/api'),
+      '@ui': path.resolve(__dirname, 'src/ui'),
+      '@extensions': path.resolve(__dirname, 'src/extensions'),
       '@styles': path.resolve(__dirname, 'src/styles'),
       '@assets': path.resolve(__dirname, 'src/assets'),
     }
@@ -111,7 +110,7 @@ export default defineConfig({
       targets: [
         // 复制内置插件
         {
-          src: 'js/extensions/builtin',
+          src: 'extensions/builtin',
           dest: '.'
         },
         // 复制 favicon

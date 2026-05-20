@@ -1,0 +1,287 @@
+// Sidebar
+.sidebar {
+  grid-area: sidebar;
+  background: var(--color-sidebar-bg);
+  border-right: 1px solid var(--color-border);
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  transition: all var(--transition-normal);
+
+  // 隐藏滚动条但保持滚动功能
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
+  // 收缩状态
+  &.collapsed {
+    // 保持原有的滚动功能，但优化滚动条显示
+    overflow-y: auto;
+    overflow-x: visible;
+
+    .sidebar-content {
+      padding: var(--spacing-sm);
+    }
+
+    .sidebar-title,
+    .sidebar-text {
+      opacity: 0;
+      visibility: hidden;
+      width: 0;
+      overflow: hidden;
+    }
+
+    .sidebar-link,
+    .sidebar-button {
+      justify-content: center;
+      padding: var(--spacing-sm);
+
+      .sidebar-icon {
+        margin-right: 0;
+      }
+    }
+
+    // 收缩状态下的用户歌单区域样式
+    #user-playlists-section {
+      // 防止hover效果导致滚动条出现
+      overflow: visible;
+
+      .sidebar-title {
+        display: none; // 隐藏"我的歌单"标题
+      }
+
+      // 歌单列表容器
+      .user-playlists-list {
+        // 确保列表容器不会因为hover效果产生滚动
+        overflow: visible;
+        padding: 0 var(--spacing-xs);
+      }
+
+      .playlist-sidebar-item {
+        justify-content: center;
+        padding: var(--spacing-xs);
+        margin-bottom: var(--spacing-xs);
+
+        // 隐藏文字内容
+        .playlist-name,
+        .playlist-count,
+        .sidebar-playlist-actions {
+          display: none;
+        }
+
+        // 封面图片样式调整
+        .sidebar-playlist-cover {
+          width: 32px;
+          height: 32px;
+          margin-right: 0;
+          border-radius: var(--border-radius-md);
+        }
+
+        // 默认图标样式调整
+        .sidebar-icon {
+          width: 24px;
+          height: 24px;
+          margin-right: 0;
+        }
+      }
+    }
+
+    // 收缩状态下的网络磁盘区域样式
+    #network-drives-section {
+      overflow: visible;
+
+      .sidebar-title {
+        display: none; // 隐藏"网络磁盘"标题
+      }
+
+      // 网络磁盘列表容器
+      #network-drives-list {
+        overflow: visible;
+        padding: 0 var(--spacing-xs);
+      }
+
+      .network-drive-sidebar-item {
+        justify-content: center;
+        padding: var(--spacing-xs);
+        margin-bottom: var(--spacing-xs);
+
+        // 隐藏文字内容和操作按钮
+        .drive-name,
+        .sidebar-drive-actions {
+          display: none;
+        }
+
+        // 图标样式调整
+        .drive-icon {
+          width: 24px;
+          height: 24px;
+          margin-right: 0;
+        }
+      }
+    }
+
+    // 收缩状态下按钮居中显示
+    .sidebar-toggle {
+      right: 50%;
+      transform: translateX(50%);
+    }
+
+    .sidebar-toggle-btn {
+      .collapse-icon {
+        display: none;
+      }
+
+      .expand-icon {
+        display: block;
+      }
+    }
+  }
+}
+
+// 侧边栏切换按钮
+.sidebar-toggle {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-sm);
+  z-index: 10;
+  transition: all var(--transition-normal);
+}
+
+.sidebar-toggle-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  backdrop-filter: blur(10px);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--color-text);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .icon {
+    width: 16px;
+    height: 16px;
+    transition: all var(--transition-fast);
+    // 浅色主题：纯黑色图标
+    filter: brightness(0) saturate(100%) invert(0);
+  }
+
+  &:hover .icon {
+    // 悬停时保持纯黑色
+    filter: brightness(0) saturate(100%) invert(0);
+  }
+
+  // 默认状态下的图标显示
+  .collapse-icon {
+    display: block;
+  }
+
+  .expand-icon {
+    display: none;
+  }
+}
+
+.sidebar-content {
+  padding: var(--spacing-lg);
+  padding-top: calc(var(--spacing-lg) + 48px); // 为切换按钮留出空间
+  transition: all var(--transition-normal);
+}
+
+.sidebar-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.sidebar-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-sm); // 减小标题与内容的间距，改善视觉层次
+  transition: all var(--transition-normal);
+}
+
+.sidebar-menu {
+  list-style: none;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  // 浅色主题：纯黑色文字
+  color: #000000;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+  margin-bottom: var(--spacing-xs);
+
+  &:hover {
+    background: var(--color-hover);
+    // 悬停时保持纯黑色
+    color: #000000;
+  }
+
+  &.active {
+    background: var(--color-primary-bg);
+    color: var(--color-primary);
+    font-weight: 500;
+  }
+}
+
+.sidebar-button {
+  display: flex;
+  align-items: center;
+  //gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  // 浅色主题：纯黑色文字
+  color: #000000;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+
+  &:hover {
+    background: var(--color-hover);
+    // 悬停时保持纯黑色
+    color: #000000;
+  }
+}
+
+// 侧边栏图标和文字
+.sidebar-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: var(--spacing-sm);
+  fill: currentColor;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+  // 浅色主题：纯黑色图标（非激活状态）
+  filter: brightness(0) saturate(100%) invert(0);
+}
+
+// 激活状态的图标颜色优先级更高
+.sidebar-link.active .sidebar-icon {
+  // 浅色主题：激活状态使用蓝色主题色
+  filter: brightness(0) saturate(100%) invert(0.2) sepia(1) saturate(5) hue-rotate(220deg) !important;
+}
+
+.sidebar-text {
+  transition: all var(--transition-normal);
+  white-space: nowrap;
+  overflow: hidden;
+}

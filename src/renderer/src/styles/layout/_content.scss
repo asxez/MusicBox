@@ -1,0 +1,24 @@
+// Main content
+.main-content {
+  grid-area: main;
+  overflow-y: auto;
+  background: var(--color-body-bg);
+
+  // 歌单详情页面特殊处理，避免双滚动条
+  .playlist-page {
+    height: 100%;
+    overflow: hidden; // 禁用内部滚动，使用外层滚动
+
+    .tracks-section {
+      .tracks-container {
+        max-height: none; // 移除高度限制
+        overflow: visible; // 禁用内部滚动
+      }
+    }
+  }
+}
+
+.content-area {
+  padding: var(--spacing-lg);
+  min-height: 100%;
+}
