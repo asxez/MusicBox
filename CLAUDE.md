@@ -108,8 +108,9 @@ Main Process (Node.js + TypeScript)   <-> IPC <->   Renderer Process (Chromium)
 
 The renderer uses a **feature-based modular architecture** (recently refactored from a monolithic `app.js`). Layers:
 
-- **`js/app/`**: Application bootstrap, composition root, lifecycle management, and app shell. Entry point is `js/core/app.ts` which re-exports from `app/bootstrap/app.ts`.
-- **`js/features/`**: Domain feature modules -- each is a self-contained vertical slice:
+- **`app/`**: Application bootstrap, composition root, lifecycle management, and app shell.
+- **`core/`**: Core app entry point -- `app.ts` re-exports from `app/bootstrap/app.ts`.
+- **`features/`**: Domain feature modules -- each is a self-contained vertical slice:
   - `playback/` -- Playback controls, progress, volume, mini mode
   - `audioDriver/` -- Audio engine driver (WASAPI/fallback)
   - `desktopLyrics/` -- Desktop lyrics window logic
@@ -124,13 +125,13 @@ The renderer uses a **feature-based modular architecture** (recently refactored 
   - `events/` -- Application event system
   - `appShell/` -- App shell, window behavior
   - `userData/` -- User mood/diary data
-- **`js/ui/`**: Presentation layer -- `base/`, `dialogs/`, `modals/`, `pages/`, `widgets/`
-- **`js/api/`**: Renderer-side API layer. `MusicBoxAPI.ts` is the central orchestrator (~33KB) -- it bridges main process events to the app event system, manages playback state synchronization, and provides typed API access to all main process functionality.
-- **`js/services/`**: Cross-feature shared services (audio, covers, lyrics, navigation, plugins, preferences, settings, update)
-- **`js/shared/`**: Shared utilities -- caching, network helpers, types
-- **`js/infrastructure/`**: Infrastructure layer (currently `electron/` for Electron-specific adapters)
-- **`js/extensions/`**: Plugin system (TypeScript) -- core infrastructure, namespaced API, built-in plugins
-- **`js/utils/`**: General utilities (md5, URL validation, shortcuts)
+- **`ui/`**: Presentation layer -- `base/`, `dialogs/`, `modals/`, `pages/`, `widgets/`
+- **`api/`**: Renderer-side API layer. `MusicBoxAPI.ts` is the central orchestrator (~33KB) -- it bridges main process events to the app event system, manages playback state synchronization, and provides typed API access to all main process functionality.
+- **`services/`**: Cross-feature shared services (audio, covers, lyrics, navigation, plugins, preferences, settings, update)
+- **`shared/`**: Shared utilities -- caching, network helpers, types
+- **`infrastructure/`**: Infrastructure layer (currently `electron/` for Electron-specific adapters)
+- **`extensions/`**: Plugin system (TypeScript) -- core infrastructure, namespaced API, built-in plugins. API docs at `extensions/api/README.md`.
+- **`utils/`**: General utilities (md5, URL validation, shortcuts)
 - **`styles/`**: SCSS stylesheets (`main.scss`, `DesktopLyrics.scss`)
 - Two HTML entry points: `index.html` (main app) and `DesktopLyrics.html` (separate window)
 
@@ -146,7 +147,7 @@ The renderer uses a **feature-based modular architecture** (recently refactored 
 - Target: Chrome 138
 - Two HTML entry points: `index.html` and `DesktopLyrics.html`
 - Manual chunks: vendor, extensions, components, shared-utils
-- Path aliases: `@` -> `src/`, `@js`, `@core`, `@services`, `@utils`, `@api`, `@ui`, `@extensions`, `@styles`, `@assets`
+- Path aliases: `@` -> `src/`, `@utils`, `@api`, `@ui`, `@extensions`, `@styles`, `@assets`
 
 ## Key Patterns
 
@@ -180,11 +181,11 @@ Channel naming convention: `domain:action` (e.g., `audio:loadTrack`, `library:sc
 
 ### Renderer Feature Module Pattern
 
-Each feature in `js/features/` follows a controller-based pattern where domain logic is split into focused controllers (e.g., playback feature has separate controllers for controls, progress, volume, mini mode, lyrics). Features register with the app's composition root in `js/app/`.
+Each feature in `features/` follows a controller-based pattern where domain logic is split into focused controllers (e.g., playback feature has separate controllers for controls, progress, volume, mini mode, lyrics). Features register with the app's composition root in `app/`.
 
 ### Renderer API Layer Pattern
 
-The `MusicBoxAPI` class in `js/api/MusicBoxAPI.ts` is the central renderer-side API orchestrator. It:
+The `MusicBoxAPI` class in `api/MusicBoxAPI.ts` is the central renderer-side API orchestrator. It:
 1. Bridges main process `EventEmitter` to the app event service
 2. Exposes typed wrappers for all IPC channels
 3. Synchronizes playback state between main and renderer
@@ -192,10 +193,9 @@ The `MusicBoxAPI` class in `js/api/MusicBoxAPI.ts` is the central renderer-side 
 
 ### Plugin System
 
-Located in `src/renderer/src/js/extensions/`:
-- **Docs**: `docs/PluginSystemGuide.md`, `docs/Architecture.md`
+Located in `src/renderer/src/extensions/`:
 - **Core** (`core/`): TypeScript -- lifecycle, events, DI, registry, activation, permissions, host management
-- **API** (`api/`): Exposes namespaced API (player, library, ui, storage, settings, navigation, etc.)
+- **API** (`api/`): Exposes namespaced API (player, library, ui, storage, settings, navigation, etc.). See `api/README.md` for API documentation.
 - **Built-in plugins**: `builtin/` -- serve as reference implementations
 - Each plugin needs: `manifest.json` + entry file exporting `activate(context)` / `deactivate()`
 - Activation events: `onStartUp`, `onCommand:*`, `onView:*`, `*`
@@ -252,15 +252,37 @@ Located in `src/renderer/src/js/extensions/`:
 
 ## Code Style Notes
 
-- **TypeScript**: Main process uses TypeScript with strict mode; renderer is hybrid TS/JS (migrating toward full TypeScript)
+- **TypeScript**: Main process uses TypeScript with strict mode, 4-space indentation, semicolons; renderer is hybrid TS/JS (migrating toward full TypeScript)
 - **JavaScript**: ES6+ with `async/await` for async operations
+- **Naming**: `PascalCase` for classes (e.g., `AppController.ts`), `camelCase` for methods and helpers
 - **Resource cleanup**: Disposable pattern in extension system
 - **Log outputs**: Must start with relevant emoji icons for quick identification (project convention)
   - 🔧 Configuration/setup, ✅ Success, ❌ Errors, 🔄 Loading/processing, 🎵 Audio, 📦 Build/packaging, ⚠️ Warnings
 - **IPC naming**: Use `domain:action` pattern (e.g., `audio:init`, `library:scan`)
-- **File organization**: Controllers in `src/main/controllers/`, services in `src/main/services/`, features in `src/renderer/src/js/features/`
+- **File organization**: Controllers in `src/main/controllers/`, services in `src/main/services/`, features in `src/renderer/src/features/`
 - **Decorators**: Use `@IpcHandler('channel:name')` for IPC handler methods in controllers
+- **Windows**: `npm run dev:main` uses `chcp 65001` to set UTF-8 console encoding (required for proper emoji/log output on Windows)
 
 ## Testing
 
-No test framework configured. No test commands in package.json.
+No automated test framework configured. For all changes, smoke-test manually with `npm run dev`:
+- Library scan and browse
+- Audio playback (local and network files)
+- Lyrics display (synced and desktop lyrics)
+- Settings changes and persistence
+- Plugin loading and activation
+
+Put reusable media fixtures in `test-files/`. Run `cd src/renderer && npm run lint` before opening a PR (this also runs an architecture-boundary check via `check:architecture`).
+
+## Commit & PR Conventions
+
+- Commit prefixes: `feature:`, `fix:`, `refactor:`, `docs:` (lowercase)
+- Commit subjects: short, imperative mood, scoped to one change
+- PRs must: explain user-visible impact, list manual checks performed, link related issues, include screenshots for UI changes
+- Call out changes in `native/`, packaging, or preload/API boundaries explicitly (they affect release builds and security review)
+
+## Security
+
+- **Never bypass the preload boundary** -- no direct renderer access to Node.js APIs. All main-process access goes through `contextBridge` via `preload.ts`.
+- Reuse existing utilities like `src/main/utils/pathSecurity.ts` for filesystem-facing work.
+- Keep native (Rust) and Python changes isolated to their build paths.

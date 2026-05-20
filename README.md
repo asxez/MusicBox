@@ -48,26 +48,16 @@
 - ▶️ 支持无间隙播放，为连续的专辑歌曲提供更好的播放体验
 - 🛠️ 更多特性开发中
 
-## 📔 TODOS
-
-0.2.3版本后
-
-✅已完成，❌未完成，🔄进行中，❓待定
-
-- 🔄 使用 TS 重构渲染进程，移除 app.js 的上帝对象模式（难度巨大）
-- ✅ 歌词逐字
-- ✅ 高级均衡器
-- ✅ 主进程重构
-- ❌ Last.fm scrobbler
-- 🔄 完善插件系统（插件市场，更多内置插件）
-- ✅ 迷你播放器
-- ❌ 首页频谱
-- ✅ 列表多选
-- 🔄 更多优质内置插件
+## 📃 文档
+- [总体架构](docs/Architecture.md)：进程模型、IPC、主进程、渲染进程、音频、插件、安全边界
+- [渲染进程架构](docs/RendererArchitecture.md)：重构后的 canonical 目录、依赖方向、兼容层和新增功能规则
+- [开发指南](docs/Development.md)：环境准备、常用命令、检查项、打包和排障
+- [插件系统指南](src/renderer/src/extensions/docs/PluginSystemGuide.md)：插件结构、manifest、激活事件和生命周期
+- [Extension API](src/renderer/src/extensions/api/README.md)：播放器、音乐库、UI、存储、命令、快捷键等插件 API
 
 ## 📦 安装
 
-### 预编译版本下载
+### 预编译版本
 
 前往 [Releases](https://github.com/asxez/MusicBox/releases) 页面下载适合你系统的安装包。
 
@@ -75,9 +65,9 @@
 
 #### 环境要求
 
-- Node.js >= 24.15.0
+- Node.js >= 22
 - Python >= 3.8
-- Rust == 1.94.1
+- Rust toolchain with Cargo，推荐使用支持 Rust 2024 edition 的稳定版本
 
 从源码构建 MusicBox，请按照以下步骤操作：
 
@@ -114,14 +104,14 @@ npm run build
 
 ### 项目架构
 
-见[MusicBox 架构文档](docs/Architecture.md)
+见[MusicBox 架构文档](Architecture.md)
 
 
 ## 🔧 插件开发
 
 可在 **issue** 中提交你开发的插件，我会在此链接你的仓库😋
 
-[MusicBox 插件文档](src/renderer/src/js/extensions/docs)
+[MusicBox 插件文档](src/renderer/src/extensions/README.md)
 
 
 ### 可用插件列表
@@ -144,7 +134,7 @@ npm run build
 
 - 所有为项目做出贡献的开发者们
 - [AMLL TTML 歌词站](https://amlldb.bikonoo.com/) 提供的 TTML 歌词接口
-- [锂 API](https://api.lrc.cx/) 提供的 Lrc 歌词接口 
+- [锂 API](https://api.lrc.cx/) 提供的 LRC 歌词接口 
 
 ## 📌 相关截图
 

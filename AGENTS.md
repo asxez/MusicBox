@@ -13,7 +13,7 @@
 - `cd src/renderer && npm run lint`: lint renderer JavaScript.
 
 ## Coding Style & Naming Conventions
-Follow the style already present in each area instead of reformatting unrelated files. Main-process TypeScript uses 4-space indentation, semicolons, `PascalCase` classes (`AppController.ts`), and `camelCase` methods. Renderer components are also `PascalCase`, while shared helpers stay `camelCase`. Keep import aliases such as `@components`, `@services`, and `@utils` intact. Use concise log messages and keep the emoji-prefixed logging convention.
+Follow the style already present in each area instead of reformatting unrelated files. Main-process TypeScript uses 4-space indentation, semicolons, `PascalCase` classes such as `AppController.ts`, and `camelCase` methods. Renderer components are also `PascalCase`, while shared helpers stay `camelCase`. Keep import aliases such as `@components`, `@services`, and `@utils` intact. Use concise log messages and keep the emoji-prefixed logging convention.
 
 ## Testing Guidelines
 There is no single automated test suite at the root today. For UI or playback changes, run `npm run dev` and smoke-test library scan, playback, lyrics, settings, and plugin loading. Put reusable media fixtures in `test-files/`. If you add renderer code, run `cd src/renderer && npm run lint` before opening a PR. Include manual verification steps when automated coverage is not practical.

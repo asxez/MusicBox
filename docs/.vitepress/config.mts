@@ -1,9 +1,8 @@
 import {defineConfig} from 'vitepress'
 
-// https://vitepress.dev/reference/site-config
 export default defineConfig({
-    title: "MusicBox",
-    description: "高颜值的本地音乐播放器",
+    title: 'MusicBox',
+    description: '高颜值、插件化、可深度定制的本地音乐播放器',
     lang: 'zh-CN',
 
     head: [
@@ -16,12 +15,25 @@ export default defineConfig({
     ],
 
     themeConfig: {
-        // https://vitepress.dev/reference/default-theme-config
         logo: '/images/logo.svg',
 
         nav: [
             {text: '首页', link: '/'},
+            {text: '架构', link: '/Architecture'},
+            {text: '渲染进程', link: '/RendererArchitecture'},
+            {text: '开发指南', link: '/Development'},
             {text: '更新日志', link: 'https://github.com/asxez/MusicBox/releases'}
+        ],
+
+        sidebar: [
+            {
+                text: '项目文档',
+                items: [
+                    {text: '总体架构', link: '/Architecture'},
+                    {text: '渲染进程架构', link: '/RendererArchitecture'},
+                    {text: '开发指南', link: '/Development'}
+                ]
+            }
         ],
 
         socialLinks: [
@@ -30,10 +42,9 @@ export default defineConfig({
 
         footer: {
             message: 'Released under the MIT License.',
-            copyright: 'Copyright © 2025 asxez'
+            copyright: 'Copyright © 2025-2026 asxez'
         },
 
-        // 搜索配置
         search: {
             provider: 'local',
             options: {
@@ -58,19 +69,16 @@ export default defineConfig({
             }
         },
 
-        // 文档页脚
         docFooter: {
             prev: '上一页',
             next: '下一页'
         },
 
-        // 大纲配置
         outline: {
             label: '页面导航',
             level: [2, 3]
         },
 
-        // 最后更新时间
         lastUpdated: {
             text: '最后更新于',
             formatOptions: {
@@ -79,7 +87,6 @@ export default defineConfig({
             }
         },
 
-        // 返回顶部
         returnToTopLabel: '返回顶部',
         sidebarMenuLabel: '菜单',
         darkModeSwitchLabel: '主题',
