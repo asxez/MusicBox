@@ -148,6 +148,7 @@ class LyricsWidgetComposition {
 
     destroy(): void {
         this.playbackStateController.destroy();
+        this.coverArtController.destroy();
         this.renderController.reset();
         this.layoutController.resetLayoutState();
         this.bound = false;

@@ -4,12 +4,12 @@
  */
 
 import {extensionsController} from '@js/features/extensions';
-import {cacheManager} from '@js/shared/cache';
 import {Disposable, DisposableStore} from '@extensions/core/Lifecycle';
 import {createExtensionAPI, type ExtensionAPI} from '@extensions/api/index.js';
 import {ExtensionDescriptor, ExtensionsRegistry} from '@extensions/core/ExtensionsRegistry';
 import {InstantiationService} from '@extensions/core/Instantiation';
 import type {PermissionManager} from '@extensions/core/ExtensionPermissions';
+import {SandboxExtensionHost} from './sandbox/SandboxExtensionHost';
 import './types';
 
 export type ExtensionExports = Record<string, unknown> | object | null;
@@ -25,6 +25,7 @@ interface ExtensionModule {
     activate?: (context: ExtensionContext) => Promise<ExtensionExports> | ExtensionExports;
     deactivate?: () => Promise<void> | void;
     default?: ExtensionModuleClass;
+    sandboxHost?: SandboxExtensionHost;
 }
 
 interface DeactivatableExtensionExports {
@@ -89,6 +90,11 @@ interface Memento {
     keys(): string[];
 }
 
+interface ExtensionStorageSnapshots {
+    global: Record<string, unknown>;
+    workspace: Record<string, unknown>;
+}
+
 export interface ExtensionContext {
     extension: {
         id: string;
@@ -131,10 +137,7 @@ export class ExtensionActivator extends Disposable {
         this._registry = registry;
         this._permissionManager = permissionManager;
 
-        if (!window.createExtensionAPI) {
-            // Compatibility bridge for legacy script-style extensions. Bundled extensions should use context.api.
-            window.createExtensionAPI = createExtensionAPI;
-        }
+        // Plugins receive createExtensionAPI only inside the sandbox runtime.
     }
 
     async activateById(extensionId: string, reason: ExtensionActivationReason): Promise<ActivatedExtension> {
@@ -193,15 +196,17 @@ export class ExtensionActivator extends Disposable {
     private async _doActivateExtension(descriptor: ExtensionDescriptor, reason: ExtensionActivationReason): Promise<ActivatedExtension> {
         const extensionId = descriptor.id;
         const startTime = Date.now();
+        let module: ExtensionModule | null = null;
 
         try {
             console.log(`🔌 ExtensionActivator: 开始激活扩展 ${extensionId}`);
 
-            const codeLoadingStart = Date.now();
-            const module = await this._loadExtensionModule(descriptor);
-            const codeLoadingTime = Date.now() - codeLoadingStart;
+            const storageSnapshots = await this._loadStorageSnapshots(descriptor.id);
+            const context = this._createExtensionContext(descriptor, storageSnapshots);
 
-            const context = this._createExtensionContext(descriptor);
+            const codeLoadingStart = Date.now();
+            module = await this._loadExtensionModule(descriptor, context, storageSnapshots);
+            const codeLoadingTime = Date.now() - codeLoadingStart;
 
             const activateCallStart = Date.now();
             let exports: ExtensionExports = null;
@@ -240,6 +245,16 @@ export class ExtensionActivator extends Disposable {
         } catch (error) {
             console.error(`❌ ExtensionActivator: 扩展 ${extensionId} 激活失败:`, error);
 
+            if (module && typeof module.deactivate === 'function') {
+                try {
+                    await module.deactivate();
+                } catch (deactivateError) {
+                    console.warn(`⚠️ ExtensionActivator: 清理失败的扩展 ${extensionId} 时出错:`, deactivateError);
+                }
+            } else if (module?.sandboxHost) {
+                module.sandboxHost.dispose();
+            }
+
             return new ActivatedExtension(
                 true,
                 ExtensionActivationTimes.NONE,
@@ -250,7 +265,11 @@ export class ExtensionActivator extends Disposable {
         }
     }
 
-    private async _loadExtensionModule(descriptor: ExtensionDescriptor): Promise<ExtensionModule | null> {
+    private async _loadExtensionModule(
+        descriptor: ExtensionDescriptor,
+        context: ExtensionContext,
+        storageSnapshots: ExtensionStorageSnapshots
+    ): Promise<ExtensionModule | null> {
         if (!descriptor.main) {
             return null;
         }
@@ -262,30 +281,9 @@ export class ExtensionActivator extends Disposable {
             console.log(`   - isBuiltin: ${descriptor.isBuiltin}`);
 
             const moduleVarName = this._pathToModuleVarName(descriptor.id);
-            const existingModule = this._getWindowExtensionModule(moduleVarName);
-            if (existingModule) {
-                console.log(`✅ ExtensionActivator: 从 window.${moduleVarName} 加载扩展模块`);
-                return existingModule;
-            }
-
-            const fullPath = this._resolveExtensionPath(descriptor);
-            console.log(`   - 解析后的完整路径: ${fullPath}`);
-
-            if (fullPath === null) {
-                console.log(`📦 ExtensionActivator: 外部插件，通过IPC加载 ${descriptor.id}`);
-                await this._loadExternalExtensionModule(descriptor, moduleVarName);
-            } else {
-                await this._loadScript(fullPath);
-            }
-
-            const loadedModule = this._getWindowExtensionModule(moduleVarName);
-            if (loadedModule) {
-                console.log(`✅ ExtensionActivator: 动态加载后从 window.${moduleVarName} 获取模块`);
-                return loadedModule;
-            }
-
-            console.warn(`⚠️ ExtensionActivator: 未找到模块 window.${moduleVarName}`);
-            return null;
+            const code = await this._readExtensionCode(descriptor);
+            console.log(`📦 ExtensionActivator: 插件通过 sandbox host 加载 ${descriptor.id}`);
+            return await this._createSandboxExtensionModule(descriptor, moduleVarName, context, storageSnapshots, code);
 
         } catch (error) {
             console.error(`❌ ExtensionActivator: 加载扩展模块失败 ${descriptor.id}:`, error);
@@ -293,32 +291,115 @@ export class ExtensionActivator extends Disposable {
         }
     }
 
-    private async _loadExternalExtensionModule(descriptor: ExtensionDescriptor, _moduleVarName: string): Promise<void> {
+    private async _createSandboxExtensionModule(
+        descriptor: ExtensionDescriptor,
+        moduleVarName: string,
+        context: ExtensionContext,
+        storageSnapshots: ExtensionStorageSnapshots,
+        code: string
+    ): Promise<ExtensionModule> {
         try {
-            const filePath = this._normalizeExternalExtensionMainPath(descriptor);
-            const result = await extensionsController.readExtensionFile(descriptor.id, filePath);
+            console.log(`📄 ExtensionActivator: 已读取插件代码，长度: ${code.length} 字节，将在 sandbox iframe 中执行`);
 
-            if (!result.success) {
-                throw new Error(result.error || '读取扩展文件失败');
-            }
+            const sandboxHost = new SandboxExtensionHost({
+                descriptor,
+                code,
+                moduleVarName,
+                context,
+                storageSnapshots,
+                permissionManager: this._permissionManager
+            });
 
-            const code = result.content || '';
-            console.log(`📄 ExtensionActivator: 已读取外部插件代码，长度: ${code.length} 字节`);
+            await sandboxHost.initialize();
 
-            const wrappedCode = `
-                (function() {
-                    ${code}
-                })();
-            `;
-
-            globalThis.eval(wrappedCode);
-
-            console.log(`✅ ExtensionActivator: 外部插件代码执行完成 ${descriptor.id}`);
+            console.log(`✅ ExtensionActivator: 外部插件 sandbox 初始化完成 ${descriptor.id}`);
+            return {
+                sandboxHost,
+                activate: async () => {
+                    const result = await sandboxHost.activate();
+                    return result.exports;
+                },
+                deactivate: async () => {
+                    await sandboxHost.deactivate();
+                    sandboxHost.dispose();
+                }
+            };
 
         } catch (error) {
             console.error(`❌ ExtensionActivator: 加载外部插件失败 ${descriptor.id}:`, error);
             throw error;
         }
+    }
+
+    private async _readExtensionCode(descriptor: ExtensionDescriptor): Promise<string> {
+        if (descriptor.isBuiltin) {
+            return await this._readBuiltinExtensionCode(descriptor);
+        }
+
+        const filePath = this._normalizeExternalExtensionMainPath(descriptor);
+        const result = await extensionsController.readExtensionFile(descriptor.id, filePath);
+
+        if (!result.success) {
+            throw new Error(result.error || '读取扩展文件失败');
+        }
+
+        return result.content || '';
+    }
+
+    private async _readBuiltinExtensionCode(descriptor: ExtensionDescriptor): Promise<string> {
+        const filePath = this._normalizeBuiltinExtensionMainPath(descriptor);
+        const url = this._createRendererAssetUrl(filePath);
+        const response = await fetch(url, {cache: 'no-cache'});
+
+        if (!response.ok) {
+            throw new Error(`读取内置扩展文件失败 ${url}: HTTP ${response.status}`);
+        }
+
+        const content = await response.text();
+        this._assertJavaScriptExtensionSource(descriptor, url, content);
+        return content;
+    }
+
+    private _createRendererAssetUrl(filePath: string): string {
+        return new URL(filePath, document.baseURI).toString();
+    }
+
+    private _assertJavaScriptExtensionSource(descriptor: ExtensionDescriptor, url: string, content: string): void {
+        const trimmedStart = content.trimStart();
+        if (
+            trimmedStart.startsWith('<!doctype html')
+            || trimmedStart.startsWith('<html')
+            || trimmedStart.startsWith('<')
+        ) {
+            throw new Error(
+                `内置扩展 ${descriptor.id} 读取到了非 JS 内容: ${url}; ` +
+                `preview=${trimmedStart.slice(0, 120).replace(/\s+/g, ' ')}`
+            );
+        }
+
+        const moduleVarName = this._pathToModuleVarName(descriptor.id);
+        if (!content.includes(moduleVarName)) {
+            throw new Error(
+                `内置扩展 ${descriptor.id} 源码未导出 ${moduleVarName}: ${url}; ` +
+                `preview=${trimmedStart.slice(0, 120).replace(/\s+/g, ' ')}`
+            );
+        }
+    }
+
+    private _normalizeBuiltinExtensionMainPath(descriptor: ExtensionDescriptor): string {
+        const main = (descriptor.main || '').replace(/\\/g, '/').replace(/^\/+/, '');
+        const location = (descriptor.extensionLocation || '').replace(/\\/g, '/').replace(/^\/+/, '');
+        const normalized = main.includes('/') ? main : `${location}/${main}`;
+
+        if (!normalized.startsWith('js/extensions/builtin/')) {
+            throw new Error(`非法的内置扩展入口: ${normalized}`);
+        }
+
+        if (normalized.includes('..') || !normalized.endsWith('.js')) {
+            throw new Error(`非法的内置扩展文件路径: ${normalized}`);
+        }
+
+        return normalized;
     }
 
     private _normalizeExternalExtensionMainPath(descriptor: ExtensionDescriptor): string {
@@ -334,40 +415,8 @@ export class ExtensionActivator extends Disposable {
         return main;
     }
 
-    private _resolveExtensionPath(descriptor: ExtensionDescriptor): string | null {
-        const modulePath = descriptor.main!;
-
-        if (!descriptor.isBuiltin) {
-            console.log(`     ➡️ 外部插件，返回null触发IPC加载`);
-            return null;
-        }
-
-        if (modulePath.includes('/')) {
-            console.log(`     ➡️ 内置插件，使用完整路径: ${modulePath}`);
-            return modulePath;
-        }
-
-        if (descriptor.extensionLocation) {
-            const fullPath = `${descriptor.extensionLocation}/${modulePath}`;
-            console.log(`     ➡️ 内置插件，拼接路径: ${fullPath}`);
-            return fullPath;
-        }
-
-        console.log(`     ➡️ 内置插件，直接使用main: ${modulePath}`);
-        return modulePath;
-    }
-
     private _pathToModuleVarName(extensionId: string): string {
         return extensionId.replace(/-([a-z])/g, (g) => g[1].toUpperCase()) + 'Extension';
-    }
-
-    private _getWindowExtensionModule(moduleVarName: string): ExtensionModule | null {
-        const moduleCandidate = (window as unknown as Record<string, unknown>)[moduleVarName];
-        if (!moduleCandidate || typeof moduleCandidate !== 'object') {
-            return null;
-        }
-
-        return moduleCandidate as ExtensionModule;
     }
 
     private _isDeactivatableExports(exports: ExtensionExports | undefined): exports is DeactivatableExtensionExports {
@@ -376,23 +425,10 @@ export class ExtensionActivator extends Disposable {
             && typeof (exports as Partial<DeactivatableExtensionExports>).deactivate === 'function';
     }
 
-    private _loadScript(src: string): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const existingScript = document.querySelector(`script[src="${src}"]`);
-            if (existingScript) {
-                resolve();
-                return;
-            }
-
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = () => resolve();
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
-    }
-
-    private _createExtensionContext(descriptor: ExtensionDescriptor): ExtensionContext {
+    private _createExtensionContext(
+        descriptor: ExtensionDescriptor,
+        storageSnapshots: ExtensionStorageSnapshots
+    ): ExtensionContext {
         const subscriptions = new DisposableStore();
 
         const apiOptions = {
@@ -415,9 +451,9 @@ export class ExtensionActivator extends Disposable {
 
             subscriptions: subscriptions,
 
-            globalState: this._createMemento(descriptor.id, true),
+            globalState: this._createMemento(descriptor.id, 'global', storageSnapshots.global),
 
-            workspaceState: this._createMemento(descriptor.id, false),
+            workspaceState: this._createMemento(descriptor.id, 'workspace', storageSnapshots.workspace),
 
             environmentVariableCollection: null,
 
@@ -439,41 +475,83 @@ export class ExtensionActivator extends Disposable {
         return context;
     }
 
-    private _createMemento(extensionId: string, isGlobal: boolean): Memento {
-        const storageKey = isGlobal
-            ? `extension.${extensionId}.globalState`
-            : `extension.${extensionId}.workspaceState`;
+    private async _loadStorageSnapshots(extensionId: string): Promise<ExtensionStorageSnapshots> {
+        const [globalResult, workspaceResult] = await Promise.all([
+            extensionsController.getStorageState(extensionId, 'global'),
+            extensionsController.getStorageState(extensionId, 'workspace')
+        ]);
+
+        if (!globalResult.success) {
+            console.warn(`⚠️ ExtensionActivator: 读取扩展全局存储失败 ${extensionId}: ${globalResult.error}`);
+        }
+
+        if (!workspaceResult.success) {
+            console.warn(`⚠️ ExtensionActivator: 读取扩展工作区存储失败 ${extensionId}: ${workspaceResult.error}`);
+        }
+
+        return {
+            global: globalResult.success ? globalResult.data : {},
+            workspace: workspaceResult.success ? workspaceResult.data : {}
+        };
+    }
+
+    private _createMemento(
+        extensionId: string,
+        scope: 'global' | 'workspace',
+        initialState: Record<string, unknown>
+    ): Memento {
+        const state: Record<string, unknown> = Object.create(null);
+        for (const [key, value] of Object.entries(initialState)) {
+            if (this._isAllowedStorageKey(key)) {
+                state[key] = value;
+            }
+        }
+
+        const isAllowedStorageKey = this._isAllowedStorageKey.bind(this);
 
         return {
             get<T>(key: string, defaultValue?: T): T {
-                try {
-                    const data = cacheManager.getLocalCache(storageKey) || {};
-                    return data[key] !== undefined ? data[key] : defaultValue!;
-                } catch (error) {
-                    return defaultValue!;
-                }
+                return state[key] !== undefined ? state[key] as T : defaultValue!;
             },
 
-            update(key: string, value: any): Promise<void> {
+            async update(key: string, value: any): Promise<void> {
+                if (!isAllowedStorageKey(key)) {
+                    return Promise.reject(new Error(`非法的扩展存储 key: ${key}`));
+                }
+
+                const hadPreviousValue = Object.prototype.hasOwnProperty.call(state, key);
+                const previousValue = state[key];
+
                 try {
-                    const data = cacheManager.getLocalCache(storageKey) || {};
-                    data[key] = value;
-                    cacheManager?.setLocalCache(storageKey, data);
-                    return Promise.resolve();
+                    if (typeof value === 'undefined') {
+                        delete state[key];
+                    } else {
+                        state[key] = value;
+                    }
+
+                    const result = await extensionsController.updateStorage(extensionId, scope, key, value);
+                    if (!result.success) {
+                        throw new Error(result.error || '扩展存储写入失败');
+                    }
                 } catch (error) {
+                    if (hadPreviousValue) {
+                        state[key] = previousValue;
+                    } else {
+                        delete state[key];
+                    }
+
                     return Promise.reject(error);
                 }
             },
 
             keys(): string[] {
-                try {
-                    const data = cacheManager.getLocalCache(storageKey) || {};
-                    return Object.keys(data);
-                } catch (error) {
-                    return [];
-                }
+                return Object.keys(state);
             }
         };
+    }
+
+    private _isAllowedStorageKey(key: string): boolean {
+        return key !== '__proto__' && key !== 'prototype' && key !== 'constructor';
     }
 
     getActivatedExtension(extensionId: string): ActivatedExtension | undefined {

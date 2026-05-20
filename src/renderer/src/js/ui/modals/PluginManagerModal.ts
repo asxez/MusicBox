@@ -93,6 +93,12 @@ class PluginManagerModal extends Component {
             });
         }
 
+        if (this.pluginList) {
+            this.addEventListenerManaged(this.pluginList, 'click', async (event: Event) => {
+                await this.handlePluginListAction(event.target);
+            });
+        }
+
         // ESC 键关闭
         this.addEventListenerManaged(document, 'keydown', (event) => {
             const keyboardEvent = event as KeyboardEvent;
@@ -211,17 +217,17 @@ class PluginManagerModal extends Component {
                 <div class="plugin-actions">
                     ${canDisable ? `
                         ${isEnabled ? `
-                            <button class="btn-secondary" data-action="disable" data-id="${extension.id}">
+                            <button class="btn-secondary" data-action="disable" data-id="${this.escapeAttribute(extension.id)}">
                                 禁用
                             </button>
                         ` : `
-                            <button class="btn-primary" data-action="enable" data-id="${extension.id}">
+                            <button class="btn-primary" data-action="enable" data-id="${this.escapeAttribute(extension.id)}">
                                 启用
                             </button>
                         `}
                     ` : ''}
                     ${!isBuiltin ? `
-                        <button class="btn-danger" data-action="uninstall" data-id="${extension.id}">
+                        <button class="btn-danger" data-action="uninstall" data-id="${this.escapeAttribute(extension.id)}">
                             卸载
                         </button>
                     ` : ''}
@@ -229,29 +235,36 @@ class PluginManagerModal extends Component {
             </div>
         `;
 
-        // 添加事件监听器
-        const enableBtn = card.querySelector('[data-action="enable"]');
-        if (enableBtn) {
-            enableBtn.addEventListener('click', async () => {
-                await this.handleEnableExtension(extension.id, extension.name);
-            });
-        }
-
-        const disableBtn = card.querySelector('[data-action="disable"]');
-        if (disableBtn) {
-            disableBtn.addEventListener('click', async () => {
-                await this.handleDisableExtension(extension.id, extension.name);
-            });
-        }
-
-        const uninstallBtn = card.querySelector('[data-action="uninstall"]');
-        if (uninstallBtn) {
-            uninstallBtn.addEventListener('click', async () => {
-                await this.handleUninstallExtension(extension.id, extension.name);
-            });
-        }
-
         return card;
+    }
+
+    private async handlePluginListAction(target: EventTarget | null): Promise<void> {
+        const actionButton = target instanceof Element ?
+            target.closest<HTMLElement>('[data-action][data-id]') :
+            null;
+
+        if (!actionButton) {
+            return;
+        }
+
+        const extensionId = actionButton.dataset.id;
+        const action = actionButton.dataset.action;
+        if (!extensionId || !action) {
+            return;
+        }
+
+        const extensionName = this.getExtensionName(extensionId);
+        switch (action) {
+            case 'enable':
+                await this.handleEnableExtension(extensionId, extensionName);
+                break;
+            case 'disable':
+                await this.handleDisableExtension(extensionId, extensionName);
+                break;
+            case 'uninstall':
+                await this.handleUninstallExtension(extensionId, extensionName);
+                break;
+        }
     }
 
     /**
@@ -354,6 +367,20 @@ class PluginManagerModal extends Component {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    escapeAttribute(text: string): string {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    private getExtensionName(extensionId: string): string {
+        const extension = pluginManagerService.getExtensions().find((item) => item.id === extensionId);
+        return extension?.name || extension?.id || extensionId;
     }
 
     getErrorMessage(error: unknown): string {

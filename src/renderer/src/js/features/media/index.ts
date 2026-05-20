@@ -4,6 +4,8 @@ export {
     MediaFileDialogService,
     mediaFileDialogService,
     MediaFileSystemService,
-    mediaFileSystemService
+    mediaFileSystemService,
+    MediaImageSelectionService,
+    mediaImageSelectionService
 } from './service';
-export type {FileStatResult, OpenDialogResult, OpenFileResult, SaveFileResult} from './service';
+export type {FileStatResult, OpenDialogResult, OpenFileResult, SaveFileResult, SelectedImageDataResult} from './service';

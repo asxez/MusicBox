@@ -3,8 +3,10 @@ import type {
     ExtensionFileResult,
     ExtensionInstallResult,
     ExtensionOperationResult,
+    ExtensionStorageStateResult,
     ExtensionsResult
 } from './service';
+import type {ExtensionStorageScope} from '@api/types/electron';
 
 class ExtensionsController {
     async selectPackage(): Promise<string | null> {
@@ -35,6 +37,19 @@ class ExtensionsController {
         return await extensionsService.readExtensionFile(extensionId, filePath);
     }
 
+    async getStorageState(extensionId: string, scope: ExtensionStorageScope): Promise<ExtensionStorageStateResult> {
+        return await extensionsService.getStorageState(extensionId, scope);
+    }
+
+    async updateStorage(
+        extensionId: string,
+        scope: ExtensionStorageScope,
+        key: string,
+        value: unknown
+    ): Promise<ExtensionOperationResult> {
+        return await extensionsService.updateStorage(extensionId, scope, key, value);
+    }
+
     async registerGlobalShortcuts(shortcuts: unknown): Promise<void> {
         await extensionsService.registerGlobalShortcuts(shortcuts);
     }
@@ -46,5 +61,6 @@ export type {
     ExtensionFileResult,
     ExtensionInstallResult,
     ExtensionOperationResult,
+    ExtensionStorageStateResult,
     ExtensionsResult
 };

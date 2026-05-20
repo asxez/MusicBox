@@ -1,4 +1,5 @@
 import {extensionsGateway, globalShortcutsGateway} from '@js/infrastructure/electron';
+import type {ExtensionStorageScope} from '@api/types/electron';
 import type {ExtensionInfo} from '@extensions/core/types';
 
 export type ExtensionsResult = {
@@ -21,6 +22,12 @@ export type ExtensionOperationResult = {
 export type ExtensionFileResult = {
     success: boolean;
     content?: string;
+    error?: string;
+};
+
+export type ExtensionStorageStateResult = {
+    success: boolean;
+    data: Record<string, unknown>;
     error?: string;
 };
 
@@ -51,6 +58,19 @@ export class ExtensionsService {
 
     async readExtensionFile(extensionId: string, filePath: string): Promise<ExtensionFileResult> {
         return await extensionsGateway.readExtensionFile(extensionId, filePath) as ExtensionFileResult;
+    }
+
+    async getStorageState(extensionId: string, scope: ExtensionStorageScope): Promise<ExtensionStorageStateResult> {
+        return await extensionsGateway.storageGetState(extensionId, scope);
+    }
+
+    async updateStorage(
+        extensionId: string,
+        scope: ExtensionStorageScope,
+        key: string,
+        value: unknown
+    ): Promise<ExtensionOperationResult> {
+        return await extensionsGateway.storageUpdate(extensionId, scope, key, value);
     }
 
     async registerGlobalShortcuts(shortcuts: unknown): Promise<void> {

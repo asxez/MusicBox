@@ -9,6 +9,11 @@
   "activationEvents": [
     "onStartUp"
   ],
+  "permissions": [
+    "ui.notification",
+    "storage.read",
+    "storage.write"
+  ],
   "contributes": {
     "commands": [
       {

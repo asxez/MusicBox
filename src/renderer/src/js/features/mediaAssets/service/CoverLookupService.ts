@@ -5,6 +5,8 @@ import {embeddedCoverManager} from './EmbeddedCoverManager';
 import {localCoverManager} from './LocalCoverManager';
 
 export class CoverLookupService {
+    private readonly transientObjectUrls = new Set<string>();
+
     async getCover(
         title: string,
         artist: string,
@@ -32,7 +34,11 @@ export class CoverLookupService {
 
             const networkCover = await this.getNetworkCover(title, artist, album);
             if (networkCover.success) {
-                await this.saveCoverToLocalCache(title, artist, album, networkCover.imageData);
+                const cachedCover = await this.saveCoverToLocalCache(title, artist, album, networkCover.imageData);
+                if (cachedCover) {
+                    this.releaseTransientObjectUrl(networkCover.imageUrl);
+                    return cachedCover;
+                }
                 return networkCover;
             }
 
@@ -101,7 +107,7 @@ export class CoverLookupService {
                 const blob = await response.blob();
                 return {
                     success: true,
-                    imageUrl: URL.createObjectURL(blob),
+                    imageUrl: this.createTransientObjectUrl(blob),
                     type: 'blob',
                     source: 'api',
                     imageData: blob
@@ -155,7 +161,12 @@ export class CoverLookupService {
         if (typeof (localCoverManager as any).clearAllCache === 'function') {
             (localCoverManager as any).clearAllCache();
         }
+        this.clearTransientObjectUrls();
         console.log('✅ Success: 已清除所有封面缓存');
+    }
+
+    destroy(): void {
+        this.clearAllCache();
     }
 
     private createEmbeddedCoverResult(embeddedResult: any): CoverResult {
@@ -175,22 +186,34 @@ export class CoverLookupService {
         artist: string,
         album: string,
         imageData: CoverResult['imageData']
-    ): Promise<void> {
+    ): Promise<CoverResult | null> {
         try {
             if (!imageData) {
-                return;
+                return null;
             }
 
             if (!localCoverManager.getCoverDirectory()) {
                 console.warn('⚠️ CoverLookupService: 未设置封面缓存目录，跳过本地缓存保存');
-                return;
+                return null;
             }
 
             const imageFormat = this.detectImageFormat(imageData);
-            await localCoverManager.saveCoverToCache(title, artist, album, imageData, imageFormat);
+            const saveResult = await localCoverManager.saveCoverToCache(title, artist, album, imageData, imageFormat);
+            if (!saveResult.success || !saveResult.filePath) {
+                return null;
+            }
+
             console.log(`💾 Cache: 封面已保存到本地缓存: ${title} - ${artist}`);
+            return {
+                success: true,
+                imageUrl: `file://${saveResult.filePath}`,
+                type: 'local-file',
+                source: 'local-cache',
+                filePath: saveResult.filePath
+            };
         } catch (error) {
             this.logError('保存封面到本地缓存时发生错误', error);
+            return null;
         }
     }
 
@@ -211,6 +234,32 @@ export class CoverLookupService {
         }
 
         return imageFormat;
+    }
+
+    private createTransientObjectUrl(blob: Blob): string {
+        const objectUrl = URL.createObjectURL(blob);
+        this.transientObjectUrls.add(objectUrl);
+        return objectUrl;
+    }
+
+    private releaseTransientObjectUrl(url: string | null | undefined): void {
+        if (!url || !this.transientObjectUrls.has(url)) {
+            return;
+        }
+
+        URL.revokeObjectURL(url);
+        this.transientObjectUrls.delete(url);
+    }
+
+    private clearTransientObjectUrls(): void {
+        this.transientObjectUrls.forEach((url) => {
+            try {
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.warn('⚠️ CoverLookupService: 释放临时封面URL失败:', error);
+            }
+        });
+        this.transientObjectUrls.clear();
     }
 
     private logError(message: string, error: unknown): void {

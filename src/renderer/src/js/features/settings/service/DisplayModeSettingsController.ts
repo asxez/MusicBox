@@ -8,6 +8,8 @@ import {
 } from "./DisplayModeSettingsService";
 
 class DisplayModeSettingsController {
+    private desktopLyricsSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
     getDesktopLyricsSettings(settings: MusicBoxSettings): DesktopLyricsDisplaySettings {
         return displayModeSettingsService.getDesktopLyricsSettings(settings);
     }
@@ -19,9 +21,15 @@ class DisplayModeSettingsController {
     }
 
     scheduleDesktopLyricsSync(settings: DesktopLyricsDisplaySettings): void {
-        setTimeout(() => {
+        this.clearDesktopLyricsSyncTimer();
+        this.desktopLyricsSyncTimer = setTimeout(() => {
+            this.desktopLyricsSyncTimer = null;
             this.syncDesktopLyricsSettings(settings);
         }, 100);
+    }
+
+    dispose(): void {
+        this.clearDesktopLyricsSyncTimer();
     }
 
     async hideDesktopLyrics(): Promise<void> {
@@ -52,6 +60,15 @@ class DisplayModeSettingsController {
         } catch (error) {
             console.error('❌ Settings: 更新桌面歌词设置失败:', error);
         }
+    }
+
+    private clearDesktopLyricsSyncTimer(): void {
+        if (!this.desktopLyricsSyncTimer) {
+            return;
+        }
+
+        clearTimeout(this.desktopLyricsSyncTimer);
+        this.desktopLyricsSyncTimer = null;
     }
 }
 

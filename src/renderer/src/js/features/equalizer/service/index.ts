@@ -1,4 +1,5 @@
 export {EqualizerService, equalizerService} from './EqualizerService';
+export {EqualizerPresetFileService, equalizerPresetFileService} from './EqualizerPresetFileService';
 export type {AudioEngineManagerBridge, EqualizerCurrentEngineBridge} from './EqualizerTypes';
 export {default as ParametricEqualizer} from './ParametricEqualizer';
 export {default as ParametricEqualizerPresets} from './ParametricEqualizerPresets';

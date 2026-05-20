@@ -29,6 +29,11 @@ export interface FileStatResult {
     isDirectory: boolean;
 }
 
+/**
+ * @deprecated Phase 5 migration shim.
+ * Prefer domain gateways/services such as media, mediaAssets, lyrics, plugin storage or app shell APIs.
+ * Keep this gateway only for compatibility while generic fs/path/os preload capabilities are being retired.
+ */
 class FileGateway {
     openDirectory(): Promise<string | null> {
         return getElectronAPI().openDirectory();
@@ -65,19 +70,32 @@ class FileGateway {
     }
 
     stat(filePath: string): Promise<FileStatResult> {
-        return getElectronAPI().fs.stat(filePath);
+        void filePath;
+        return Promise.reject(new Error('FileGateway.stat is deprecated; use a domain-specific gateway'));
     }
 
+    /**
+     * @deprecated Use a domain-specific reader instead of generic fs.readFile.
+     */
     readFile(filePath: string, encoding: string | null = null): Promise<string | ArrayLike<number>> {
-        return getElectronAPI().fs.readFile(filePath, encoding) as Promise<string | ArrayLike<number>>;
+        void filePath;
+        void encoding;
+        return Promise.reject(new Error('FileGateway.readFile is deprecated; use a domain-specific gateway'));
     }
 
+    /**
+     * @deprecated Use a domain-specific writer instead of generic fs.writeFile.
+     */
     writeFile(filePath: string, data: string, encoding: string | null = null): Promise<boolean> {
-        return getElectronAPI().fs.writeFile(filePath, data, encoding);
+        void filePath;
+        void data;
+        void encoding;
+        return Promise.reject(new Error('FileGateway.writeFile is deprecated; use a domain-specific gateway'));
     }
 
     readAudioFile(filePath: string): Promise<ArrayBuffer> {
-        return getElectronAPI().readAudioFile(filePath);
+        void filePath;
+        return Promise.reject(new Error('FileGateway.readAudioFile is deprecated; use mediaGateway.readAudioFile'));
     }
 
     onUnsupported(): Unsubscribe {

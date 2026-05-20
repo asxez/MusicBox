@@ -28,7 +28,7 @@ export interface PlaybackComponentBindingHost {
     handlePlaylistTrackPlayed(track: Track, index: number): Promise<void>;
     handlePlaylistTrackRemoved(track: Track, index: number): Promise<void>;
     handlePlaylistCleared(): Promise<void>;
-    addToPlaylist(track: Track): void;
+    addToPlaylist(track: Track): void | Promise<void>;
     handleAddToCustomPlaylist(track: Track, index: number): Promise<void>;
     handleDeleteTrack(track: Track, index: number): Promise<void>;
     handleBatchDelete(selectedTracks: Set<number> | null | undefined, track: Track, index: number): Promise<void>;
@@ -102,7 +102,7 @@ export function bindPlaybackComponentEvents({
     });
 
     components.contextMenu.on('addToPlaylist', ({track}: ContextMenuPayload) => {
-        app.addToPlaylist(track);
+        void app.addToPlaylist(track);
     });
 
     components.contextMenu.on('addToCustomPlaylist', async ({track, index}: ContextMenuPayload) => {

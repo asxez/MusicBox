@@ -7,9 +7,12 @@ import type {
     ElectronAudioAPI,
     ElectronCoversAPI,
     ElectronDesktopLyricsAPI,
+    ElectronEqualizerPresetsAPI,
+    ElectronExtensionsAPI,
     ElectronGlobalShortcutsAPI,
     ElectronLibraryAPI,
     ElectronLyricsAPI,
+    ElectronMediaAPI,
     ElectronNetworkDriveAPI,
     ElectronNativeAudioAPI,
     ElectronWindowAPI,
@@ -81,9 +84,6 @@ interface ElectronAPI {
     // 原生音频事件
     onNativeAudioEvent: (eventName: string, callback: (data: unknown) => void) => Unsubscribe;
 
-    // 读取音频文件
-    readAudioFile: (filePath: string) => Promise<ArrayBuffer>;
-
     // 文件对话框
     // 通用目录选择对话框（返回字符串路径，用于音乐目录扫描等）
     openDirectory: () => Promise<string | null>;
@@ -125,7 +125,7 @@ interface ElectronAPI {
     }
 
     // 文件系统
-    fs: {
+    fs?: {
         // nodejs fs
         fs: object;
 
@@ -145,8 +145,8 @@ interface ElectronAPI {
     }
 
     // nodejs
-    os: object;
-    path: object;
+    os?: object;
+    path?: object;
 
     // WebAudio音频引擎
     audio: ElectronAudioAPI;
@@ -165,41 +165,7 @@ interface ElectronAPI {
     // 窗口
     window: ElectronWindowAPI;
 
-    extensions: {
-        selectPackage: () => Promise<string | null>;
-        installFromFile: (filePath: string) => Promise<{
-            success: boolean,
-            extension: any,
-            error?: string
-        }>;
-        uninstall: (extensionId: string, keepData: boolean) => Promise<{
-            success: boolean,
-            error?: string
-        }>;
-        enable: (extensionId: string) => Promise<{
-            success: boolean,
-            error?: string
-        }>;
-        disable: (extensionId: string) => Promise<{
-            success: boolean,
-            error?: string
-        }>;
-        getInstalled: () => Promise<{
-            success: boolean,
-            extensions: any[],
-            error?: string
-        }>;
-        scanUserExtensions: () => Promise<{
-            success: boolean,
-            extensions: any[],
-            error?: string
-        }>;
-        readExtensionFile: (extensionId: string, filePath: string) => Promise<{
-            success: boolean,
-            content: string,
-            error?: string
-        }>;
-    };
+    extensions: ElectronExtensionsAPI;
 
     // 托盘
     tray: {
@@ -221,8 +187,10 @@ interface ElectronAPI {
 
     // 桌面歌词
     desktopLyrics: ElectronDesktopLyricsAPI;
+    media: ElectronMediaAPI;
     lyrics: ElectronLyricsAPI;
     covers: ElectronCoversAPI;
+    equalizerPresets: ElectronEqualizerPresetsAPI;
     networkDrive: ElectronNetworkDriveAPI;
 
     // 设置相关

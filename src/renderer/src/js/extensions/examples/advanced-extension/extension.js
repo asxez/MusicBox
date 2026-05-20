@@ -7,8 +7,6 @@ function getExtensionAPI(context) {
     return context.api || createExtensionAPI(context);
 }
 
-// 扩展状态
-let statusBarItem = null;
 let refreshTimer = null;
 let playCount = 0;
 
@@ -16,54 +14,34 @@ let playCount = 0;
  * 激活扩展
  * @param {ExtensionContext} context
  */
-function activate(context) {
+async function activate(context) {
     console.log('✅ Advanced Example 扩展已激活');
 
-    // 解构 API
-    const {
-        player,
-        library,
-        ui,
-        storage,
-        settings,
-        commands,
-        network
-    } = getExtensionAPI(context);
-
-    // 读取配置
-    const config = loadConfiguration(settings);
+    const api = getExtensionAPI(context);
+    const config = await loadConfiguration(api.settings);
     console.log('📋 配置:', config);
 
-    // 初始化扩展
-    initializeExtension(context, config);
+    await initializeExtension(context, config);
+    await registerSettingsContributions(context, config);
+    await registerCommands(context, config);
+    await setupPlayerListeners(context, config);
+    await setupConfigurationListener(context);
 
-    // 注册命令
-    registerCommands(context, config);
-
-    // 监听播放器事件
-    setupPlayerListeners(context, config);
-
-    // 监听配置变化
-    setupConfigurationListener(context);
-
-    // 设置定时刷新
     if (config.enabled) {
         setupRefreshTimer(context, config);
     }
 
-    // 显示欢迎消息
     if (config.autoNotify) {
-        ui.showNotification('Advanced Example 扩展已启动', 'success');
+        await api.ui.showNotification('Advanced Example 扩展已启动', 'success');
     }
 
-    // 返回公共 API
     return {
         getPlayCount() {
             return playCount;
         },
-        resetPlayCount() {
+        async resetPlayCount() {
             playCount = 0;
-            storage.update('playCount', 0);
+            await api.storage.update('playCount', 0);
         }
     };
 }
@@ -73,18 +51,7 @@ function activate(context) {
  */
 function deactivate() {
     console.log('⏹️ Advanced Example 扩展已停用');
-
-    // 清理定时器
-    if (refreshTimer) {
-        clearInterval(refreshTimer);
-        refreshTimer = null;
-    }
-
-    // 清理状态栏
-    if (statusBarItem) {
-        statusBarItem.dispose();
-        statusBarItem = null;
-    }
+    clearRefreshTimer();
 }
 
 window.advancedExampleExtension = {
@@ -95,68 +62,146 @@ window.advancedExampleExtension = {
 /**
  * 加载配置
  */
-function loadConfiguration(settings) {
+async function loadConfiguration(settings) {
+    const features = await settings.get('advancedExample.features', ['notifications', 'stats']);
+
     return {
-        enabled: settings.get('advancedExample.enabled', true),
-        autoNotify: settings.get('advancedExample.autoNotify', true),
-        apiEndpoint: settings.get('advancedExample.apiEndpoint', 'https://api.example.com'),
-        maxItems: settings.get('advancedExample.maxItems', 10),
-        refreshInterval: settings.get('advancedExample.refreshInterval', 5000),
-        features: settings.get('advancedExample.features', ['notifications', 'stats'])
+        enabled: await settings.get('advancedExample.enabled', true),
+        autoNotify: await settings.get('advancedExample.autoNotify', true),
+        apiEndpoint: await settings.get('advancedExample.apiEndpoint', 'https://api.example.com'),
+        maxItems: await settings.get('advancedExample.maxItems', 10),
+        refreshInterval: await settings.get('advancedExample.refreshInterval', 5000),
+        features: Array.isArray(features) ? features : ['notifications', 'stats']
     };
 }
 
 /**
  * 初始化扩展
  */
-async function initializeExtension(context, config) {
+async function initializeExtension(context, _config) {
     const {storage, ui} = getExtensionAPI(context);
 
     try {
-        // 从存储恢复状态
         playCount = await storage.get('playCount', 0);
         console.log(`📊 恢复播放计数: ${playCount}`);
-
-        // 创建状态栏项
-        if (config.features.includes('stats')) {
-            statusBarItem = ui.createStatusBarItem(`播放: ${playCount}`);
-            context.subscriptions.add(statusBarItem);
-        }
     } catch (error) {
         console.error('❌ 初始化失败:', error);
-        ui.showErrorMessage(`初始化失败: ${error.message}`);
+        await ui.showErrorMessage(`初始化失败: ${error.message}`);
     }
+}
+
+/**
+ * 注册设置页贡献
+ */
+async function registerSettingsContributions(context, config) {
+    const {ui, settings, storage} = getExtensionAPI(context);
+
+    const sectionDisposable = await ui.registerSettingsSection('advancedExample', 'Advanced Example', {
+        order: 450
+    });
+    context.subscriptions.add(sectionDisposable);
+
+    const pageDisposable = await ui.registerSettingsPageSchema('advancedExample', {
+        items: [
+            {
+                id: 'enabled',
+                type: 'toggle',
+                label: '启用扩展',
+                description: '控制示例扩展的定时刷新和播放器监听行为',
+                value: Boolean(config.enabled),
+                async onChange(value) {
+                    await settings.set('advancedExample.enabled', value);
+                    if (value) {
+                        setupRefreshTimer(context, await loadConfiguration(settings));
+                        await ui.showNotification('Advanced Example 已启用', 'success');
+                    } else {
+                        clearRefreshTimer();
+                        await ui.showNotification('Advanced Example 已禁用', 'warning');
+                    }
+                }
+            },
+            {
+                id: 'autoNotify',
+                type: 'toggle',
+                label: '启动通知',
+                description: '扩展激活时显示提示通知',
+                value: Boolean(config.autoNotify),
+                async onChange(value) {
+                    await settings.set('advancedExample.autoNotify', value);
+                }
+            },
+            {
+                id: 'apiEndpoint',
+                type: 'input',
+                label: 'API 端点',
+                description: '用于网络请求示例的 HTTP 地址',
+                value: String(config.apiEndpoint),
+                inputType: 'url',
+                placeholder: 'https://api.example.com',
+                async onChange(value) {
+                    await settings.set('advancedExample.apiEndpoint', value);
+                }
+            },
+            {
+                id: 'refreshInterval',
+                type: 'input',
+                label: '刷新间隔',
+                description: '后台刷新间隔，单位毫秒',
+                value: String(config.refreshInterval),
+                inputType: 'number',
+                min: 1000,
+                step: 500,
+                async onChange(value) {
+                    const nextInterval = Math.max(1000, Number(value) || 5000);
+                    await settings.set('advancedExample.refreshInterval', nextInterval);
+                    setupRefreshTimer(context, await loadConfiguration(settings));
+                }
+            },
+            {
+                id: 'resetPlayCount',
+                type: 'button',
+                label: '播放计数',
+                description: '清空此示例扩展保存的播放次数',
+                buttonText: '重置计数',
+                secondary: true,
+                async onClick() {
+                    playCount = 0;
+                    await storage.update('playCount', 0);
+                    await ui.showNotification('播放计数已重置', 'success');
+                }
+            }
+        ]
+    });
+    context.subscriptions.add(pageDisposable);
 }
 
 /**
  * 注册命令
  */
-function registerCommands(context, config) {
+async function registerCommands(context, config) {
     const {commands, ui, storage, network} = getExtensionAPI(context);
 
-    // Hello 命令
-    const helloCommand = commands.registerCommand(
+    const helloCommand = await commands.registerCommand(
         'advancedExample.hello',
         async () => {
-            const response = await ui.showDialog({
+            const confirmed = await ui.showConfirmDialog('Hello from Advanced Example!', {
                 title: 'Hello',
-                message: 'Hello from Advanced Example!',
-                buttons: ['OK', 'Cancel']
+                confirmText: 'OK',
+                cancelText: 'Cancel'
             });
 
-            if (response === 'OK') {
-                ui.showNotification('你点击了 OK', 'info');
+            if (confirmed) {
+                await ui.showNotification('你点击了 OK', 'info');
             }
         }
     );
     context.subscriptions.add(helloCommand);
 
-    // 显示统计命令
-    const statsCommand = commands.registerCommand(
+    const statsCommand = await commands.registerCommand(
         'advancedExample.showStats',
         async () => {
             const stats = await getStatistics(context);
-            ui.showNotification(
+            await ui.showNotification(
                 `统计信息:\n播放次数: ${stats.playCount}\n总曲目: ${stats.totalTracks}`,
                 'info'
             );
@@ -164,28 +209,29 @@ function registerCommands(context, config) {
     );
     context.subscriptions.add(statsCommand);
 
-    // 获取数据命令
-    const fetchCommand = commands.registerCommand(
+    const fetchCommand = await commands.registerCommand(
         'advancedExample.fetchData',
         async () => {
             if (!config.features.includes('network')) {
-                ui.showWarningMessage('网络功能未启用');
+                await ui.showWarningMessage('网络功能未启用');
                 return;
             }
 
             try {
-                ui.showNotification('正在获取数据...', 'info');
+                await ui.showNotification('正在获取数据...', 'info');
 
-                const response = await network.fetch(config.apiEndpoint);
-                const data = await response.json();
-
-                await storage.update('lastFetchData', data);
+                const text = await network.get(config.apiEndpoint);
+                const previewLength = Math.max(0, Number(config.maxItems) || 10);
+                await storage.update('lastFetchData', {
+                    preview: text.slice(0, previewLength),
+                    length: text.length
+                });
                 await storage.update('lastFetchTime', Date.now());
 
-                ui.showNotification('数据获取成功', 'success');
+                await ui.showNotification('数据获取成功', 'success');
             } catch (error) {
                 console.error('❌ 获取数据失败:', error);
-                ui.showErrorMessage(`获取数据失败: ${error.message}`);
+                await ui.showErrorMessage(`获取数据失败: ${error.message}`);
             }
         }
     );
@@ -195,30 +241,23 @@ function registerCommands(context, config) {
 /**
  * 设置播放器监听器
  */
-function setupPlayerListeners(context, config) {
+async function setupPlayerListeners(context, config) {
     const {player, ui, storage, window} = getExtensionAPI(context);
 
-    // 监听播放状态变化
-    const stateListener = player.onPlaybackStateChanged(async (state) => {
+    const stateListener = await player.onPlaybackStateChanged(async (state) => {
         if (state === 'playing') {
-            console.log(await window.getSize());
+            console.log('🪟 当前窗口大小:', await window.getSize());
             playCount++;
             await storage.update('playCount', playCount);
 
-            // 更新状态栏
-            if (statusBarItem && config.features.includes('stats')) {
-                statusBarItem.dispose();
-                statusBarItem = ui.createStatusBarItem(`播放: ${playCount}`);
-                context.subscriptions.add(statusBarItem);
-            }
-
-            // 显示通知
-            const track = await player.getCurrentTrack();
-            if (track) {
-                ui.showNotification(
-                    `正在播放: ${track.title} - ${track.artist}`,
-                    'info'
-                );
+            if (config.features.includes('notifications')) {
+                const track = await player.getCurrentTrack();
+                if (track) {
+                    await ui.showNotification(
+                        `正在播放: ${track.title} - ${track.artist}`,
+                        'info'
+                    );
+                }
             }
         }
     });
@@ -228,35 +267,26 @@ function setupPlayerListeners(context, config) {
 /**
  * 设置配置监听器
  */
-function setupConfigurationListener(context) {
+async function setupConfigurationListener(context) {
     const {settings, ui} = getExtensionAPI(context);
 
-    const configListener = settings.onDidChange((event) => {
+    const configListener = await settings.onDidChange(async (event) => {
         if (event.key.startsWith('advancedExample.')) {
             console.log(`⚙️ 配置已更改: ${event.key} = ${event.newValue}`);
 
-            // 重新加载配置
-            const newConfig = loadConfiguration(settings);
+            const newConfig = await loadConfiguration(settings);
 
-            // 根据配置变化更新行为
             if (event.key === 'advancedExample.enabled') {
                 if (event.newValue) {
-                    ui.showNotification('扩展已启用', 'success');
+                    await ui.showNotification('扩展已启用', 'success');
                     setupRefreshTimer(context, newConfig);
                 } else {
-                    ui.showNotification('扩展已禁用', 'warning');
-                    if (refreshTimer) {
-                        clearInterval(refreshTimer);
-                        refreshTimer = null;
-                    }
+                    await ui.showNotification('扩展已禁用', 'warning');
+                    clearRefreshTimer();
                 }
             }
 
             if (event.key === 'advancedExample.refreshInterval') {
-                // 重新设置定时器
-                if (refreshTimer) {
-                    clearInterval(refreshTimer);
-                }
                 setupRefreshTimer(context, newConfig);
             }
         }
@@ -268,33 +298,32 @@ function setupConfigurationListener(context) {
  * 设置定时刷新
  */
 function setupRefreshTimer(context, config) {
+    clearRefreshTimer();
+
     if (!config.enabled) {
         return;
     }
 
     refreshTimer = setInterval(async () => {
         try {
-            await refreshData(context, config);
+            await refreshData(context);
         } catch (error) {
             console.error('❌ 刷新数据失败:', error);
         }
     }, config.refreshInterval);
+}
 
-    // 注册清理函数
-    context.subscriptions.add({
-        dispose() {
-            if (refreshTimer) {
-                clearInterval(refreshTimer);
-                refreshTimer = null;
-            }
-        }
-    });
+function clearRefreshTimer() {
+    if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+    }
 }
 
 /**
  * 刷新数据
  */
-async function refreshData(context, config) {
+async function refreshData(context) {
     const {player, storage} = getExtensionAPI(context);
 
     try {
@@ -320,7 +349,7 @@ async function getStatistics(context) {
     const {library, storage} = getExtensionAPI(context);
 
     try {
-        const tracks = await library.getTracks();
+        const tracks = await library.getAllTracks();
         const storedPlayCount = await storage.get('playCount', 0);
 
         return {

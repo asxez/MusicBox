@@ -49,7 +49,7 @@ class Lyrics extends Component {
         this.isVisible = true;
 
         this.composition.elements.page.style.display = 'block';
-        setTimeout(() => {
+        this.setTimeoutManaged(() => {
             this.composition.elements.page.classList.add('show');
         }, 10);
 
@@ -60,7 +60,7 @@ class Lyrics extends Component {
             await this.updateTrackInfo(track);
         }
 
-        setTimeout(() => {
+        this.setTimeoutManaged(() => {
             this.composition.elements.lyricsDisplay.scrollTop = 0;
         }, 50);
     }
@@ -70,7 +70,7 @@ class Lyrics extends Component {
         this.composition.elements.page.classList.remove('show');
         this.composition.resetAfterHide();
 
-        setTimeout(() => {
+        this.setTimeoutManaged(() => {
             if (!this.isVisible) {
                 this.composition.elements.page.style.display = 'none';
             }

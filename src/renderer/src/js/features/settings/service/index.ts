@@ -21,6 +21,7 @@ export * from './MusicFolderListRenderer';
 export * from './MusicFolderSettingsController';
 export * from './MusicFolderSettingsService';
 export * from './SettingsExtensionNavigationService';
+export * from './SettingsListenerScope';
 export * from './SettingsPageVisibilityService';
 export * from './SettingsPanelVisibilityService';
 export * from './SettingsSectionNavigationService';

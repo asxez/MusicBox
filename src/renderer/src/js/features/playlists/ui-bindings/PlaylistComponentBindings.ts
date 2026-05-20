@@ -16,7 +16,6 @@ interface PlaylistBindingComponents {
 
 interface PlaylistBindingUI {
     showCreatePlaylistDialog(track?: Track): void;
-    syncQueueTracks(tracks: Track[], currentIndex?: number): void;
     showContextMenu(x: number, y: number, track: Track, index: number, selectedTracks?: Set<number>): void;
 }
 
@@ -28,7 +27,7 @@ export interface PlaylistComponentBindingHost {
     handleTrackInfoUpdated(data: unknown): Promise<void>;
     handleTrackPlayed(track: Track, index: number): Promise<void>;
     handlePlayAllTracks(tracks: Track[]): Promise<void>;
-    playTrackFromPlaylist(track: Track, index: number): Promise<void>;
+    playTrackFromPlaylist(track: Track, index: number, tracks?: Track[]): Promise<void>;
     handlePlaylistUpdated(playlist?: Playlist): Promise<void>;
     handleShowAddSongsDialog(playlist: Playlist): Promise<void>;
     handlePlaylistCoverUpdated(playlist: Playlist): Promise<void>;
@@ -95,8 +94,7 @@ export function bindPlaylistComponentEvents({
 
     components.playlistDetailPage.on('trackPlayed', async (track: Track, index: number, tracks?: Track[]) => {
         if (tracks && tracks.length > 0) {
-            ui.syncQueueTracks(tracks, index);
-            await app.playTrackFromPlaylist(track, index);
+            await app.playTrackFromPlaylist(track, index, tracks);
             return;
         }
 

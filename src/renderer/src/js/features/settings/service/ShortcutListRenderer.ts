@@ -5,12 +5,27 @@ interface ShortcutListRenderOptions {
     container: HTMLElement | null | undefined;
     type: ShortcutType;
     shortcuts: ShortcutMap;
-    onRecord: (type: ShortcutType, id: string, keyElement: HTMLElement) => void;
-    onToggle: (type: ShortcutType, id: string, enabled: boolean) => void;
+}
+
+export type ShortcutListAction =
+    | {type: 'record'; shortcutType: ShortcutType; id: string; keyElement: HTMLElement}
+    | {type: 'toggle'; shortcutType: ShortcutType; id: string; enabled: boolean};
+
+const isShortcutType = (value: string | undefined): value is ShortcutType => value === 'local' || value === 'global';
+
+const getShortcutMetadata = (element: HTMLElement): {shortcutType: ShortcutType; id: string} | null => {
+    const shortcutType = element.dataset.type;
+    const id = element.dataset.id;
+
+    if (!isShortcutType(shortcutType) || !id) {
+        return null;
+    }
+
+    return {shortcutType, id};
 }
 
 class ShortcutListRenderer {
-    render({container, type, shortcuts, onRecord, onToggle}: ShortcutListRenderOptions): void {
+    render({container, type, shortcuts}: ShortcutListRenderOptions): void {
         if (!container) {
             return;
         }
@@ -21,9 +36,7 @@ class ShortcutListRenderer {
             container.appendChild(this.createShortcutItem({
                 type,
                 id,
-                shortcut,
-                onRecord,
-                onToggle
+                shortcut
             }));
         });
     }
@@ -56,14 +69,50 @@ class ShortcutListRenderer {
         globalShortcutsGroup?.classList.toggle('hidden', !visible);
     }
 
+    resolveAction(target: EventTarget | null): ShortcutListAction | null {
+        if (!(target instanceof Element)) {
+            return null;
+        }
+
+        const keyElement = target.closest<HTMLElement>('.shortcut-key');
+        if (keyElement) {
+            const metadata = getShortcutMetadata(keyElement);
+            if (!metadata || keyElement.classList.contains('disabled')) {
+                return null;
+            }
+
+            return {
+                type: 'record',
+                shortcutType: metadata.shortcutType,
+                id: metadata.id,
+                keyElement
+            };
+        }
+
+        const input = target.closest<HTMLInputElement>('.shortcut-toggle input[type="checkbox"]');
+        if (input) {
+            const metadata = getShortcutMetadata(input);
+            if (!metadata) {
+                return null;
+            }
+
+            return {
+                type: 'toggle',
+                shortcutType: metadata.shortcutType,
+                id: metadata.id,
+                enabled: input.checked
+            };
+        }
+
+        return null;
+    }
+
     private createShortcutItem(options: {
         type: ShortcutType;
         id: string;
         shortcut: ShortcutDefinition;
-        onRecord: (type: ShortcutType, id: string, keyElement: HTMLElement) => void;
-        onToggle: (type: ShortcutType, id: string, enabled: boolean) => void;
     }): HTMLElement {
-        const {type, id, shortcut, onRecord, onToggle} = options;
+        const {type, id, shortcut} = options;
         const item = document.createElement('div');
         item.className = 'shortcut-item';
 
@@ -90,11 +139,6 @@ class ShortcutListRenderer {
         key.dataset.id = id;
         key.title = '点击修改快捷键';
         key.textContent = this.formatKey(shortcut.key);
-        key.addEventListener('click', () => {
-            if (!key.classList.contains('disabled')) {
-                onRecord(type, id, key);
-            }
-        });
 
         const toggle = document.createElement('div');
         toggle.className = 'shortcut-toggle';
@@ -109,7 +153,6 @@ class ShortcutListRenderer {
         input.checked = shortcut.enabled;
         input.dataset.type = type;
         input.dataset.id = id;
-        input.addEventListener('change', () => onToggle(type, id, input.checked));
 
         const label = document.createElement('label');
         label.htmlFor = input.id;

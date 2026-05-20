@@ -1,8 +1,8 @@
-import {fileGateway} from '@js/infrastructure/electron';
+import {mediaGateway} from '@js/infrastructure/electron/MediaGateway';
 
 export class AudioFileReaderService {
     async readAudioFile(filePath: string): Promise<ArrayBuffer> {
-        return await fileGateway.readAudioFile(filePath);
+        return await mediaGateway.readAudioFile(filePath);
     }
 }
 

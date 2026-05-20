@@ -46,7 +46,7 @@ class PlaylistDetailPage extends Component {
     private lastSelectedIndex: number;
     private showCovers: boolean;
     private documentClickHandler: ((event: Event) => void) | null;
-    private coverContextMenuCloseHandler: ((event: Event) => void) | null;
+    private listenersSetup = false;
     private coverDisplayPreferenceUnsubscribe: Unsubscribe | null = null;
 
     constructor(container: string | Element | null) {
@@ -59,7 +59,6 @@ class PlaylistDetailPage extends Component {
         this.lastSelectedIndex = -1;
         this.container = this.element instanceof HTMLElement ? this.element : null;
         this.documentClickHandler = null;
-        this.coverContextMenuCloseHandler = null;
 
         // 获取封面显示设置
         this.showCovers = this.getShowCoversSettings();
@@ -79,7 +78,7 @@ class PlaylistDetailPage extends Component {
             this.element.style.transform = 'translateY(10px)';
         }
 
-        // 每次显示新歌单时都需要重新绑定事件监听器
+        // 每次显示新歌单时刷新数据和视图，事件由容器级委托保持稳定
         await this.loadPlaylistCover();
         await this.loadPlaylistTracks();
         this.render();
@@ -87,7 +86,7 @@ class PlaylistDetailPage extends Component {
         // 平滑显示页面
         if (this.element instanceof HTMLElement) {
             const element = this.element;
-            requestAnimationFrame(() => {
+            this.requestAnimationFrameManaged(() => {
                 element.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
                 element.style.opacity = '1';
                 element.style.transform = 'translateY(0)';
@@ -100,12 +99,7 @@ class PlaylistDetailPage extends Component {
         this.currentPlaylist = null;
         this.tracks = [];
 
-        // 清理事件监听器
-        if (this.documentClickHandler) {
-            this.removeEventListenerManaged(document, 'click', this.documentClickHandler);
-            this.documentClickHandler = null;
-        }
-        this.removeCoverContextMenuCloseHandler();
+        this.hideCoverContextMenu();
 
         if (this.container) {
             this.container.innerHTML = '';
@@ -117,16 +111,13 @@ class PlaylistDetailPage extends Component {
             this.coverDisplayPreferenceUnsubscribe();
             this.coverDisplayPreferenceUnsubscribe = null;
         }
-        if (this.documentClickHandler) {
-            this.removeEventListenerManaged(document, 'click', this.documentClickHandler);
-            this.documentClickHandler = null;
-        }
-        this.removeCoverContextMenuCloseHandler();
+        this.hideCoverContextMenu();
         super.destroy();
     }
 
     setupElements(): void {
         this.container = this.element instanceof HTMLElement ? this.element : null;
+        this.setupEventListeners();
     }
 
     getShowCoversSettings(): boolean {
@@ -283,79 +274,247 @@ class PlaylistDetailPage extends Component {
             </div>
         `;
 
-        this.setupDynamicEventListeners();
-
-        // 直接绑定事件，因为DOM结构现在是一致的
-        this.setupTrackListEvents();
     }
 
-    setupDynamicEventListeners(): void {
-        if (!this.container) return;
-        // 播放全部按钮
-        const playAllBtn = this.container.querySelector('#playlist-play-all');
-        if (playAllBtn) playAllBtn.addEventListener('click', () => this.playAllTracks());
-
-        // 随机播放按钮
-        const shuffleBtn = this.container.querySelector('#playlist-shuffle');
-        if (shuffleBtn) shuffleBtn.addEventListener('click', () => this.shufflePlayTracks());
-
-        // 添加歌曲按钮
-        const addSongsBtn = this.container.querySelector('#playlist-add-songs');
-        if (addSongsBtn) addSongsBtn.addEventListener('click', () => this.showAddSongsDialog());
-
-        // 从文件夹添加音乐按钮
-        const addFromFolderBtn = this.container.querySelector('#playlist-add-from-folder');
-        if (addFromFolderBtn) addFromFolderBtn.addEventListener('click', () => this.addFromFolder());
-
-        // 全选按钮
-        const selectAllBtn = this.container.querySelector('#select-all-tracks');
-        if (selectAllBtn) selectAllBtn.addEventListener('click', () => this.selectAllTracks());
-
-        // 清除选择按钮
-        const clearSelectionBtn = this.container.querySelector('#clear-selection');
-        if (clearSelectionBtn) clearSelectionBtn.addEventListener('click', () => this.clearSelection());
-
-        // 菜单按钮
-        const menuBtn = this.container.querySelector('#playlist-menu');
-        const menuDropdown = this.container.querySelector('#playlist-menu-dropdown');
-        if (menuBtn && menuDropdown) {
-            menuBtn.addEventListener('click', (e: Event) => {
-                e.stopPropagation();
-                menuDropdown.classList.toggle('show');
-            });
-
-            // 设置document点击监听器
-            // 每次都重新设置，因为DOM已重新生成
-            this.setupDocumentClickHandler(menuDropdown);
-
-            // 菜单项事件
-            const clearBtn = menuDropdown.querySelector('#playlist-clear');
-            if (clearBtn) {
-                clearBtn.addEventListener('click', async () => {
-                    menuDropdown.classList.remove('show');
-                    await this.clearPlaylist();
-                });
-            }
+    setupEventListeners(): void {
+        if (!this.container || this.listenersSetup) {
+            return;
         }
 
-        // setupTrackListEvents() 已在 render() 方法中调用，这里不需要重复调用
-        this.setupCoverContextMenu();
-    }
+        this.addEventListenerManaged(this.container, 'click', (event: Event) => {
+            void this.handleContainerClick(event);
+        });
+        this.addEventListenerManaged(this.container, 'dblclick', (event: Event) => {
+            void this.handleContainerDoubleClick(event);
+        });
+        this.addEventListenerManaged(this.container, 'contextmenu', (event: Event) => {
+            this.handleContainerContextMenu(event as MouseEvent);
+        });
 
-    // 设置document点击监听器，避免重复绑定
-    setupDocumentClickHandler(menuDropdown: Element): void {
-        // 先移除旧的监听器
-        if (this.documentClickHandler) {
-            this.removeEventListenerManaged(document, 'click', this.documentClickHandler);
-        }
-
-        // 创建新的监听器
-        this.documentClickHandler = () => {
-            menuDropdown.classList.remove('show');
+        this.documentClickHandler = (event: Event) => {
+            this.handleDocumentClick(event);
         };
-
-        // 添加新的监听器
         this.addEventListenerManaged(document, 'click', this.documentClickHandler);
+        this.listenersSetup = true;
+    }
+
+    private async handleContainerClick(event: Event): Promise<void> {
+        if (!this.isVisible) {
+            return;
+        }
+
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target) {
+            return;
+        }
+
+        const coverMenuItem = target.closest<HTMLElement>('.cover-context-menu .context-menu-item');
+        if (coverMenuItem) {
+            await this.handleCoverContextMenuAction(coverMenuItem.id);
+            return;
+        }
+
+        const menuTrigger = target.closest<HTMLElement>('#playlist-menu');
+        if (menuTrigger) {
+            event.stopPropagation();
+            this.togglePlaylistMenu();
+            return;
+        }
+
+        const actionButton = target.closest<HTMLElement>(
+            '#playlist-play-all, #playlist-shuffle, #playlist-add-songs, #playlist-add-from-folder, #select-all-tracks, #clear-selection, #playlist-clear, .empty-action-btn'
+        );
+        if (actionButton) {
+            await this.handleActionButtonClick(actionButton);
+            return;
+        }
+
+        const actionTrackRow = target.closest<HTMLElement>('.track-row');
+        if (!actionTrackRow) {
+            return;
+        }
+
+        const index = this.getTrackIndexFromRow(actionTrackRow);
+        if (index === null) {
+            return;
+        }
+
+        const track = this.tracks[index];
+        if (!track) {
+            return;
+        }
+
+        const trackAction = target.closest<HTMLElement>('.track-action-btn')?.dataset.action;
+        if (trackAction === 'like') {
+            this.toggleTrackLike(track, index);
+            return;
+        }
+
+        if (trackAction === 'remove') {
+            if (this.selectedTracks.size > 1 && this.selectedTracks.has(index)) {
+                await this.removeSelectedTracks();
+            } else {
+                await this.removeTrackFromPlaylist(track, index);
+            }
+            return;
+        }
+
+        const mouseEvent = event as MouseEvent;
+        if (mouseEvent.ctrlKey || mouseEvent.metaKey) {
+            this.toggleTrackSelection(index);
+        } else if (mouseEvent.shiftKey && this.selectedTracks.size > 0) {
+            this.selectTrackRange(index);
+        } else if (this.isMultiSelectMode) {
+            this.toggleTrackSelection(index);
+        }
+    }
+
+    private async handleActionButtonClick(button: HTMLElement): Promise<void> {
+        if (button.hasAttribute('disabled')) {
+            return;
+        }
+
+        switch (button.id) {
+            case 'playlist-play-all':
+                await this.playAllTracks();
+                break;
+            case 'playlist-shuffle':
+                await this.shufflePlayTracks();
+                break;
+            case 'playlist-add-songs':
+                this.showAddSongsDialog();
+                break;
+            case 'playlist-add-from-folder':
+                await this.addFromFolder();
+                break;
+            case 'select-all-tracks':
+                this.toggleSelectAllTracks();
+                break;
+            case 'clear-selection':
+                this.clearSelection();
+                break;
+            case 'playlist-clear':
+                this.hidePlaylistMenu();
+                await this.clearPlaylist();
+                break;
+            default:
+                if (button.classList.contains('empty-action-btn')) {
+                    this.showAddSongsDialog();
+                }
+        }
+    }
+
+    private async handleContainerDoubleClick(event: Event): Promise<void> {
+        if (!this.isVisible) {
+            return;
+        }
+
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target || target.closest('.track-action-btn')) {
+            return;
+        }
+
+        const cover = target.closest<HTMLElement>('#playlist-cover');
+        if (cover) {
+            this.showCoverContextMenuFromEvent(event as MouseEvent);
+            return;
+        }
+
+        const row = target.closest<HTMLElement>('.track-row');
+        const index = this.getTrackIndexFromRow(row);
+        const track = index === null ? null : this.tracks[index];
+        if (track && index !== null) {
+            await this.playTrack(track, index);
+        }
+    }
+
+    private handleContainerContextMenu(event: MouseEvent): void {
+        if (!this.isVisible) {
+            return;
+        }
+
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target) {
+            return;
+        }
+
+        const cover = target.closest<HTMLElement>('#playlist-cover');
+        if (cover) {
+            event.preventDefault();
+            this.showCoverContextMenu(event.clientX, event.clientY);
+            return;
+        }
+
+        const row = target.closest<HTMLElement>('.track-row');
+        const index = this.getTrackIndexFromRow(row);
+        const track = index === null ? null : this.tracks[index];
+        if (!track || index === null) {
+            return;
+        }
+
+        event.preventDefault();
+        if (!this.selectedTracks.has(index)) {
+            this.selectedTracks.clear();
+            this.selectedTracks.add(index);
+            this.lastSelectedIndex = index;
+            this.updateMultiSelectMode();
+            this.updateTrackSelectionUI();
+        }
+        this.showTrackContextMenu(event.clientX, event.clientY, track, index);
+    }
+
+    private handleDocumentClick(event: Event): void {
+        if (!this.isVisible) {
+            return;
+        }
+
+        const targetElement = event.target instanceof Element ? event.target : null;
+        const coverMenuItem = targetElement?.closest<HTMLElement>('.cover-context-menu .context-menu-item');
+        if (coverMenuItem) {
+            void this.handleCoverContextMenuAction(coverMenuItem.id);
+            return;
+        }
+
+        const target = event.target as Node | null;
+        const playlistMenu = this.container?.querySelector('#playlist-menu-dropdown');
+        if (playlistMenu && target && !playlistMenu.contains(target)) {
+            this.hidePlaylistMenu();
+        }
+
+        const coverMenu = document.querySelector('.cover-context-menu');
+        if (coverMenu && target && !coverMenu.contains(target)) {
+            this.hideCoverContextMenu();
+        }
+    }
+
+    private togglePlaylistMenu(): void {
+        this.container?.querySelector('#playlist-menu-dropdown')?.classList.toggle('show');
+    }
+
+    private hidePlaylistMenu(): void {
+        this.container?.querySelector('#playlist-menu-dropdown')?.classList.remove('show');
+    }
+
+    private async handleCoverContextMenuAction(actionId: string): Promise<void> {
+        this.hideCoverContextMenu();
+        if (actionId === 'add-cover') {
+            await this.selectAndSetCover();
+        } else if (actionId === 'remove-cover') {
+            await this.removeCover();
+        }
+    }
+
+    private showCoverContextMenuFromEvent(event: MouseEvent): void {
+        this.showCoverContextMenu(event.clientX, event.clientY);
+    }
+
+    private getTrackIndexFromRow(row: HTMLElement | null): number | null {
+        if (!row) {
+            return null;
+        }
+
+        const index = Number.parseInt(row.dataset.trackIndex || '', 10);
+        return Number.isInteger(index) && index >= 0 ? index : null;
     }
 
     async loadPlaylistCover(): Promise<void> {
@@ -426,7 +585,7 @@ class PlaylistDetailPage extends Component {
                         </div>
                         <h3 class="empty-title">歌单还是空的</h3>
                         <p class="empty-description">添加一些您喜欢的音乐，开始您的音乐之旅</p>
-                        <button class="empty-action-btn" onclick="document.getElementById('playlist-add-songs').click()">
+                        <button class="empty-action-btn" type="button">
                             <svg class="icon" viewBox="0 0 24 24">
                                 <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
                             </svg>
@@ -500,95 +659,6 @@ class PlaylistDetailPage extends Component {
                 </div>
             </div>
         `;
-    }
-
-    setupTrackListEvents(): void {
-        if (!this.container) return;
-        const trackListContainer = this.container.querySelector('#playlist-track-list');
-        if (!trackListContainer) {
-            console.warn('⚠️ PlaylistDetailPage: 未找到歌曲列表容器');
-            return;
-        }
-
-        // 对于空歌单，容器存在但没有歌曲行，这是正常情况
-        if (this.tracks && this.tracks.length === 0) {
-            return;
-        }
-
-        const trackRows = trackListContainer.querySelectorAll('.track-row');
-        // 检查是否已经绑定过事件
-        if (trackRows.length > 0 && trackRows[0].hasAttribute('data-events-bound')) {
-            return;
-        }
-
-        // 添加事件监听
-        trackRows.forEach((item) => {
-            const row = item as HTMLElement;
-            const index = parseInt(row.dataset.trackIndex || '0');
-            const track = this.tracks[index];
-
-            // 主要点击事件
-            row.addEventListener('click', async (e: MouseEvent) => {
-                // 如果点击的是操作按钮，不处理
-                if ((e.target as HTMLElement | null)?.closest('.track-action-btn')) {
-                    return;
-                }
-
-                // 多选模式处理
-                if (e.ctrlKey || e.metaKey) {
-                    this.toggleTrackSelection(index);
-                } else if (e.shiftKey && this.selectedTracks.size > 0) {
-                    this.selectTrackRange(index);
-                } else if (this.isMultiSelectMode) {
-                    this.toggleTrackSelection(index);
-                }
-            });
-
-            // 双击播放
-            row.addEventListener('dblclick', async (e: MouseEvent) => {
-                if (!(e.target as HTMLElement | null)?.closest('.track-action-btn')) {
-                    await this.playTrack(track, index);
-                }
-            });
-
-            // 右键菜单
-            row.addEventListener('contextmenu', (e: MouseEvent) => {
-                e.preventDefault();
-                // 右键点击的条目若不在选中集合中，则先选中它
-                if (!this.selectedTracks.has(index)) {
-                    this.selectedTracks.clear();
-                    this.selectedTracks.add(index);
-                    this.lastSelectedIndex = index;
-                    this.updateMultiSelectMode();
-                    this.updateTrackSelectionUI();
-                }
-                this.showTrackContextMenu(e.clientX, e.clientY, track, index);
-            });
-
-            // 操作按钮
-            const likeBtn = row.querySelector('[data-action="like"]');
-            if (likeBtn) {
-                likeBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.toggleTrackLike(track, index);
-                });
-            }
-
-            const removeBtn = row.querySelector('[data-action="remove"]');
-            if (removeBtn) {
-                removeBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    if (this.selectedTracks.size > 1 && this.selectedTracks.has(index)) {
-                        await this.removeSelectedTracks();
-                    } else {
-                        await this.removeTrackFromPlaylist(track, index);
-                    }
-                });
-            }
-
-            // 标记该行已绑定事件，防止重复绑定
-            row.setAttribute('data-events-bound', 'true');
-        });
     }
 
     async playTrack(track: PlaylistDetailTrack, index: number): Promise<void> {
@@ -668,6 +738,15 @@ class PlaylistDetailPage extends Component {
         this.updateTrackSelectionUI();
     }
 
+    toggleSelectAllTracks(): void {
+        if (this.selectedTracks.size === this.tracks.length && this.tracks.length > 0) {
+            this.clearSelection();
+            return;
+        }
+
+        this.selectAllTracks();
+    }
+
     clearSelection(): void {
         this.selectedTracks.clear();
         this.lastSelectedIndex = -1;
@@ -688,12 +767,16 @@ class PlaylistDetailPage extends Component {
         // 更新全选按钮文本
         const selectAllBtn = this.container.querySelector('#select-all-tracks');
         if (selectAllBtn) {
+            const textElement = selectAllBtn.querySelector('span');
+            const label = this.selectedTracks.size === this.tracks.length && this.tracks.length > 0 ? '取消全选' : '全选';
             if (this.selectedTracks.size === this.tracks.length && this.tracks.length > 0) {
-                selectAllBtn.textContent = '取消全选';
-                (selectAllBtn as HTMLElement).onclick = () => this.clearSelection();
+                selectAllBtn.classList.add('is-all-selected');
             } else {
-                selectAllBtn.textContent = '全选';
-                (selectAllBtn as HTMLElement).onclick = () => this.selectAllTracks();
+                selectAllBtn.classList.remove('is-all-selected');
+            }
+
+            if (textElement) {
+                textElement.textContent = label;
             }
         }
     }
@@ -818,7 +901,7 @@ class PlaylistDetailPage extends Component {
                     track.cover = coverUrl;
 
                     // 使用requestAnimationFrame确保DOM更新在下一帧进行
-                    requestAnimationFrame(() => {
+                    this.requestAnimationFrameManaged(() => {
                         if (!this.container) return;
                         const trackRows = this.container.querySelectorAll('.track-row');
                         trackRows.forEach((row, index) => {
@@ -836,12 +919,9 @@ class PlaylistDetailPage extends Component {
                 }
             };
 
-            // 如果支持requestIdleCallback，使用它；否则使用setTimeout
-            if (window.requestIdleCallback) {
-                window.requestIdleCallback(loadCover);
-            } else {
-                setTimeout(loadCover, 0);
-            }
+            this.requestIdleCallbackManaged(() => {
+                void loadCover();
+            });
         } catch (error) {
             console.warn('PlaylistDetailPage: 加载封面失败:', error);
         }
@@ -864,24 +944,6 @@ class PlaylistDetailPage extends Component {
                 </div>
             `;
         }
-    }
-
-    // 设置封面右键菜单事件监听器
-    setupCoverContextMenu(): void {
-        if (!this.container) return;
-        const coverElement = this.container.querySelector('#playlist-cover');
-        if (!coverElement) return;
-
-        coverElement.addEventListener('contextmenu', (e) => {
-            const mouseEvent = e as MouseEvent;
-            e.preventDefault();
-            this.showCoverContextMenu(mouseEvent.clientX, mouseEvent.clientY);
-        });
-
-        coverElement.addEventListener('dblclick', (e) => {
-            const mouseEvent = e as MouseEvent;
-            this.showCoverContextMenu(mouseEvent.clientX, mouseEvent.clientY);
-        });
     }
 
     // 显示封面右键菜单
@@ -926,56 +988,14 @@ class PlaylistDetailPage extends Component {
         if (rect.bottom > window.innerHeight) {
             menu.style.top = `${window.innerHeight - rect.height - 10}px`;
         }
-
-        // 添加菜单项事件监听器
-        const addCoverItem = menu.querySelector('#add-cover');
-        const removeCoverItem = menu.querySelector('#remove-cover');
-
-        if (addCoverItem) {
-            addCoverItem.addEventListener('click', async () => {
-                this.hideCoverContextMenu();
-                await this.selectAndSetCover();
-            });
-        }
-
-        if (removeCoverItem) {
-            removeCoverItem.addEventListener('click', async () => {
-                this.hideCoverContextMenu();
-                await this.removeCover();
-            });
-        }
-
-        // 点击外部关闭菜单
-        this.removeCoverContextMenuCloseHandler();
-        const closeHandler = (e: Event) => {
-            if (!menu.contains(e.target as Node)) {
-                this.hideCoverContextMenu();
-            }
-        };
-        this.coverContextMenuCloseHandler = closeHandler;
-        setTimeout(() => {
-            if (this.coverContextMenuCloseHandler === closeHandler) {
-                this.addEventListenerManaged(document, 'click', closeHandler);
-            }
-        }, 0);
     }
 
     // 隐藏封面右键菜单
     hideCoverContextMenu(): void {
-        this.removeCoverContextMenuCloseHandler();
         const existingMenu = document.querySelector('.cover-context-menu');
         if (existingMenu) {
             existingMenu.remove();
         }
-    }
-
-    removeCoverContextMenuCloseHandler(): void {
-        if (!this.coverContextMenuCloseHandler) {
-            return;
-        }
-
-        this.removeEventListenerManaged(document, 'click', this.coverContextMenuCloseHandler);
-        this.coverContextMenuCloseHandler = null;
     }
 
     // 选择并设置封面

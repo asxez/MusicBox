@@ -8,6 +8,13 @@ export interface LocalCoverFileResult {
     error?: string;
 }
 
+export interface CoverImageDataResult {
+    success: boolean;
+    data?: number[];
+    mimeType?: string;
+    error?: string;
+}
+
 export interface LocalLyricsFileResult {
     success: boolean;
     filePath?: string;
@@ -46,6 +53,10 @@ export class MediaAssetsService {
         dataType: string
     ): Promise<LocalCoverFileResult> {
         return await coversGateway.saveCoverFile(coverDir, fileName, imageData, dataType);
+    }
+
+    async readCoverImage(filePath: string): Promise<CoverImageDataResult> {
+        return await coversGateway.readCoverImage(filePath);
     }
 
     async searchLocalLyrics(

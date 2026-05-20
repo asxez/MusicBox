@@ -91,6 +91,41 @@ class Playlist extends Component {
             this.clear();
         });
 
+        this.addEventListenerManaged(this.tracksContainer, 'click', (e: Event) => {
+            const target = e.target as HTMLElement | null;
+            const removeBtn = target?.closest<HTMLElement>('.playlist-track-remove');
+            if (removeBtn) {
+                const index = Number.parseInt(removeBtn.dataset.index || '-1', 10);
+                this.removeTrack(index);
+                return;
+            }
+
+            const trackEl = target?.closest<HTMLElement>('.playlist-track');
+            if (trackEl) {
+                const index = Number.parseInt(trackEl.dataset.index || '-1', 10);
+                const payload = this.createTrackPayload(index);
+                if (payload) {
+                    this.emit('trackSelected', payload);
+                }
+            }
+        });
+
+        this.addEventListenerManaged(this.tracksContainer, 'dblclick', (e: Event) => {
+            const target = e.target as HTMLElement | null;
+            if (target?.closest('.playlist-track-remove')) {
+                return;
+            }
+
+            const trackEl = target?.closest<HTMLElement>('.playlist-track');
+            if (trackEl) {
+                const index = Number.parseInt(trackEl.dataset.index || '-1', 10);
+                const payload = this.createTrackPayload(index);
+                if (payload) {
+                    this.emit('trackPlayed', payload);
+                }
+            }
+        });
+
         // Close on outside click
         this.addEventListenerManaged(document, 'click', (e: Event) => {
             const target = e.target as HTMLElement | null;
@@ -115,37 +150,11 @@ class Playlist extends Component {
         }
     }
 
-    addTrack(track: Track, shouldRender = true): number {
-        this.tracks.push(track);
-        if (shouldRender) {
-            this.render();
-        }
-        console.log('🎵 Playlist: 添加歌曲到播放列表:', track.title);
-        return this.tracks.length - 1; // 返回新添加歌曲的索引
-    }
-
     removeTrack(index: number): void {
         if (index >= 0 && index < this.tracks.length) {
             const track = this.tracks[index];
             const wasCurrentTrack = index === this.currentTrackIndex;
 
-            this.tracks.splice(index, 1);
-
-            // Adjust current track index
-            if (index < this.currentTrackIndex) {
-                this.currentTrackIndex--;
-            } else if (index === this.currentTrackIndex) {
-                // 如果删除的是当前播放歌曲
-                if (this.tracks.length > 0) {
-                    // 如果还有歌曲，保持在相同位置
-                    this.currentTrackIndex = Math.min(index, this.tracks.length - 1);
-                } else {
-                    // 如果没有歌曲了，设置为-1
-                    this.currentTrackIndex = -1;
-                }
-            }
-
-            this.render();
             const payload: PlaylistTrackRemovedPayload = {track, index, wasCurrentTrack};
             this.emit('trackRemoved', payload);
             console.log('🎵 Playlist: 从播放列表移除歌曲:', track.title, '是否为当前播放:', wasCurrentTrack);
@@ -153,9 +162,6 @@ class Playlist extends Component {
     }
 
     clear(): void {
-        this.tracks = [];
-        this.currentTrackIndex = -1;
-        this.render();
         this.emit('playlistCleared');
     }
 
@@ -229,41 +235,6 @@ class Playlist extends Component {
                 </div>
             `;
         }).join('');
-
-        // Add event listeners to track elements
-        this.tracksContainer.querySelectorAll<HTMLElement>('.playlist-track').forEach(trackEl => {
-            trackEl.addEventListener('click', (e) => {
-                const target = e.target as HTMLElement | null;
-                if (!target?.closest('.playlist-track-remove')) {
-                    const index = Number.parseInt(trackEl.dataset.index || '-1', 10);
-                    const payload = this.createTrackPayload(index);
-                    if (payload) {
-                        this.emit('trackSelected', payload);
-                    }
-                }
-            });
-
-            // Add double-click event for playing
-            trackEl.addEventListener('dblclick', (e) => {
-                const target = e.target as HTMLElement | null;
-                if (!target?.closest('.playlist-track-remove')) {
-                    const index = Number.parseInt(trackEl.dataset.index || '-1', 10);
-                    const payload = this.createTrackPayload(index);
-                    if (payload) {
-                        this.emit('trackPlayed', payload);
-                    }
-                }
-            });
-        });
-
-        // Add event listeners to remove buttons
-        this.tracksContainer.querySelectorAll<HTMLElement>('.playlist-track-remove').forEach(removeBtn => {
-            removeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const index = Number.parseInt(removeBtn.dataset.index || '-1', 10);
-                this.removeTrack(index);
-            });
-        });
     }
 
     createTrackPayload(index: number): PlaylistTrackEventPayload | null {

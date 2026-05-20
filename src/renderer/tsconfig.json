@@ -21,8 +21,6 @@
     "paths": {
       "@/*": ["src/*"],
       "@js/*": ["src/js/*"],
-      "@core/*": ["src/js/core/*"],
-      "@services/*": ["src/js/services/*"],
       "@utils/*": ["src/js/utils/*"],
       "@api/*": ["src/js/api/*"],
       "@ui/*": ["src/js/ui/*"],

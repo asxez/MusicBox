@@ -42,6 +42,12 @@ interface ExtensionActivationErrorEvent {
     error: Error;
 }
 
+type BuiltinExtensionIndexEntry = string | { path?: string };
+
+interface BuiltinExtensionIndex {
+    extensions?: BuiltinExtensionIndexEntry[];
+}
+
 /**
  * 扩展服务 - 管理所有扩展的生命周期
  */
@@ -272,9 +278,7 @@ class ExtensionService extends Disposable {
         const extensions: ExtensionManifest[] = [];
 
         try {
-            const builtinExtensionDirs = [
-                'theme-enhancer',
-            ];
+            const builtinExtensionDirs = await this._loadBuiltinExtensionDirs(builtinPath);
 
             for (const dirName of builtinExtensionDirs) {
                 try {
@@ -299,6 +303,57 @@ class ExtensionService extends Disposable {
         }
 
         return extensions;
+    }
+
+    private async _loadBuiltinExtensionDirs(builtinPath: string): Promise<string[]> {
+        const indexPath = `${builtinPath}/extensions.json`;
+
+        try {
+            const response = await fetch(indexPath);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const index = await response.json() as BuiltinExtensionIndex;
+            if (!index || !Array.isArray(index.extensions)) {
+                throw new Error('内置扩展索引格式无效');
+            }
+
+            const dirs = index.extensions
+                .map((entry, index) => this._normalizeBuiltinExtensionDir(entry, index))
+                .filter((dirName): dirName is string => !!dirName);
+
+            return Array.from(new Set(dirs));
+        } catch (error) {
+            console.error(`❌ ExtensionService: 加载内置扩展索引失败 (${indexPath}):`, error);
+            return [];
+        }
+    }
+
+    private _normalizeBuiltinExtensionDir(entry: BuiltinExtensionIndexEntry, index: number): string | null {
+        const rawPath = typeof entry === 'string' ? entry : entry?.path;
+        if (typeof rawPath !== 'string') {
+            console.warn(`⚠️ ExtensionService: 内置扩展索引项 ${index} 缺少 path`);
+            return null;
+        }
+
+        const normalized = rawPath.trim().replace(/\\/g, '/');
+        if (!this._isSafeBuiltinExtensionDir(normalized)) {
+            console.warn(`⚠️ ExtensionService: 内置扩展索引项 ${index} 路径无效: ${rawPath}`);
+            return null;
+        }
+
+        return normalized;
+    }
+
+    private _isSafeBuiltinExtensionDir(dirName: string): boolean {
+        if (!dirName || dirName.startsWith('/') || dirName.includes('..')) {
+            return false;
+        }
+
+        return dirName
+            .split('/')
+            .every(part => /^[a-zA-Z0-9._-]+$/.test(part));
     }
 
     private async _loadManifestFromPath(manifestPath: string): Promise<ExtensionManifest | null> {

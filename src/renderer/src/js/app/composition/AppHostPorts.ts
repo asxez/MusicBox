@@ -46,7 +46,7 @@ export interface MusicBoxCompositionHost {
     off(event: string, handler: (...args: any[]) => void): void;
     emit(event: string, ...args: any[]): void;
     removeAllListeners(event?: string): void;
-    addToPlaylist(track: Track): void;
+    addToPlaylist(track: Track): void | Promise<void>;
     addMusicFiles(): Promise<void>;
     cleanup(): Promise<void>;
     clearRuntimeData(): void;
@@ -86,7 +86,7 @@ export interface MusicBoxCompositionHost {
     loadAndPlayFile?(filePath: string): Promise<void>;
     loadInitialData(): Promise<void>;
     openDirectoryDialog(): Promise<void>;
-    playTrackFromPlaylist(track: Track, index: number): Promise<void>;
+    playTrackFromPlaylist(track: Track, index: number, tracks?: Track[]): Promise<void>;
     preloadTrackCovers(): Promise<void>;
     refreshLibrary(tracks?: Track[]): Promise<void>;
     scanMusicFolder(): Promise<void>;
@@ -299,7 +299,7 @@ export function createAppHostPorts(app: MusicBoxCompositionHost): AppHostPorts {
             hideAllPages: () => app.hideAllPages(),
             showInfo: notificationPort.showInfo,
             updateSidebarSelection: (type, id) => app.updateSidebarSelection(type, id),
-            playTrackFromPlaylist: (track, index) => app.playTrackFromPlaylist(track, index)
+            playTrackFromPlaylist: (track, index, tracks) => app.playTrackFromPlaylist(track, index, tracks)
         },
         playlistBindings: {
             handlePlaylistCreated: (playlist) => app.handlePlaylistCreated(playlist),
@@ -309,7 +309,7 @@ export function createAppHostPorts(app: MusicBoxCompositionHost): AppHostPorts {
             handleTrackInfoUpdated: (data) => app.handleTrackInfoUpdated(data),
             handleTrackPlayed: (track, index) => app.handleTrackPlayed(track, index),
             handlePlayAllTracks: (tracks) => app.handlePlayAllTracks(tracks),
-            playTrackFromPlaylist: (track, index) => app.playTrackFromPlaylist(track, index),
+            playTrackFromPlaylist: (track, index, tracks) => app.playTrackFromPlaylist(track, index, tracks),
             handlePlaylistUpdated: (playlist) => app.handlePlaylistUpdated(playlist),
             handleShowAddSongsDialog: (playlist) => app.handleShowAddSongsDialog(playlist),
             handlePlaylistCoverUpdated: (playlist) => app.handlePlaylistCoverUpdated(playlist)

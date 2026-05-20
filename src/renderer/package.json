@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "serve": "vite preview --port 8080",
-    "lint": "eslint src/**/*.js",
+    "lint": "npm run check:architecture && eslint src/**/*.js",
+    "check:architecture": "node scripts/check-architecture-boundaries.mjs",
     "clean": "rimraf public",
     "build:css": "sass src/styles/main.scss public/styles/main.css --style=compressed"
   },

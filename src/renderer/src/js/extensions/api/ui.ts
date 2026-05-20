@@ -12,6 +12,7 @@ import {settingsExtensionNavigationService} from "@js/features/settings/service"
 import {ExtensionContext} from "@extensions/core";
 import {
     ButtonSettingOptions,
+    ChoiceGridOption,
     ConfirmDialogOptions,
     InputBoxOptions,
     InputSettingOptions,
@@ -19,6 +20,8 @@ import {
     RegisterSectionOptions,
     SectionConfig,
     SelectOption,
+    SettingsContributionItem,
+    SettingsContributionPage,
     Theme,
     UIAPI
 } from "@extensions/api/types/ui";
@@ -96,6 +99,13 @@ class SettingsManagerClass {
     }
 
     /**
+     * 注册可序列化设置页内容
+     */
+    registerPageSchema(sectionId: string, page: SettingsContributionPage): IDisposable {
+        return this.registerPage(sectionId, (container) => this._renderSchemaPage(container, page));
+    }
+
+    /**
      * 渲染导航项到设置页侧边栏
      */
     private _renderSection(section: SectionConfig): void {
@@ -103,17 +113,26 @@ class SettingsManagerClass {
         if (!navList) return;
 
         // 检查是否已存在
-        let navItem = document.querySelector(`[data-section="${section.id}"]`)?.parentElement;
+        let navItem = this._findNavButton(section.id)?.parentElement;
+        if (navItem && !(navItem as HTMLElement).dataset.extensionSection) {
+            console.warn(`设置页导航项 ${section.id} 已存在于宿主设置页，已拒绝扩展覆盖`);
+            return;
+        }
 
         if (!navItem) {
             navItem = document.createElement('li');
             navItem.className = 'settings-nav-item';
+            navItem.dataset.extensionSection = 'true';
         }
 
         const navBtn = document.createElement('button');
         navBtn.className = 'settings-nav-btn';
         navBtn.dataset.section = section.id;
-        navBtn.innerHTML = `<span class="nav-text">${section.label}</span>`;
+
+        const navText = document.createElement('span');
+        navText.className = 'nav-text';
+        navText.textContent = section.label;
+        navBtn.appendChild(navText);
 
         navItem.innerHTML = '';
         navItem.appendChild(navBtn);
@@ -126,7 +145,7 @@ class SettingsManagerClass {
             navList.appendChild(navItem);
         } else {
             const nextSection = sections[index + 1];
-            const nextNavItem = document.querySelector(`[data-section="${nextSection.id}"]`)?.parentElement;
+            const nextNavItem = this._findNavButton(nextSection.id)?.parentElement;
             if (nextNavItem) {
                 navList.insertBefore(navItem, nextNavItem);
             } else {
@@ -154,7 +173,11 @@ class SettingsManagerClass {
         if (!renderFunction) return;
 
         // 检查是否已存在
-        let sectionElement = document.querySelector(`.settings-section[data-section="${sectionId}"]`) as HTMLElement;
+        let sectionElement = this._findSectionElement(sectionId);
+        if (sectionElement && !sectionElement.dataset.extensionSection) {
+            console.warn(`设置页内容 ${sectionId} 已存在于宿主设置页，已拒绝扩展覆盖`);
+            return;
+        }
 
         if (!sectionElement) {
             sectionElement = document.createElement('div');
@@ -188,7 +211,7 @@ class SettingsManagerClass {
      * 移除导航项
      */
     private _removeSection(id: string): void {
-        const navItem = document.querySelector(`[data-section="${id}"]`)?.parentElement as HTMLElement;
+        const navItem = this._findNavButton(id)?.parentElement as HTMLElement;
         if (navItem && navItem.dataset.extensionSection) {
             navItem.remove();
         }
@@ -198,10 +221,20 @@ class SettingsManagerClass {
      * 移除页面内容
      */
     private _removePage(id: string): void {
-        const sectionElement = document.querySelector(`.settings-section[data-section="${id}"]`) as HTMLElement;
+        const sectionElement = this._findSectionElement(id);
         if (sectionElement && sectionElement.dataset.extensionSection) {
             sectionElement.remove();
         }
+    }
+
+    private _findNavButton(sectionId: string): HTMLButtonElement | null {
+        const buttons = document.querySelectorAll<HTMLButtonElement>('.settings-nav-btn');
+        return Array.from(buttons).find(button => button.dataset.section === sectionId) || null;
+    }
+
+    private _findSectionElement(sectionId: string): HTMLElement | null {
+        const sections = document.querySelectorAll<HTMLElement>('.settings-section');
+        return Array.from(sections).find(section => section.dataset.section === sectionId) || null;
     }
 
     /**
@@ -225,6 +258,105 @@ class SettingsManagerClass {
                 attributeFilter: ['style', 'class']
             });
         }
+    }
+
+    private _renderSchemaPage(container: HTMLElement, page: SettingsContributionPage): void {
+        for (const item of page.items) {
+            const element = this._createSchemaSettingElement(item);
+            if (element) {
+                container.appendChild(element);
+            }
+        }
+    }
+
+    private _createSchemaSettingElement(item: SettingsContributionItem): HTMLElement | null {
+        const label = item.label;
+        const description = item.description || '';
+        const value = item.value ?? item.defaultValue;
+
+        switch (item.type) {
+            case 'toggle':
+                return this.createToggleSetting(
+                    label,
+                    description,
+                    typeof value === 'boolean' ? value : false,
+                    nextValue => this._runContributionCallback(item.onChange, nextValue)
+                );
+            case 'select': {
+                const options = Array.isArray(item.options) ? item.options : [];
+                const defaultValue = typeof value === 'string' ? value : this._getFirstSelectValue(options);
+                return this.createSelectSetting(
+                    label,
+                    description,
+                    options,
+                    defaultValue,
+                    nextValue => this._runContributionCallback(item.onChange, nextValue)
+                );
+            }
+            case 'input':
+                return this.createInputSetting(
+                    label,
+                    description,
+                    typeof value === 'string' ? value : '',
+                    nextValue => this._runContributionCallback(item.onChange, nextValue),
+                    {
+                        type: item.inputType,
+                        placeholder: item.placeholder,
+                        min: item.min,
+                        max: item.max,
+                        step: item.step
+                    }
+                );
+            case 'color':
+                return this.createColorPickerSetting(
+                    label,
+                    description,
+                    typeof value === 'string' ? value : '#000000',
+                    nextValue => this._runContributionCallback(item.onChange, nextValue)
+                );
+            case 'button':
+                return this.createButtonSetting(
+                    label,
+                    description,
+                    item.buttonText || label,
+                    () => this._runContributionCallback(item.onClick),
+                    {secondary: item.secondary}
+                );
+            case 'choiceGrid':
+                return this.createChoiceGridSetting(
+                    label,
+                    description,
+                    Array.isArray(item.choices) ? item.choices : [],
+                    typeof value === 'string' ? value : '',
+                    nextValue => this._runContributionCallback(item.onChange, nextValue)
+                );
+            default:
+                console.warn(`不支持的设置页贡献项类型: ${(item as SettingsContributionItem).type}`);
+                return null;
+        }
+    }
+
+    private _getFirstSelectValue(options: SelectOption[]): string {
+        const first = options[0];
+        if (!first) return '';
+        return typeof first === 'string' ? first : first.value;
+    }
+
+    private _runContributionCallback(
+        callback: ((value: boolean | string) => void | Promise<void>) | (() => void | Promise<void>) | undefined,
+        value?: boolean | string
+    ): void {
+        if (typeof callback !== 'function') {
+            return;
+        }
+
+        const result = value === undefined
+            ? (callback as () => void | Promise<void>)()
+            : (callback as (value: boolean | string) => void | Promise<void>)(value);
+
+        Promise.resolve(result).catch(error => {
+            console.error('执行设置页贡献回调失败:', error);
+        });
     }
 
     /**
@@ -461,6 +593,115 @@ class SettingsManagerClass {
 
         return settingsItem;
     }
+
+    /**
+     * 创建网格选择设置项
+     */
+    createChoiceGridSetting(
+        label: string,
+        description: string,
+        choices: ChoiceGridOption[],
+        defaultValue: string,
+        onChange: (value: string) => void
+    ): HTMLElement {
+        const settingsItem = document.createElement('div');
+        settingsItem.className = 'settings-item settings-choice-grid-item';
+
+        const itemInfo = document.createElement('div');
+        itemInfo.className = 'item-info';
+
+        const itemLabel = document.createElement('label');
+        itemLabel.className = 'item-label';
+        itemLabel.textContent = label;
+
+        const itemDescription = document.createElement('p');
+        itemDescription.className = 'item-description';
+        itemDescription.textContent = description;
+
+        itemInfo.appendChild(itemLabel);
+        itemInfo.appendChild(itemDescription);
+
+        const grid = document.createElement('div');
+        grid.className = 'settings-choice-grid';
+
+        const updateSelection = (selectedValue: string) => {
+            grid.querySelectorAll<HTMLButtonElement>('.settings-choice-card').forEach(card => {
+                card.classList.toggle('active', card.dataset.value === selectedValue);
+            });
+        };
+
+        choices.forEach(choice => {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'settings-choice-card';
+            card.dataset.value = choice.value;
+
+            const swatches = document.createElement('div');
+            swatches.className = 'settings-choice-swatches';
+
+            const colors = this._getSafeChoiceSwatches(choice);
+
+            colors.slice(0, 4).forEach(color => {
+                const swatch = document.createElement('span');
+                swatch.className = 'settings-choice-swatch';
+                swatch.style.background = color;
+                swatches.appendChild(swatch);
+            });
+
+            const title = document.createElement('span');
+            title.className = 'settings-choice-title';
+            title.textContent = choice.label;
+
+            card.appendChild(swatches);
+            card.appendChild(title);
+
+            if (choice.description) {
+                const desc = document.createElement('span');
+                desc.className = 'settings-choice-description';
+                desc.textContent = choice.description;
+                card.appendChild(desc);
+            }
+
+            card.addEventListener('click', () => {
+                updateSelection(choice.value);
+                onChange(choice.value);
+            });
+
+            grid.appendChild(card);
+        });
+
+        updateSelection(defaultValue);
+
+        settingsItem.appendChild(itemInfo);
+        settingsItem.appendChild(grid);
+
+        return settingsItem;
+    }
+
+    private _getSafeChoiceSwatches(choice: ChoiceGridOption): string[] {
+        const fallback = ['var(--color-primary)', 'var(--color-secondary-bg)'];
+        if (!Array.isArray(choice.swatches)) {
+            return fallback;
+        }
+
+        const safeColors = choice.swatches
+            .filter(color => this._isSafeChoiceSwatchColor(color))
+            .slice(0, 4);
+
+        return safeColors.length > 0 ? safeColors : fallback;
+    }
+
+    private _isSafeChoiceSwatchColor(value: unknown): value is string {
+        if (typeof value !== 'string') {
+            return false;
+        }
+
+        const color = value.trim();
+        return /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color)
+            || /^rgba?\(\s*(?:\d{1,3}\s*,\s*){2}\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/.test(color)
+            || /^hsla?\(\s*\d{1,3}\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/.test(color)
+            || /^var\(--[a-zA-Z0-9-_]+\)$/.test(color);
+    }
 }
 
 // 创建单例
@@ -602,6 +843,39 @@ export function createUIAPI(_context: ExtensionContext): UIAPI {
             return ErrorUtils.wrapSync(() => {
                 return SettingsManager.registerPage(sectionId, renderFunction);
             }, 'ui.registerSettingsPage');
+        },
+
+        registerSettingsPageSchema(sectionId: string, page: SettingsContributionPage): IDisposable {
+            Validator.assertNonEmptyString(sectionId, 'sectionId');
+            Validator.assertObject(page, 'page');
+            Validator.assertNonEmptyArray(page.items, 'page.items');
+
+            for (const [index, item] of page.items.entries()) {
+                Validator.assertObject(item, `page.items[${index}]`);
+                Validator.assertNonEmptyString(item.id, `page.items[${index}].id`);
+                Validator.assertEnum(
+                    item.type,
+                    ['toggle', 'select', 'input', 'color', 'button', 'choiceGrid'],
+                    `page.items[${index}].type`
+                );
+                Validator.assertNonEmptyString(item.label, `page.items[${index}].label`);
+
+                if (item.description !== undefined) {
+                    Validator.assertString(item.description, `page.items[${index}].description`);
+                }
+
+                if (item.type === 'select') {
+                    Validator.assertNonEmptyArray(item.options, `page.items[${index}].options`);
+                }
+
+                if (item.type === 'choiceGrid') {
+                    Validator.assertNonEmptyArray(item.choices, `page.items[${index}].choices`);
+                }
+            }
+
+            return ErrorUtils.wrapSync(() => {
+                return SettingsManager.registerPageSchema(sectionId, page);
+            }, 'ui.registerSettingsPageSchema');
         },
 
         createToggleSetting(label: string, description: string, defaultValue: boolean, onChange: (value: boolean) => void): HTMLElement {

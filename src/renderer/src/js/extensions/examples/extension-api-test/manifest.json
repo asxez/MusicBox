@@ -10,6 +10,18 @@
   "activationEvents": [
     "onStartUp"
   ],
+  "permissions": [
+    "player.read",
+    "library.read",
+    "ui.notification",
+    "ui.webview",
+    "storage.read",
+    "storage.write",
+    "settings.read",
+    "settings.write",
+    "network.request",
+    "system.info"
+  ],
   "contributes": {
     "commands": [
       {

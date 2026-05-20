@@ -14,6 +14,19 @@ interface DirCache {
 }
 
 const DIR_CACHE_TTL = 60_000;
+const IMAGE_MIME_TYPES: Record<string, string> = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.bmp': 'image/bmp',
+    '.svg': 'image/svg+xml'
+};
+
+function getImageMimeType(filePath: string): string | null {
+    return IMAGE_MIME_TYPES[path.extname(filePath).toLowerCase()] || null;
+}
 
 async function downloadImageFromUrl(url: string, filePath: string): Promise<{ success: boolean; error?: string }> {
     return new Promise(resolve => {
@@ -139,6 +152,25 @@ export class CoversController extends BaseController {
                 return {success: true, filePath: fullPath, fileName};
             }
             return {success: false, error: `不支持的图片数据格式: ${typeof imageData}`};
+        } catch (error: any) {
+            return {success: false, error: error.message};
+        }
+    }
+
+    @IpcHandle('covers:readCoverImage')
+    async readCoverImage(filePath: string): Promise<{ success: boolean; data?: number[]; mimeType?: string; error?: string }> {
+        try {
+            const mimeType = getImageMimeType(filePath);
+            if (!mimeType) {
+                return {success: false, error: '不支持的封面图片格式'};
+            }
+
+            const buffer = await fs.promises.readFile(filePath);
+            return {
+                success: true,
+                data: Array.from(buffer),
+                mimeType
+            };
         } catch (error: any) {
             return {success: false, error: error.message};
         }

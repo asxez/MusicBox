@@ -253,7 +253,7 @@ class TrackList extends Component {
                         track.cover = coverUrl;
 
                         // 更新DOM - 修复选择器问题
-                        requestAnimationFrame(() => {
+                        this.requestAnimationFrameManaged(() => {
                             this.updateTrackCoverInDOM(track);
                         });
                     }
@@ -265,12 +265,9 @@ class TrackList extends Component {
                 }
             };
 
-            // 如果支持requestIdleCallback，使用它；否则使用setTimeout
-            if (window.requestIdleCallback) {
-                window.requestIdleCallback(loadCover);
-            } else {
-                setTimeout(loadCover, 0);
-            }
+            this.requestIdleCallbackManaged(() => {
+                void loadCover();
+            });
         } catch (error) {
             console.warn('⚠️ TrackList: 加载封面失败:', error);
             this.loadingCovers.delete(track.filePath);

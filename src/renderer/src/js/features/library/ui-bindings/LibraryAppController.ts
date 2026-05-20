@@ -35,9 +35,6 @@ export interface LibraryAppHost {
 
 interface LibraryAppUI {
     setTrackListTracks(tracks: Track[]): void;
-    updateQueuedTrack(filePath: string, updatedData: Partial<Track>): boolean;
-    findQueueIndex(predicate: (track: Track, index: number) => boolean): number;
-    removeQueueTrack(index: number): void;
     removeTrackFromPlaylistDetail(track: Track, index: number): Promise<boolean>;
     removeSelectedTracksFromPlaylistDetail(): Promise<boolean>;
     clearTrackListSelection(): void;
@@ -48,6 +45,9 @@ interface LibraryAppUI {
 
 interface LibraryAppIntegrations {
     getCurrentPlaybackTrack(): Track | null;
+    getPlaybackPlaylist(): Track[];
+    getCurrentPlaybackIndex(): number;
+    setPlaybackPlaylist(tracks: Track[], startIndex?: number): Promise<boolean>;
 }
 
 interface LibraryAppControllerOptions {
@@ -214,7 +214,7 @@ export class LibraryAppController {
             filteredTrack.duration = duration;
         }
 
-        this.ui.updateQueuedTrack(filePath, {duration});
+        void this.updatePlaybackPlaylistTrack(filePath, {duration});
 
         this.updateTrackList('duration-update');
     }
@@ -255,10 +255,7 @@ export class LibraryAppController {
                     app.filteredLibrary.splice(filteredIndex, 1);
                 }
 
-                const playlistIndex = this.ui.findQueueIndex((t) => t.fileId === track.fileId);
-                if (playlistIndex !== -1) {
-                    this.ui.removeQueueTrack(playlistIndex);
-                }
+                await this.removeTrackFromPlaybackPlaylist(track);
 
                 this.updateTrackList('track-deleted');
                 libraryService.emitLibraryUpdated(app.library);
@@ -296,6 +293,7 @@ export class LibraryAppController {
 
         const indices = Array.from(selectedTracks).sort((a, b) => b - a);
         let successCount = 0;
+        const removedFileIds = new Set<string>();
 
         for (const i of indices) {
             const t = app.filteredLibrary[i];
@@ -304,6 +302,7 @@ export class LibraryAppController {
                 const result = await libraryDataService.removeTrack(t.fileId as string);
                 if (result.success) {
                     successCount++;
+                    removedFileIds.add(t.fileId as string);
                     const libIdx = app.library.findIndex(x => x.fileId === t.fileId);
                     if (libIdx !== -1) app.library.splice(libIdx, 1);
                     const filtIdx = app.filteredLibrary.findIndex(x => x.fileId === t.fileId);
@@ -314,6 +313,7 @@ export class LibraryAppController {
             }
         }
 
+        await this.removeTracksFromPlaybackPlaylist(removedFileIds);
         this.ui.clearTrackListSelection();
 
         this.updateTrackList('track-deleted');
@@ -354,7 +354,7 @@ export class LibraryAppController {
                 });
             }
 
-            this.ui.updateQueuedTrack(track.filePath, {
+            await this.updatePlaybackPlaylistTrack(track.filePath, {
                 title: updatedData.title,
                 artist: updatedData.artist,
                 album: updatedData.album,
@@ -392,5 +392,66 @@ export class LibraryAppController {
             console.error('❌ 更新歌曲信息失败:', error);
             app.showError('更新歌曲信息失败，请重试');
         }
+    }
+
+    private async removeTrackFromPlaybackPlaylist(track: Track): Promise<void> {
+        if (!track.fileId) {
+            return;
+        }
+
+        await this.removeTracksFromPlaybackPlaylist(new Set([track.fileId]));
+    }
+
+    private async removeTracksFromPlaybackPlaylist(fileIds: Set<string>): Promise<void> {
+        if (fileIds.size === 0) {
+            return;
+        }
+
+        const currentPlaylist = this.integrations.getPlaybackPlaylist();
+        const removedIndexes = currentPlaylist
+            .map((track, index) => ({track, index}))
+            .filter(({track}) => !!track.fileId && fileIds.has(track.fileId))
+            .map(({index}) => index);
+
+        if (removedIndexes.length === 0) {
+            return;
+        }
+
+        const removedIndexSet = new Set(removedIndexes);
+        const nextPlaylist = currentPlaylist.filter((_candidate, index) => !removedIndexSet.has(index));
+        const currentIndex = this.integrations.getCurrentPlaybackIndex();
+        const nextIndex = this.resolveIndexAfterRemovals(removedIndexes, currentIndex, nextPlaylist.length);
+        await this.integrations.setPlaybackPlaylist(nextPlaylist, nextIndex);
+    }
+
+    private async updatePlaybackPlaylistTrack(filePath: string, updatedData: Partial<Track>): Promise<void> {
+        const currentPlaylist = this.integrations.getPlaybackPlaylist();
+        const trackIndex = currentPlaylist.findIndex((track) => track.filePath === filePath);
+        if (trackIndex === -1) {
+            return;
+        }
+
+        const nextPlaylist = currentPlaylist.map((track, index) => (
+            index === trackIndex
+                ? {...track, ...updatedData}
+                : track
+        ));
+        await this.integrations.setPlaybackPlaylist(nextPlaylist, this.integrations.getCurrentPlaybackIndex());
+    }
+
+    private resolveIndexAfterRemovals(removedIndexes: number[], currentIndex: number, nextLength: number): number {
+        if (nextLength === 0) {
+            return -1;
+        }
+
+        const sortedIndexes = [...removedIndexes].sort((a, b) => a - b);
+        const removedBeforeCurrent = sortedIndexes.filter((index) => index < currentIndex).length;
+
+        if (sortedIndexes.includes(currentIndex)) {
+            const removedAtOrBeforeCurrent = sortedIndexes.filter((index) => index <= currentIndex).length;
+            return Math.min(currentIndex - removedAtOrBeforeCurrent + 1, nextLength - 1);
+        }
+
+        return Math.max(0, currentIndex - removedBeforeCurrent);
     }
 }

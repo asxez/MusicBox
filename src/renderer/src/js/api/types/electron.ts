@@ -189,6 +189,28 @@ export interface ElectronCoversAPI {
         imageData: unknown,
         dataType: string
     ): Promise<{success: boolean; filePath?: string; fileName?: string; error?: string}>;
+    readCoverImage(filePath: string): Promise<{success: boolean; data?: number[]; mimeType?: string; error?: string}>;
+}
+
+export interface ElectronEqualizerPresetsAPI {
+    exportPreset(
+        defaultName: string,
+        content: string
+    ): Promise<{success: boolean; filePath?: string; cancelled?: boolean; error?: string}>;
+    importPreset(): Promise<{success: boolean; filePath?: string; content?: string; cancelled?: boolean; error?: string}>;
+}
+
+export interface ElectronMediaAPI {
+    readAudioFile(filePath: string): Promise<ArrayBuffer>;
+    selectImageData(maxSizeBytes: number): Promise<{
+        success: boolean;
+        canceled?: boolean;
+        fileName?: string;
+        filePath?: string;
+        data?: number[];
+        mimeType?: string;
+        error?: string;
+    }>;
 }
 
 export type NetworkDriveProtocol = 'smb' | 'webdav' | string;
@@ -291,4 +313,27 @@ export interface ElectronGlobalShortcutsAPI {
     setEnabled(enabled: boolean): Promise<unknown>;
     isEnabled(): Promise<boolean>;
     onTriggered(callback: (...args: unknown[]) => void): Unsubscribe;
+}
+
+export type ExtensionStorageScope = 'global' | 'workspace';
+
+export interface ElectronExtensionsAPI {
+    selectPackage(): Promise<string | null>;
+    installFromFile(filePath: string): Promise<{success: boolean; extension: unknown; error?: string}>;
+    uninstall(extensionId: string, keepData: boolean): Promise<{success: boolean; error?: string}>;
+    enable(extensionId: string): Promise<{success: boolean; error?: string}>;
+    disable(extensionId: string): Promise<{success: boolean; error?: string}>;
+    getInstalled(): Promise<{success: boolean; extensions: unknown[]; error?: string}>;
+    scanUserExtensions(): Promise<{success: boolean; extensions: unknown[]; error?: string}>;
+    readExtensionFile(extensionId: string, filePath: string): Promise<{success: boolean; content: string; error?: string}>;
+    storageGetState(
+        extensionId: string,
+        scope: ExtensionStorageScope
+    ): Promise<{success: boolean; data: Record<string, unknown>; error?: string}>;
+    storageUpdate(
+        extensionId: string,
+        scope: ExtensionStorageScope,
+        key: string,
+        value: unknown
+    ): Promise<{success: boolean; error?: string}>;
 }

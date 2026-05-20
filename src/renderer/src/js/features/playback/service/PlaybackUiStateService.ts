@@ -1,25 +1,19 @@
 import type {PlaybackStateSnapshot, PlayMode} from '@api/types/playback';
 import type {Track} from '@api/types/track';
-import {PlaybackStore} from '../PlaybackStore';
 import type {PlaybackState, PlaybackStoreListener, Unsubscribe} from '../PlaybackStore';
 import {playbackService} from './PlaybackService';
+import {playbackStoreProvider} from './PlaybackStoreProvider';
 import type {PlaybackEventHandler, PlaybackEventName} from './PlaybackRuntimePort';
 
 export class PlaybackUiStateService {
-    private readonly store: PlaybackStore;
     private toggleInProgress = false;
 
-    constructor() {
-        this.store = new PlaybackStore(playbackService.getInitialState());
-        this.bindPlaybackEvents();
-    }
-
     getState(): Readonly<PlaybackState> {
-        return this.store.getState();
+        return playbackStoreProvider.getState();
     }
 
     subscribe(listener: PlaybackStoreListener): Unsubscribe {
-        return this.store.subscribe(listener);
+        return playbackStoreProvider.getStore().subscribe(listener);
     }
 
     async toggleCurrentPlayback(): Promise<boolean> {
@@ -71,11 +65,11 @@ export class PlaybackUiStateService {
     }
 
     getVolume(): number {
-        return this.store.getState().volume;
+        return playbackStoreProvider.getState().volume;
     }
 
     isPlaying(): boolean {
-        return this.store.getState().isPlaying;
+        return playbackStoreProvider.getState().isPlaying;
     }
 
     getCurrentTrack(): Track | null {
@@ -83,7 +77,7 @@ export class PlaybackUiStateService {
     }
 
     getCurrentTrackSnapshot(): Track | null {
-        return this.store.getState().currentTrack;
+        return playbackStoreProvider.getState().currentTrack;
     }
 
     getCurrentTrackSummary(): Pick<Track, 'title' | 'artist' | 'album'> | null {
@@ -100,11 +94,11 @@ export class PlaybackUiStateService {
     }
 
     getDuration(): number {
-        return this.store.getState().duration;
+        return playbackStoreProvider.getState().duration;
     }
 
     getPlaylist(): Track[] {
-        return this.store.getState().playlist;
+        return playbackStoreProvider.getState().playlist;
     }
 
     async setPlaylist(tracks: Track[], startIndex = -1): Promise<boolean> {
@@ -120,7 +114,7 @@ export class PlaybackUiStateService {
     }
 
     getPlayMode(): PlayMode {
-        return this.store.getState().playMode;
+        return playbackStoreProvider.getState().playMode;
     }
 
     on<K extends PlaybackEventName>(event: K, handler: PlaybackEventHandler<K>): Unsubscribe {
@@ -128,66 +122,11 @@ export class PlaybackUiStateService {
     }
 
     getPlaybackSnapshot(): PlaybackStateSnapshot {
-        return playbackService.getPlaybackSnapshot(this.store.getState());
+        return playbackService.getPlaybackSnapshot(playbackStoreProvider.getState());
     }
 
     syncStateFromRuntime(): void {
-        const changes = playbackService.syncStateFromRuntime(this.store.getState());
-        changes.forEach((change) => {
-            switch (change.type) {
-                case 'trackChanged':
-                    this.store.setTrack(change.payload);
-                    break;
-                case 'trackIndexChanged':
-                    this.store.setTrackIndex(change.payload);
-                    break;
-                case 'playlistChanged':
-                    this.store.setPlaylist(change.payload);
-                    break;
-                case 'playbackStateChanged':
-                    this.store.setPlaybackState(change.payload);
-                    break;
-                case 'positionChanged':
-                    this.store.setPosition(change.payload);
-                    break;
-                case 'durationChanged':
-                    this.store.setDuration(change.payload);
-                    break;
-                case 'volumeChanged':
-                    this.store.setVolume(change.payload);
-                    break;
-                case 'playModeChanged':
-                    this.store.setPlayMode(change.payload);
-                    break;
-            }
-        });
-    }
-
-    private bindPlaybackEvents(): void {
-        playbackService.on('durationChanged', (duration) => {
-            this.store.setDuration(duration);
-        });
-        playbackService.on('positionChanged', (position) => {
-            this.store.setPosition(position);
-        });
-        playbackService.on('playbackStateChanged', (state) => {
-            this.store.setPlaybackState(state);
-        });
-        playbackService.on('volumeChanged', (volume) => {
-            this.store.setVolume(volume);
-        });
-        playbackService.on('trackChanged', (track) => {
-            this.store.setTrack(track);
-        });
-        playbackService.on('trackIndexChanged', (index) => {
-            this.store.setTrackIndex(index);
-        });
-        playbackService.on('playlistChanged', (tracks) => {
-            this.store.setPlaylist(tracks);
-        });
-        playbackService.on('playModeChanged', (mode) => {
-            this.store.setPlayMode(mode);
-        });
+        playbackStoreProvider.syncStateFromRuntime();
     }
 }
 

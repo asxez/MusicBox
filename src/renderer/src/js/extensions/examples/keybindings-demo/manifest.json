@@ -4,9 +4,16 @@
   "version": "1.0.0",
   "description": "演示如何使用快捷键 API 的示例扩展",
   "author": "MusicBox Team",
-  "main": "keybindings-demo/extension.js",
+  "main": "extension.js",
   "activationEvents": [
     "onStartUp"
+  ],
+  "permissions": [
+    "player.read",
+    "player.control",
+    "ui.notification",
+    "storage.read",
+    "storage.write"
   ],
   "contributes": {
     "commands": [

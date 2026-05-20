@@ -3,6 +3,7 @@ import type {MusicBoxSettings, WasapiShareMode} from "@api/types/settings";
 import {audioEngineSettingsService} from "./AudioEngineSettingsService";
 import {settingsPanelVisibilityService} from "./SettingsPanelVisibilityService";
 import type {SettingValue} from "./SettingsStore";
+import type {SettingsListenerScope} from "./SettingsListenerScope";
 
 interface ExclusiveModeChangeResult {
     checked: boolean;
@@ -20,8 +21,8 @@ interface AudioEngineSettingsCallbacks {
 }
 
 class AudioEngineSettingsController {
-    initialize(elements: AudioEngineSettingsElements, callbacks: AudioEngineSettingsCallbacks): void {
-        elements.exclusiveModeToggle?.addEventListener('change', async () => {
+    initialize(elements: AudioEngineSettingsElements, callbacks: AudioEngineSettingsCallbacks, scope: SettingsListenerScope): void {
+        scope.listen(elements.exclusiveModeToggle, 'change', async () => {
             const enabled = Boolean(elements.exclusiveModeToggle?.checked);
             callbacks.updateSetting('exclusiveMode', enabled);
             this.toggleWasapiModeSelector(elements, enabled);
@@ -34,7 +35,7 @@ class AudioEngineSettingsController {
             this.toggleWasapiModeSelector(elements, result.checked);
         });
 
-        elements.wasapiShareModeSelect?.addEventListener('change', async () => {
+        scope.listen(elements.wasapiShareModeSelect, 'change', async () => {
             const mode = this.getSelectedShareMode(elements);
             callbacks.updateSetting('wasapiShareMode', mode);
             await this.switchWasapiShareMode(mode);

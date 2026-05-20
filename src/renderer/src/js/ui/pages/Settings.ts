@@ -23,6 +23,7 @@ import {musicFolderListRenderer} from "@js/features/settings/service";
 import {musicFolderSettingsController} from "@js/features/settings/service";
 import {musicFolderSettingsService} from "@js/features/settings/service";
 import {appModalService} from "@js/features/appShell/service";
+import {ManagedSettingsListenerScope} from "@js/features/settings/service";
 import {settingsPanelVisibilityService} from "@js/features/settings/service";
 import {settingsPageVisibilityService} from "@js/features/settings/service";
 import {settingsSectionNavigationService} from "@js/features/settings/service";
@@ -52,6 +53,8 @@ class Settings extends Component {
     settings: MusicBoxSettings;
     currentSection: string = 'appearance';
     page!: HTMLElement;
+    private readonly settingsListenerScope = new ManagedSettingsListenerScope();
+    private settingsEventsBound = false;
 
     constructor(element: HTMLElement | null) {
         super(element);
@@ -85,6 +88,9 @@ class Settings extends Component {
         // 重置状态
         this.isVisible = false;
         this.settings = {};
+        this.settingsListenerScope.dispose();
+        this.settingsEventsBound = false;
+        displayModeSettingsController.dispose();
         super.destroy();
     }
 
@@ -198,16 +204,20 @@ class Settings extends Component {
     }
 
     setupEventListeners(): void {
+        if (this.settingsEventsBound) {
+            return;
+        }
+
         generalSettingsController.initialize(this.getGeneralSettingsElements(), {
             hide: () => this.hide(),
             switchToSection: (sectionName) => this.switchToSection(sectionName),
             updateSetting: (key, value) => this.updateSetting(key, value),
             emit: (eventName, ...args) => this.emit(eventName, ...args)
-        });
+        }, this.settingsListenerScope);
 
         audioEngineSettingsController.initialize(this.getAudioEngineSettingsElements(), {
             updateSetting: (key, value) => this.updateSetting(key, value)
-        });
+        }, this.settingsListenerScope);
 
         this.addEventListenerManaged(this.autoScanToggle, 'change', async (e: Event) => {
             await this.handleAutoScanToggle(getInputTarget(e).checked);
@@ -223,14 +233,21 @@ class Settings extends Component {
             await this.handleScanFrequencyChange(getSelectTarget(e).value);
         });
 
+        this.addEventListenerManaged(this.musicFoldersList, 'click', async (e: Event) => {
+            const folderPath = musicFolderListRenderer.resolveRemoveFolder(e.target);
+            if (folderPath) {
+                await this.handleRemoveMusicFolder(folderPath);
+            }
+        });
+
         traySettingsController.initialize(this.getTraySettingsElements(), {
             updateSetting: (key, value) => this.updateSetting(key, value)
-        });
+        }, this.settingsListenerScope);
 
         settingsToolsController.initialize(this.getSettingsToolsElements(), {
             updateSetting: (key, value) => this.updateSetting(key, value),
             emit: (eventName, ...args) => this.emit(eventName, ...args)
-        });
+        }, this.settingsListenerScope);
 
         // 前往仓库按钮事件
         this.addEventListenerManaged(this.goToRepositoryBtn, 'click', async () => {
@@ -244,7 +261,8 @@ class Settings extends Component {
         // 快捷键配置事件监听器
         shortcutSettingsController.initialize(
             this.getShortcutSettingsElements(),
-            () => this.emit('shortcutsUpdated')
+            () => this.emit('shortcutsUpdated'),
+            this.settingsListenerScope
         );
 
         // 硬件加速功能开关
@@ -349,6 +367,8 @@ class Settings extends Component {
                 this.hide();
             }
         });
+
+        this.settingsEventsBound = true;
     }
 
     async toggle(): Promise<void> {
@@ -552,8 +572,7 @@ class Settings extends Component {
         musicFolderListRenderer.render({
             container: this.musicFoldersContainer,
             list: this.musicFoldersList,
-            folders,
-            onRemove: (folderPath) => this.handleRemoveMusicFolder(folderPath)
+            folders
         });
     }
 

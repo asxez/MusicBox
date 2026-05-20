@@ -11,6 +11,7 @@ const PATH_ALLOWED = [
 const FS_ALLOWED = [
     'stat', 'lstat', 'readdir', 'readFile', 'realpath', 'access'
 ];
+const ENABLE_LEGACY_NODE_APIS = process.env.MUSICBOX_ENABLE_LEGACY_NODE_APIS === '1';
 
 const osApi: Record<string, (...args: any[]) => Promise<any>> = {};
 const pathApi: Record<string, (...args: any[]) => Promise<any>> = {};
@@ -25,8 +26,22 @@ for (const prop of FS_ALLOWED) {
     fsApi[prop] = (...args) => ipcRenderer.invoke('fs:call', {prop, args});
 }
 
+const legacyNodeApis = ENABLE_LEGACY_NODE_APIS
+    ? {
+        // 文件系统API
+        fs: {
+            stat: (filePath: string) => ipcRenderer.invoke('fs:stat', filePath),
+            readFile: (filePath: string, encoding: string) => ipcRenderer.invoke('fs:readFile', filePath, encoding),
+            writeFile: (filePath: string, data: unknown, encoding: string) => ipcRenderer.invoke('fs:writeFile', filePath, data, encoding)
+        },
+        os: osApi,
+        path: pathApi
+    }
+    : {};
+
 // 暴露安全的IPC方法给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
+    ...legacyNodeApis,
     // 应用信息
     getVersion: () => ipcRenderer.invoke('app:getVersion'),
     getPlatform: () => ipcRenderer.invoke('app:getPlatform'),
@@ -46,23 +61,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openFiles: () => ipcRenderer.invoke('dialog:openFiles'),
     openImageFile: () => ipcRenderer.invoke('dialog:openImageFile'),
 
+    media: {
+        readAudioFile: (filePath: string) => ipcRenderer.invoke('file:readAudio', filePath),
+        selectImageData: (maxSizeBytes: number) => ipcRenderer.invoke('media:selectImageData', maxSizeBytes)
+    },
+
     // 对话框API
     dialog: {
         showOpenDialog: (options: unknown) => ipcRenderer.invoke('dialog:showOpenDialog', options),
         openFile: (options: unknown) => ipcRenderer.invoke('dialog:openFile', options),
         saveFile: (options: unknown) => ipcRenderer.invoke('dialog:saveFile', options),
     },
-
-    // 文件系统API
-    fs: {
-        stat: (filePath: string) => ipcRenderer.invoke('fs:stat', filePath),
-        readFile: (filePath: string, encoding: string) => ipcRenderer.invoke('fs:readFile', filePath, encoding),
-        writeFile: (filePath: string, data: unknown, encoding: string) => ipcRenderer.invoke('fs:writeFile', filePath, data, encoding)
-    },
-
-    // 系统API
-    os: osApi,
-    path: pathApi,
 
     // HTTP服务器API
     httpServer: {
@@ -281,9 +290,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
         }
     },
 
-    // 音乐文件操作
-    readAudioFile: (filePath: string) => ipcRenderer.invoke('file:readAudio', filePath),
-
     // 设置
     settings: {
         get: (key: string) => ipcRenderer.invoke('settings:get', key),
@@ -354,7 +360,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
         checkLocalCover: (coverDir: string, title: string, artist: string, album: string, isAlbum = false) =>
             ipcRenderer.invoke('covers:checkLocalCover', coverDir, title, artist, album, isAlbum),
         saveCoverFile: (coverDir: string, fileName: string, imageData: any, dataType: string) =>
-            ipcRenderer.invoke('covers:saveCoverFile', coverDir, fileName, imageData, dataType)
+            ipcRenderer.invoke('covers:saveCoverFile', coverDir, fileName, imageData, dataType),
+        readCoverImage: (filePath: string) => ipcRenderer.invoke('covers:readCoverImage', filePath)
+    },
+
+    // 均衡器预设文件
+    equalizerPresets: {
+        exportPreset: (defaultName: string, content: string) =>
+            ipcRenderer.invoke('equalizer-presets:export', defaultName, content),
+        importPreset: () => ipcRenderer.invoke('equalizer-presets:import')
     },
 
     // 全局快捷键
@@ -483,6 +497,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
         getInstalled: () => ipcRenderer.invoke('extensions:getInstalled'),
         scanUserExtensions: () => ipcRenderer.invoke('extensions:scanUserExtensions'),
         readExtensionFile: (extensionId: string, filePath: string) => ipcRenderer.invoke('extensions:readExtensionFile', extensionId, filePath),
+        storageGetState: (extensionId: string, scope: string) =>
+            ipcRenderer.invoke('extensions:storageGetState', extensionId, scope),
+        storageUpdate: (extensionId: string, scope: string, key: string, value: unknown) =>
+            ipcRenderer.invoke('extensions:storageUpdate', extensionId, scope, key, value),
     },
 
     userdata: {

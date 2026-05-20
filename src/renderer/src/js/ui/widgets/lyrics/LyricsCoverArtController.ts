@@ -13,6 +13,7 @@ interface LyricsCoverArtElements {
 
 class LyricsCoverArtController {
     private readonly elements: LyricsCoverArtElements;
+    private backgroundObjectUrl: string | null = null;
 
     constructor(elements: LyricsCoverArtElements) {
         this.elements = elements;
@@ -44,20 +45,45 @@ class LyricsCoverArtController {
         }
     }
 
+    destroy(): void {
+        this.setBackgroundImageUrl(null);
+        this.elements.trackCover.src = 'assets/images/default-cover.svg';
+        this.elements.trackCover.classList.remove('loading');
+    }
+
     private async setBackgroundImage(imageUrl: string | null): Promise<void> {
         if (imageUrl) {
             try {
                 const processedUrl = await lyricsCoverArtService.normalizeImageUrl(imageUrl);
-                this.elements.background.style.backgroundImage = processedUrl
-                    ? `url("${processedUrl}")`
-                    : 'none';
+                this.setBackgroundImageUrl(processedUrl, this.shouldOwnProcessedUrl(imageUrl, processedUrl));
             } catch (error) {
                 console.error('❌ Lyrics: 背景图片设置失败:', error);
-                this.elements.background.style.backgroundImage = 'none';
+                this.setBackgroundImageUrl(null);
             }
         } else {
-            this.elements.background.style.backgroundImage = 'none';
+            this.setBackgroundImageUrl(null);
         }
+    }
+
+    private setBackgroundImageUrl(imageUrl: string | null, ownsObjectUrl = false): void {
+        if (this.backgroundObjectUrl) {
+            URL.revokeObjectURL(this.backgroundObjectUrl);
+            this.backgroundObjectUrl = null;
+        }
+
+        if (!imageUrl) {
+            this.elements.background.style.backgroundImage = 'none';
+            return;
+        }
+
+        if (ownsObjectUrl && imageUrl.startsWith('blob:')) {
+            this.backgroundObjectUrl = imageUrl;
+        }
+        this.elements.background.style.backgroundImage = `url("${imageUrl}")`;
+    }
+
+    private shouldOwnProcessedUrl(originalUrl: string, processedUrl: string | null): boolean {
+        return Boolean(processedUrl?.startsWith('blob:') && !originalUrl.startsWith('blob:'));
     }
 
     private async setCoverAndBackground(imageUrl: string): Promise<void> {

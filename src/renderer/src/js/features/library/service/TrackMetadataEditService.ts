@@ -2,7 +2,7 @@ import type {Track} from "@api/types/library";
 import {appNotificationService} from "@js/features/appShell/service";
 import {coverLookupService} from "@js/features/mediaAssets/service/CoverLookupService";
 import {coverUpdateManager} from "@js/features/mediaAssets/service/CoverUpdateManager";
-import {mediaFileDialogService, mediaFileSystemService} from "@js/features/media/service";
+import {mediaImageSelectionService} from "@js/features/media/service";
 import {libraryDataService} from "./LibraryDataService";
 
 export type EditableTrackMetadata = Omit<Track, 'cover' | 'year'> & {
@@ -46,33 +46,19 @@ export class TrackMetadataEditService {
 
     async selectCoverFile(): Promise<SelectedCoverFileResult> {
         try {
-            const result = await mediaFileDialogService.showOpenDialog({
-                title: '选择专辑封面',
-                filters: [
-                    {name: '图片文件', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']}
-                ],
-                properties: ['openFile']
-            });
-
-            const filePath = result.filePaths?.[0];
-            if (result.canceled || !filePath) {
+            const result = await mediaImageSelectionService.selectImageData(5 * 1024 * 1024);
+            if (result.canceled) {
                 return {canceled: true};
             }
 
-            try {
-                const stats = await mediaFileSystemService.stat(filePath);
-                if (stats.size > 5 * 1024 * 1024) {
-                    return {canceled: false, error: '封面文件大小不能超过5MB'};
-                }
-            } catch (error) {
-                console.warn('⚠️ TrackMetadataEditService: 跳过封面文件大小验证', error);
+            if (!result.success || !result.data) {
+                return {canceled: false, error: result.error || '选择封面失败'};
             }
 
-            const fileData = await mediaFileSystemService.readFile(filePath, null);
-            const uint8Array = new Uint8Array(fileData as ArrayLike<number>);
+            const uint8Array = new Uint8Array(result.data);
             return {
                 canceled: false,
-                file: new File([uint8Array], 'cover.jpg', {type: 'image/jpeg'})
+                file: new File([uint8Array], result.fileName || 'cover.jpg', {type: result.mimeType || 'image/jpeg'})
             };
         } catch (error) {
             return {canceled: false, error: this.toSelectCoverErrorMessage(error)};

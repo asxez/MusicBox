@@ -5,6 +5,7 @@ export type {
     ExtensionFileResult,
     ExtensionInstallResult,
     ExtensionOperationResult,
+    ExtensionStorageStateResult,
     ExtensionsResult
 } from './ExtensionsService';
 export type {ExtensionHostApp} from './ExtensionHostService';

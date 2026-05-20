@@ -7,6 +7,13 @@ export interface LocalCoverFileResult {
     error?: string;
 }
 
+export interface CoverImageDataResult {
+    success: boolean;
+    data?: number[];
+    mimeType?: string;
+    error?: string;
+}
+
 class CoversGateway extends ElectronNamespaceAdapter<'covers'> {
     constructor() {
         super('covers');
@@ -29,6 +36,10 @@ class CoversGateway extends ElectronNamespaceAdapter<'covers'> {
         dataType: string
     ): Promise<LocalCoverFileResult> {
         return this.call('saveCoverFile', coverDir, fileName, imageData, dataType);
+    }
+
+    readCoverImage(filePath: string): Promise<CoverImageDataResult> {
+        return this.call('readCoverImage', filePath);
     }
 }
 

@@ -1,6 +1,6 @@
 import type {Track} from '@api/types/track';
-import {fileGateway} from '@js/infrastructure/electron';
 import {coverLookupService} from './CoverLookupService';
+import {mediaAssetsService} from './MediaAssetsService';
 
 type LyricsCoverTrack = Track & {
     path?: string;
@@ -86,36 +86,20 @@ export class LyricsCoverArtService {
 
     private async convertLocalPathToBlobUrl(filePath: string): Promise<string | null> {
         try {
-            const fileData = await fileGateway.readFile(filePath);
-            if (!fileData || fileData.length === 0) {
+            const imageResult = await mediaAssetsService.readCoverImage(filePath);
+            if (!imageResult.success || !imageResult.data || imageResult.data.length === 0) {
                 console.error('❌ LyricsCoverArtService: 文件数据为空');
                 return null;
             }
 
-            const mimeType = this.getMimeTypeFromPath(filePath);
-            const uint8Array = typeof fileData === 'string'
-                ? new TextEncoder().encode(fileData)
-                : new Uint8Array(fileData);
+            const uint8Array = new Uint8Array(imageResult.data);
+            const mimeType = imageResult.mimeType || 'image/jpeg';
             const blob = new Blob([uint8Array], {type: mimeType});
             return URL.createObjectURL(blob);
         } catch (error) {
             console.error('❌ LyricsCoverArtService: 本地文件转换失败', error);
             return null;
         }
-    }
-
-    private getMimeTypeFromPath(filePath: string): string {
-        const ext = filePath.toLowerCase().split('.').pop() || '';
-        const mimeTypes: Record<string, string> = {
-            jpg: 'image/jpeg',
-            jpeg: 'image/jpeg',
-            png: 'image/png',
-            gif: 'image/gif',
-            webp: 'image/webp',
-            bmp: 'image/bmp',
-            svg: 'image/svg+xml'
-        };
-        return mimeTypes[ext] || 'image/jpeg';
     }
 
     private getErrorMessage(error: unknown): string {

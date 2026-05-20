@@ -3,5 +3,6 @@ export type {
     ExtensionFileResult,
     ExtensionInstallResult,
     ExtensionOperationResult,
+    ExtensionStorageStateResult,
     ExtensionsResult
 } from './service';

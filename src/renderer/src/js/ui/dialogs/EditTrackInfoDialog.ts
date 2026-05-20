@@ -102,7 +102,7 @@ class EditTrackInfoDialog extends Component {
         this.dialog.style.display = 'flex';
 
         // 聚焦到第一个输入框
-        setTimeout(() => {
+        this.setTimeoutManaged(() => {
             this.titleInput.focus();
             this.titleInput.select();
         }, 100);
@@ -196,7 +196,7 @@ class EditTrackInfoDialog extends Component {
         if (this.coverObjectUrls && this.coverObjectUrls.size > 0) {
             console.log(`🧹 EditTrackInfoDialog: 清理 ${this.coverObjectUrls.size} 个Object URLs`);
             this.coverObjectUrls.forEach(url => {
-                URL.revokeObjectURL(url);
+                this.revokeObjectUrlManaged(url);
             });
             this.coverObjectUrls.clear();
         }
@@ -563,7 +563,11 @@ class EditTrackInfoDialog extends Component {
             console.log(`✅ EditTrackInfoDialog: Blob创建成功，大小: ${blob.size}, 类型: ${mimeType}`);
 
             // 创建Object URL
-            const objectUrl = URL.createObjectURL(blob);
+            const objectUrl = this.manageObjectUrl(URL.createObjectURL(blob));
+            if (!objectUrl) {
+                this.setDefaultCover();
+                return;
+            }
             console.log('✅ EditTrackInfoDialog: 封面Object URL创建成功', objectUrl);
 
             // 设置图片源并添加验证
@@ -573,7 +577,7 @@ class EditTrackInfoDialog extends Component {
             };
             this.coverPreview.onerror = () => {
                 console.warn('⚠️ EditTrackInfoDialog: Object URL封面加载失败，使用默认封面');
-                URL.revokeObjectURL(objectUrl); // 清理URL
+                this.revokeObjectUrlManaged(objectUrl); // 清理URL
                 this.coverObjectUrls.delete(objectUrl); // 从集合中移除
                 this.setDefaultCover();
             };

@@ -279,7 +279,7 @@ class RecentPage extends Component {
                     track.cover = coverUrl;
 
                     // 使用requestAnimationFrame确保DOM更新在下一帧进行
-                    requestAnimationFrame(() => {
+                    this.requestAnimationFrameManaged(() => {
                         if (!this.container) return;
 
                         const trackItems = this.container.querySelectorAll<HTMLElement>('.track-item');
@@ -298,16 +298,9 @@ class RecentPage extends Component {
                 }
             };
 
-            // 如果支持requestIdleCallback，使用它；否则使用setTimeout
-            if (window.requestIdleCallback) {
-                window.requestIdleCallback(() => {
-                    void loadCover();
-                });
-            } else {
-                setTimeout(() => {
-                    void loadCover();
-                }, 0);
-            }
+            this.requestIdleCallbackManaged(() => {
+                void loadCover();
+            });
         } catch (error) {
             console.warn('RecentPage: 加载封面失败:', error);
         }

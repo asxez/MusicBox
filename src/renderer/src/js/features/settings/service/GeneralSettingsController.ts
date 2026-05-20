@@ -3,6 +3,7 @@ import {displayModeSettingsController} from "./DisplayModeSettingsController";
 import {appModalService} from "@js/features/appShell/service";
 import {settingsPanelVisibilityService} from "./SettingsPanelVisibilityService";
 import type {SettingValue} from "./SettingsStore";
+import type {SettingsListenerScope} from "./SettingsListenerScope";
 
 export interface GeneralSettingsElements {
     navButtons: Iterable<HTMLElement>;
@@ -31,52 +32,52 @@ interface GeneralSettingsCallbacks {
 }
 
 class GeneralSettingsController {
-    initialize(elements: GeneralSettingsElements, callbacks: GeneralSettingsCallbacks): void {
-        this.bindShellEvents(elements, callbacks);
-        this.bindSimpleSettings(elements, callbacks);
-        this.bindFeatureToggles(elements, callbacks);
+    initialize(elements: GeneralSettingsElements, callbacks: GeneralSettingsCallbacks, scope: SettingsListenerScope): void {
+        this.bindShellEvents(elements, callbacks, scope);
+        this.bindSimpleSettings(elements, callbacks, scope);
+        this.bindFeatureToggles(elements, callbacks, scope);
     }
 
-    private bindShellEvents(elements: GeneralSettingsElements, callbacks: GeneralSettingsCallbacks): void {
+    private bindShellEvents(elements: GeneralSettingsElements, callbacks: GeneralSettingsCallbacks, scope: SettingsListenerScope): void {
         Array.from(elements.navButtons).forEach((button) => {
-            button.addEventListener('click', (event: Event) => {
+            scope.listen(button, 'click', (event: Event) => {
                 const section = (event.currentTarget as HTMLElement).dataset.section || 'appearance';
                 callbacks.switchToSection(section);
             });
         });
 
-        elements.closeButton?.addEventListener('click', callbacks.hide);
+        scope.listen(elements.closeButton, 'click', callbacks.hide);
 
-        elements.checkUpdatesButton?.addEventListener('click', () => {
+        scope.listen(elements.checkUpdatesButton, 'click', () => {
             callbacks.emit('checkUpdates');
         });
     }
 
-    private bindSimpleSettings(elements: GeneralSettingsElements, callbacks: GeneralSettingsCallbacks): void {
-        elements.languageSelect?.addEventListener('change', () => {
+    private bindSimpleSettings(elements: GeneralSettingsElements, callbacks: GeneralSettingsCallbacks, scope: SettingsListenerScope): void {
+        scope.listen(elements.languageSelect, 'change', () => {
             const value = elements.languageSelect?.value || 'zh-CN';
             callbacks.updateSetting('language', value);
             callbacks.emit('languageChanged', value);
         });
 
-        this.bindCheckedSetting(elements.autoplayToggle, 'autoplay', callbacks);
-        this.bindCheckedSetting(elements.rememberPositionToggle, 'rememberPosition', callbacks);
+        this.bindCheckedSetting(elements.autoplayToggle, 'autoplay', callbacks, scope);
+        this.bindCheckedSetting(elements.rememberPositionToggle, 'rememberPosition', callbacks, scope);
     }
 
-    private bindFeatureToggles(elements: GeneralSettingsElements, callbacks: GeneralSettingsCallbacks): void {
-        this.bindDesktopLyricsToggle(elements, callbacks);
-        this.bindCheckedSetting(elements.statisticsToggle, 'statistics', callbacks, 'statisticsEnabled');
-        this.bindCheckedSetting(elements.recentPlayToggle, 'recentPlay', callbacks, 'recentPlayEnabled');
-        this.bindCheckedSetting(elements.artistsPageToggle, 'artistsPage', callbacks, 'artistsPageEnabled');
-        this.bindCheckedSetting(elements.albumsPageToggle, 'albumsPage', callbacks, 'albumsPageEnabled');
-        this.bindCheckedSetting(elements.showTrackCoversToggle, 'showTrackCovers', callbacks, 'showTrackCoversEnabled');
-        this.bindCheckedSetting(elements.gaplessPlaybackToggle, 'gaplessPlayback', callbacks, 'gaplessPlaybackEnabled');
-        this.bindNetworkDriveToggle(elements, callbacks);
-        this.bindNetworkDriveModal(elements);
+    private bindFeatureToggles(elements: GeneralSettingsElements, callbacks: GeneralSettingsCallbacks, scope: SettingsListenerScope): void {
+        this.bindDesktopLyricsToggle(elements, callbacks, scope);
+        this.bindCheckedSetting(elements.statisticsToggle, 'statistics', callbacks, scope, 'statisticsEnabled');
+        this.bindCheckedSetting(elements.recentPlayToggle, 'recentPlay', callbacks, scope, 'recentPlayEnabled');
+        this.bindCheckedSetting(elements.artistsPageToggle, 'artistsPage', callbacks, scope, 'artistsPageEnabled');
+        this.bindCheckedSetting(elements.albumsPageToggle, 'albumsPage', callbacks, scope, 'albumsPageEnabled');
+        this.bindCheckedSetting(elements.showTrackCoversToggle, 'showTrackCovers', callbacks, scope, 'showTrackCoversEnabled');
+        this.bindCheckedSetting(elements.gaplessPlaybackToggle, 'gaplessPlayback', callbacks, scope, 'gaplessPlaybackEnabled');
+        this.bindNetworkDriveToggle(elements, callbacks, scope);
+        this.bindNetworkDriveModal(elements, scope);
     }
 
-    private bindDesktopLyricsToggle(elements: GeneralSettingsElements, callbacks: GeneralSettingsCallbacks): void {
-        elements.desktopLyricsToggle?.addEventListener('change', async () => {
+    private bindDesktopLyricsToggle(elements: GeneralSettingsElements, callbacks: GeneralSettingsCallbacks, scope: SettingsListenerScope): void {
+        scope.listen(elements.desktopLyricsToggle, 'change', async () => {
             const enabled = Boolean(elements.desktopLyricsToggle?.checked);
             callbacks.updateSetting('desktopLyrics', enabled);
             callbacks.emit('desktopLyricsEnabled', enabled);
@@ -87,8 +88,8 @@ class GeneralSettingsController {
         });
     }
 
-    private bindNetworkDriveToggle(elements: GeneralSettingsElements, callbacks: GeneralSettingsCallbacks): void {
-        elements.networkDriveToggle?.addEventListener('change', () => {
+    private bindNetworkDriveToggle(elements: GeneralSettingsElements, callbacks: GeneralSettingsCallbacks, scope: SettingsListenerScope): void {
+        scope.listen(elements.networkDriveToggle, 'change', () => {
             const enabled = Boolean(elements.networkDriveToggle?.checked);
             callbacks.updateSetting('networkDriveEnabled', enabled);
             settingsPanelVisibilityService.toggleNetworkDriveConfig(elements.networkDriveConfig, enabled);
@@ -96,8 +97,8 @@ class GeneralSettingsController {
         });
     }
 
-    private bindNetworkDriveModal(elements: GeneralSettingsElements): void {
-        elements.addNetworkDriveButton?.addEventListener('click', () => {
+    private bindNetworkDriveModal(elements: GeneralSettingsElements, scope: SettingsListenerScope): void {
+        scope.listen(elements.addNetworkDriveButton, 'click', () => {
             if (!appModalService.showNetworkDriveModal()) {
                 showToast('网络磁盘功能不可用', 'error');
             }
@@ -108,9 +109,14 @@ class GeneralSettingsController {
         element: HTMLInputElement | null,
         settingKey: string,
         callbacks: GeneralSettingsCallbacks,
+        scope: SettingsListenerScope,
         eventName?: string
     ): void {
-        element?.addEventListener('change', () => {
+        if (!element) {
+            return;
+        }
+
+        scope.listen(element, 'change', () => {
             const enabled = element.checked;
             callbacks.updateSetting(settingKey, enabled);
 

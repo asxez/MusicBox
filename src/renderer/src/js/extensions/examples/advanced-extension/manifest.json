@@ -18,7 +18,7 @@
     "library.read",
     "ui.notification",
     "ui.dialog",
-    "ui.statusbar",
+    "ui.webview",
     "storage.read",
     "storage.write",
     "network.request",

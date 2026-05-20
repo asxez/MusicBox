@@ -5,6 +5,8 @@ import {PlaybackQueue} from '@js/features/playback/domain';
 import {AudioEngineAdapter} from '@js/features/playback/service/AudioEngineAdapter';
 import type {AudioEngineManagerBridge, AudioEngineType} from '@js/features/playback/service/AudioEngineAdapter';
 import {PlaybackPersistence} from '@js/features/playback/service/PlaybackPersistence';
+import {PlaybackPositionUpdateCoordinator} from '@js/features/playback/service/PlaybackPositionUpdateCoordinator';
+import {PlaybackRuntimeState} from '@js/features/playback/service/PlaybackRuntimeState';
 import {PlaybackStateSynchronizer} from '@js/features/playback/service/PlaybackStateSynchronizer';
 import {DesktopLyricsSync} from '@js/features/desktopLyrics/service/DesktopLyricsSync';
 import {LibraryBridge} from '@js/features/library/service/LibraryBridge';
@@ -17,16 +19,10 @@ import type {Track} from '@api/types/track';
 
 export class MusicBoxAPI extends EventEmitter {
     isInitialized: boolean;
-    currentTrack: Track | null;
-    isPlaying: boolean;
-    volume: number;
-    position: number;
-    duration: number;
-    playlist: Track[];
-    currentIndex: number;
+    private readonly playbackRuntimeState: PlaybackRuntimeState;
     queue: PlaybackQueue;
-    playMode: PlayMode;
     playbackPersistence: PlaybackPersistence;
+    playbackPositionUpdates: PlaybackPositionUpdateCoordinator;
     playbackStateSynchronizer: PlaybackStateSynchronizer;
     desktopLyricsSync: DesktopLyricsSync;
     audioEngineAdapter: AudioEngineAdapter;
@@ -40,50 +36,30 @@ export class MusicBoxAPI extends EventEmitter {
     constructor() {
         super();
         this.isInitialized = false;
-        this.currentTrack = null;
-        this.isPlaying = false;
-        this.volume = 0.7;
-        this.position = 0;
-        this.duration = 0;
-        this.playlist = [];
-        this.currentIndex = -1;
         this.queue = new PlaybackQueue({
             emit: (event, data) => this.emit(event, data),
             persistPlayMode: (mode) => cacheManager.setLocalCache('playMode', mode)
         });
-        this.playMode = this.queue.getPlayMode();
+        this.playbackRuntimeState = new PlaybackRuntimeState({
+            playMode: this.queue.getPlayMode()
+        });
         this.playbackStateSynchronizer = new PlaybackStateSynchronizer({
             getAudioEngine: () => this.audioEngine,
-            getState: () => ({
-                currentTrack: this.currentTrack,
-                duration: this.duration,
-                currentIndex: this.currentIndex,
-                position: this.position,
-                isPlaying: this.isPlaying
-            }),
-            setState: (state) => {
-                if ('currentTrack' in state) this.currentTrack = state.currentTrack ?? null;
-                if (typeof state.duration === 'number') this.duration = state.duration;
-                if (typeof state.currentIndex === 'number') this.currentIndex = state.currentIndex;
-                if (typeof state.position === 'number') this.position = state.position;
-                if (typeof state.isPlaying === 'boolean') this.isPlaying = state.isPlaying;
-            }
+            runtimeState: this.playbackRuntimeState
         });
         this.playbackPersistence = new PlaybackPersistence({
-            getPlaybackState: () => ({
-                currentTrack: this.currentTrack,
-                position: this.position,
-                isPlaying: this.isPlaying,
-                playlist: this.playlist,
-                currentIndex: this.currentIndex,
-                playMode: this.playMode
-            })
+            getPlaybackState: () => this.playbackRuntimeState.toPlaybackStateSnapshot()
+        });
+        this.playbackPositionUpdates = new PlaybackPositionUpdateCoordinator({
+            emitPositionChanged: (position) => this.emit('positionChanged', position),
+            syncDesktopPosition: (position) => this.syncToDesktopLyrics('position', position),
+            savePosition: (position) => this.throttledSavePosition(position)
         });
         this.desktopLyricsSync = new DesktopLyricsSync({
             getCurrentState: () => ({
-                currentTrack: this.currentTrack,
-                isPlaying: this.isPlaying,
-                position: this.position
+                currentTrack: this.playbackRuntimeState.currentTrack,
+                isPlaying: this.playbackRuntimeState.isPlaying,
+                position: this.playbackRuntimeState.position
             })
         });
         this.audioEngineAdapter = new AudioEngineAdapter({
@@ -144,9 +120,7 @@ export class MusicBoxAPI extends EventEmitter {
 
             audioEngine.onPositionChanged = async (position: number) => {
                 this.position = position;
-                this.emit('positionChanged', position);
-                await this.syncToDesktopLyrics('position', position);
-                this.throttledSavePosition(position);
+                this.publishPositionChanged(position);
             };
 
             audioEngine.onVolumeChanged = (volume: number) => {
@@ -182,7 +156,7 @@ export class MusicBoxAPI extends EventEmitter {
             audioGateway.onPositionChanged((position) => {
                 if (!this.audioEngine) {
                     this.position = position;
-                    this.emit('positionChanged', position);
+                    this.publishPositionChanged(position);
                 }
             });
         }
@@ -241,7 +215,7 @@ export class MusicBoxAPI extends EventEmitter {
 
                     this.emit('trackChanged', this.currentTrack);
                     this.emit('durationChanged', this.duration);
-                    this.emit('positionChanged', 0);
+                    this.publishPositionChanged(0, 'commit');
 
                     // 只有在索引真正变化时才触发 trackIndexChanged，避免重复触发
                     if (previousIndex !== this.currentIndex) {
@@ -268,7 +242,7 @@ export class MusicBoxAPI extends EventEmitter {
 
                 this.emit('trackChanged', this.currentTrack);
                 this.emit('durationChanged', this.duration);
-                this.emit('positionChanged', 0);
+                this.publishPositionChanged(0, 'commit');
 
                 // 同步到桌面歌词
                 await this.syncToDesktopLyrics('track', this.currentTrack);
@@ -395,7 +369,7 @@ export class MusicBoxAPI extends EventEmitter {
                     this.isPlaying = false;
                     this.position = 0;
                     this.emit('playbackStateChanged', 'stopped');
-                    this.emit('positionChanged', 0);
+                    this.publishPositionChanged(0, 'commit');
                 }
                 return result;
             }
@@ -405,7 +379,7 @@ export class MusicBoxAPI extends EventEmitter {
                 this.isPlaying = false;
                 this.position = 0;
                 this.emit('playbackStateChanged', 'stopped');
-                this.emit('positionChanged', 0);
+                this.publishPositionChanged(0, 'commit');
             }
             return result;
         } catch (error) {
@@ -420,7 +394,7 @@ export class MusicBoxAPI extends EventEmitter {
                 const result = await this.audioEngine.seek(position);
                 if (result) {
                     this.position = position;
-                    this.emit('positionChanged', position);
+                    this.publishPositionChanged(position, 'commit');
                     return true;
                 }
 
@@ -430,7 +404,7 @@ export class MusicBoxAPI extends EventEmitter {
             const result = await audioGateway.seek(position);
             if (result) {
                 this.position = position;
-                this.emit('positionChanged', position);
+                this.publishPositionChanged(position, 'commit');
             }
             return result;
         } catch (error) {
@@ -623,7 +597,7 @@ export class MusicBoxAPI extends EventEmitter {
                     this.emit('trackIndexChanged', this.currentIndex);
                     this.emit('trackChanged', this.currentTrack);
                     this.emit('durationChanged', this.duration);
-                    this.emit('positionChanged', 0);
+                    this.publishPositionChanged(0, 'commit');
                     this.emit('playbackStateChanged', this.isPlaying ? 'playing' : 'paused');
 
                     // 释放切换锁
@@ -690,7 +664,7 @@ export class MusicBoxAPI extends EventEmitter {
                     this.emit('trackIndexChanged', this.currentIndex);
                     this.emit('trackChanged', this.currentTrack);
                     this.emit('durationChanged', this.duration);
-                    this.emit('positionChanged', 0);
+                    this.publishPositionChanged(0, 'commit');
                     this.emit('playbackStateChanged', this.isPlaying ? 'playing' : 'paused');
 
                     // 释放切换锁
@@ -866,6 +840,10 @@ export class MusicBoxAPI extends EventEmitter {
         this.playbackPersistence.throttledSavePosition(position);
     }
 
+    private publishPositionChanged(position: number, reason: 'tick' | 'commit' = 'tick'): void {
+        this.playbackPositionUpdates.publish(position, {reason});
+    }
+
     saveCurrentPlaybackState(): void {
         this.playbackPersistence.saveCurrentPlaybackState();
     }
@@ -888,7 +866,76 @@ export class MusicBoxAPI extends EventEmitter {
 
     destroy(): void {
         this.stopProgressTracking();
+        this.playbackPositionUpdates.dispose();
         this.removeAllListeners();
+    }
+
+    get currentTrack(): Track | null {
+        return this.playbackRuntimeState.currentTrack;
+    }
+
+    set currentTrack(track: Track | null) {
+        this.playbackRuntimeState.currentTrack = track;
+    }
+
+    get isPlaying(): boolean {
+        return this.playbackRuntimeState.isPlaying;
+    }
+
+    set isPlaying(isPlaying: boolean) {
+        this.playbackRuntimeState.isPlaying = isPlaying;
+    }
+
+    get volume(): number {
+        return this.playbackRuntimeState.volume;
+    }
+
+    set volume(volume: number) {
+        this.playbackRuntimeState.volume = volume;
+    }
+
+    get position(): number {
+        return this.playbackRuntimeState.position;
+    }
+
+    set position(position: number) {
+        this.playbackRuntimeState.position = position;
+    }
+
+    get duration(): number {
+        return this.playbackRuntimeState.duration;
+    }
+
+    set duration(duration: number) {
+        this.playbackRuntimeState.duration = duration;
+    }
+
+    get playlist(): Track[] {
+        return this.playbackRuntimeState.playlist;
+    }
+
+    set playlist(playlist: Track[]) {
+        this.playbackRuntimeState.playlist = playlist;
+    }
+
+    get currentIndex(): number {
+        return this.playbackRuntimeState.currentIndex;
+    }
+
+    set currentIndex(currentIndex: number) {
+        this.playbackRuntimeState.currentIndex = currentIndex;
+    }
+
+    get playMode(): PlayMode {
+        return this.playbackRuntimeState.playMode;
+    }
+
+    set playMode(playMode: PlayMode) {
+        this.playbackRuntimeState.playMode = playMode;
+    }
+
+    getPlaybackRuntimeSnapshot() {
+        return this.playbackRuntimeState.getSnapshot();
     }
 }
 

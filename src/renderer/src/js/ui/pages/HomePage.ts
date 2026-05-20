@@ -108,7 +108,7 @@ class HomePage extends Component {
                 const mood = (btn as HTMLElement).dataset.mood || '';
                 this.recordMood(mood);
                 btn.classList.add('selected');
-                setTimeout(() => btn.classList.remove('selected'), 1000);
+                this.setTimeoutManaged(() => btn.classList.remove('selected'), 1000);
             });
         });
 
@@ -157,6 +157,7 @@ class HomePage extends Component {
 
     startAudioVisualization(): void {
         if (!this.container) return;
+        this.stopAudioVisualization();
 
         // todo 改高级实现
         // 简单的音频可视化实现
@@ -168,8 +169,6 @@ class HomePage extends Component {
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
 
-        // 创建简单的波形动画
-        let animationId = 0;
         const animate = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -192,16 +191,15 @@ class HomePage extends Component {
             }
             ctx.stroke();
 
-            animationId = requestAnimationFrame(animate);
+            this.visualizationAnimation = this.requestAnimationFrameManaged(animate);
         };
 
-        this.visualizationAnimation = animationId;
         animate();
     }
 
     stopAudioVisualization(): void {
         if (this.visualizationAnimation) {
-            cancelAnimationFrame(this.visualizationAnimation);
+            this.cancelAnimationFrameManaged(this.visualizationAnimation);
             this.visualizationAnimation = null;
         }
     }
@@ -278,13 +276,13 @@ class HomePage extends Component {
             count++;
         };
 
-        this.breathingInterval = setInterval(updateBreathing, 1000);
+        this.breathingInterval = this.setIntervalManaged(updateBreathing, 1000);
         updateBreathing();
     }
 
     stopBreathingGuide(): void {
         if (this.breathingInterval) {
-            clearInterval(this.breathingInterval);
+            this.clearIntervalManaged(this.breathingInterval);
             this.breathingInterval = null;
         }
 
@@ -393,15 +391,15 @@ class HomePage extends Component {
         notification.querySelector('.minimize-notification-btn')?.addEventListener('click', () => {
             notification.style.opacity = '0';
             notification.style.transform = 'translate(-50%, -50%) scale(0.8)';
-            setTimeout(() => notification.remove(), 300);
+            this.setTimeoutManaged(() => notification.remove(), 300);
         });
 
         // 5秒后自动最小化通知
-        setTimeout(() => {
+        this.setTimeoutManaged(() => {
             if (notification.parentNode) {
                 notification.style.opacity = '0';
                 notification.style.transform = 'translate(-50%, -50%) scale(0.8)';
-                setTimeout(() => notification.remove(), 300);
+                this.setTimeoutManaged(() => notification.remove(), 300);
             }
         }, 5000);
     }
@@ -455,7 +453,7 @@ class HomePage extends Component {
         saveBtn.textContent = '已保存';
         saveBtn.disabled = true;
 
-        setTimeout(() => {
+        this.setTimeoutManaged(() => {
             saveBtn.textContent = originalText;
             saveBtn.disabled = false;
         }, 1500);

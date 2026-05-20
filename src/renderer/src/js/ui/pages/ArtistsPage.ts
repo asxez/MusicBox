@@ -87,17 +87,14 @@ class ArtistsPage extends Component {
 
     hide(): void {
         this.selectedArtist = null;
+        this.stopHeroVisualization();
         if (this.container) {
             this.container.innerHTML = '';
         }
     }
 
     destroy(): void {
-        // 清理动画资源
-        if (this.heroAnimationId) {
-            cancelAnimationFrame(this.heroAnimationId);
-            this.heroAnimationId = null;
-        }
+        this.stopHeroVisualization();
 
         this.tracks.length = 0;
         this.artists.length = 0;
@@ -262,6 +259,7 @@ class ArtistsPage extends Component {
 
     // 初始化hero区域可视化
     initializeHeroVisualization(): void {
+        this.stopHeroVisualization();
         const canvas = this.container.querySelector('#artists-visualizer');
         if (!canvas) return;
 
@@ -272,6 +270,15 @@ class ArtistsPage extends Component {
 
         // 创建星空背景动画
         this.createStarfieldAnimation(ctx, canvas);
+    }
+
+    private stopHeroVisualization(): void {
+        if (!this.heroAnimationId) {
+            return;
+        }
+
+        this.cancelAnimationFrameManaged(this.heroAnimationId);
+        this.heroAnimationId = null;
     }
 
     // 创建星空背景动画
@@ -311,7 +318,7 @@ class ArtistsPage extends Component {
                 }
             });
 
-            this.heroAnimationId = requestAnimationFrame(animate);
+            this.heroAnimationId = this.requestAnimationFrameManaged(animate);
         };
 
         animate();
@@ -328,7 +335,7 @@ class ArtistsPage extends Component {
         this.emit('playAll', artist.tracks);
 
         // 移除波纹效果
-        setTimeout(() => {
+        this.setTimeoutManaged(() => {
             if (ripple.parentNode) {
                 ripple.parentNode.removeChild(ripple);
             }
@@ -448,7 +455,7 @@ class ArtistsPage extends Component {
         });
 
         anim.onfinish = () => {
-            requestAnimationFrame(() => {
+            this.requestAnimationFrameManaged(() => {
                 // 显示目标头像，交叉淡入掩盖差异
                 targetAvatar.style.visibility = prevVis;
 
@@ -591,21 +598,11 @@ class ArtistsPage extends Component {
 
         this._coverFetchingInProgress = true;
 
-        // 使用requestIdleCallback在浏览器空闲时获取封面，避免阻塞UI
-        if (window.requestIdleCallback) {
-            window.requestIdleCallback(() => {
-                this._fetchCoversForVisibleArtists().finally(() => {
-                    this._coverFetchingInProgress = false;
-                });
+        this.requestIdleCallbackManaged(() => {
+            this._fetchCoversForVisibleArtists().finally(() => {
+                this._coverFetchingInProgress = false;
             });
-        } else {
-            // 降级方案：使用setTimeout
-            setTimeout(() => {
-                this._fetchCoversForVisibleArtists().finally(() => {
-                    this._coverFetchingInProgress = false;
-                });
-            }, 100);
-        }
+        }, {timeout: 100});
     }
 
     // 为可见的艺术家获取封面
@@ -629,7 +626,9 @@ class ArtistsPage extends Component {
 
             // 在批次之间添加小延迟，避免请求过于频繁
             if (i + batchSize < artistsNeedingCovers.length) {
-                await new Promise<void>((resolve) => setTimeout(resolve, 200));
+                await new Promise<void>((resolve) => {
+                    this.setTimeoutManaged(resolve, 200);
+                });
             }
         }
     }
@@ -1083,7 +1082,7 @@ class ArtistsPage extends Component {
         effect.className = 'constellation-burst';
         star.appendChild(effect);
 
-        setTimeout(() => {
+        this.setTimeoutManaged(() => {
             if (effect.parentNode) {
                 effect.parentNode.removeChild(effect);
             }
@@ -1096,7 +1095,7 @@ class ArtistsPage extends Component {
         effect.className = 'galaxy-pulse';
         planet.appendChild(effect);
 
-        setTimeout(() => {
+        this.setTimeoutManaged(() => {
             if (effect.parentNode) {
                 effect.parentNode.removeChild(effect);
             }
@@ -1152,7 +1151,7 @@ class ArtistsPage extends Component {
         galaxyContainer.style.opacity = '0';
         galaxyContainer.style.transform = 'scale(0.95)';
 
-        setTimeout(() => {
+        this.setTimeoutManaged(() => {
             this.viewMode = newMode;
 
             // 更新按钮状态
@@ -1173,7 +1172,7 @@ class ArtistsPage extends Component {
             this._startCoverFetching();
 
             // 添加淡入效果
-            setTimeout(() => {
+            this.setTimeoutManaged(() => {
                 galaxyContainer.style.opacity = '1';
                 galaxyContainer.style.transform = 'scale(1)';
             }, 50);

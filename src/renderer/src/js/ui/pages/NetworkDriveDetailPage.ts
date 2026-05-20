@@ -36,6 +36,7 @@ class NetworkDriveDetailPage extends Component {
     directoryStructure: NetworkDriveDirectoryItem[];
     showCovers: boolean;
     container: HTMLElement | null = null;
+    private listenersSetup = false;
     private coverDisplayPreferenceUnsubscribe: Unsubscribe | null = null;
 
     constructor(container: string | Element | null) {
@@ -105,6 +106,7 @@ class NetworkDriveDetailPage extends Component {
 
     setupElements(): void {
         this.container = this.element as HTMLElement | null;
+        this.setupEventListeners();
     }
 
     getShowCoversSettings(): boolean {
@@ -234,61 +236,92 @@ class NetworkDriveDetailPage extends Component {
             </div>
         `;
 
-        this.setupEventListeners();
     }
 
     setupEventListeners(): void {
-        if (!this.container) {
+        if (!this.container || this.listenersSetup) {
             return;
         }
 
-        const refreshBtn = this.container.querySelector('#refresh-drive-btn');
-        const scanBtn = this.container.querySelector('#scan-drive-btn');
-        const removeBtn = this.container.querySelector('#remove-drive-btn');
-
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.refreshDrive());
-        }
-
-        if (scanBtn) {
-            scanBtn.addEventListener('click', () => this.scanDrive());
-        }
-
-        if (removeBtn) {
-            removeBtn.addEventListener('click', () => this.removeDrive());
-        }
-
-        // 面包屑导航点击事件
-        this.container.querySelectorAll<HTMLElement>('.breadcrumb-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const path = item.dataset.path;
-                this.navigateToPath(path);
-            });
+        this.addEventListenerManaged(this.container, 'click', (event: Event) => {
+            void this.handleContainerClick(event);
         });
 
-        // 文件夹点击事件
-        this.container.querySelectorAll<HTMLElement>('.folder-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const path = item.dataset.path;
-                this.navigateToPath(path);
-            });
+        this.addEventListenerManaged(this.container, 'dblclick', (event: Event) => {
+            void this.handleContainerDoubleClick(event);
         });
 
-        // 音乐文件双击播放
-        this.container.querySelectorAll<HTMLElement>('.music-file').forEach(item => {
-            item.addEventListener('dblclick', async () => {
-                const filePath = item.dataset.path;
-                await this.playMusicFile(filePath);
-            });
-
-            // 右键菜单
-            item.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                const filePath = item.dataset.path;
-                const fileName = item.dataset.fileName;
-                this.showFileContextMenu(e.clientX, e.clientY, filePath, fileName);
-            });
+        this.addEventListenerManaged(this.container, 'contextmenu', (event: Event) => {
+            this.handleContainerContextMenu(event as MouseEvent);
         });
+
+        this.listenersSetup = true;
+    }
+
+    private async handleContainerClick(event: Event): Promise<void> {
+        if (!this.isVisible) {
+            return;
+        }
+
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target) {
+            return;
+        }
+
+        const actionButton = target.closest<HTMLElement>('#refresh-drive-btn, #scan-drive-btn, #remove-drive-btn');
+        if (actionButton?.id === 'refresh-drive-btn') {
+            await this.refreshDrive();
+            return;
+        }
+        if (actionButton?.id === 'scan-drive-btn') {
+            await this.scanDrive();
+            return;
+        }
+        if (actionButton?.id === 'remove-drive-btn') {
+            await this.removeDrive();
+            return;
+        }
+
+        const navigationItem = target.closest<HTMLElement>('.breadcrumb-item, .folder-item');
+        if (navigationItem) {
+            await this.navigateToPath(navigationItem.dataset.path);
+        }
+    }
+
+    private async handleContainerDoubleClick(event: Event): Promise<void> {
+        if (!this.isVisible) {
+            return;
+        }
+
+        const musicFile = event.target instanceof Element ?
+            event.target.closest<HTMLElement>('.music-file') :
+            null;
+
+        if (musicFile) {
+            await this.playMusicFile(musicFile.dataset.path);
+        }
+    }
+
+    private handleContainerContextMenu(event: MouseEvent): void {
+        if (!this.isVisible) {
+            return;
+        }
+
+        const musicFile = event.target instanceof Element ?
+            event.target.closest<HTMLElement>('.music-file') :
+            null;
+
+        if (!musicFile) {
+            return;
+        }
+
+        event.preventDefault();
+        this.showFileContextMenu(
+            event.clientX,
+            event.clientY,
+            musicFile.dataset.path,
+            musicFile.dataset.fileName
+        );
     }
 
     async refreshDrive(): Promise<void> {

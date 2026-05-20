@@ -4,7 +4,7 @@
  */
 
 import {settingsShellService} from "@js/features/appShell/service";
-import {mediaFileDialogService, mediaFileSystemService} from "@js/features/media/service";
+import {equalizerPresetFileService} from "./EqualizerPresetFileService";
 import ParametricEqualizerPresets, {
     ParametricFilterType,
     ParametricPreset,
@@ -431,18 +431,8 @@ class ParametricEqualizer {
 
             const jsonString = this.presets.exportPreset(preset);
 
-            // 使用文件对话框保存
-            const result = await mediaFileDialogService.saveFile({
-                title: '导出参量均衡器设置',
-                defaultPath: `${name}.peq.json`,
-                filters: [
-                    {name: '参量均衡器预设', extensions: ['peq.json', 'json']},
-                    {name: '所有文件', extensions: ['*']}
-                ]
-            });
-
+            const result = await equalizerPresetFileService.exportPreset(name, jsonString);
             if (result.success && result.filePath) {
-                await mediaFileSystemService.writeFile(result.filePath, jsonString);
                 console.log('✅ 导出设置成功:', result.filePath);
                 return {success: true, filePath: result.filePath};
             }
@@ -459,23 +449,9 @@ class ParametricEqualizer {
      */
     async importSettings(): Promise<{success: boolean; preset?: ParametricPreset; cancelled?: boolean; error?: string}> {
         try {
-            const result = await mediaFileDialogService.openFile({
-                title: '导入参量均衡器设置',
-                filters: [
-                    {name: '参量均衡器预设', extensions: ['peq.json', 'json']},
-                    {name: '所有文件', extensions: ['*']}
-                ],
-                properties: ['openFile']
-            });
-
-            if (result.success && result.filePaths && result.filePaths.length > 0) {
-                const filePath = result.filePaths[0];
-                const jsonString = await mediaFileSystemService.readFile(filePath, 'utf-8');
-                if (typeof jsonString !== 'string') {
-                    return {success: false, error: '无法读取预设文件内容'};
-                }
-
-                const preset = this.presets.importPreset(jsonString);
+            const result = await equalizerPresetFileService.importPreset();
+            if (result.success && result.content) {
+                const preset = this.presets.importPreset(result.content);
                 if (!preset) {
                     return {success: false, error: '无效的预设文件格式'};
                 }

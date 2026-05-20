@@ -10,20 +10,9 @@ export interface PlaybackAppHost {
     showError(message: string): void;
 }
 
-interface PlaybackAppUI {
-    hasQueue(): boolean;
-    getQueueTracks(): Track[];
-    isQueueEmpty(): boolean;
-    syncQueueTracks(tracks: Track[], currentIndex?: number): void;
-    setQueueCurrentTrack(index: number): void;
-    findQueueIndex(predicate: (track: Track, index: number) => boolean): number;
-    addQueueTrack(track: Track): number;
-}
-
 interface PlaybackAppControllerOptions {
     app: PlaybackAppHost;
     integrations: PlaybackAppIntegrations;
-    ui: PlaybackAppUI;
 }
 
 interface PlaybackAppIntegrations {
@@ -39,13 +28,11 @@ interface PlaybackAppIntegrations {
 export class PlaybackAppController {
     private readonly app: PlaybackAppHost;
     private readonly integrations: PlaybackAppIntegrations;
-    private readonly ui: PlaybackAppUI;
     private playTrackLock: boolean;
 
-    constructor({app, integrations, ui}: PlaybackAppControllerOptions) {
+    constructor({app, integrations}: PlaybackAppControllerOptions) {
         this.app = app;
         this.integrations = integrations;
-        this.ui = ui;
         this.playTrackLock = false;
     }
 
@@ -55,9 +42,7 @@ export class PlaybackAppController {
         if (!tracks || tracks.length === 0) return;
 
         try {
-            await this.integrations.setPlaylist(tracks, 0);
-            this.ui.syncQueueTracks(tracks, 0);
-            await this.playTrackFromPlaylist(tracks[0], 0);
+            await this.playTrackFromPlaylist(tracks[0], 0, tracks);
         } catch (error) {
             app.showError('播放失败，请重试');
         }
@@ -68,48 +53,16 @@ export class PlaybackAppController {
 
         console.log('🎵 从音乐库播放歌曲:', track.title, '当前视图:', app.currentView);
 
-        if (this.ui.hasQueue()) {
-            if (app.currentView === 'library') {
-                const currentLibrary = app.filteredLibrary && app.filteredLibrary.length > 0
-                    ? app.filteredLibrary
-                    : app.library;
-
-                if (currentLibrary.length > 0) {
-                    const trackIndex = currentLibrary.findIndex(t => t.filePath === track.filePath);
-                    const startIndex = trackIndex !== -1 ? trackIndex : 0;
-
-                    console.log(`🎵 设置播放列表: ${currentLibrary.length} 首歌曲，从第 ${startIndex + 1} 首开始播放`);
-
-                    this.ui.syncQueueTracks(currentLibrary, startIndex);
-                    await this.playTrackFromPlaylist(track, startIndex);
-                } else {
-                    console.warn('⚠️ 音乐库为空，无法播放');
-                }
-            } else {
-                if (this.ui.isQueueEmpty()) {
-                    console.log('🎵 播放列表为空，添加当前歌曲，当前视图:', app.currentView);
-                    this.ui.syncQueueTracks([track], 0);
-                    console.log('🔍 setTracks 完成，当前视图:', app.currentView);
-                    await this.playTrackFromPlaylist(track, 0);
-                } else {
-                    const existingIndex = this.ui.findQueueIndex((t) =>
-                        t.filePath === track.filePath
-                    );
-                    if (existingIndex === -1) {
-                        const newIndex = this.ui.addQueueTrack(track);
-                        await this.playTrackFromPlaylist(track, newIndex);
-                    } else {
-                        await this.playTrackFromPlaylist(track, existingIndex);
-                    }
-                }
-            }
-        } else {
-            console.warn('播放列表组件不存在，使用传统播放方式');
-            await this.integrations.setPlaylist([track], 0);
+        const {playlist, index} = this.resolvePlaylistForTrack(track);
+        if (playlist.length === 0) {
+            console.warn('⚠️ 无可播放列表，无法播放:', track.title);
+            return;
         }
+
+        await this.playTrackFromPlaylist(track, index, playlist);
     }
 
-    async playTrackFromPlaylist(track: Track, index: number): Promise<void> {
+    async playTrackFromPlaylist(track: Track, index: number, tracks?: Track[]): Promise<void> {
         if (this.playTrackLock) {
             console.log('🚫 App: 播放操作正在进行中，忽略重复调用');
             return;
@@ -119,15 +72,13 @@ export class PlaybackAppController {
         console.log(`🎵 App: 开始播放 ${track.title || track.filePath}，索引: ${index}`);
 
         try {
-            const queueTracks = this.ui.getQueueTracks();
-            if (queueTracks.length > 0) {
-                console.log('🔄 同步播放列表到API:', queueTracks.length, '首歌曲');
+            const playlist = this.resolvePlaybackPlaylist(track, index, tracks);
+            if (playlist.tracks.length > 0) {
+                console.log('🔄 同步播放列表到API:', playlist.tracks.length, '首歌曲');
 
-                const setPlaylistResult = await this.integrations.setPlaylist(queueTracks, index);
+                const setPlaylistResult = await this.integrations.setPlaylist(playlist.tracks, playlist.index);
 
                 if (setPlaylistResult) {
-                    this.ui.setQueueCurrentTrack(index);
-
                     const loadResult = await this.integrations.loadTrack(track.filePath);
                     if (loadResult) {
                         await this.integrations.play();
@@ -148,16 +99,8 @@ export class PlaybackAppController {
         }
     }
 
-    handleTrackIndexChanged(index: number): void {
-        const queueLength = this.ui.getQueueTracks().length;
-
-        if (this.ui.hasQueue()) {
-            if (index >= 0 && index < queueLength) {
-                this.ui.setQueueCurrentTrack(index);
-            } else {
-                console.warn('⚠️ 索引超出播放列表范围:', index, '/', queueLength);
-            }
-        }
+    handleTrackIndexChanged(_index: number): void {
+        // Queue highlighting is driven by PlaybackQueueSyncService.
     }
 
     async restorePlaybackState(): Promise<void> {
@@ -188,8 +131,6 @@ export class PlaybackAppController {
 
                     if (validTracks.length > 0) {
                         await this.integrations.setPlaylist(validTracks, validCurrentIndex);
-
-                        this.ui.syncQueueTracks(validTracks, validCurrentIndex);
 
                         if (validCurrentIndex >= 0 && validTracks[validCurrentIndex]) {
                             const trackToLoad = validTracks[validCurrentIndex];
@@ -266,5 +207,68 @@ export class PlaybackAppController {
             const playbackState: PlaybackStateSnapshot = this.integrations.getPlaybackSnapshot();
             cacheManager.setLocalCache('playback-state', playbackState);
         }
+    }
+
+    private resolvePlaylistForTrack(track: Track): {playlist: Track[]; index: number} {
+        const app = this.app;
+
+        if (app.currentView === 'library') {
+            const currentLibrary = app.filteredLibrary && app.filteredLibrary.length > 0
+                ? app.filteredLibrary
+                : app.library;
+
+            if (currentLibrary.length === 0) {
+                return {playlist: [], index: -1};
+            }
+
+            const trackIndex = this.findTrackIndex(currentLibrary, track);
+            const startIndex = trackIndex !== -1 ? trackIndex : 0;
+
+            console.log(`🎵 设置播放列表: ${currentLibrary.length} 首歌曲，从第 ${startIndex + 1} 首开始播放`);
+            return {playlist: currentLibrary, index: startIndex};
+        }
+
+        const currentPlaylist = this.integrations.getPlaybackSnapshot().playlist ?? [];
+        if (currentPlaylist.length === 0) {
+            console.log('🎵 播放列表为空，使用当前歌曲创建播放列表，当前视图:', app.currentView);
+            return {playlist: [track], index: 0};
+        }
+
+        const existingIndex = this.findTrackIndex(currentPlaylist, track);
+        if (existingIndex !== -1) {
+            return {playlist: currentPlaylist, index: existingIndex};
+        }
+
+        return {
+            playlist: [...currentPlaylist, track],
+            index: currentPlaylist.length
+        };
+    }
+
+    private resolvePlaybackPlaylist(track: Track, index: number, tracks?: Track[]): {tracks: Track[]; index: number} {
+        const playlist = tracks && tracks.length > 0
+            ? tracks
+            : this.integrations.getPlaybackSnapshot().playlist;
+
+        if (playlist.length === 0) {
+            return {tracks: [track], index: 0};
+        }
+
+        if (index >= 0 && index < playlist.length) {
+            return {tracks: playlist, index};
+        }
+
+        const trackIndex = this.findTrackIndex(playlist, track);
+        return {
+            tracks: playlist,
+            index: trackIndex !== -1 ? trackIndex : 0
+        };
+    }
+
+    private findTrackIndex(tracks: Track[], track: Track): number {
+        return tracks.findIndex((candidate) => (
+            candidate.filePath === track.filePath
+            || (!!candidate.path && candidate.path === track.path)
+        ));
     }
 }

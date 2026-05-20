@@ -58,7 +58,7 @@ export default defineConfig({
           }
 
           // 共享工具类
-          if (id.includes('shared/cache/CacheManager') || id.includes('services/CacheManager') || id.includes('utils/md5')) {
+          if (id.includes('shared/cache/CacheManager') || id.includes('utils/md5')) {
             return 'shared-utils';
           }
 
@@ -85,8 +85,6 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '@js': path.resolve(__dirname, 'src/js'),
-      '@core': path.resolve(__dirname, 'src/js/core'),
-      '@services': path.resolve(__dirname, 'src/js/services'),
       '@utils': path.resolve(__dirname, 'src/js/utils'),
       '@api': path.resolve(__dirname, 'src/js/api'),
       '@ui': path.resolve(__dirname, 'src/js/ui'),

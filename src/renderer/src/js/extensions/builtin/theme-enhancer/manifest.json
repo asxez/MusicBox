@@ -12,12 +12,13 @@
   ],
   "permissions": [
     "ui.notification",
-    "ui.theme",
+    "ui.webview",
     "storage.read",
     "storage.write",
     "settings.read",
     "settings.write",
-    "commands.register"
+    "commands.register",
+    "commands.execute"
   ],
   "contributes": {
     "commands": [

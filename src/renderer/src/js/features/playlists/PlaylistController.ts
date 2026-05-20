@@ -12,14 +12,10 @@ export interface PlaylistAppHost {
     hideAllPages(): void;
     showInfo(message: string): void;
     updateSidebarSelection(type: string, id?: string | null): void;
-    playTrackFromPlaylist(track: Track, index: number): Promise<void>;
+    playTrackFromPlaylist(track: Track, index: number, tracks?: Track[]): Promise<void>;
 }
 
 interface PlaylistUI {
-    hasQueue(): boolean;
-    getQueueTracks(): Track[];
-    getQueueCurrentIndex(): number;
-    addQueueTrack(track: Track): number;
     showAddToPlaylistDialog(track: Track): Promise<void>;
     showPlaylistDetail(playlist: Playlist): Promise<void>;
     showMusicLibrarySelectionDialog(playlist: Playlist): Promise<void>;
@@ -31,6 +27,7 @@ interface PlaylistUI {
 interface PlaylistPlaybackIntegrations {
     setPlaylist(tracks: Track[], startIndex?: number): Promise<boolean>;
     getCurrentIndex(): number;
+    getPlaylist(): Track[];
     pause(): Promise<boolean>;
 }
 
@@ -54,18 +51,21 @@ export class PlaylistController {
     }
 
     async handlePlaylistTrackRemoved(_track: Track, index: number): Promise<void> {
-        const queueTracks = this.ui.getQueueTracks();
+        const currentPlaylist = this.playback.getPlaylist();
+        if (index < 0 || index >= currentPlaylist.length) {
+            return;
+        }
 
-        if (this.ui.hasQueue()) {
-            console.log('🔄 同步删除操作到API，剩余歌曲:', queueTracks.length);
+        const nextPlaylist = currentPlaylist.filter((_track, trackIndex) => trackIndex !== index);
+        const currentIndex = this.playback.getCurrentIndex();
+        const nextIndex = this.resolveIndexAfterRemoval(index, currentIndex, nextPlaylist.length);
 
-            const currentIndex = this.ui.getQueueCurrentIndex();
-            await this.playback.setPlaylist(queueTracks, currentIndex);
+        console.log('🔄 同步删除操作到播放状态，剩余歌曲:', nextPlaylist.length);
+        await this.playback.setPlaylist(nextPlaylist, nextIndex);
 
-            if (index === this.playback.getCurrentIndex()) {
-                console.log('⚠️ 删除的是当前播放歌曲，停止播放');
-                await this.playback.pause();
-            }
+        if (index === currentIndex) {
+            console.log('⚠️ 删除的是当前播放歌曲，停止播放');
+            await this.playback.pause();
         }
     }
 
@@ -74,11 +74,11 @@ export class PlaylistController {
         await this.playback.pause();
     }
 
-    addToPlaylist(track: Track): void {
-        if (this.ui.hasQueue()) {
-            this.ui.addQueueTrack(track);
-            this.app.showInfo(`已添加 "${track.title}" 到播放列表`);
-        }
+    async addToPlaylist(track: Track): Promise<void> {
+        const currentPlaylist = this.playback.getPlaylist();
+        const nextPlaylist = [...currentPlaylist, track];
+        await this.playback.setPlaylist(nextPlaylist, this.playback.getCurrentIndex());
+        this.app.showInfo(`已添加 "${track.title}" 到播放列表`);
     }
 
     async handleAddToCustomPlaylist(track: Track, _index: number): Promise<void> {
@@ -130,5 +130,21 @@ export class PlaylistController {
 
     async refreshNavigationPlaylists(): Promise<void> {
         await this.ui.refreshNavigationPlaylists();
+    }
+
+    private resolveIndexAfterRemoval(removedIndex: number, currentIndex: number, nextLength: number): number {
+        if (nextLength === 0) {
+            return -1;
+        }
+
+        if (removedIndex < currentIndex) {
+            return currentIndex - 1;
+        }
+
+        if (removedIndex === currentIndex) {
+            return Math.min(removedIndex, nextLength - 1);
+        }
+
+        return currentIndex;
     }
 }

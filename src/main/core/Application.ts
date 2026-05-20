@@ -256,6 +256,9 @@ export class Application {
         const {ExtensionInstaller} = await import('../services/extensions/ExtensionInstaller');
         this.container.register('extensionInstaller', () => new ExtensionInstaller());
 
+        const {ExtensionStorageService} = await import('../services/extensions/ExtensionStorageService');
+        this.container.register('extensionStorageService', () => new ExtensionStorageService());
+
         console.log(`✅ 核心服务注册完成 (${this.container.getStats().registered} 个)`);
     }
 
@@ -302,6 +305,7 @@ export class Application {
             {GlobalShortcutsController},
             {ExtensionsController},
             {CoversController},
+            {EqualizerPresetController},
             {LyricsController},
             {TrayController},
             {HttpServerController},
@@ -325,6 +329,7 @@ export class Application {
             import('../controllers/GlobalShortcutsController'),
             import('../controllers/ExtensionsController'),
             import('../controllers/CoversController'),
+            import('../controllers/EqualizerPresetController'),
             import('../controllers/LyricsController'),
             import('../controllers/TrayController'),
             import('../controllers/HttpServerController'),
@@ -336,6 +341,7 @@ export class Application {
         const libraryCacheManager = await this.container.get<any>('libraryCacheManager');
         const metadataHandler = await this.container.get<any>('metadataHandler');
         const extensionInstaller = await this.container.get<any>('extensionInstaller');
+        const extensionStorageService = await this.container.get<any>('extensionStorageService');
 
         const boundParseMetadata = (filePath: string) =>
             parseMetadata(filePath, networkFileAdapter.isNetworkPath(filePath) ? networkFileAdapter : null, {skipCover: true});
@@ -372,8 +378,9 @@ export class Application {
             new UserDataController(),
             new HardwareAccelerationController(),
             new GlobalShortcutsController(this.windowManager),
-            new ExtensionsController(extensionInstaller, this.windowManager),
+            new ExtensionsController(extensionInstaller, extensionStorageService, this.windowManager),
             new CoversController(),
+            new EqualizerPresetController(this.windowManager),
             new LyricsController(networkFileAdapter),
             trayController,
             new HttpServerController()

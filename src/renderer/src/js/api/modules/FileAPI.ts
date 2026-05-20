@@ -6,6 +6,7 @@
 
 import {BaseAPI} from "@api/core";
 import {fileGateway} from "@js/infrastructure/electron";
+import {audioFileReaderService} from "@js/features/media/service";
 import {DirectoryResult, ImageFileResult} from "@api/types";
 
 /**
@@ -95,18 +96,21 @@ export class FileAPI extends BaseAPI {
     }
 
     async readFile(filePath: string, encoding: string | null = null): Promise<string | ArrayLike<number>> {
-        return this.wrapIPC(
-            () => fileGateway.readFile(filePath, encoding),
-            'fs.readFile',
-            ''
-        );
+        void filePath;
+        void encoding;
+        console.warn('⚠️ FileAPI.readFile 已废弃：请使用 media/mediaAssets/lyrics/pluginStorage 等领域 API');
+        return '';
     }
 
     async stat(filePath: string): Promise<{size: number; mtime: unknown; isFile: boolean; isDirectory: boolean}> {
-        return this.wrapIPC(
-            () => fileGateway.stat(filePath),
-            'fs.stat'
-        );
+        void filePath;
+        console.warn('⚠️ FileAPI.stat 已废弃：请使用领域 API 获取文件信息');
+        return {
+            size: 0,
+            mtime: null,
+            isFile: false,
+            isDirectory: false
+        };
     }
 
     async showOpenDialog(options: Record<string, unknown>): Promise<{canceled: boolean; filePaths: string[]; bookmarks?: string[]}> {
@@ -134,17 +138,17 @@ export class FileAPI extends BaseAPI {
     }
 
     async writeFile(filePath: string, data: string, encoding: string | null = null): Promise<boolean> {
-        return this.wrapIPC(
-            () => fileGateway.writeFile(filePath, data, encoding),
-            'fs.writeFile',
-            false
-        );
+        void filePath;
+        void data;
+        void encoding;
+        console.warn('⚠️ FileAPI.writeFile 已废弃：请使用领域 API 写入数据');
+        return false;
     }
 
     async readAudioFile(filePath: string): Promise<ArrayBuffer> {
         return this.wrapIPC(
-            () => fileGateway.readAudioFile(filePath),
-            'readAudioFile'
+            () => audioFileReaderService.readAudioFile(filePath),
+            'media.readAudioFile'
         );
     }
 }

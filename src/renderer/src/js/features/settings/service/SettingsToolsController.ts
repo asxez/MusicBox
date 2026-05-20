@@ -11,6 +11,7 @@ import {mediaDirectorySettingsRenderer} from "./MediaDirectorySettingsRenderer";
 import {mediaDirectorySettingsService} from "./MediaDirectorySettingsService";
 import {appConfirmationService} from "@js/features/appShell/service";
 import type {SettingValue} from "./SettingsStore";
+import type {SettingsListenerScope} from "./SettingsListenerScope";
 
 export interface SettingsToolsElements {
     selectLyricsFolderButton: HTMLElement | null;
@@ -34,11 +35,11 @@ interface SettingsToolsCallbacks {
 }
 
 class SettingsToolsController {
-    initialize(elements: SettingsToolsElements, callbacks: SettingsToolsCallbacks): void {
-        this.bindDirectoryEvents(elements, callbacks);
-        this.bindCacheEvents(elements);
-        this.bindEmbeddedLyricsDiagnostics(elements);
-        this.bindLyricsAppearanceEvents(elements, callbacks);
+    initialize(elements: SettingsToolsElements, callbacks: SettingsToolsCallbacks, scope: SettingsListenerScope): void {
+        this.bindDirectoryEvents(elements, callbacks, scope);
+        this.bindCacheEvents(elements, scope);
+        this.bindEmbeddedLyricsDiagnostics(elements, scope);
+        this.bindLyricsAppearanceEvents(elements, callbacks, scope);
     }
 
     initializeLyricsAppearance(settings: MusicBoxSettings, elements: SettingsToolsElements, callbacks: SettingsToolsCallbacks): void {
@@ -79,12 +80,12 @@ class SettingsToolsController {
         }
     }
 
-    private bindDirectoryEvents(elements: SettingsToolsElements, callbacks: SettingsToolsCallbacks): void {
-        elements.selectLyricsFolderButton?.addEventListener('click', async () => {
+    private bindDirectoryEvents(elements: SettingsToolsElements, callbacks: SettingsToolsCallbacks, scope: SettingsListenerScope): void {
+        scope.listen(elements.selectLyricsFolderButton, 'click', async () => {
             await this.selectLyricsDirectory(elements, callbacks);
         });
 
-        elements.selectCoverCacheFolderButton?.addEventListener('click', async () => {
+        scope.listen(elements.selectCoverCacheFolderButton, 'click', async () => {
             await this.selectCoverCacheDirectory(elements, callbacks);
         });
     }
@@ -126,16 +127,16 @@ class SettingsToolsController {
         }
     }
 
-    private bindCacheEvents(elements: SettingsToolsElements): void {
-        elements.viewCacheStatsButton?.addEventListener('click', async () => {
+    private bindCacheEvents(elements: SettingsToolsElements, scope: SettingsListenerScope): void {
+        scope.listen(elements.viewCacheStatsButton, 'click', async () => {
             await this.showCacheStatistics(elements);
         });
 
-        elements.validateCacheButton?.addEventListener('click', async () => {
+        scope.listen(elements.validateCacheButton, 'click', async () => {
             await this.validateCache(elements);
         });
 
-        elements.clearCacheButton?.addEventListener('click', async () => {
+        scope.listen(elements.clearCacheButton, 'click', async () => {
             await this.clearCache(elements);
         });
     }
@@ -201,8 +202,8 @@ class SettingsToolsController {
         }
     }
 
-    private bindEmbeddedLyricsDiagnostics(elements: SettingsToolsElements): void {
-        elements.testEmbeddedLyricsButton?.addEventListener('click', async () => {
+    private bindEmbeddedLyricsDiagnostics(elements: SettingsToolsElements, scope: SettingsListenerScope): void {
+        scope.listen(elements.testEmbeddedLyricsButton, 'click', async () => {
             await this.testEmbeddedLyrics(elements);
         });
     }
@@ -231,15 +232,15 @@ class SettingsToolsController {
         }
     }
 
-    private bindLyricsAppearanceEvents(elements: SettingsToolsElements, callbacks: SettingsToolsCallbacks): void {
-        elements.lyricsHighlightOpacitySlider?.addEventListener('input', () => {
+    private bindLyricsAppearanceEvents(elements: SettingsToolsElements, callbacks: SettingsToolsCallbacks, scope: SettingsListenerScope): void {
+        scope.listen(elements.lyricsHighlightOpacitySlider, 'input', () => {
             const value = parseFloat(elements.lyricsHighlightOpacitySlider?.value || '1');
             lyricsAppearanceSettingsRenderer.updateOpacity(this.toLyricsAppearanceElements(elements), value);
             callbacks.updateSetting('lyricsHighlightOpacity', value);
             this.applyLyricsHighlightOpacity(value, callbacks);
         });
 
-        elements.lyricsHighlightColorInput?.addEventListener('input', () => {
+        scope.listen(elements.lyricsHighlightColorInput, 'input', () => {
             const color = elements.lyricsHighlightColorInput?.value || '#335eea';
             lyricsAppearanceSettingsRenderer.updateColor(this.toLyricsAppearanceElements(elements), color);
             callbacks.updateSetting('lyricsHighlightColor', color);

@@ -5,16 +5,20 @@ import * as nodePath from 'path';
 import * as fs from 'fs';
 import {BaseController, Controller, IpcHandle} from '../decorators/IpcHandler';
 import {OS_ALLOWED, PATH_ALLOWED, FS_ALLOWED} from '../utils/AllowedFunc';
-import {isDangerousPath} from '../utils/pathSecurity';
+import {isSafePath} from '../utils/pathSecurity';
 
 @Controller('system')
 export class SystemController extends BaseController {
+    private readonly legacyNodeApisEnabled = process.env.MUSICBOX_ENABLE_LEGACY_NODE_APIS === '1';
+    private readonly legacyFsRoots = this.parseLegacyFsRoots();
+
     constructor() {
         super();
     }
 
     @IpcHandle('os:call')
     osCall({prop, args}: { prop: string; args?: any[] }): any {
+        this.assertLegacyNodeApisEnabled();
         if (!(OS_ALLOWED as readonly string[]).includes(prop)) throw new Error('not allowed');
         const val = (os as any)[prop];
         return typeof val === 'function' ? val.apply(os, args || []) : val;
@@ -22,6 +26,7 @@ export class SystemController extends BaseController {
 
     @IpcHandle('path:call')
     pathCall({prop, args}: { prop: string; args?: any[] }): any {
+        this.assertLegacyNodeApisEnabled();
         if (!(PATH_ALLOWED as readonly string[]).includes(prop)) throw new Error('not allowed');
         const val = (nodePath as any)[prop];
         return typeof val === 'function' ? val.apply(nodePath, args || []) : val;
@@ -29,10 +34,9 @@ export class SystemController extends BaseController {
 
     @IpcHandle('fs:call')
     async fsCall({prop, args}: { prop: string; args?: any[] }): Promise<any> {
+        this.assertLegacyNodeApisEnabled();
         if (!(FS_ALLOWED as readonly string[]).includes(prop)) throw new Error('not allowed');
-        if (args && args[0] && typeof args[0] === 'string' && isDangerousPath(args[0])) {
-            throw new Error(`🔒 拒绝访问危险路径: ${args[0]}`);
-        }
+        this.assertAllowedLegacyPath(args?.[0]);
         const fsPromises = fs.promises;
         switch (prop) {
             case 'readdir':
@@ -57,13 +61,15 @@ export class SystemController extends BaseController {
 
     @IpcHandle('fs:stat')
     async fsStat(filePath: string): Promise<any> {
-        if (isDangerousPath(filePath)) throw new Error(`🔒 拒绝访问危险路径: ${filePath}`);
+        this.assertLegacyNodeApisEnabled();
+        this.assertAllowedLegacyPath(filePath);
         return fs.promises.stat(filePath);
     }
 
     @IpcHandle('fs:readFile')
     async readFile(filePath: string, encoding?: string): Promise<string | number[]> {
-        if (isDangerousPath(filePath)) throw new Error(`🔒 拒绝访问危险路径: ${filePath}`);
+        this.assertLegacyNodeApisEnabled();
+        this.assertAllowedLegacyPath(filePath);
         if (encoding) {
             const content = await fs.promises.readFile(filePath, encoding as BufferEncoding);
             return content as string;
@@ -74,12 +80,40 @@ export class SystemController extends BaseController {
 
     @IpcHandle('fs:writeFile')
     async writeFile(filePath: string, data: any, encoding = 'utf8'): Promise<boolean> {
-        if (isDangerousPath(filePath)) throw new Error(`🔒 拒绝访问危险路径: ${filePath}`);
+        this.assertLegacyNodeApisEnabled();
+        this.assertAllowedLegacyPath(filePath);
         try {
             await fs.promises.writeFile(filePath, data, encoding as BufferEncoding);
             return true;
         } catch {
             return false;
         }
+    }
+
+    private assertLegacyNodeApisEnabled(): void {
+        if (!this.legacyNodeApisEnabled) {
+            throw new Error('Legacy generic fs/path/os APIs are disabled. Use a domain IPC API.');
+        }
+    }
+
+    private assertAllowedLegacyPath(filePath: unknown): void {
+        if (typeof filePath !== 'string') {
+            return;
+        }
+
+        if (this.legacyFsRoots.length === 0) {
+            throw new Error('Legacy generic fs API is enabled, but MUSICBOX_LEGACY_FS_ROOTS is empty.');
+        }
+
+        if (!isSafePath(filePath, this.legacyFsRoots)) {
+            throw new Error(`🔒 拒绝访问未授权路径: ${filePath}`);
+        }
+    }
+
+    private parseLegacyFsRoots(): string[] {
+        return (process.env.MUSICBOX_LEGACY_FS_ROOTS || '')
+            .split(nodePath.delimiter)
+            .map(root => root.trim())
+            .filter(Boolean);
     }
 }

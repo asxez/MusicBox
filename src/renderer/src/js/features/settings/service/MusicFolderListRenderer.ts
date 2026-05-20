@@ -2,11 +2,10 @@ interface MusicFolderListRenderOptions {
     container: HTMLElement | null | undefined;
     list: HTMLElement | null | undefined;
     folders: string[] | null | undefined;
-    onRemove: (folderPath: string) => void;
 }
 
 class MusicFolderListRenderer {
-    render({container, list, folders, onRemove}: MusicFolderListRenderOptions): void {
+    render({container, list, folders}: MusicFolderListRenderOptions): void {
         if (!container || !list) {
             return;
         }
@@ -21,11 +20,16 @@ class MusicFolderListRenderer {
         list.innerHTML = '';
 
         folders.forEach((folder) => {
-            list.appendChild(this.createFolderItem(folder, onRemove));
+            list.appendChild(this.createFolderItem(folder));
         });
     }
 
-    private createFolderItem(folder: string, onRemove: (folderPath: string) => void): HTMLElement {
+    resolveRemoveFolder(target: EventTarget | null): string | null {
+        const button = target instanceof Element ? target.closest<HTMLButtonElement>('.folder-remove-btn') : null;
+        return button?.dataset.folderPath || null;
+    }
+
+    private createFolderItem(folder: string): HTMLElement {
         const item = document.createElement('li');
         item.className = 'folder-item';
 
@@ -37,7 +41,7 @@ class MusicFolderListRenderer {
         const removeButton = document.createElement('button');
         removeButton.className = 'folder-remove-btn';
         removeButton.textContent = '移除';
-        removeButton.addEventListener('click', () => onRemove(folder));
+        removeButton.dataset.folderPath = folder;
 
         item.appendChild(pathText);
         item.appendChild(removeButton);

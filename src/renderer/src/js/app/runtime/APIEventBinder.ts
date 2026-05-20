@@ -4,26 +4,22 @@ import type {MusicBoxAPIEvents} from '@api/types/events';
 import type {APIEventBindingHost} from './AppRuntimePorts';
 import type {ManagedAPIListener} from '@js/shared/types/AppContracts';
 import type {PlaybackUIFacade} from './ui/PlaybackUIFacade';
-import type {QueueUIFacade} from './ui/QueueUIFacade';
 
 interface APIEventBinderOptions {
     app: APIEventBindingHost;
     apiEventListeners: ManagedAPIListener[];
     playbackUI: PlaybackUIFacade;
-    queueUI: QueueUIFacade;
 }
 
 export class APIEventBinder {
     private readonly app: APIEventBindingHost;
     private readonly apiEventListeners: ManagedAPIListener[];
     private readonly playbackUI: PlaybackUIFacade;
-    private readonly queueUI: QueueUIFacade;
 
-    constructor({app, apiEventListeners, playbackUI, queueUI}: APIEventBinderOptions) {
+    constructor({app, apiEventListeners, playbackUI}: APIEventBinderOptions) {
         this.app = app;
         this.apiEventListeners = apiEventListeners;
         this.playbackUI = playbackUI;
-        this.queueUI = queueUI;
     }
 
     addManagedAPIEventListener<K extends keyof MusicBoxAPIEvents>(
@@ -54,9 +50,6 @@ export class APIEventBinder {
 
         this.addManagedAPIEventListener('playlistChanged', (tracks) => {
             console.log('🎵 API播放列表改变:', tracks.length, '首歌曲');
-            if (tracks.length > 0) {
-                this.queueUI.syncQueueTracks(tracks, playbackUiStateService.getState().currentIndex);
-            }
         });
 
         this.addManagedAPIEventListener('libraryTrackDurationUpdated', ({filePath, duration}) => {

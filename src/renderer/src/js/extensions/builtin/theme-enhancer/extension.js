@@ -7,12 +7,9 @@ function getExtensionAPI(context) {
     return context.api || createExtensionAPI(context);
 }
 
-// 插件状态
 let config = {};
 let currentTheme = 'light';
-let themeSelectorUI = null;
 
-// 预设主题配置
 const PRESET_THEMES = {
     light: {
         name: '浅色',
@@ -86,39 +83,16 @@ const PRESET_THEMES = {
  * @param {Object} context - 扩展上下文
  */
 async function activate(context) {
-    // 获取 API
     const api = getExtensionAPI(context);
 
-    // 加载配置
-    config = loadConfiguration(api.settings);
+    config = await loadConfiguration(api.settings);
 
-    // 创建主题选择器UI
-    themeSelectorUI = createThemeSelectorUI(api);
-    context.subscriptions.add({
-        dispose() {
-            if (themeSelectorUI) {
-                themeSelectorUI.dispose();
-                themeSelectorUI = null;
-            }
-        }
-    });
-
-    // 注册设置页
-    registerSettingsPage(context, api);
-
-    // 注册命令
-    registerCommands(context, api);
-
-    // 监听配置变化
-    setupConfigurationListener(context, api);
-
-    // 监听主题变化
-    setupThemeListener(context, api);
-
-    // 恢复保存的主题
+    await registerSettingsContributions(context, api);
+    await registerCommands(context, api);
+    await setupConfigurationListener(context, api);
+    await setupThemeListener(context, api);
     await restoreTheme(api);
 
-    // 返回公共 API
     return {
         setTheme(themeName) {
             return applyTheme(themeName, api);
@@ -145,159 +119,76 @@ async function deactivate() {
 /**
  * 加载配置
  */
-function loadConfiguration(settings) {
+async function loadConfiguration(settings) {
     return {
-        currentTheme: settings.get('themeEnhancer.currentTheme', 'light'),
-        customColors: settings.get('themeEnhancer.customColors', {})
+        currentTheme: await settings.get('themeEnhancer.currentTheme', 'light'),
+        customColors: await settings.get('themeEnhancer.customColors', {})
     };
 }
 
 /**
  * 注册设置页
  */
-function registerSettingsPage(context, api) {
-    // 注册设置页导航项
-    const sectionDisposable = api.ui.registerSettingsSection('themeEnhancer', '主题增强', {
+async function registerSettingsContributions(context, api) {
+    const sectionDisposable = await api.ui.registerSettingsSection('themeEnhancer', '主题增强', {
         order: 50
     });
     context.subscriptions.add(sectionDisposable);
 
-    // 注册设置页内容
-    const pageDisposable = api.ui.registerSettingsPage('themeEnhancer', (container) => {
+    const themeOptions = Object.entries(PRESET_THEMES).map(([value, theme]) => ({
+        value,
+        label: theme.name
+    }));
 
-        // 默认主题设置
-        const themeOptions = Object.entries(PRESET_THEMES).map(([value, theme]) => ({
-            value,
-            label: theme.name
-        }));
+    const themeChoices = Object.entries(PRESET_THEMES).map(([value, theme]) => ({
+        value,
+        label: theme.name,
+        description: value,
+        swatches: [
+            theme.colors['color-primary'],
+            theme.colors['color-body-bg'],
+            theme.colors['color-secondary-bg'],
+            theme.colors['color-border']
+        ]
+    }));
 
-        const defaultThemeSelect = api.ui.createSelectSetting(
-            '默认主题',
-            '应用启动时使用的主题',
-            themeOptions,
-            config.currentTheme,
-            (value) => {
-                config.currentTheme = value;
-                api.settings.set('themeEnhancer.currentTheme', value);
-                applyTheme(value, api);
-            }
-        );
-        container.appendChild(defaultThemeSelect);
-
-        // 主题预览
-        const previewSection = document.createElement('div');
-        previewSection.className = 'settings-item';
-        previewSection.style.flexDirection = 'column';
-        previewSection.style.alignItems = 'flex-start';
-
-        const previewLabel = document.createElement('label');
-        previewLabel.className = 'item-label';
-        previewLabel.textContent = '主题预览';
-        previewLabel.style.marginBottom = '12px';
-
-        const previewDescription = document.createElement('p');
-        previewDescription.className = 'item-description';
-        previewDescription.textContent = '点击下方主题卡片可快速切换主题';
-        previewDescription.style.marginBottom = '16px';
-
-        const previewGrid = document.createElement('div');
-        previewGrid.style.display = 'grid';
-        previewGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(120px, 1fr))';
-        previewGrid.style.gap = '12px';
-        previewGrid.style.width = '100%';
-
-        Object.entries(PRESET_THEMES).forEach(([themeId, theme]) => {
-            const themeCard = document.createElement('div');
-            themeCard.style.cssText = `
-                padding: 12px;
-                border-radius: 8px;
-                border: 2px solid ${currentTheme === themeId ? 'var(--color-primary)' : 'var(--color-border)'};
-                cursor: pointer;
-                transition: all 0.2s;
-                background: ${theme.colors['color-body-bg']};
-            `;
-
-            const themeName = document.createElement('div');
-            themeName.textContent = theme.name;
-            themeName.style.cssText = `
-                font-size: 14px;
-                font-weight: 500;
-                margin-bottom: 8px;
-                color: ${theme.colors['color-text']};
-            `;
-
-            const colorPreview = document.createElement('div');
-            colorPreview.style.cssText = `
-                display: flex;
-                gap: 4px;
-                height: 24px;
-            `;
-
-            const primaryColor = document.createElement('div');
-            primaryColor.style.cssText = `
-                flex: 1;
-                border-radius: 4px;
-                background: ${theme.colors['color-primary']};
-            `;
-
-            const secondaryColor = document.createElement('div');
-            secondaryColor.style.cssText = `
-                flex: 1;
-                border-radius: 4px;
-                background: ${theme.colors['color-secondary-bg']};
-            `;
-
-            colorPreview.appendChild(primaryColor);
-            colorPreview.appendChild(secondaryColor);
-
-            themeCard.appendChild(themeName);
-            themeCard.appendChild(colorPreview);
-
-            themeCard.addEventListener('click', () => {
-                applyTheme(themeId, api);
-                // 更新所有卡片的边框
-                previewGrid.querySelectorAll('div').forEach((card, index) => {
-                    const id = Object.keys(PRESET_THEMES)[Math.floor(index / 2)];
-                    if (card.style.border) {
-                        card.style.border = `2px solid ${currentTheme === id ? 'var(--color-primary)' : 'var(--color-border)'}`;
-                    }
-                });
-            });
-
-            themeCard.addEventListener('mouseenter', () => {
-                if (currentTheme !== themeId) {
-                    themeCard.style.borderColor = 'var(--color-primary)';
-                    themeCard.style.opacity = '0.8';
+    const pageDisposable = await api.ui.registerSettingsPageSchema('themeEnhancer', {
+        items: [
+            {
+                id: 'currentTheme',
+                type: 'select',
+                label: '默认主题',
+                description: '应用启动时使用的主题',
+                value: config.currentTheme,
+                options: themeOptions,
+                async onChange(value) {
+                    await applyTheme(value, api);
                 }
-            });
-
-            themeCard.addEventListener('mouseleave', () => {
-                if (currentTheme !== themeId) {
-                    themeCard.style.borderColor = 'var(--color-border)';
-                    themeCard.style.opacity = '1';
-                }
-            });
-
-            previewGrid.appendChild(themeCard);
-        });
-
-        previewSection.appendChild(previewLabel);
-        previewSection.appendChild(previewDescription);
-        previewSection.appendChild(previewGrid);
-        container.appendChild(previewSection);
-
-        // 重置按钮
-        const resetButton = api.ui.createButtonSetting(
-            '重置主题',
-            '将主题重置为默认的浅色主题',
-            '重置',
-            async () => {
-                await applyTheme('light', api);
-                api.ui.showNotification('主题已重置', 'success');
             },
-            {secondary: true}
-        );
-        container.appendChild(resetButton);
+            {
+                id: 'themePreview',
+                type: 'choiceGrid',
+                label: '主题预览',
+                description: '选择一个预设主题并立即应用',
+                value: currentTheme,
+                choices: themeChoices,
+                async onChange(value) {
+                    await applyTheme(value, api);
+                }
+            },
+            {
+                id: 'resetTheme',
+                type: 'button',
+                label: '重置主题',
+                description: '将主题重置为默认的浅色主题',
+                buttonText: '重置',
+                secondary: true,
+                async onClick() {
+                    await applyTheme('light', api);
+                    await api.ui.showNotification('主题已重置', 'success');
+                }
+            }
+        ]
     });
     context.subscriptions.add(pageDisposable);
 }
@@ -305,16 +196,13 @@ function registerSettingsPage(context, api) {
 /**
  * 注册命令
  */
-function registerCommands(context, api) {
-    // 自定义主题
-    const customizeCmd = api.commands.registerCommand('themeEnhancer.customizeTheme', async () => {
-        api.ui.showNotification('自定义主题功能开发中...', 'info');
-        // TODO: 实现自定义主题界面
+async function registerCommands(context, api) {
+    const customizeCmd = await api.commands.registerCommand('themeEnhancer.customizeTheme', async () => {
+        await api.ui.showNotification('自定义主题功能开发中...', 'info');
     });
     context.subscriptions.add(customizeCmd);
 
-    // 导出主题
-    const exportCmd = api.commands.registerCommand('themeEnhancer.exportTheme', async () => {
+    const exportCmd = await api.commands.registerCommand('themeEnhancer.exportTheme', async () => {
         try {
             const themeData = {
                 name: currentTheme,
@@ -322,36 +210,34 @@ function registerCommands(context, api) {
             };
             const json = JSON.stringify(themeData, null, 2);
             await api.storage.update('exported-theme', json);
-            api.ui.showNotification('主题已导出到存储', 'success');
+            await api.ui.showNotification('主题已导出到存储', 'success');
         } catch (error) {
             console.error('❌ 导出主题失败:', error);
-            api.ui.showNotification('导出主题失败', 'error');
+            await api.ui.showNotification('导出主题失败', 'error');
         }
     });
     context.subscriptions.add(exportCmd);
 
-    // 导入主题
-    const importCmd = api.commands.registerCommand('themeEnhancer.importTheme', async () => {
+    const importCmd = await api.commands.registerCommand('themeEnhancer.importTheme', async () => {
         try {
-            const json = api.storage.get('exported-theme');
+            const json = await api.storage.get('exported-theme');
             if (json) {
                 const themeData = JSON.parse(json);
                 await applyCustomTheme(themeData.colors, api);
-                api.ui.showNotification('主题已导入', 'success');
+                await api.ui.showNotification('主题已导入', 'success');
             } else {
-                api.ui.showNotification('没有找到导出的主题', 'warning');
+                await api.ui.showNotification('没有找到导出的主题', 'warning');
             }
         } catch (error) {
             console.error('❌ 导入主题失败:', error);
-            api.ui.showNotification('导入主题失败', 'error');
+            await api.ui.showNotification('导入主题失败', 'error');
         }
     });
     context.subscriptions.add(importCmd);
 
-    // 重置主题
-    const resetCmd = api.commands.registerCommand('themeEnhancer.resetTheme', async () => {
+    const resetCmd = await api.commands.registerCommand('themeEnhancer.resetTheme', async () => {
         await applyTheme('light', api);
-        api.ui.showNotification('主题已重置为浅色主题', 'success');
+        await api.ui.showNotification('主题已重置为浅色主题', 'success');
     });
     context.subscriptions.add(resetCmd);
 }
@@ -359,10 +245,10 @@ function registerCommands(context, api) {
 /**
  * 设置配置监听
  */
-function setupConfigurationListener(context, api) {
-    const configDisposable = api.settings.onDidChange((e) => {
-        if (e.key.startsWith('themeEnhancer.')) {
-            config = loadConfiguration(api.settings);
+async function setupConfigurationListener(context, api) {
+    const configDisposable = await api.settings.onDidChange(async (event) => {
+        if (event.key.startsWith('themeEnhancer.')) {
+            config = await loadConfiguration(api.settings);
             console.log('⚙️ 主题增强配置已更新:', config);
         }
     });
@@ -372,8 +258,8 @@ function setupConfigurationListener(context, api) {
 /**
  * 设置主题监听
  */
-function setupThemeListener(context, api) {
-    const themeDisposable = api.ui.onThemeChanged((themeName) => {
+async function setupThemeListener(context, api) {
+    const themeDisposable = await api.ui.onThemeChanged((themeName) => {
         console.log('🎨 主题已切换:', themeName);
     });
     context.subscriptions.add(themeDisposable);
@@ -383,7 +269,7 @@ function setupThemeListener(context, api) {
  * 恢复主题
  */
 async function restoreTheme(api) {
-    const savedTheme = api.storage.get('themeEnhancer.currentTheme', config.currentTheme);
+    const savedTheme = await api.storage.get('themeEnhancer.currentTheme', config.currentTheme);
     if (savedTheme && PRESET_THEMES[savedTheme]) {
         await applyTheme(savedTheme, api, false);
     }
@@ -394,29 +280,27 @@ async function restoreTheme(api) {
  */
 async function applyTheme(themeName, api, showNotification = true) {
     if (!PRESET_THEMES[themeName]) {
-        api.ui.showNotification(`未知主题: ${themeName}`, 'error');
+        await api.ui.showNotification(`未知主题: ${themeName}`, 'error');
         return;
     }
 
     const theme = PRESET_THEMES[themeName];
 
-    // 应用基础主题（light/dark）
     const baseTheme = themeName === 'light' ? 'light' : 'dark';
-    api.ui.setTheme(baseTheme);
+    await api.ui.setTheme(baseTheme);
 
-    // 应用主题颜色
-    Object.entries(theme.colors).forEach(([name, value]) => {
-        api.ui.setCSSVariable(name, value);
-    });
+    for (const [name, value] of Object.entries(theme.colors)) {
+        await api.ui.setCSSVariable(name, value);
+    }
 
     currentTheme = themeName;
+    config.currentTheme = themeName;
 
-    // 保存主题
     await api.storage.update('themeEnhancer.currentTheme', themeName);
     await api.settings.set('themeEnhancer.currentTheme', themeName);
 
     if (showNotification) {
-        api.ui.showNotification(`已切换到${theme.name}主题`, 'success');
+        await api.ui.showNotification(`已切换到${theme.name}主题`, 'success');
     }
 
     console.log(`🎨 主题已应用: ${themeName}`);
@@ -426,9 +310,9 @@ async function applyTheme(themeName, api, showNotification = true) {
  * 应用自定义主题
  */
 async function applyCustomTheme(colors, api) {
-    Object.entries(colors).forEach(([name, value]) => {
-        api.ui.setCSSVariable(name, value);
-    });
+    for (const [name, value] of Object.entries(colors)) {
+        await api.ui.setCSSVariable(name, value);
+    }
 
     currentTheme = 'custom';
     config.customColors = colors;
@@ -436,284 +320,9 @@ async function applyCustomTheme(colors, api) {
     await api.storage.update('themeEnhancer.customColors', colors);
     await api.settings.set('themeEnhancer.customColors', colors);
     await api.settings.set('themeEnhancer.currentTheme', 'custom');
-    api.ui.showNotification('自定义主题已应用', 'success');
+    await api.ui.showNotification('自定义主题已应用', 'success');
 }
 
-/**
- * 创建主题选择器UI
- */
-function createThemeSelectorUI(api) {
-    // 创建悬浮按钮
-    const fab = document.createElement('button');
-    fab.className = 'theme-enhancer-fab';
-    fab.innerHTML = '🎨';
-
-    // 创建主题选择面板
-    const panel = document.createElement('div');
-    panel.className = 'theme-enhancer-panel';
-    panel.style.display = 'none';
-
-    const panelHeader = document.createElement('div');
-    panelHeader.className = 'theme-panel-header';
-    panelHeader.innerHTML = `
-        <h3>选择主题</h3>
-        <button class="theme-panel-close">×</button>
-    `;
-
-    const panelContent = document.createElement('div');
-    panelContent.className = 'theme-panel-content';
-
-    // 创建主题选项
-    Object.entries(PRESET_THEMES).forEach(([key, theme]) => {
-        const option = document.createElement('div');
-        option.className = 'theme-option';
-        option.dataset.theme = key;
-
-        const colorPreview = document.createElement('div');
-        colorPreview.className = 'theme-color-preview';
-        colorPreview.style.background = theme.colors['color-primary'];
-
-        const themeInfo = document.createElement('div');
-        themeInfo.className = 'theme-info';
-        themeInfo.innerHTML = `
-            <div class="theme-name">${theme.name}</div>
-            <div class="theme-desc">${key}</div>
-        `;
-
-        const checkmark = document.createElement('div');
-        checkmark.className = 'theme-checkmark';
-        checkmark.innerHTML = '✓';
-
-        option.appendChild(colorPreview);
-        option.appendChild(themeInfo);
-        option.appendChild(checkmark);
-
-        option.addEventListener('click', async () => {
-            await applyTheme(key, api);
-            updatePanelSelection();
-            hidePanel();
-        });
-
-        panelContent.appendChild(option);
-    });
-
-    panel.appendChild(panelHeader);
-    panel.appendChild(panelContent);
-
-    // 添加到DOM
-    document.body.appendChild(fab);
-    document.body.appendChild(panel);
-
-    // 更新选中状态
-    function updatePanelSelection() {
-        panelContent.querySelectorAll('.theme-option').forEach(opt => {
-            if (opt.dataset.theme === currentTheme) {
-                opt.classList.add('active');
-            } else {
-                opt.classList.remove('active');
-            }
-        });
-    }
-
-    // 显示面板
-    function showPanel() {
-        updatePanelSelection();
-        panel.style.display = 'block';
-        requestAnimationFrame(() => {
-            panel.classList.add('show');
-        });
-    }
-
-    // 隐藏面板
-    function hidePanel() {
-        panel.classList.remove('show');
-        setTimeout(() => {
-            panel.style.display = 'none';
-        }, 200);
-    }
-
-    // 事件监听
-    fab.addEventListener('click', () => {
-        if (panel.style.display === 'none') {
-            showPanel();
-        } else {
-            hidePanel();
-        }
-    });
-
-    panelHeader.querySelector('.theme-panel-close').addEventListener('click', hidePanel);
-
-    // 点击面板外部关闭
-    document.addEventListener('click', (e) => {
-        if (!panel.contains(e.target) && !fab.contains(e.target)) {
-            hidePanel();
-        }
-    });
-
-    // 添加样式
-    const style = document.createElement('style');
-    style.textContent = `
-        .theme-enhancer-fab {
-            position: fixed;
-            right: 24px;
-            bottom: 88px;
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: var(--color-primary);
-            color: white;
-            border: none;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            z-index: 98;
-        }
-
-        .theme-enhancer-fab:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        .theme-enhancer-fab:active {
-            transform: scale(0.95);
-        }
-
-        .theme-enhancer-panel {
-            position: fixed;
-            right: 24px;
-            bottom: 156px;
-            width: 320px;
-            background: var(--color-body-bg);
-            border: 1px solid var(--color-border);
-            border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-            z-index: 99;
-            opacity: 0;
-            transform: translateY(10px);
-            transition: all 0.2s ease;
-        }
-
-        .theme-enhancer-panel.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .theme-panel-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--color-border);
-        }
-
-        .theme-panel-header h3 {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--color-text);
-        }
-
-        .theme-panel-close {
-            background: none;
-            border: none;
-            font-size: 24px;
-            color: var(--color-text-secondary);
-            cursor: pointer;
-            padding: 0;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 4px;
-            transition: all 0.2s ease;
-        }
-
-        .theme-panel-close:hover {
-            background: var(--color-secondary-bg);
-            color: var(--color-text);
-        }
-
-        .theme-panel-content {
-            padding: 8px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .theme-option {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
-        }
-
-        .theme-option:hover {
-            background: var(--color-secondary-bg);
-        }
-
-        .theme-option.active {
-            background: rgba(var(--color-primary-rgb), 0.1);
-        }
-
-        .theme-color-preview {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            margin-right: 12px;
-            flex-shrink: 0;
-        }
-
-        .theme-info {
-            flex: 1;
-        }
-
-        .theme-name {
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--color-text);
-            margin-bottom: 2px;
-        }
-
-        .theme-desc {
-            font-size: 12px;
-            color: var(--color-text-secondary);
-        }
-
-        .theme-checkmark {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: var(--color-primary);
-            color: white;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: bold;
-        }
-
-        .theme-option.active .theme-checkmark {
-            display: flex;
-        }
-    `;
-    document.head.appendChild(style);
-
-    return {
-        dispose() {
-            fab.remove();
-            panel.remove();
-            style.remove();
-        }
-    };
-}
-
-// 导出扩展
 window.themeEnhancerExtension = {
     activate,
     deactivate

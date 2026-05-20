@@ -5,6 +5,7 @@ import {ComponentRegistry} from '@js/app/runtime/components/ComponentRegistry';
 import {DesktopLyricsButtonSync} from '@js/app/runtime/DesktopLyricsButtonSync';
 import {DOMEventBinder} from '@js/app/runtime/DOMEventBinder';
 import {NetworkDriveRouteController} from '@js/app/runtime/NetworkDriveRouteController';
+import {PlaybackQueueSyncService} from '@js/app/runtime/PlaybackQueueSyncService';
 import {PluginBootstrap} from '@js/app/runtime/PluginBootstrap';
 import {ShortcutController} from '@js/app/runtime/ShortcutController';
 import {ViewRouter} from '@js/app/runtime/ViewRouter';
@@ -47,6 +48,7 @@ export interface AppComposition {
     lifecycleController: AppLifecycleController;
     libraryController: LibraryAppController;
     networkDriveRouteController: NetworkDriveRouteController;
+    playbackQueueSyncService: PlaybackQueueSyncService;
     notifier: AppNotifier;
     playbackController: PlaybackAppController;
     playlistController: PlaylistController;
@@ -77,8 +79,7 @@ export function createAppComposition({
     const apiEventBinder = new APIEventBinder({
         app: hostPorts.apiEvents,
         apiEventListeners,
-        playbackUI: ui.playback,
-        queueUI: ui.queue
+        playbackUI: ui.playback
     });
     const shellView = new AppShellView({
         onScanMusicFolder: () => app.scanMusicFolder(),
@@ -101,6 +102,11 @@ export function createAppComposition({
     const viewRouter = new ViewRouter({app: hostPorts.viewRouter, content: ui.content});
     const notifier = new AppNotifier(shellView);
     const desktopLyricsButtonSync = new DesktopLyricsButtonSync(ui.playback);
+    const playbackQueueSyncService = new PlaybackQueueSyncService({
+        playback: playbackController,
+        queue: ui.queue
+    });
+    playbackQueueSyncService.start();
 
     const shortcutController = new ShortcutController({
         app: hostPorts.shortcuts,
@@ -142,13 +148,13 @@ export function createAppComposition({
     const libraryController = new LibraryAppController({
         app: hostPorts.library,
         integrations: {
-            getCurrentPlaybackTrack: () => playbackController.getCurrentTrackSnapshot()
+            getCurrentPlaybackTrack: () => playbackController.getCurrentTrackSnapshot(),
+            getPlaybackPlaylist: () => playbackController.getPlaylist(),
+            getCurrentPlaybackIndex: () => playbackController.getCurrentIndex(),
+            setPlaybackPlaylist: (tracks, startIndex) => playbackController.setPlaylist(tracks, startIndex)
         },
         ui: {
             setTrackListTracks: (tracks) => ui.content.setTrackListTracks(tracks),
-            updateQueuedTrack: (filePath, updatedData) => ui.queue.updateQueuedTrack(filePath, updatedData),
-            findQueueIndex: (predicate) => ui.queue.findQueueIndex(predicate),
-            removeQueueTrack: (index) => ui.queue.removeQueueTrack(index),
             removeTrackFromPlaylistDetail: (track, index) => ui.content.removeTrackFromPlaylistDetail(track, index),
             removeSelectedTracksFromPlaylistDetail: () => ui.content.removeSelectedTracksFromPlaylistDetail(),
             clearTrackListSelection: () => ui.content.clearTrackListSelection(),
@@ -170,15 +176,6 @@ export function createAppComposition({
             setPosition: (position) => playbackController.setPosition(position),
             setPlayMode: (mode) => playbackController.setPlayMode(mode),
             getPlaybackSnapshot: () => playbackController.getPlaybackSnapshot()
-        },
-        ui: {
-            hasQueue: () => ui.queue.hasQueue(),
-            getQueueTracks: () => ui.queue.getQueueTracks(),
-            isQueueEmpty: () => ui.queue.isQueueEmpty(),
-            syncQueueTracks: (tracks, currentIndex) => ui.queue.syncQueueTracks(tracks, currentIndex),
-            setQueueCurrentTrack: (index) => ui.queue.setQueueCurrentTrack(index),
-            findQueueIndex: (predicate) => ui.queue.findQueueIndex(predicate),
-            addQueueTrack: (track) => ui.queue.addQueueTrack(track)
         }
     });
 
@@ -187,13 +184,10 @@ export function createAppComposition({
         playback: {
             setPlaylist: (tracks, startIndex) => playbackController.setPlaylist(tracks, startIndex),
             getCurrentIndex: () => playbackController.getCurrentIndex(),
+            getPlaylist: () => playbackController.getPlaylist(),
             pause: () => playbackController.pause()
         },
         ui: {
-            hasQueue: () => ui.queue.hasQueue(),
-            getQueueTracks: () => ui.queue.getQueueTracks(),
-            getQueueCurrentIndex: () => ui.queue.getQueueCurrentIndex(),
-            addQueueTrack: (track) => ui.queue.addQueueTrack(track),
             showAddToPlaylistDialog: (track) => ui.dialogs.showAddToPlaylistDialog(track),
             showPlaylistDetail: (playlist) => ui.content.showPlaylistDetail(playlist),
             showMusicLibrarySelectionDialog: (playlist) => ui.dialogs.showMusicLibrarySelectionDialog(playlist),
@@ -235,6 +229,7 @@ export function createAppComposition({
         lifecycleController,
         libraryController,
         networkDriveRouteController,
+        playbackQueueSyncService,
         notifier,
         playbackController: playbackAppController,
         playlistController,

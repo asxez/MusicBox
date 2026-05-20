@@ -64,6 +64,51 @@ export interface ButtonSettingOptions {
 export type SelectOption = string | { value: string; label?: string };
 
 /**
+ * 网格选择项
+ */
+export interface ChoiceGridOption {
+    value: string;
+    label: string;
+    description?: string;
+    swatches?: string[];
+}
+
+/**
+ * 可序列化设置页贡献项类型
+ */
+export type SettingsContributionItemType = 'toggle' | 'select' | 'input' | 'color' | 'button' | 'choiceGrid';
+
+/**
+ * 可序列化设置页贡献项
+ */
+export interface SettingsContributionItem {
+    id: string;
+    type: SettingsContributionItemType;
+    label: string;
+    description?: string;
+    value?: boolean | string;
+    defaultValue?: boolean | string;
+    options?: SelectOption[];
+    choices?: ChoiceGridOption[];
+    inputType?: string;
+    placeholder?: string;
+    min?: number | string;
+    max?: number | string;
+    step?: number | string;
+    buttonText?: string;
+    secondary?: boolean;
+    onChange?: (value: boolean | string) => void | Promise<void>;
+    onClick?: () => void | Promise<void>;
+}
+
+/**
+ * 可序列化设置页贡献
+ */
+export interface SettingsContributionPage {
+    items: SettingsContributionItem[];
+}
+
+/**
  * 主题对象类型
  */
 export interface Theme {
@@ -203,6 +248,14 @@ export interface UIAPI {
      * @returns 可释放对象
      */
     registerSettingsPage(sectionId: string, renderFunction: (container: HTMLElement) => void): IDisposable;
+
+    /**
+     * 注册可序列化设置页内容
+     * @param sectionId - 对应的导航项ID
+     * @param page - 设置页 schema
+     * @returns 可释放对象
+     */
+    registerSettingsPageSchema(sectionId: string, page: SettingsContributionPage): IDisposable;
 
     /**
      * 创建开关设置项

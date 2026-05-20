@@ -1,6 +1,7 @@
 import type {Track} from '@api/types/track';
 import type {AudioEngineState} from './audioEngine';
 import type {AudioEngineManagerBridge} from './AudioEngineAdapter';
+import type {PlaybackRuntimeState} from './PlaybackRuntimeState';
 
 type PlaybackState = {
     currentTrack: Track | null;
@@ -12,19 +13,16 @@ type PlaybackState = {
 
 type PlaybackStateSynchronizerOptions = {
     getAudioEngine: () => AudioEngineManagerBridge | null;
-    getState: () => PlaybackState;
-    setState: (state: Partial<PlaybackState>) => void;
+    runtimeState: PlaybackRuntimeState;
 };
 
 export class PlaybackStateSynchronizer {
     private readonly getAudioEngine: () => AudioEngineManagerBridge | null;
-    private readonly getState: () => PlaybackState;
-    private readonly setState: (state: Partial<PlaybackState>) => void;
+    private readonly runtimeState: PlaybackRuntimeState;
 
-    constructor({getAudioEngine, getState, setState}: PlaybackStateSynchronizerOptions) {
+    constructor({getAudioEngine, runtimeState}: PlaybackStateSynchronizerOptions) {
         this.getAudioEngine = getAudioEngine;
-        this.getState = getState;
-        this.setState = setState;
+        this.runtimeState = runtimeState;
     }
 
     async syncFromEngine(overrides: Partial<AudioEngineState> = {}): Promise<PlaybackState | null> {
@@ -46,7 +44,7 @@ export class PlaybackStateSynchronizer {
             isPlaying: state.isPlaying
         };
 
-        this.setState(playbackState);
+        this.runtimeState.patch(playbackState);
         return playbackState;
     }
 
@@ -55,7 +53,7 @@ export class PlaybackStateSynchronizer {
         previousIndex: number;
         indexChanged: boolean;
     } {
-        const currentState = this.getState();
+        const currentState = this.runtimeState.getSnapshot();
         const previousIndex = currentState.currentIndex;
         const playbackState = {
             currentTrack: track as Track | null,
@@ -65,7 +63,7 @@ export class PlaybackStateSynchronizer {
             isPlaying: state.isPlaying
         };
 
-        this.setState(playbackState);
+        this.runtimeState.patch(playbackState);
         return {
             playbackState,
             previousIndex,

@@ -1,13 +1,14 @@
 import {showToast} from "@utils/index.js";
 import {appConfirmationService} from "@js/features/appShell/service";
 import {shortcutDialogService} from "./ShortcutDialogService";
-import {shortcutListRenderer} from "./ShortcutListRenderer";
+import {shortcutListRenderer, type ShortcutListAction} from "./ShortcutListRenderer";
 import {
     shortcutSettingsService,
     type ShortcutConflict,
     type ShortcutMap,
     type ShortcutType
 } from "./ShortcutSettingsService";
+import type {SettingsListenerScope} from "./SettingsListenerScope";
 
 export interface ShortcutSettingsElements {
     globalShortcutsToggle: HTMLInputElement | null;
@@ -20,19 +21,51 @@ export interface ShortcutSettingsElements {
 type ShortcutsUpdatedCallback = () => void;
 
 class ShortcutSettingsController {
-    initialize(elements: ShortcutSettingsElements, onShortcutsUpdated: ShortcutsUpdatedCallback): void {
-        elements.globalShortcutsToggle?.addEventListener('change', async () => {
+    initialize(elements: ShortcutSettingsElements, onShortcutsUpdated: ShortcutsUpdatedCallback, scope: SettingsListenerScope): void {
+        scope.listen(elements.globalShortcutsToggle, 'change', async () => {
             await this.toggleGlobalShortcuts(elements, elements.globalShortcutsToggle?.checked ?? false, onShortcutsUpdated);
         });
 
-        elements.resetShortcutsButton?.addEventListener('click', async () => {
+        scope.listen(elements.resetShortcutsButton, 'click', async () => {
             await this.showResetShortcutsDialog(elements, onShortcutsUpdated);
         });
 
-        this.initializeShortcuts(elements, onShortcutsUpdated);
+        this.bindShortcutListEvents(elements.localShortcutsList, onShortcutsUpdated, scope);
+        this.bindShortcutListEvents(elements.globalShortcutsList, onShortcutsUpdated, scope);
+        this.initializeShortcuts(elements);
     }
 
-    private initializeShortcuts(elements: ShortcutSettingsElements, onShortcutsUpdated: ShortcutsUpdatedCallback): void {
+    private bindShortcutListEvents(
+        container: HTMLElement | null,
+        onShortcutsUpdated: ShortcutsUpdatedCallback,
+        scope: SettingsListenerScope
+    ): void {
+        scope.listen(container, 'click', (event: Event) => {
+            void this.handleShortcutListAction(shortcutListRenderer.resolveAction(event.target), onShortcutsUpdated);
+        });
+
+        scope.listen(container, 'change', (event: Event) => {
+            void this.handleShortcutListAction(shortcutListRenderer.resolveAction(event.target), onShortcutsUpdated);
+        });
+    }
+
+    private async handleShortcutListAction(
+        action: ShortcutListAction | null,
+        onShortcutsUpdated: ShortcutsUpdatedCallback
+    ): Promise<void> {
+        if (!action) {
+            return;
+        }
+
+        if (action.type === 'record') {
+            this.startRecordingShortcut(action.shortcutType, action.id, action.keyElement, onShortcutsUpdated);
+            return;
+        }
+
+        this.toggleShortcut(action.shortcutType, action.id, action.enabled, onShortcutsUpdated);
+    }
+
+    private initializeShortcuts(elements: ShortcutSettingsElements): void {
         const config = shortcutSettingsService.getConfig();
 
         if (elements.globalShortcutsToggle) {
@@ -40,26 +73,21 @@ class ShortcutSettingsController {
         }
 
         this.updateGlobalShortcutsVisibility(elements, config.enableGlobalShortcuts);
-        this.renderShortcutsList(elements, 'local', config.localShortcuts, onShortcutsUpdated);
-        this.renderShortcutsList(elements, 'global', config.globalShortcuts, onShortcutsUpdated);
+        this.renderShortcutsList(elements, 'local', config.localShortcuts);
+        this.renderShortcutsList(elements, 'global', config.globalShortcuts);
         shortcutSettingsService.initializeCollapsibleShortcuts();
     }
 
     private renderShortcutsList(
         elements: ShortcutSettingsElements,
         type: ShortcutType,
-        shortcuts: ShortcutMap,
-        onShortcutsUpdated: ShortcutsUpdatedCallback
+        shortcuts: ShortcutMap
     ): void {
         const container = type === 'local' ? elements.localShortcutsList : elements.globalShortcutsList;
         shortcutListRenderer.render({
             container,
             type,
-            shortcuts,
-            onRecord: (shortcutType, id, keyElement) =>
-                this.startRecordingShortcut(shortcutType, id, keyElement, onShortcutsUpdated),
-            onToggle: (shortcutType, id, enabled) =>
-                this.toggleShortcut(shortcutType, id, enabled, onShortcutsUpdated)
+            shortcuts
         });
     }
 
@@ -191,7 +219,7 @@ class ShortcutSettingsController {
             return;
         }
 
-        this.initializeShortcuts(elements, onShortcutsUpdated);
+        this.initializeShortcuts(elements);
         shortcutSettingsService.refreshSummary();
         showToast('快捷键已重置为默认设置', 'success');
         onShortcutsUpdated();

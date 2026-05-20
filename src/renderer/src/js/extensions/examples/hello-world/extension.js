@@ -18,25 +18,25 @@ async function activate(context) {
     const api = getExtensionAPI(context);
 
     // 显示欢迎通知
-    api.ui.showNotification('Hello World Extension 已加载！', 'success');
+    await api.ui.showNotification('Hello World Extension 已加载！', 'success');
 
     // 注册命令
-    const disposable = api.commands.registerCommand('helloWorld.sayHello', () => {
-        api.ui.showNotification('Hello from Extension!', 'info');
+    const disposable = await api.commands.registerCommand('helloWorld.sayHello', async () => {
+        await api.ui.showNotification('Hello from Extension!', 'info');
     });
 
     // 添加到订阅列表，确保在扩展停用时清理
     context.subscriptions.add(disposable);
 
     // 监听播放器事件
-    const eventDisposable = api.events.on('trackChanged', (track) => {
+    const eventDisposable = await api.events.on('trackChanged', (track) => {
         console.log('🎵 当前播放:', track?.title || '未知');
     });
 
     context.subscriptions.add(eventDisposable);
 
     // 使用存储 API
-    const visitCount = api.storage.get('visitCount', 0);
+    const visitCount = await api.storage.get('visitCount', 0);
     await api.storage.update('visitCount', visitCount + 1);
     console.log(`📊 扩展已被激活 ${visitCount + 1} 次`);
 

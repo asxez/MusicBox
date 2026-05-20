@@ -8,6 +8,7 @@ import {ComponentRegistry} from './components/ComponentRegistry';
 import {DesktopLyricsButtonSync} from './DesktopLyricsButtonSync';
 import {DOMEventBinder} from './DOMEventBinder';
 import {NetworkDriveRouteController} from './NetworkDriveRouteController';
+import {PlaybackQueueSyncService} from './PlaybackQueueSyncService';
 import {PluginBootstrap} from './PluginBootstrap';
 import {ShortcutController} from './ShortcutController';
 import {ViewRouter} from './ViewRouter';
@@ -56,6 +57,7 @@ export class MusicBoxApp extends EventEmitter {
     private readonly playlistController: PlaylistController;
     private readonly ui: AppUIPorts;
     private readonly desktopLyricsButtonSync: DesktopLyricsButtonSync;
+    private readonly playbackQueueSyncService: PlaybackQueueSyncService;
     private readonly lifecycleController: AppLifecycleController;
     private readonly networkDriveRouteController: NetworkDriveRouteController;
     private readonly notifier: AppNotifier;
@@ -83,6 +85,7 @@ export class MusicBoxApp extends EventEmitter {
         this.pluginBootstrap = composition.pluginBootstrap;
         this.libraryController = composition.libraryController;
         this.desktopLyricsButtonSync = composition.desktopLyricsButtonSync;
+        this.playbackQueueSyncService = composition.playbackQueueSyncService;
         this.playbackController = composition.playbackController;
         this.playlistController = composition.playlistController;
         this.networkDriveRouteController = composition.networkDriveRouteController;
@@ -414,6 +417,7 @@ export class MusicBoxApp extends EventEmitter {
         await this.lifecycleController.cleanup();
         this.domEventBinder.dispose();
         this.apiEventBinder.dispose();
+        this.playbackQueueSyncService.dispose();
 
         this.componentRegistry.destroyAllComponents();
     }
@@ -501,8 +505,8 @@ export class MusicBoxApp extends EventEmitter {
     }
 
     // 播放播放列表中的歌曲
-    async playTrackFromPlaylist(track: Track, index: number): Promise<void> {
-        await this.playbackController.playTrackFromPlaylist(track, index);
+    async playTrackFromPlaylist(track: Track, index: number, tracks?: Track[]): Promise<void> {
+        await this.playbackController.playTrackFromPlaylist(track, index, tracks);
     }
 
     // 处理歌曲索引更改（用于 prev/next 按钮）
@@ -520,8 +524,8 @@ export class MusicBoxApp extends EventEmitter {
         await this.libraryController.handleDeleteTrack(track, index);
     }
 
-    addToPlaylist(track: Track): void {
-        this.playlistController.addToPlaylist(track);
+    async addToPlaylist(track: Track): Promise<void> {
+        await this.playlistController.addToPlaylist(track);
     }
 
     async handleBatchDelete(selectedTracks: Set<number> | null | undefined, track: Track, index: number): Promise<void> {

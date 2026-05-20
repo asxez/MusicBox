@@ -24,16 +24,7 @@ export class PlaybackApiAdapter {
             return this.getFallbackInitialState();
         }
 
-        return {
-            currentTrack: api.currentTrack ?? null,
-            currentIndex: api.currentIndex,
-            playlist: api.playlist,
-            isPlaying: api.isPlaying,
-            position: api.position,
-            duration: api.duration,
-            volume: api.volume,
-            playMode: api.getPlayMode()
-        };
+        return api.getPlaybackRuntimeSnapshot();
     }
 
     async play(): Promise<boolean> {
