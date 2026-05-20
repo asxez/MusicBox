@@ -12,6 +12,27 @@ export class WindowController extends BaseController {
         super();
     }
 
+    private clamp(value: number, min: number, max: number): number {
+        return Math.max(min, Math.min(max, Math.round(value)));
+    }
+
+    private fitBoundsToDisplay(
+        bounds: Electron.Rectangle,
+        minWidth = 400,
+        minHeight = 120
+    ): Electron.Rectangle {
+        const display = screen.getDisplayMatching(bounds);
+        const {workArea} = display;
+        const widthMin = Math.min(minWidth, workArea.width);
+        const heightMin = Math.min(minHeight, workArea.height);
+        const width = this.clamp(bounds.width, widthMin, workArea.width);
+        const height = this.clamp(bounds.height, heightMin, workArea.height);
+        const x = this.clamp(bounds.x, workArea.x, workArea.x + Math.max(0, workArea.width - width));
+        const y = this.clamp(bounds.y, workArea.y, workArea.y + Math.max(0, workArea.height - height));
+
+        return {x, y, width, height};
+    }
+
     override register(): void {
         super.register();
         // custom-adsorption and clear-size-cache use ipcMain.on (not decorated)
@@ -25,12 +46,18 @@ export class WindowController extends BaseController {
                 const y = Math.round(res.appY);
                 const targetWidth = this.cachedOriginalSize ? this.cachedOriginalSize.width : win.getSize()[0];
                 const targetHeight = this.cachedOriginalSize ? this.cachedOriginalSize.height : win.getSize()[1];
-                win.setBounds({ x, y, width: targetWidth, height: targetHeight });
+                win.setBounds(this.fitBoundsToDisplay({ x, y, width: targetWidth, height: targetHeight }));
                 setTimeout(() => {
                     if (!win || win.isDestroyed()) return;
                     const [afterWidth, afterHeight] = win.getSize();
                     if (afterWidth !== targetWidth || afterHeight !== targetHeight) {
-                        try { win.setSize(targetWidth, targetHeight); } catch { }
+                        try {
+                            win.setBounds(this.fitBoundsToDisplay({
+                                ...win.getBounds(),
+                                width: targetWidth,
+                                height: targetHeight
+                            }));
+                        } catch { }
                     }
                 }, 0);
             }
@@ -80,10 +107,13 @@ export class WindowController extends BaseController {
         const win = this.windowManager.getMainWindow();
         if (win && !win.isMaximized()) {
             try {
-                const w = Math.max(400, Math.min(3840, Math.round(width)));
-                const h = Math.max(120, Math.min(2160, Math.round(height)));
-                win.setSize(w, h);
-                return {success: true, width: w, height: h};
+                const fittedBounds = this.fitBoundsToDisplay({
+                    ...win.getBounds(),
+                    width: Math.round(width),
+                    height: Math.round(height)
+                });
+                win.setBounds(fittedBounds);
+                return {success: true, width: fittedBounds.width, height: fittedBounds.height};
             } catch (error: any) {
                 return {success: false, error: error.message};
             }
@@ -96,7 +126,7 @@ export class WindowController extends BaseController {
         const win = this.windowManager.getMainWindow();
         if (win) {
             try {
-                win.setBounds(bounds);
+                win.setBounds(this.fitBoundsToDisplay(bounds));
                 return {success: true};
             } catch (error: any) {
                 return {success: false, error: error.message};
@@ -174,27 +204,34 @@ export class WindowController extends BaseController {
                 win.setMaximizable(false);
                 win.setMinimumSize(width, height);
                 win.setMaximumSize(width, height);
-                win.setBounds({x, y, width, height});
+                win.setBounds(this.fitBoundsToDisplay({x, y, width, height}, width, height));
                 win.setResizable(false);
                 win.setSkipTaskbar(true);
                 win.setAlwaysOnTop(true);
             } else {
                 const display = screen.getDisplayMatching(win.getBounds());
-                const maxWidth = Math.max(3840, display.workAreaSize.width);
-                const maxHeight = Math.max(2160, display.workAreaSize.height);
-                const width = Math.max(1080, Math.min(maxWidth, Math.round(options.width ?? 1440)));
-                const height = Math.max(720, Math.min(maxHeight, Math.round(options.height ?? 900)));
-                const bounds = win.getBounds();
+                const {workArea} = display;
+                const minWidth = Math.min(1080, workArea.width);
+                const minHeight = Math.min(720, workArea.height);
+                const maxWidth = Math.max(3840, workArea.width);
+                const maxHeight = Math.max(2160, workArea.height);
+                const width = this.clamp(Math.round(options.width ?? 1440), minWidth, workArea.width);
+                const height = this.clamp(Math.round(options.height ?? 900), minHeight, workArea.height);
+                const fittedBounds = this.fitBoundsToDisplay(
+                    {...win.getBounds(), width, height},
+                    minWidth,
+                    minHeight
+                );
 
                 this.cachedOriginalSize = null;
                 win.setResizable(true);
                 win.setMaximizable(true);
                 win.setMinimumSize(1, 1);
                 win.setMaximumSize(maxWidth, maxHeight);
-                win.setMinimumSize(1080, 720);
+                win.setMinimumSize(minWidth, minHeight);
                 win.setSkipTaskbar(false);
                 win.setAlwaysOnTop(false);
-                win.setBounds({x: bounds.x, y: bounds.y, width, height});
+                win.setBounds(fittedBounds);
             }
 
             return {
@@ -213,7 +250,12 @@ export class WindowController extends BaseController {
         const win = this.windowManager.getMainWindow();
         if (win && !win.isMaximized()) {
             try {
-                win.setPosition(Math.round(x), Math.round(y));
+                const fittedBounds = this.fitBoundsToDisplay({
+                    ...win.getBounds(),
+                    x: Math.round(x),
+                    y: Math.round(y)
+                });
+                win.setBounds(fittedBounds);
                 return {success: true};
             } catch (error: any) {
                 return {success: false, error: error.message};

@@ -3,7 +3,7 @@
  * 负责创建和管理应用窗口
  */
 
-import {app, BrowserWindow} from 'electron';
+import {app, BrowserWindow, screen} from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -86,6 +86,25 @@ export class WindowManager {
         );
     }
 
+    private clamp(value: number, min: number, max: number): number {
+        return Math.max(min, Math.min(max, Math.round(value)));
+    }
+
+    private getMainWindowBounds(config: SavedWindowConfig): Electron.Rectangle {
+        const {workArea} = screen.getPrimaryDisplay();
+        const minWidth = Math.min(config.minWidth || 1080, workArea.width);
+        const minHeight = Math.min(config.minHeight || 720, workArea.height);
+        const width = this.clamp(config.width, minWidth, workArea.width);
+        const height = this.clamp(config.height, minHeight, workArea.height);
+
+        return {
+            x: Math.round(workArea.x + Math.max(0, (workArea.width - width) / 2)),
+            y: Math.round(workArea.y + Math.max(0, (workArea.height - height) / 2)),
+            width,
+            height
+        };
+    }
+
     /**
      * 创建主窗口
      */
@@ -96,12 +115,15 @@ export class WindowManager {
         }
 
         const windowConfig = await this.loadWindowConfig();
+        const mainBounds = this.getMainWindowBounds(windowConfig);
 
         this.mainWindow = new BrowserWindow({
-            width: windowConfig.width,
-            height: windowConfig.height,
-            minWidth: windowConfig.minWidth || 1080,
-            minHeight: windowConfig.minHeight || 720,
+            x: mainBounds.x,
+            y: mainBounds.y,
+            width: mainBounds.width,
+            height: mainBounds.height,
+            minWidth: Math.min(windowConfig.minWidth || 1080, mainBounds.width),
+            minHeight: Math.min(windowConfig.minHeight || 720, mainBounds.height),
             titleBarStyle: 'hidden',
             frame: false,
             show: false,
@@ -248,6 +270,8 @@ export class WindowManager {
             y: lyricsY,
             frame: false,
             transparent: true,
+            backgroundColor: '#00000000',
+            hasShadow: false,
             alwaysOnTop: true,
             skipTaskbar: true,
             resizable: false,
@@ -265,6 +289,8 @@ export class WindowManager {
                 contextIsolation: true
             }
         });
+        this.desktopLyricsWindow.setBackgroundColor('#00000000');
+        this.desktopLyricsWindow.setHasShadow(false);
         this.desktopLyricsWindow.setIgnoreMouseEvents(true, {forward: true});
 
         // 加载桌面歌词页面

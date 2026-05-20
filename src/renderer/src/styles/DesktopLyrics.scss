@@ -10,7 +10,7 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: transparent;
+  background: rgba(0, 0, 0, 0);
   user-select: none;
   -webkit-user-select: none;
   -webkit-app-region: no-drag;
@@ -111,33 +111,35 @@ html, body {
 .lyric-word {
   position: relative;
   display: inline-block;
-  transition: color linear;
-
-  // 默认未播放状态
   color: var(--dl-font-color, #000);
+  --word-progress: 0;
+  --word-reveal-inset: 100%;
 
-  // 高亮状态（正在播放）- 使用渐变实现填充扫过效果
-  &.highlight {
+  &::after {
+    content: attr(data-word-text);
+    position: absolute;
+    inset: 0;
     color: var(--theme-color, #335eea);
     font-weight: 700;
-
-    // 渐进填充效果（使用CSS变量--word-progress控制）
-    background: linear-gradient(
-                    to right,
-                    var(--theme-color, #335eea) 0%,
-                    var(--theme-color, #335eea) calc(var(--word-progress, 0) * 100%),
-                    var(--dl-font-color, #000) calc(var(--word-progress, 0) * 100%),
-                    var(--dl-font-color, #000) 100%
-    );
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    overflow: hidden;
+    pointer-events: none;
+    clip-path: inset(0 var(--word-reveal-inset) 0 0);
   }
 
-  // 已播放状态
-  &.played {
-    color: var(--theme-color, #335eea);
+  &.highlight {
     font-weight: 700;
+
+    &::after {
+      will-change: clip-path;
+    }
+  }
+
+  &.played {
+    font-weight: 700;
+
+    &::after {
+      clip-path: inset(0 0 0 0);
+    }
   }
 }
 

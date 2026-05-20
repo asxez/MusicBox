@@ -18,7 +18,9 @@ export function createLyricsWordFragment(words: readonly LyricsWordDom[]): Docum
         wordSpan.dataset.wordTime = String(word.time);
         wordSpan.dataset.wordText = word.text;
         wordSpan.textContent = word.text;
+        wordSpan.dataset.wordProgress = '0';
         wordSpan.style.setProperty('--word-progress', '0');
+        wordSpan.style.setProperty('--word-reveal-inset', '100%');
         fragment.appendChild(wordSpan);
     }
 

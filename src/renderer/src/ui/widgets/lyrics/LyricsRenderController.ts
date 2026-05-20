@@ -36,6 +36,7 @@ class LyricsRenderController {
     showNoLyrics(): void {
         this.lyrics = [];
         this.currentLyricIndex = -1;
+        this.wordHighlightController.clearActiveHighlight();
         this.lyricsDisplay.innerHTML = `
             <div class="lyrics-text">
                 <div class="lyrics-line-spacer"></div>
@@ -66,6 +67,7 @@ class LyricsRenderController {
         });
 
         this.currentLyricIndex = -1;
+        this.wordHighlightController.clearActiveHighlight();
         this.wordHighlightController.resetPlaybackPosition();
     }
 
@@ -120,6 +122,10 @@ class LyricsRenderController {
         this.wordHighlightController.resetPlaybackPosition();
     }
 
+    setPlaying(isPlaying: boolean): void {
+        this.wordHighlightController.setPlaying(isPlaying);
+    }
+
     reset(): void {
         this.wordHighlightController.reset();
         this.lyrics = [];
@@ -163,6 +169,8 @@ class LyricsRenderController {
 
         if (newIndex >= 0 && this.lyrics[newIndex].type === 'word-by-word') {
             this.updateWordHighlight(newIndex, currentTime);
+        } else {
+            this.wordHighlightController.clearActiveHighlight();
         }
     }
 

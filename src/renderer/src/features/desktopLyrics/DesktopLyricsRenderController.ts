@@ -24,12 +24,14 @@ export class DesktopLyricsRenderController {
     updateLyrics(lyricsData: DesktopLyricLine[] | string | unknown): void {
         if (!Array.isArray(lyricsData)) {
             this.lyrics = [];
+            this.wordHighlightController.clearActiveHighlight();
             this.showDefaultLyrics();
             return;
         }
 
         this.lyrics = lyricsData;
         this.currentLyricIndex = -1;
+        this.wordHighlightController.clearActiveHighlight();
         this.renderCurrentLyric();
     }
 
@@ -57,6 +59,10 @@ export class DesktopLyricsRenderController {
         this.showDefaultLyrics();
     }
 
+    setPlaying(isPlaying: boolean): void {
+        this.wordHighlightController.setPlaying(isPlaying);
+    }
+
     private updateLyricHighlight(currentTime: number): void {
         if (this.lyrics.length === 0) {
             return;
@@ -70,6 +76,8 @@ export class DesktopLyricsRenderController {
 
         if (newIndex >= 0 && this.lyrics[newIndex].type === 'word-by-word') {
             this.updateWordHighlight(newIndex, currentTime);
+        } else {
+            this.wordHighlightController.clearActiveHighlight();
         }
     }
 
@@ -88,6 +96,7 @@ export class DesktopLyricsRenderController {
 
     private renderCurrentLine(lyric: DesktopLyricLine): void {
         if (lyric.type !== 'word-by-word' || !lyric.words) {
+            this.wordHighlightController.clearActiveHighlight();
             this.elements.currentLyricEl.textContent = lyric.content || '';
             return;
         }

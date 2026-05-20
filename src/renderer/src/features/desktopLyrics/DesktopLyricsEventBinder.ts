@@ -53,7 +53,9 @@ export class DesktopLyricsEventBinder {
         });
 
         desktopLyricsWindowService.onPlaybackStateChanged((state: DesktopLyricsPlaybackState) => {
-            setPlaybackState({isPlaying: state?.isPlaying || false});
+            const isPlaying = state?.isPlaying || false;
+            renderController.setPlaying(isPlaying);
+            setPlaybackState({isPlaying});
         });
 
         desktopLyricsWindowService.onTrackChanged((_track: Track | null) => {

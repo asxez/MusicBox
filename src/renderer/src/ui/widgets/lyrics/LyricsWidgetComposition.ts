@@ -92,6 +92,7 @@ class LyricsWidgetComposition {
             },
             onPlaybackStateChanged: (isPlaying) => {
                 this.playbackControls.setPlaying(isPlaying);
+                this.renderController.setPlaying(isPlaying);
             },
             onDurationChanged: (duration) => {
                 this.playbackControls.updateDuration(duration);
@@ -143,6 +144,7 @@ class LyricsWidgetComposition {
     resetAfterHide(): void {
         this.trackInfoController.reset();
         this.lyricsLoader.reset();
+        this.renderController.setPlaying(false);
         this.renderController.resetPlaybackPosition();
     }
 
@@ -160,6 +162,7 @@ class LyricsWidgetComposition {
 
     async initializeControls(): Promise<void> {
         await this.playbackControls.initialize();
+        this.renderController.setPlaying(playbackUiStateService.getState().isPlaying);
     }
 
     async togglePlayPause(): Promise<void> {
@@ -172,6 +175,7 @@ class LyricsWidgetComposition {
 
     updatePlayButton(): void {
         this.playbackControls.setPlaying(playbackUiStateService.getState().isPlaying);
+        this.renderController.setPlaying(playbackUiStateService.getState().isPlaying);
     }
 
     async setVolume(volume: number): Promise<void> {
