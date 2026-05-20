@@ -21,9 +21,11 @@ import {PlaybackAppController} from '@js/features/playback/ui-bindings/PlaybackA
 import {cacheManager} from "@js/shared/cache";
 import {playbackController as playbackFeatureController} from "@js/features/playback/PlaybackController";
 import type {MusicBoxAPIEvents, ScanProgress} from "@api/types/events";
+import type {PlayMode} from "@api/types/playback";
 import type {Playlist} from "@api/types/playlist";
 import type {Track} from "@api/types/track";
 import type {ComponentMap} from "./components/ComponentTypes";
+import type {ComponentEventName} from './components/bindings/ComponentBindingTypes';
 import type {AppUIPorts} from './ui/AppUIPorts';
 import type {
     AppView,
@@ -33,6 +35,11 @@ import type {
 } from "@js/shared/types/AppContracts";
 
 type ShortcutDefinitionMap = Record<string, any>;
+const PLAY_MODES: readonly PlayMode[] = ['sequence', 'shuffle', 'repeat-one'];
+
+function isPlayMode(value: unknown): value is PlayMode {
+    return typeof value === 'string' && PLAY_MODES.includes(value as PlayMode);
+}
 
 export class MusicBoxApp extends EventEmitter {
     private readonly state: AppRuntimeState;
@@ -144,7 +151,10 @@ export class MusicBoxApp extends EventEmitter {
     }
 
     async initializeAPI(): Promise<void> {
-        playbackFeatureController.setPlayMode(cacheManager.getLocalCache('playMode') as any);
+        const cachedPlayMode = cacheManager.getLocalCache('playMode');
+        if (isPlayMode(cachedPlayMode)) {
+            playbackFeatureController.setPlayMode(cachedPlayMode);
+        }
         const success = await playbackFeatureController.initializeAudio();
         if (!success) throw new Error('Failed to initialize audio engine');
     }
@@ -268,7 +278,7 @@ export class MusicBoxApp extends EventEmitter {
     }
 
     setupComponentEvents(componentName: string | null = null): void {
-        this.componentEventBinder.setupComponentEvents(componentName as any);
+        this.componentEventBinder.setupComponentEvents(componentName as ComponentEventName | null);
     }
 
     setupSingleComponentEvents(componentName: string): void {
