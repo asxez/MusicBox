@@ -6,6 +6,7 @@
 import {BaseAPI} from "@api/core";
 import type {CacheStatistics, GetTracksOptions, Playlist, Result, Track} from "@api/types";
 import {libraryDataService} from "@js/features/library/service/LibraryDataService";
+import {libraryService} from "@js/features/library/service/LibraryService";
 
 export class LibraryAPI extends BaseAPI {
     constructor() {
@@ -37,7 +38,7 @@ export class LibraryAPI extends BaseAPI {
     }
 
     async clearCache(): Promise<boolean> {
-        return await libraryDataService.clearCache();
+        return await libraryService.clearCache();
     }
 
     async getPlaylists(): Promise<Playlist[]> {

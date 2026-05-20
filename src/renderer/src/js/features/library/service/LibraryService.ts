@@ -90,7 +90,7 @@ export class LibraryService {
         return await this.bridge.clearCache();
     }
 
-    emitLibraryUpdated(tracks?: Track[]): void {
+    emitLibraryUpdated(tracks: Track[] = []): void {
         appEventService.emit('libraryUpdated', tracks);
     }
 

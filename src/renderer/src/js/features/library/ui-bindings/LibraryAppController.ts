@@ -261,7 +261,7 @@ export class LibraryAppController {
                 }
 
                 this.updateTrackList('track-deleted');
-                libraryService.emitLibraryUpdated();
+                libraryService.emitLibraryUpdated(app.library);
                 app.showInfo(`已从音乐库删除 "${track.title}"`);
             } else {
                 app.showError(result.error || '删除失败');
@@ -317,7 +317,7 @@ export class LibraryAppController {
         this.ui.clearTrackListSelection();
 
         this.updateTrackList('track-deleted');
-        libraryService.emitLibraryUpdated();
+        libraryService.emitLibraryUpdated(app.library);
         app.showInfo(`已从音乐库删除 ${successCount} 首歌曲`);
     }
 

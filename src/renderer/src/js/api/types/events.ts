@@ -32,7 +32,7 @@ export interface MusicBoxAPIEvents {
     playlistChanged: Track[];
     playModeChanged: PlayMode;
     audioEngineChanged: AudioEngineChangedEvent;
-    libraryUpdated: Track[] | undefined;
+    libraryUpdated: Track[];
     scanProgress: ScanProgress;
     cacheValidationProgress: ScanProgress;
     cacheValidationCompleted: CacheValidationResult;

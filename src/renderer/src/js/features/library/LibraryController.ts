@@ -71,7 +71,7 @@ class LibraryController {
         return await libraryService.clearIgnoreList();
     }
 
-    emitLibraryUpdated(tracks?: Track[]): void {
+    emitLibraryUpdated(tracks: Track[] = []): void {
         libraryService.emitLibraryUpdated(tracks);
     }
 
