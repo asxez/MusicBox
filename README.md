@@ -25,7 +25,7 @@
 
 ## 📖 项目简介
 
-- **MusicBox**是一款专注于本地音乐播放的桌面应用程序，采用现代化的技术栈和精美的用户界面设计。
+- **MusicBox**是一款专注于本地音乐播放的 Electron 桌面应用，采用现代化的技术栈和精美的用户界面设计。
 - 项目灵感来源于 [YesPlayMusic](https://github.com/qier222/YesPlayMusic) 的设计美学。
 
 ## ✨ 特性

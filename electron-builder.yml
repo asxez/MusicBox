@@ -1,6 +1,6 @@
 appId: com.musicbox.app
 productName: MusicBox
-copyright: Copyright © 2025-2026 asxez MusicBox
+copyright: Copyright © 2025-present asxez MusicBox
 directories:
   output: dist
   buildResources: build
