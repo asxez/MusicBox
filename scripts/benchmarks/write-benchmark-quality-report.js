@@ -273,6 +273,8 @@ function main() {
             {label: 'Seek success', value: row => row.seekSuccessRate_mean},
             {label: 'Seek mean ms', value: row => row.seekLatencyMeanMs_mean},
             {label: 'Load ms', value: row => row.loadTrackMs_mean},
+            {label: 'Load read ms', value: row => row.loadTrackReadMs_mean || '0.000'},
+            {label: 'Load decode ms', value: row => row.loadTrackDecodeMs_mean || '0.000'},
             {label: 'IPC 1 MB ms', value: row => row.ipc1MBMeanMs_mean},
             {label: 'IPC 4 MB ms', value: row => row.ipc4MBMeanMs_mean || '0.000'},
             {label: 'IPC 8 MB ms', value: row => row.ipc8MBMeanMs_mean || '0.000'}
@@ -330,6 +332,7 @@ function main() {
         '- IPC payload latencies are control-plane measurements only. They must not be interpreted as WebAudio or WASAPI playback latency.',
         '- Seek timing is API command duration only. It is not an acoustic settling or first-audible-frame latency metric.',
         '- WebAudio `loadTrack` reads and decodes a full `AudioBuffer` through the Electron path, whereas native `loadTrack` uses the Rust/WASAPI path. These measurements therefore describe the tested application strategies, not intrinsic technology limits.',
+        '- WebAudio load read/decode columns decompose the full-file IPC read and `decodeAudioData` work; native rows remain zero because native `loadTrack` opens/probes the file and streams decoding during playback.',
         '- Warm-up runs are retained for auditability but excluded from condition means and confidence intervals.',
         '- Expected WASAPI fallback warnings are environment evidence, not fatal errors.',
         '- Positive memory slopes should be discussed directly; negative short-run slopes are not evidence of stable leak-free reclamation by themselves.',

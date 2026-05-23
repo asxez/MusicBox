@@ -128,6 +128,19 @@ function main() {
             ]
         },
         {
+            id: 'mp3_44k_180s',
+            out: path.join(AUDIO_DIR, 'open-goldberg-44k-stereo-180s.mp3'),
+            command: [
+                '-y',
+                '-i', args.source,
+                '-t', String(args.shortDurationSec),
+                '-ar', '44100',
+                '-ac', '2',
+                '-c:a', 'libmp3lame',
+                '-b:a', '192k'
+            ]
+        },
+        {
             id: 'goldberg_loop_flac_48k_10min',
             out: path.join(AUDIO_DIR, 'open-goldberg-loop-48k-stereo-10min.flac'),
             command: [

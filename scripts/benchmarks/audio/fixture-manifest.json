@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-04T14:12:59.067Z",
+  "generatedAt": "2026-05-23T06:22:25.102Z",
   "source": "scripts\\benchmarks\\audio\\open-goldberg-aria.flac",
   "shortDurationSec": 180,
   "mediumDurationSec": 660,
@@ -43,6 +43,28 @@
         "-compression_level",
         "8",
         "scripts\\benchmarks\\audio\\open-goldberg-96k-stereo-180s.flac"
+      ]
+    },
+    {
+      "id": "mp3_44k_180s",
+      "source": "scripts\\benchmarks\\audio\\open-goldberg-aria.flac",
+      "path": "scripts\\benchmarks\\audio\\open-goldberg-44k-stereo-180s.mp3",
+      "bytes": 4321977,
+      "ffmpegArgs": [
+        "-y",
+        "-i",
+        "scripts\\benchmarks\\audio\\open-goldberg-aria.flac",
+        "-t",
+        "180",
+        "-ar",
+        "44100",
+        "-ac",
+        "2",
+        "-c:a",
+        "libmp3lame",
+        "-b:a",
+        "192k",
+        "scripts\\benchmarks\\audio\\open-goldberg-44k-stereo-180s.mp3"
       ]
     },
     {
