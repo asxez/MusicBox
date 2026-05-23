@@ -45,6 +45,7 @@ function parseArgs(argv) {
         figures: true,
         logCheck: true,
         dryRun: false,
+        requireCleanGit: false,
     };
 
     for (let i = 0; i < argv.length; i++) {
@@ -57,8 +58,9 @@ function parseArgs(argv) {
         else if (arg === '--no-figures') args.figures = false;
         else if (arg === '--no-log-check') args.logCheck = false;
         else if (arg === '--dry-run') args.dryRun = true;
+        else if (arg === '--require-clean-git') args.requireCleanGit = true;
         else if (arg === '--help' || arg === '-h') {
-            console.log('Usage: node scripts/benchmarks/run-benchmark-matrix.js --config paper/experiments/benchmark-matrix.json [--experiment-name name] [--experiment-dir path] [--out-dir rawPath] [--no-log-check] [--no-summary] [--no-figures] [--dry-run]');
+            console.log('Usage: node scripts/benchmarks/run-benchmark-matrix.js --config paper/experiments/benchmark-matrix.json [--experiment-name name] [--experiment-dir path] [--out-dir rawPath] [--no-log-check] [--no-summary] [--no-figures] [--dry-run] [--require-clean-git]');
             process.exit(0);
         }
     }
@@ -331,6 +333,12 @@ function main() {
     const args = parseArgs(process.argv.slice(2));
     const config = JSON.parse(fs.readFileSync(args.config, 'utf8'));
     validateConfig(args.config, config);
+    if (args.requireCleanGit) {
+        const gitStatusShort = runGit(['status', '--short']);
+        if (gitStatusShort) {
+            throw new Error(`Working tree is dirty; commit, stash, or archive the diff before formal benchmarking:\n${gitStatusShort}`);
+        }
+    }
     const paths = resolveExperimentPaths(args, config);
     const commands = buildCommands(config, paths.rawDir);
     if (!args.dryRun) {

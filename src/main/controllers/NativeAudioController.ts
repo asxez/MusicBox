@@ -6,6 +6,7 @@ import * as os from 'os';
 import {BaseController, Controller, IpcHandle} from '../decorators/IpcHandler';
 import {WindowManager} from '../core/WindowManager';
 import {NetworkFileAdapter} from '../services/network/NetworkFileAdapter';
+import {assertReadableAudioFilePath} from '../utils/audioFileSecurity';
 
 @Controller('native-audio')
 export class NativeAudioController extends BaseController {
@@ -99,10 +100,12 @@ export class NativeAudioController extends BaseController {
         try {
             if (!this.engine) return {success: false, error: '引擎未初始化'};
             const oldTemp = this.currentTempFilePath;
-            this.currentTempFilePath = null;
             let actualPath = filePath;
+            const isNetworkPath = this.networkFileAdapter.isNetworkPath(filePath);
+            assertReadableAudioFilePath(filePath, isNetworkPath);
+            this.currentTempFilePath = null;
 
-            if (this.networkFileAdapter.isNetworkPath(filePath)) {
+            if (isNetworkPath) {
                 const ext = path.extname(filePath);
                 const tempPath = path.join(os.tmpdir(), `musicbox_native_audio_${Date.now()}${ext}`);
                 try {

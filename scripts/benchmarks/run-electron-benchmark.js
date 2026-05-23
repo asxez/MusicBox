@@ -404,8 +404,18 @@ function buildRendererScript(args) {
                             this.gain.gain.value = 0.7;
                             this.gain.connect(this.context.destination);
                         },
+                        async readAudioFile(filePath) {
+                            const api = window.electronAPI;
+                            if (api && api.media && typeof api.media.readAudioFile === 'function') {
+                                return await api.media.readAudioFile(filePath);
+                            }
+                            if (api && typeof api.readAudioFile === 'function') {
+                                return await api.readAudioFile(filePath);
+                            }
+                            throw new Error('No preload audio file reader is available for benchmark WebAudio loadTrack');
+                        },
                         async loadTrack(filePath) {
-                            const arrayBuffer = await window.electronAPI.readAudioFile(filePath);
+                            const arrayBuffer = await this.readAudioFile(filePath);
                             this.buffer = await this.context.decodeAudioData(arrayBuffer.slice(0));
                             this.duration = this.buffer.duration;
                         },
