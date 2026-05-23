@@ -238,7 +238,7 @@ function buildRendererScript(args) {
                     webAudioStats: 'WebAudio uses a benchmark-local AudioBufferSourceNode path and does not expose native-style render callback or underrun counters.',
                     nativeInitializeShareMode: 'Native benchmark runs pass the requested WASAPI share mode to initialize(); switchShareMode is not part of the measured startup path unless explicitly recorded.',
                     seekLatency: 'Seek latency is API command duration. It is not an acoustic output-settling or first-audible-frame latency measurement.',
-                    loadTrackTiming: 'WebAudio loadTrack reads the full file over Electron IPC and decodes an AudioBuffer; native loadTrack opens/probes the file and the playback path streams through the native decoder.'
+                    loadTrackTiming: 'WebAudio loadTrack reads the full file over Electron IPC and decodes an AudioBuffer; native loadTrack opens/probes the file and the playback path streams through the native decoder. WebAudio read/decode phases are recorded separately when available.'
                 }
             };
             const mark = async (name, fn) => {
@@ -415,8 +415,8 @@ function buildRendererScript(args) {
                             throw new Error('No preload audio file reader is available for benchmark WebAudio loadTrack');
                         },
                         async loadTrack(filePath) {
-                            const arrayBuffer = await this.readAudioFile(filePath);
-                            this.buffer = await this.context.decodeAudioData(arrayBuffer.slice(0));
+                            const arrayBuffer = await mark('webaudio.loadTrack.readAudioFile', () => this.readAudioFile(filePath));
+                            this.buffer = await mark('webaudio.loadTrack.decodeAudioData', () => this.context.decodeAudioData(arrayBuffer));
                             this.duration = this.buffer.duration;
                         },
                         async play() {

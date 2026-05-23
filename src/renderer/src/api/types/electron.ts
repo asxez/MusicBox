@@ -89,6 +89,7 @@ export interface ElectronLibraryAPI {
     getPlaylists(): Promise<Playlist[]>;
     search(query: string): Promise<Track[]>;
     getTrackMetadata(filePath: string): Promise<Track | null>;
+    getTrackPlaybackMetadata(filePath: string): Promise<Track | null>;
     updateTrackMetadata(trackId: string, metadata: Partial<Track>): Promise<unknown>;
     createPlaylist(name: string, description?: string): Promise<unknown>;
     getPlaylistDetail(playlistId: string): Promise<PlaylistDetailResult>;

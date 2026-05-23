@@ -78,6 +78,16 @@ export class LibraryDataService {
         );
     }
 
+    async getTrackPlaybackMetadata(filePath: string): Promise<Track | null> {
+        this.assertFilePath(filePath, 'filePath');
+
+        return await this.callGateway(
+            () => libraryGateway.getTrackPlaybackMetadata(filePath),
+            'library.getTrackPlaybackMetadata',
+            null
+        );
+    }
+
     async updateTrackMetadata(data: unknown): Promise<Result & {updatedMetadata?: Track}> {
         return await this.callGateway(
             () => libraryGateway.updateTrackMetadata(data),

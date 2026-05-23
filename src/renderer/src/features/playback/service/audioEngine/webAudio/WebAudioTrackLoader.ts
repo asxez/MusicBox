@@ -1,16 +1,12 @@
 import {audioFileReaderService} from '@/features/media/service';
-import {embeddedCoverManager} from '@/features/mediaAssets/service/EmbeddedCoverManager';
 import {trackMetadataLookupService} from '../TrackMetadataLookupService';
-import type WebAudioObjectUrlStore from './WebAudioObjectUrlStore';
-import type {CoverData, LoadedWebAudioTrack, TrackMetadata, WebAudioTrack} from './WebAudioTypes';
+import type {LoadedWebAudioTrack, TrackMetadata, WebAudioTrack} from './WebAudioTypes';
 
 class WebAudioTrackLoader {
     private readonly audioContext: AudioContext;
-    private readonly coverUrlStore: WebAudioObjectUrlStore;
 
-    constructor(audioContext: AudioContext, coverUrlStore: WebAudioObjectUrlStore) {
+    constructor(audioContext: AudioContext) {
         this.audioContext = audioContext;
-        this.coverUrlStore = coverUrlStore;
     }
 
     async load(filePath: string): Promise<LoadedWebAudioTrack> {
@@ -21,7 +17,6 @@ class WebAudioTrackLoader {
 
         const metadata = await this.getTrackMetadata(filePath);
         const duration = (metadata.duration && metadata.duration > 0) ? metadata.duration : webAudioDuration;
-        const coverUrl = this.resolveCoverUrl(metadata.cover);
         const track: WebAudioTrack = {
             filePath,
             title: metadata.title,
@@ -34,7 +29,7 @@ class WebAudioTrackLoader {
             genre: metadata.genre,
             track: metadata.track,
             disc: metadata.disc,
-            cover: coverUrl
+            cover: null
         };
 
         return {
@@ -58,7 +53,7 @@ class WebAudioTrackLoader {
     }
 
     private async getTrackMetadata(filePath: string): Promise<TrackMetadata> {
-        const metadata = await trackMetadataLookupService.getTrackMetadata(filePath);
+        const metadata = await trackMetadataLookupService.getTrackPlaybackMetadata(filePath);
         if (!metadata) {
             return {};
         }
@@ -74,33 +69,8 @@ class WebAudioTrackLoader {
             genre: metadata.genre,
             track: metadata.track,
             disc: metadata.disc,
-            cover: metadata.cover
+            cover: null
         };
-    }
-
-    private resolveCoverUrl(cover: unknown): string | null {
-        const embeddedCover = cover as CoverData | undefined;
-        if (!embeddedCover?.data) {
-            return null;
-        }
-
-        try {
-            if (embeddedCoverManager) {
-                const coverResult = embeddedCoverManager.convertCoverToUrl(embeddedCover as any);
-                if (coverResult.success && typeof coverResult.url === 'string') {
-                    return this.coverUrlStore.add(coverResult.url);
-                }
-                return null;
-            }
-
-            const coverBlob = new Blob([embeddedCover.data], {
-                type: `image/${(embeddedCover.format || 'jpeg').toLowerCase()}`
-            });
-            return this.coverUrlStore.add(URL.createObjectURL(coverBlob));
-        } catch (error) {
-            console.error('封面处理失败:', error);
-            return null;
-        }
     }
 }
 

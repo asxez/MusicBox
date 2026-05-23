@@ -243,6 +243,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
         // Metadata
         getTrackMetadata: (filePath: string) => ipcRenderer.invoke('library:getTrackMetadata', filePath),
+        getTrackPlaybackMetadata: (filePath: string) => ipcRenderer.invoke('library:getTrackPlaybackMetadata', filePath),
         updateTrackMetadata: (trackId: string, metadata: any) => ipcRenderer.invoke('library:updateTrackMetadata', trackId, metadata),
 
         // Playlists

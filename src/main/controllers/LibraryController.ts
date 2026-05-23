@@ -453,6 +453,60 @@ export class LibraryController extends BaseController {
         }
     }
 
+    @IpcHandle('library:getTrackPlaybackMetadata')
+    async getTrackPlaybackMetadata(filePath: string): Promise<any> {
+        try {
+            if (!filePath) {
+                console.warn('⚠️ getTrackPlaybackMetadata: 未提供文件路径');
+                return null;
+            }
+
+            const cachedTrack = this.libraryCacheManager.getTrackByPath(filePath);
+            if (cachedTrack) {
+                return {
+                    filePath,
+                    title: cachedTrack.title,
+                    artist: cachedTrack.artist,
+                    album: cachedTrack.album,
+                    duration: cachedTrack.duration,
+                    bitrate: cachedTrack.bitrate,
+                    sampleRate: cachedTrack.sampleRate,
+                    year: cachedTrack.year,
+                    genre: cachedTrack.genre,
+                    track: (cachedTrack as any).track,
+                    disc: (cachedTrack as any).disc,
+                    cover: null,
+                    embeddedLyrics: null
+                };
+            }
+
+            const metadata = await this.parseMetadata(
+                filePath,
+                this.networkFileAdapter.isNetworkPath(filePath) ? this.networkFileAdapter : undefined,
+                {skipCover: true, skipLyrics: true}
+            );
+
+            return {
+                filePath,
+                title: metadata.title,
+                artist: metadata.artist,
+                album: metadata.album,
+                duration: metadata.duration,
+                bitrate: metadata.bitrate,
+                sampleRate: metadata.sampleRate,
+                year: metadata.year,
+                genre: metadata.genre,
+                track: (metadata as any).track,
+                disc: (metadata as any).disc,
+                cover: null,
+                embeddedLyrics: null
+            };
+        } catch (error: any) {
+            console.error('❌ 获取播放元数据失败:', error);
+            return null;
+        }
+    }
+
     @IpcHandle('library:updateMetadata')
     async updateMetadata(filePath: string, metadata: any): Promise<{ success: boolean; updatedMetadata?: any; coverUpdated?: boolean; error?: string }> {
         try {

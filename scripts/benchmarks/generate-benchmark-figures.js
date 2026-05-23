@@ -417,6 +417,28 @@ function main() {
                 outPath: path.join(args.outDir, 'load-track-time-by-condition.svg')
             });
         }
+
+        if (playbackRows.some(row => number(row.loadTrackReadMs_mean) > 0)) {
+            barChart({
+                title: 'Mean WebAudio File-Read Phase by Condition',
+                rows: playbackRows.filter(row => number(row.loadTrackReadMs_mean) > 0),
+                valueKey: 'loadTrackReadMs_mean',
+                labelKey: conditionFigureLabel,
+                yLabel: 'readAudioFile time (ms)',
+                outPath: path.join(args.outDir, 'webaudio-load-read-time-by-condition.svg')
+            });
+        }
+
+        if (playbackRows.some(row => number(row.loadTrackDecodeMs_mean) > 0)) {
+            barChart({
+                title: 'Mean WebAudio Decode Phase by Condition',
+                rows: playbackRows.filter(row => number(row.loadTrackDecodeMs_mean) > 0),
+                valueKey: 'loadTrackDecodeMs_mean',
+                labelKey: conditionFigureLabel,
+                yLabel: 'decodeAudioData time (ms)',
+                outPath: path.join(args.outDir, 'webaudio-load-decode-time-by-condition.svg')
+            });
+        }
     }
 
     const nativeRows = playbackRows.filter(isNativePlaybackRow);

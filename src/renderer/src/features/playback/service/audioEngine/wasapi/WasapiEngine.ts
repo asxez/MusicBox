@@ -143,7 +143,7 @@ class WasapiEngine {
             }
 
             // 获取音频元数据
-            const metadata = await trackMetadataLookupService.getTrackMetadata(filePath);
+            const metadata = await trackMetadataLookupService.getTrackPlaybackMetadata(filePath);
             this.duration = metadata?.duration || result.duration || 0;
 
             this.currentTrack = {
@@ -152,7 +152,7 @@ class WasapiEngine {
                 artist: metadata?.artist || '未知艺术家',
                 album: metadata?.album || '未知专辑',
                 duration: this.duration,
-                cover: metadata?.cover
+                cover: null
             };
 
             // 重置pending seek位置

@@ -119,7 +119,7 @@ class WebAudioEngine {
             this.visibilityCoordinator.start();
             this.audioContext = new window.AudioContext();
             this.mixerController.initialize(this.audioContext);
-            this.trackLoader = new WebAudioTrackLoader(this.audioContext, this.coverUrlStore);
+            this.trackLoader = new WebAudioTrackLoader(this.audioContext);
             this.preloadCoordinator = new WebAudioPreloadCoordinator(this.audioContext);
             return true;
         } catch (error) {
