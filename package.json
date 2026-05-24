@@ -52,6 +52,7 @@
     "node-id3": "^0.2.9",
     "node-smb2": "^1.3.5",
     "pidusage": "^4.0.1",
-    "webdav": "^5.9.0"
+    "webdav": "^5.9.0",
+    "typescript": "^6.0.3"
   }
 }
