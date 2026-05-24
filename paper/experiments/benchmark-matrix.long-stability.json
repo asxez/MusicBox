@@ -5,7 +5,7 @@
   "audioFiles": [
     {
       "id": "goldberg_loop_flac_48k_30min",
-      "path": "F:\\WorkSpace\\MusicBox\\MusicBox\\scripts\\benchmarks\\audio\\open-goldberg-loop-48k-stereo-30min.flac"
+      "path": "scripts/benchmarks/audio/open-goldberg-loop-48k-stereo-30min.flac"
     }
   ],
   "repetitions": 5,

@@ -112,6 +112,39 @@ function resolvedArray(condition, config, key, fallback = []) {
     return Array.isArray(value) ? value : [];
 }
 
+function resolveConfiguredPath(configPath, configuredPath) {
+    if (!configuredPath) return '';
+    if (path.isAbsolute(configuredPath)) return path.normalize(configuredPath);
+
+    const configRelativePath = path.resolve(path.dirname(configPath), configuredPath);
+    if (fs.existsSync(configRelativePath)) return configRelativePath;
+
+    return path.resolve(ROOT, configuredPath);
+}
+
+function resolveAudioEntry(configPath, audio) {
+    const configuredPath = audio.path || '';
+    return {
+        ...audio,
+        configuredPath,
+        path: resolveConfiguredPath(configPath, configuredPath)
+    };
+}
+
+function resolveConfigPaths(configPath, config) {
+    return {
+        ...config,
+        audioFiles: (config.audioFiles || []).map(audio => resolveAudioEntry(configPath, audio)),
+        conditions: (config.conditions || []).map(condition => {
+            if (!Array.isArray(condition.audioFiles)) return condition;
+            return {
+                ...condition,
+                audioFiles: condition.audioFiles.map(audio => resolveAudioEntry(configPath, audio))
+            };
+        })
+    };
+}
+
 function audioSetFingerprint(audioFiles) {
     return audioFiles
         .map(audio => [audio.id || '', audio.path || '', audio.sha256 || ''].join('@'))
@@ -403,6 +436,7 @@ function collectEnvironment(config) {
     const nativeNodePath = path.join(ROOT, 'dist', 'main', 'NativeAudio.node');
     const audioFiles = (config.audioFiles || []).map(audio => ({
         id: audio.id || '',
+        configuredPath: audio.configuredPath || audio.path || '',
         ...describeFile(audio.path || '')
     }));
 
@@ -431,7 +465,7 @@ function readPackageVersion(packagePath) {
     }
 }
 
-function writeManifest({experimentDir, rawDir, configPath, config, commands}) {
+function writeManifest({experimentDir, rawDir, configPath, config, resolvedConfig, commands}) {
     fs.mkdirSync(experimentDir, {recursive: true});
     const manifest = {
         createdAt: new Date().toISOString(),
@@ -447,8 +481,9 @@ function writeManifest({experimentDir, rawDir, configPath, config, commands}) {
         warmupRepetitions: config.warmupRepetitions || 0,
         warmupDurationSec: config.warmupDurationSec || 0,
         audioFiles: config.audioFiles || [],
+        resolvedAudioFiles: resolvedConfig.audioFiles || [],
         conditions: config.conditions || [],
-        environment: collectEnvironment(config),
+        environment: collectEnvironment(resolvedConfig),
         plannedRuns: commands.map(command => command.label),
         plannedWarmupRuns: commands.filter(command => command.isWarmup).map(command => command.label),
         plannedMeasuredRuns: commands.filter(command => !command.isWarmup).map(command => command.label)
@@ -476,6 +511,7 @@ function main() {
     const config = JSON.parse(fs.readFileSync(args.config, 'utf8'));
     validateConfig(args.config, config);
     validateFairnessConfig(args.config, config);
+    const resolvedConfig = resolveConfigPaths(args.config, config);
     if (args.requireCleanGit) {
         const gitStatusShort = runGit(['status', '--short']);
         if (gitStatusShort) {
@@ -483,13 +519,14 @@ function main() {
         }
     }
     const paths = resolveExperimentPaths(args, config);
-    const commands = buildCommands(config, paths.rawDir);
+    const commands = buildCommands(resolvedConfig, paths.rawDir);
     if (!args.dryRun) {
         writeManifest({
             experimentDir: paths.experimentDir,
             rawDir: paths.rawDir,
             configPath: args.config,
             config,
+            resolvedConfig,
             commands
         });
     }

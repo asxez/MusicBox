@@ -106,6 +106,13 @@ are retained in `benchmark-runs.csv` but excluded from condition-level means.
 The IPC matrix is the only formal payload-latency experiment and should be
 reported as a control-plane boundary test.
 
+Matrix audio paths should stay repository-relative, for example
+`scripts/benchmarks/audio/open-goldberg-aria.flac`, so the same JSON files run
+on different machines after cloning the project. The matrix runner resolves
+relative paths first from the config file directory and then from the repository
+root, while manifests record both the configured path and the resolved path used
+for the run.
+
 Formal matrices set `strictFairness: true`. In this mode the matrix runner
 rejects comparative playback configurations that mix measured durations, sample
 intervals, measured repetitions, warm-up settings, audio-file sets, playback IPC
