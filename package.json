@@ -31,8 +31,7 @@
     "clean": "rimraf dist && cd src/renderer && npm run clean"
   },
   "devDependencies": {
-    "@types/electron": "^1.4.38",
-    "@types/node": "^25.6.0",
+    "@types/node": "^22",
     "cross-env": "^10.1.0",
     "electron": "41.2.1",
     "electron-builder": "^26.8.1",
@@ -40,7 +39,7 @@
     "ts-node": "^10.9.2"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "adm-zip": "^0.5.17",
