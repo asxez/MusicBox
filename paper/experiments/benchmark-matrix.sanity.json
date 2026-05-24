@@ -1,6 +1,7 @@
 {
   "experimentName": "paper-sanity-matrix",
   "executionOrder": "round_robin",
+  "strictFairness": true,
   "audioFiles": [
     {
       "id": "flac_source_96k",

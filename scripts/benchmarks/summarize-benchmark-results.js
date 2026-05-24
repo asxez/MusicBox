@@ -84,6 +84,10 @@ function formatNumber(value) {
     return Number.isFinite(value) ? value.toFixed(3) : '0.000';
 }
 
+function formatCell(value) {
+    return Number.isFinite(value) ? value.toFixed(3) : 'n/a';
+}
+
 function csvEscape(value) {
     const text = String(value ?? '');
     if (/[",\r\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
@@ -262,6 +266,13 @@ function comparisonScope(backend) {
     return 'unknown';
 }
 
+function measurementFairnessClass(data, backend) {
+    if (backend === 'none') return 'boundary_only_control_plane';
+    if (backend === 'native') return 'steady_playback_architecture_comparison';
+    if (backend === 'webaudio') return 'steady_playback_architecture_comparison';
+    return 'unknown';
+}
+
 function renderStatsScope(data, backend) {
     if (backend !== 'native') return 'not_applicable';
     const note = String(data.metricsSemantics?.nativeFinalRenderStats || '').toLowerCase();
@@ -294,6 +305,15 @@ function loadTrackScope(data, backend) {
     return 'not_applicable';
 }
 
+function loadTrackComparability(backend) {
+    if (backend === 'none') return 'not_applicable';
+    return 'implementation_path_not_decoder_equivalence';
+}
+
+function nativeCounterApplicability(backend) {
+    return backend === 'native' ? 'native_only' : 'not_applicable';
+}
+
 function qualityFlag(row) {
     if (row.backend === 'none') return 'ipc_only';
     if (row.backend === 'native' && row.renderStatsScope === 'native_final_stats_timing_unknown') {
@@ -313,10 +333,13 @@ const RUN_HEADER = [
     'shareMode',
     'inputWorkloadClass',
     'comparisonScope',
+    'measurementFairnessClass',
     'renderStatsScope',
     'ipcMeasurementPhase',
     'seekMeasurementScope',
     'loadTrackScope',
+    'loadTrackComparability',
+    'nativeCounterApplicability',
     'isWarmup',
     'durationSec',
     'samples',
@@ -378,10 +401,13 @@ const CONDITION_HEADER = [
     'durationSec',
     'inputWorkloadClass',
     'comparisonScope',
+    'measurementFairnessClass',
     'renderStatsScope',
     'ipcMeasurementPhase',
     'seekMeasurementScope',
     'loadTrackScope',
+    'loadTrackComparability',
+    'nativeCounterApplicability',
     'runs',
     'okRuns',
     'lowQualityRuns',
@@ -452,10 +478,13 @@ function rowToCsvValues(row) {
         row.shareMode,
         row.inputWorkloadClass,
         row.comparisonScope,
+        row.measurementFairnessClass,
         row.renderStatsScope,
         row.ipcMeasurementPhase,
         row.seekMeasurementScope,
         row.loadTrackScope,
+        row.loadTrackComparability,
+        row.nativeCounterApplicability,
         row.isWarmup,
         row.durationSec,
         row.samples,
@@ -489,11 +518,11 @@ function rowToCsvValues(row) {
         formatNumber(row.seekSuccessRate),
         formatNumber(row.seekLatencyMeanMs),
         formatNumber(row.seekLatencyMaxMs),
-        row.underrunsFinal,
-        row.renderErrorsFinal,
-        row.callbacksFinal,
-        row.framesWrittenFinal,
-        row.seekClearsFinal,
+        row.backend === 'native' ? row.underrunsFinal : 'n/a',
+        row.backend === 'native' ? row.renderErrorsFinal : 'n/a',
+        row.backend === 'native' ? row.callbacksFinal : 'n/a',
+        row.backend === 'native' ? row.framesWrittenFinal : 'n/a',
+        row.backend === 'native' ? row.seekClearsFinal : 'n/a',
         formatNumber(row.initializeMs),
         formatNumber(row.switchShareModeMs),
         formatNumber(row.loadTrackMs),
@@ -561,10 +590,13 @@ function parseRun(fullPath, rawDir) {
         shareMode: data.config?.shareMode || '',
         inputWorkloadClass: inputWorkloadClass(audioFile, repeatLabel),
         comparisonScope: comparisonScope(backend),
+        measurementFairnessClass: measurementFairnessClass(data, backend),
         renderStatsScope: renderStatsScope(data, backend),
         ipcMeasurementPhase: ipcMeasurementPhase(data),
         seekMeasurementScope: seekMeasurementScope(data),
         loadTrackScope: loadTrackScope(data, backend),
+        loadTrackComparability: loadTrackComparability(backend),
+        nativeCounterApplicability: nativeCounterApplicability(backend),
         isWarmup: Boolean(data.config?.warmup || runMeta.config?.warmup || /__warmup\d+$/i.test(repeatLabel)),
         durationSec: Number(data.config?.durationSec || 0),
         sampleIntervalMs,
@@ -632,10 +664,13 @@ function conditionCsvValues(rows) {
         first.durationSec,
         first.inputWorkloadClass,
         first.comparisonScope,
+        first.measurementFairnessClass,
         first.renderStatsScope,
         first.ipcMeasurementPhase,
         first.seekMeasurementScope,
         first.loadTrackScope,
+        first.loadTrackComparability,
+        first.nativeCounterApplicability,
         rows.length,
         rows.length - lowQualityRuns,
         lowQualityRuns,
@@ -674,12 +709,12 @@ function conditionCsvValues(rows) {
         formatNumber(mean(rows.map(row => row.seekSuccessRate))),
         formatNumber(mean(rows.map(row => row.seekLatencyMeanMs))),
         formatNumber(mean(rows.map(row => row.seekLatencyMaxMs))),
-        formatNumber(mean(rows.map(row => row.underrunsFinal))),
-        formatNumber(stdev(rows.map(row => row.underrunsFinal))),
-        formatNumber(mean(rows.map(row => row.renderErrorsFinal))),
-        formatNumber(mean(rows.map(row => row.callbacksFinal))),
-        formatNumber(mean(rows.map(row => row.framesWrittenFinal))),
-        formatNumber(mean(rows.map(row => row.seekClearsFinal))),
+        first.backend === 'native' ? formatNumber(mean(rows.map(row => row.underrunsFinal))) : 'n/a',
+        first.backend === 'native' ? formatNumber(stdev(rows.map(row => row.underrunsFinal))) : 'n/a',
+        first.backend === 'native' ? formatNumber(mean(rows.map(row => row.renderErrorsFinal))) : 'n/a',
+        first.backend === 'native' ? formatNumber(mean(rows.map(row => row.callbacksFinal))) : 'n/a',
+        first.backend === 'native' ? formatNumber(mean(rows.map(row => row.framesWrittenFinal))) : 'n/a',
+        first.backend === 'native' ? formatNumber(mean(rows.map(row => row.seekClearsFinal))) : 'n/a',
         formatNumber(mean(rows.map(row => row.initializeMs))),
         formatNumber(mean(rows.map(row => row.switchShareModeMs))),
         formatNumber(mean(rows.map(row => row.loadTrackMs))),

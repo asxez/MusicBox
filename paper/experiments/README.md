@@ -106,6 +106,21 @@ are retained in `benchmark-runs.csv` but excluded from condition-level means.
 The IPC matrix is the only formal payload-latency experiment and should be
 reported as a control-plane boundary test.
 
+Formal matrices set `strictFairness: true`. In this mode the matrix runner
+rejects comparative playback configurations that mix measured durations, sample
+intervals, measured repetitions, warm-up settings, audio-file sets, playback IPC
+probing, missing native share modes, or blocked execution order. This does not make every metric semantically
+equivalent: WebAudio `loadTrack` still measures full-file IPC read plus
+`decodeAudioData`, while native `loadTrack` measures the native probe/open path
+and then streams decode during playback. The CSV files therefore include
+fairness and comparability columns so that memory and steady-playback metrics
+are not confused with decoder microbenchmarks.
+
+For long-stability results, use at least five repetitions when the batch is
+intended for manuscript claims about continuity or rare underrun events. Three
+repetitions can still be useful for pilot debugging, but they are weak for
+estimating tail-event frequency.
+
 Preview a matrix without launching Electron:
 
 ```bash
@@ -151,6 +166,9 @@ Treat a batch as publication-grade only after checking:
 - Native underruns and render errors are reported directly.
 - WebAudio rows are not interpreted as having native underrun/render-error
   telemetry.
+- Non-native underrun/render-error cells must remain `n/a`, not zero.
+- `measurementFairnessClass`, `loadTrackComparability`, and
+  `nativeCounterApplicability` columns must be preserved in released tables.
 - Memory deltas are interpreted as last-minus-first net changes, not as absolute
   memory usage or leak proof.
 

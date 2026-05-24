@@ -1,5 +1,6 @@
 {
   "experimentName": "paper-ipc-payload-sweep",
+  "strictFairness": true,
   "audioFiles": [],
   "repetitions": 5,
   "durationSec": 0,

@@ -98,6 +98,29 @@ function conditionLabel(row) {
     return [row.condition, file].filter(Boolean).join(' / ');
 }
 
+function fairnessClass(row) {
+    if (row.measurementFairnessClass) return row.measurementFairnessClass;
+    if (row.backend === 'none') return 'boundary_only_control_plane';
+    if (row.backend === 'native' || row.backend === 'webaudio') return 'steady_playback_architecture_comparison';
+    return '';
+}
+
+function loadComparability(row) {
+    if (row.loadTrackComparability) return row.loadTrackComparability;
+    if (row.backend === 'none') return 'not_applicable';
+    if (row.backend === 'native' || row.backend === 'webaudio') return 'implementation_path_not_decoder_equivalence';
+    return '';
+}
+
+function nativeCounterScope(row) {
+    if (row.nativeCounterApplicability) return row.nativeCounterApplicability;
+    return row.backend === 'native' ? 'native_only' : 'not_applicable';
+}
+
+function nativeCounterCell(row, key) {
+    return row.backend === 'native' ? (row[key] || '0.000') : 'n/a';
+}
+
 function markdownCell(value) {
     return String(value)
         .replace(/\|/g, '\\|')
@@ -257,10 +280,13 @@ function main() {
             {label: 'Duration s', value: row => row.durationSec || ''},
             {label: 'Input', value: row => row.inputWorkloadClass || ''},
             {label: 'Scope', value: row => row.comparisonScope || ''},
+            {label: 'Fairness', value: fairnessClass},
             {label: 'Stats', value: row => row.renderStatsScope || ''},
             {label: 'IPC phase', value: row => row.ipcMeasurementPhase || ''},
             {label: 'Seek scope', value: row => row.seekMeasurementScope || ''},
             {label: 'Load scope', value: row => row.loadTrackScope || ''},
+            {label: 'Load cmp.', value: loadComparability},
+            {label: 'Native ctrs', value: nativeCounterScope},
             {label: 'Runs', value: row => row.runs},
             {label: 'OK', value: row => row.okRuns},
             {label: 'Low-Q', value: row => row.lowQualityRuns},
@@ -268,8 +294,8 @@ function main() {
             {label: 'App WS MB', value: row => row.appWorkingSetMeanMB_mean},
             {label: 'Renderer WS MB', value: row => row.rendererWorkingSetMeanMB_mean},
             {label: 'Slope MB/min', value: row => row.appWorkingSetSlopeMBPerMin_mean},
-            {label: 'Underruns', value: row => row.underruns_mean},
-            {label: 'Render errors', value: row => row.renderErrors_mean},
+            {label: 'Underruns', value: row => nativeCounterCell(row, 'underruns_mean')},
+            {label: 'Render errors', value: row => nativeCounterCell(row, 'renderErrors_mean')},
             {label: 'Seek success', value: row => row.seekSuccessRate_mean},
             {label: 'Seek mean ms', value: row => row.seekLatencyMeanMs_mean},
             {label: 'Load ms', value: row => row.loadTrackMs_mean},
@@ -327,7 +353,9 @@ function main() {
         '- Any published condition mean that includes low-quality rows should state that these rows were retained because they did not materially change the conclusion.',
         '- Long-stability comparisons are valid only when duration, input fixture, and repetitions match across backends.',
         '- Use the 48 kHz stereo PCM baseline for the least confounded backend comparison; compressed or non-48 kHz fixtures add codec and resampling costs.',
+        '- Strict fairness matrices must use the same audio-file set, measured duration, sample interval, and playback IPC setting across playback backends.',
         '- Native final render counters are the correct source for underrun/error conclusions; per-sample native render counters are batched and can lag.',
+        '- WebAudio rows do not have native render counters; underrun and render-error fields for non-native rows must remain `n/a`, not zero.',
         '- Formal playback matrices disable IPC payload probing so that pre-playback IPC allocations do not contaminate playback memory, CPU, or garbage-collection state.',
         '- IPC payload latencies are control-plane measurements only. They must not be interpreted as WebAudio or WASAPI playback latency.',
         '- Seek timing is API command duration only. It is not an acoustic settling or first-audible-frame latency metric.',

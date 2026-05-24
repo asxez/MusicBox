@@ -3,6 +3,7 @@
   "executionOrder": "round_robin",
   "warmupRepetitions": 1,
   "warmupDurationSec": 10,
+  "strictFairness": true,
   "audioFiles": [
     {
       "id": "wav_48k_180s",

@@ -89,6 +89,147 @@ function validateConfig(configPath, config) {
     }
 }
 
+function conditionBackend(condition) {
+    return condition.backend || 'native';
+}
+
+function isPlaybackCondition(condition) {
+    return conditionBackend(condition) !== 'none';
+}
+
+function requireFairness(condition, message) {
+    if (!condition) {
+        throw new Error(`Fairness check failed: ${message}`);
+    }
+}
+
+function resolvedNumber(condition, config, key, fallback) {
+    return Number(pickValue(condition[key], config[key], fallback));
+}
+
+function resolvedArray(condition, config, key, fallback = []) {
+    const value = pickValue(condition[key], config[key], fallback);
+    return Array.isArray(value) ? value : [];
+}
+
+function audioSetFingerprint(audioFiles) {
+    return audioFiles
+        .map(audio => [audio.id || '', audio.path || '', audio.sha256 || ''].join('@'))
+        .join('|');
+}
+
+function validateFairnessConfig(configPath, config) {
+    if (!config.strictFairness) return;
+
+    const playbackConditions = config.conditions.filter(isPlaybackCondition);
+    const boundaryConditions = config.conditions.filter(condition => !isPlaybackCondition(condition));
+
+    if (playbackConditions.length) {
+        const executionOrder = config.executionOrder || 'round_robin';
+        const matrixRepetitions = Number(config.repetitions || 1);
+        requireFairness(
+            executionOrder === 'round_robin' || playbackConditions.length === 1 || matrixRepetitions <= 1,
+            `${configPath}: comparative playback matrices must use round_robin execution`
+        );
+
+        const durations = new Set();
+        const sampleIntervals = new Set();
+        const audioSets = new Set();
+        const repetitionsByCondition = new Set();
+        const warmupRepetitionsByCondition = new Set();
+        const warmupDurations = new Set();
+
+        for (const condition of playbackConditions) {
+            const backend = conditionBackend(condition);
+            const ipcIterations = resolvedNumber(condition, config, 'ipcIterations', 200);
+            const payloadBytes = resolvedArray(condition, config, 'payloadBytes', []);
+            const durationSec = resolvedNumber(condition, config, 'durationSec', 30);
+            const sampleIntervalMs = resolvedNumber(condition, config, 'sampleIntervalMs', 1000);
+            const repetitions = resolvedNumber(condition, config, 'repetitions', Number(config.repetitions || 1));
+            const warmupRepetitions = resolvedNumber(condition, config, 'warmupRepetitions', Number(config.warmupRepetitions || 0));
+            const warmupDurationSec = resolvedNumber(condition, config, 'warmupDurationSec', Number(config.warmupDurationSec || 0));
+            const audioFiles = condition.audioFiles || config.audioFiles || [];
+
+            requireFairness(
+                ipcIterations === 0,
+                `${configPath}: playback condition "${condition.id || backend}" must set ipcIterations to 0`
+            );
+            requireFairness(
+                payloadBytes.length === 0,
+                `${configPath}: playback condition "${condition.id || backend}" must not configure IPC payload bytes`
+            );
+            requireFairness(
+                Array.isArray(audioFiles) && audioFiles.length > 0,
+                `${configPath}: playback condition "${condition.id || backend}" must use an explicit audio file set`
+            );
+            if (backend === 'native') {
+                const shareMode = pickValue(condition.shareMode, config.shareMode, '');
+                requireFairness(
+                    shareMode === 'shared' || shareMode === 'exclusive',
+                    `${configPath}: native condition "${condition.id || backend}" must explicitly set shareMode`
+                );
+            }
+
+            if (durationSec <= 300 && repetitions > 1) {
+                requireFairness(
+                    warmupRepetitions > 0,
+                    `${configPath}: short repeated playback condition "${condition.id || backend}" needs warm-up repetitions`
+                );
+            }
+
+            durations.add(String(durationSec));
+            sampleIntervals.add(String(sampleIntervalMs));
+            audioSets.add(audioSetFingerprint(audioFiles));
+            repetitionsByCondition.add(String(repetitions));
+            warmupRepetitionsByCondition.add(String(warmupRepetitions));
+            warmupDurations.add(String(warmupDurationSec));
+        }
+
+        requireFairness(
+            durations.size === 1,
+            `${configPath}: playback conditions in one comparative matrix must use the same measured duration`
+        );
+        requireFairness(
+            sampleIntervals.size === 1,
+            `${configPath}: playback conditions in one comparative matrix must use the same sample interval`
+        );
+        requireFairness(
+            audioSets.size === 1,
+            `${configPath}: playback conditions in one comparative matrix must use the same audio-file set`
+        );
+        requireFairness(
+            repetitionsByCondition.size === 1,
+            `${configPath}: playback conditions in one comparative matrix must use the same measured repetitions`
+        );
+        requireFairness(
+            warmupRepetitionsByCondition.size === 1,
+            `${configPath}: playback conditions in one comparative matrix must use the same warm-up repetition count`
+        );
+        requireFairness(
+            warmupDurations.size === 1,
+            `${configPath}: playback conditions in one comparative matrix must use the same warm-up duration`
+        );
+    }
+
+    if (boundaryConditions.length && !playbackConditions.length) {
+        const durationSec = Number(config.durationSec || 0);
+        const ipcIterations = Number(config.ipcIterations || 0);
+        const payloadBytes = Array.isArray(config.payloadBytes) ? config.payloadBytes : [];
+        requireFairness(
+            durationSec === 0,
+            `${configPath}: boundary-only matrices must set durationSec to 0`
+        );
+        requireFairness(
+            ipcIterations > 0 && payloadBytes.length > 0,
+            `${configPath}: boundary-only matrices must configure IPC iterations and payload sizes`
+        );
+        requireFairness(
+            Array.isArray(config.audioFiles) && config.audioFiles.length === 0,
+            `${configPath}: boundary-only matrices must not configure audio files`
+        );
+    }
+}
+
 function buildCommands(config, outDir) {
     const commands = [];
     let sequence = 0;
@@ -301,6 +442,7 @@ function writeManifest({experimentDir, rawDir, configPath, config, commands}) {
         sampleIntervalMs: pickValue(config.sampleIntervalMs, 1000),
         ipcIterations: pickValue(config.ipcIterations, 200),
         payloadBytes: pickValue(config.payloadBytes, [0, 1024, 65536, 1048576]),
+        strictFairness: Boolean(config.strictFairness),
         executionOrder: config.executionOrder || 'round_robin',
         warmupRepetitions: config.warmupRepetitions || 0,
         warmupDurationSec: config.warmupDurationSec || 0,
@@ -333,6 +475,7 @@ function main() {
     const args = parseArgs(process.argv.slice(2));
     const config = JSON.parse(fs.readFileSync(args.config, 'utf8'));
     validateConfig(args.config, config);
+    validateFairnessConfig(args.config, config);
     if (args.requireCleanGit) {
         const gitStatusShort = runGit(['status', '--short']);
         if (gitStatusShort) {
