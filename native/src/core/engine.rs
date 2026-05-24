@@ -34,6 +34,7 @@ impl<T: Read + Seek + Send + Sync> ReadSeek for T {}
 const S_FALSE: i32 = 1;
 const RPC_E_CHANGED_MODE: i32 = 0x80010106u32 as i32;
 const PLAYBACK_PREFILL_MS: u64 = 160;
+const COMMON_EXCLUSIVE_SAMPLE_RATES: [u32; 6] = [192000, 176400, 96000, 88200, 48000, 44100];
 
 type WaveFormatKey = (u32, u16, u16, u16, u32, u8);
 type UnsupportedFormatLogKey = (u32, u16, u16, u16, u8);
@@ -105,6 +106,103 @@ fn unsupported_format_log_key(wave_format: &WaveFormat) -> UnsupportedFormatLogK
         wave_format.get_validbitspersample(),
         sample_type_key,
     )
+}
+
+fn audio_format_key(format: &AudioFormat) -> WaveFormatKey {
+    let sample_type_key = match format.sample_type {
+        SampleType::Float => 0,
+        SampleType::Int => 1,
+    };
+
+    (
+        format.sample_rate,
+        format.channels,
+        format.bits_per_sample,
+        format.valid_bits_per_sample,
+        format.channel_mask,
+        sample_type_key,
+    )
+}
+
+fn push_unique_u32(values: &mut Vec<u32>, value: u32) {
+    if value > 0 && !values.contains(&value) {
+        values.push(value);
+    }
+}
+
+fn push_unique_u16(values: &mut Vec<u16>, value: u16) {
+    if value > 0 && !values.contains(&value) {
+        values.push(value);
+    }
+}
+
+fn build_exclusive_format_candidates(
+    preferred_sample_rates: &[u32],
+    preferred_channels: &[u16],
+    mix_format: Option<&WaveFormat>,
+    include_mix_format_first: bool,
+    include_fallback_sample_rates: bool,
+) -> Vec<WaveFormat> {
+    let mut candidates = Vec::new();
+    let mut seen = HashSet::new();
+
+    if include_mix_format_first {
+        if let Some(format) = mix_format {
+            push_unique_wave_format(&mut candidates, &mut seen, format.clone());
+        }
+    }
+
+    let mut sample_rates = Vec::new();
+    for &sample_rate in preferred_sample_rates {
+        push_unique_u32(&mut sample_rates, sample_rate);
+    }
+    if include_fallback_sample_rates {
+        if let Some(format) = mix_format {
+            push_unique_u32(&mut sample_rates, format.get_samplespersec());
+        }
+        for sample_rate in COMMON_EXCLUSIVE_SAMPLE_RATES {
+            push_unique_u32(&mut sample_rates, sample_rate);
+        }
+    }
+
+    let mut channel_counts = Vec::new();
+    for &channels in preferred_channels {
+        push_unique_u16(&mut channel_counts, channels);
+    }
+    if let Some(format) = mix_format {
+        push_unique_u16(&mut channel_counts, format.get_nchannels());
+    }
+
+    let bit_depths = [
+        (32, 32, SampleType::Float),
+        (32, 24, SampleType::Int),
+        (24, 24, SampleType::Int),
+        (16, 16, SampleType::Int),
+    ];
+
+    for sample_rate in sample_rates {
+        for channels in &channel_counts {
+            let channel_masks = make_channelmasks(*channels as usize);
+            for (store_bits, valid_bits, sample_type) in bit_depths {
+                for &channel_mask in &channel_masks {
+                    push_unique_wave_format(
+                        &mut candidates,
+                        &mut seen,
+                        WaveFormat::new(
+                            store_bits,
+                            valid_bits,
+                            &sample_type,
+                            sample_rate as usize,
+                            *channels as usize,
+                            Some(channel_mask),
+                        ),
+                    );
+                }
+            }
+        }
+    }
+
+    candidates
 }
 
 /// 音频引擎状态
@@ -228,12 +326,7 @@ impl AudioEngine {
         println!("     块对齐: {} bytes", supported_format.block_align);
         println!("     声道掩码: 0x{:X}", supported_format.channel_mask);
 
-        self.device_sample_rate = supported_format.sample_rate;
-        self.device_channels = supported_format.channels;
-        self.buffer_size = self
-            .config
-            .get_ring_buffer_size(self.device_sample_rate, self.device_channels);
-        self.device_format = Some(supported_format);
+        self.apply_device_format(supported_format);
         self.initialized = true;
         println!(
             "   环形缓冲区: {} 样本 ({:.2}秒)",
@@ -280,7 +373,14 @@ impl AudioEngine {
             }
             ShareMode::Exclusive => {
                 // 独占模式：查询设备支持的格式
-                self.query_exclusive_format(audio_client, mix_format)
+                self.query_exclusive_format(
+                    audio_client,
+                    mix_format,
+                    &[mix_format.get_samplespersec()],
+                    &[mix_format.get_nchannels()],
+                    true,
+                    true,
+                )
             }
         }
     }
@@ -289,41 +389,18 @@ impl AudioEngine {
         &self,
         audio_client: &mut AudioClient,
         mix_format: &WaveFormat,
+        preferred_sample_rates: &[u32],
+        preferred_channels: &[u16],
+        include_mix_format_first: bool,
+        include_fallback_sample_rates: bool,
     ) -> Result<AudioFormat, String> {
-        let channels = mix_format.get_nchannels();
-
-        let mut candidates = Vec::new();
-        let mut seen = HashSet::new();
-        push_unique_wave_format(&mut candidates, &mut seen, mix_format.clone());
-
-        let mix_sample_rate = mix_format.get_samplespersec();
-        let common_rates = [mix_sample_rate, 192000, 176400, 96000, 88200, 48000, 44100];
-        let bit_depths = [
-            (32, 32, SampleType::Float),
-            (32, 24, SampleType::Int),
-            (24, 24, SampleType::Int),
-            (16, 16, SampleType::Int),
-        ];
-        let channel_masks = make_channelmasks(channels as usize);
-
-        for sample_rate in common_rates {
-            for (store_bits, valid_bits, sample_type) in bit_depths {
-                for &channel_mask in &channel_masks {
-                    push_unique_wave_format(
-                        &mut candidates,
-                        &mut seen,
-                        WaveFormat::new(
-                            store_bits,
-                            valid_bits,
-                            &sample_type,
-                            sample_rate as usize,
-                            channels as usize,
-                            Some(channel_mask),
-                        ),
-                    );
-                }
-            }
-        }
+        let candidates = build_exclusive_format_candidates(
+            preferred_sample_rates,
+            preferred_channels,
+            Some(mix_format),
+            include_mix_format_first,
+            include_fallback_sample_rates,
+        );
 
         let mut unsupported_logged = HashSet::new();
         let mut unsupported_suppressed = 0usize;
@@ -375,6 +452,116 @@ impl AudioEngine {
         Err("设备驱动未报告任何可用的WASAPI独占格式，请检查Windows声音设置中是否允许应用程序独占控制该设备".to_string())
     }
 
+    fn apply_device_format(&mut self, supported_format: AudioFormat) {
+        let previous_channels = self.device_channels;
+        self.device_sample_rate = supported_format.sample_rate;
+        self.device_channels = supported_format.channels;
+        self.buffer_size = self
+            .config
+            .get_ring_buffer_size(self.device_sample_rate, self.device_channels);
+        self.device_format = Some(supported_format);
+
+        if !self.initialized {
+            return;
+        }
+
+        if previous_channels != self.device_channels {
+            *self.equalizer.lock() = Some(AudioEqualizer::new(
+                self.device_sample_rate,
+                self.device_channels,
+            ));
+            *self.parametric_equalizer.lock() = Some(ParametricEqualizer::new(
+                self.device_sample_rate,
+                self.device_channels,
+            ));
+            println!(
+                "🎛️ AudioEngine: 设备声道数变化，已重建均衡器: {} Hz, {} 声道",
+                self.device_sample_rate, self.device_channels
+            );
+            return;
+        }
+
+        if let Some(ref mut equalizer) = *self.equalizer.lock() {
+            equalizer.update_sample_rate(self.device_sample_rate);
+        }
+        if let Some(ref mut parametric_equalizer) = *self.parametric_equalizer.lock() {
+            parametric_equalizer.update_sample_rate(self.device_sample_rate);
+        }
+    }
+
+    fn select_exclusive_format_for_track(
+        &mut self,
+        source_sample_rate: u32,
+        source_channels: u16,
+    ) -> Result<(), String> {
+        use crate::core::ShareMode;
+
+        if self.config.share_mode != ShareMode::Exclusive {
+            println!(
+                "   ℹ️ 共享模式输出固定为Windows混音格式: {} Hz, {} 声道",
+                self.device_sample_rate, self.device_channels
+            );
+            return Ok(());
+        }
+
+        let device = get_default_device(&Direction::Render)
+            .map_err(|e| format!("获取默认设备失败: {:?}", e))?;
+        let mut audio_client = device
+            .get_iaudioclient()
+            .map_err(|e| format!("创建AudioClient失败: {:?}", e))?;
+        let mix_format = audio_client
+            .get_mixformat()
+            .map_err(|e| format!("获取设备格式失败: {:?}", e))?;
+
+        let preferred_channels = [
+            source_channels,
+            self.device_channels,
+            mix_format.get_nchannels(),
+        ];
+
+        println!(
+            "   🔎 独占模式按曲目源格式查询设备支持: {} Hz, {} 声道",
+            source_sample_rate, source_channels
+        );
+
+        match self.query_exclusive_format(
+            &mut audio_client,
+            &mix_format,
+            &[source_sample_rate],
+            &preferred_channels,
+            false,
+            false,
+        ) {
+            Ok(format) => {
+                let current_key = self.device_format.as_ref().map(audio_format_key);
+                let selected_key = audio_format_key(&format);
+                if current_key == Some(selected_key) {
+                    println!(
+                        "   ✅ 当前独占设备格式已匹配: {} Hz, {} 声道",
+                        format.sample_rate, format.channels
+                    );
+                } else {
+                    println!(
+                        "   ✅ 独占模式切换到曲目优先设备格式: {} Hz, {} 声道, {} / {} bits",
+                        format.sample_rate,
+                        format.channels,
+                        format.valid_bits_per_sample,
+                        format.bits_per_sample
+                    );
+                    self.apply_device_format(format);
+                }
+            }
+            Err(e) => {
+                println!(
+                    "   ⚠️ 驱动未接受曲目源采样率独占格式，保留当前设备格式 {} Hz, {} 声道: {}",
+                    self.device_sample_rate, self.device_channels, e
+                );
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn load_track(&mut self, file_path: &str) -> Result<f64, String> {
         println!("🎵 AudioEngine: 加载音频文件: {}", file_path);
         let start = std::time::Instant::now();
@@ -384,6 +571,11 @@ impl AudioEngine {
             && !self.is_playing.load(Ordering::SeqCst)
             && !self.is_paused.load(Ordering::SeqCst)
         {
+            if let (Some(sample_rate), Some(channels)) =
+                (self.source_sample_rate, self.source_channels)
+            {
+                self.select_exclusive_format_for_track(sample_rate, channels)?;
+            }
             println!(
                 "ℹ️ AudioEngine: 当前文件已加载，跳过重复探测，耗时: {:?}",
                 start.elapsed()
@@ -420,6 +612,8 @@ impl AudioEngine {
         println!("   时长: {:.2}秒", duration);
         println!("   源采样率: {} Hz", sample_rate);
         println!("   源声道数: {}", channels);
+
+        self.select_exclusive_format_for_track(sample_rate, channels)?;
 
         let needs_resampling = sample_rate != self.device_sample_rate;
         let needs_channel_conversion = channels != self.device_channels;
