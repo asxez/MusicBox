@@ -235,10 +235,10 @@ function buildRendererScript(args) {
                     processSnapshot: 'Electron process metrics are sampled from the renderer-side benchmark loop and may include scheduler jitter.',
                     nativeSampleRenderStats: 'Native per-sample render counters are read through IPC and may lag because the render thread flushes counters in batches.',
                     nativeFinalRenderStats: 'Native final render counters are captured after native.stop so pending render-thread counters have been flushed.',
-                    webAudioStats: 'WebAudio uses a benchmark-local AudioBufferSourceNode path and does not expose native-style render callback or underrun counters.',
+                    webAudioStats: 'WebAudio uses a benchmark-local HTMLAudioElement + MediaElementAudioSourceNode path and does not expose native-style render callback or underrun counters.',
                     nativeInitializeShareMode: 'Native benchmark runs pass the requested WASAPI share mode to initialize(); switchShareMode is not part of the measured startup path unless explicitly recorded.',
                     seekLatency: 'Seek latency is API command duration. It is not an acoustic output-settling or first-audible-frame latency measurement.',
-                    loadTrackTiming: 'WebAudio loadTrack reads the full file over Electron IPC and decodes an AudioBuffer; native loadTrack opens/probes the file and the playback path streams through the native decoder. WebAudio read/decode phases are recorded separately when available.'
+                    loadTrackTiming: 'WebAudio loadTrack resolves a range-capable media stream URL and waits for media metadata; native loadTrack opens/probes the file and the playback path streams through the native decoder.'
                 }
             };
             const mark = async (name, fn) => {
@@ -393,63 +393,91 @@ function buildRendererScript(args) {
                 if (config.backend === 'webaudio') {
                     const webAudio = {
                         context: null,
-                        buffer: null,
-                        source: null,
+                        audio: null,
+                        sourceNode: null,
                         gain: null,
-                        startedAt: 0,
                         duration: 0,
+                        playing: false,
                         async initialize() {
                             this.context = new AudioContext();
+                            this.audio = new Audio();
+                            this.audio.crossOrigin = 'anonymous';
+                            this.audio.preload = 'metadata';
+                            this.sourceNode = this.context.createMediaElementSource(this.audio);
                             this.gain = this.context.createGain();
                             this.gain.gain.value = 0.7;
                             this.gain.connect(this.context.destination);
+                            this.sourceNode.connect(this.gain);
                         },
-                        async readAudioFile(filePath) {
+                        async createAudioStreamUrl(filePath) {
                             const api = window.electronAPI;
-                            if (api && api.media && typeof api.media.readAudioFile === 'function') {
-                                return await api.media.readAudioFile(filePath);
+                            if (api && api.media && typeof api.media.createAudioStreamUrl === 'function') {
+                                return await api.media.createAudioStreamUrl(filePath);
                             }
-                            if (api && typeof api.readAudioFile === 'function') {
-                                return await api.readAudioFile(filePath);
+                            throw new Error('No preload audio stream URL resolver is available for benchmark WebAudio loadTrack');
+                        },
+                        async waitForMetadata() {
+                            if (this.audio.readyState >= 1) {
+                                return;
                             }
-                            throw new Error('No preload audio file reader is available for benchmark WebAudio loadTrack');
+
+                            await new Promise((resolve, reject) => {
+                                const cleanup = () => {
+                                    this.audio.removeEventListener('loadedmetadata', handleMetadata);
+                                    this.audio.removeEventListener('error', handleError);
+                                };
+                                const handleMetadata = () => {
+                                    cleanup();
+                                    resolve();
+                                };
+                                const handleError = () => {
+                                    cleanup();
+                                    reject(new Error(this.audio.error && this.audio.error.message || 'WebAudio media element failed to load metadata'));
+                                };
+
+                                this.audio.addEventListener('loadedmetadata', handleMetadata, {once: true});
+                                this.audio.addEventListener('error', handleError, {once: true});
+                            });
                         },
                         async loadTrack(filePath) {
-                            const arrayBuffer = await mark('webaudio.loadTrack.readAudioFile', () => this.readAudioFile(filePath));
-                            this.buffer = await mark('webaudio.loadTrack.decodeAudioData', () => this.context.decodeAudioData(arrayBuffer));
-                            this.duration = this.buffer.duration;
+                            const sourceUrl = await mark('webaudio.loadTrack.readAudioFile', () => this.createAudioStreamUrl(filePath));
+                            this.audio.pause();
+                            this.audio.src = sourceUrl;
+                            this.audio.load();
+                            await mark('webaudio.loadTrack.decodeAudioData', () => this.waitForMetadata());
+                            this.duration = Number.isFinite(this.audio.duration) ? this.audio.duration : 0;
                         },
                         async play() {
-                            this.source = this.context.createBufferSource();
-                            this.source.buffer = this.buffer;
-                            this.source.connect(this.gain);
-                            this.startedAt = performance.now();
-                            this.source.start(0);
+                            if (this.context.state === 'suspended') {
+                                await this.context.resume();
+                            }
+                            await this.audio.play();
+                            this.playing = true;
                         },
                         async seek(position) {
-                            if (this.source) {
-                                try { this.source.stop(); } catch {}
-                                this.source.disconnect();
-                            }
                             const boundedPosition = Math.max(0, Math.min(position, Math.max(0, this.duration - 0.05)));
-                            this.source = this.context.createBufferSource();
-                            this.source.buffer = this.buffer;
-                            this.source.connect(this.gain);
-                            this.startedAt = performance.now() - boundedPosition * 1000;
-                            this.source.start(0, boundedPosition);
+                            this.audio.currentTime = boundedPosition;
+                            if (this.playing && this.audio.paused) {
+                                await this.audio.play();
+                            }
                             return {success: true, position: boundedPosition};
                         },
                         async stop() {
-                            if (this.source) {
-                                try { this.source.stop(); } catch {}
-                                this.source.disconnect();
+                            this.playing = false;
+                            if (this.audio) {
+                                this.audio.pause();
+                                this.audio.removeAttribute('src');
+                                this.audio.load();
+                            }
+                            if (this.sourceNode) {
+                                this.sourceNode.disconnect();
                             }
                             if (this.context) {
                                 await this.context.close();
                             }
                         },
                         position() {
-                            return this.startedAt ? Math.min((performance.now() - this.startedAt) / 1000, this.duration) : 0;
+                            return this.audio && this.audio.src ? Math.min(this.audio.currentTime || 0, this.duration) : 0;
                         }
                     };
 

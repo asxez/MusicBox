@@ -2,6 +2,7 @@ import type {AudioTrack} from '../AudioTrack';
 
 export interface WebAudioTrack extends AudioTrack {
     filePath: string;
+    sourceUrl?: string;
     title?: string;
     artist?: string;
     album?: string;
@@ -38,7 +39,6 @@ export interface TrackMetadata {
 }
 
 export type LoadedWebAudioTrack = {
-    buffer: AudioBuffer;
     duration: number;
     track: WebAudioTrack;
 };

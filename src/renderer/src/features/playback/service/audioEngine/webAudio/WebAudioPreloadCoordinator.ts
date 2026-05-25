@@ -1,48 +1,41 @@
-import {audioFileReaderService} from '@/features/media/service';
 import {
     getTrackFilePath,
     getTrackTitle,
     type TrackSource
 } from '../AudioTrack';
+import WebAudioTrackLoader from './WebAudioTrackLoader';
 
 type PreloadedTrack = {
-    buffer: AudioBuffer;
+    element: HTMLAudioElement;
     trackInfo: TrackSource & {
         filePath: string;
         duration: number;
+        sourceUrl?: string;
     };
 };
 
 class WebAudioPreloadCoordinator {
-    private readonly audioContext: AudioContext;
-    private nextAudioBuffer: AudioBuffer | null;
-    private nextTrackInfo: PreloadedTrack['trackInfo'] | null;
+    private readonly trackLoader: WebAudioTrackLoader;
+    private nextTrack: PreloadedTrack | null;
+    private preloadElement: HTMLAudioElement | null;
     private isPreloading: boolean;
     private preloadPromise: Promise<boolean> | null;
 
-    constructor(audioContext: AudioContext) {
-        this.audioContext = audioContext;
-        this.nextAudioBuffer = null;
-        this.nextTrackInfo = null;
+    constructor() {
+        this.trackLoader = new WebAudioTrackLoader();
+        this.nextTrack = null;
+        this.preloadElement = null;
         this.isPreloading = false;
         this.preloadPromise = null;
     }
 
     hasPreloaded(filePath: string): boolean {
-        return !!this.nextAudioBuffer
-            && !!this.nextTrackInfo
-            && getTrackFilePath(this.nextTrackInfo) === filePath;
+        return !!this.nextTrack
+            && getTrackFilePath(this.nextTrack.trackInfo) === filePath;
     }
 
     getPreloaded(): PreloadedTrack | null {
-        if (!this.nextAudioBuffer || !this.nextTrackInfo) {
-            return null;
-        }
-
-        return {
-            buffer: this.nextAudioBuffer,
-            trackInfo: this.nextTrackInfo
-        };
+        return this.nextTrack;
     }
 
     async preload(filePath: string, trackInfo: TrackSource): Promise<boolean> {
@@ -56,7 +49,7 @@ class WebAudioPreloadCoordinator {
         }
 
         this.isPreloading = true;
-        this.preloadPromise = this.loadNextTrackBuffer(filePath, trackInfo);
+        this.preloadPromise = this.loadNextTrackElement(filePath, trackInfo);
         try {
             return await this.preloadPromise;
         } finally {
@@ -66,25 +59,34 @@ class WebAudioPreloadCoordinator {
     }
 
     clear(): void {
-        if (this.nextAudioBuffer) {
-            this.nextAudioBuffer = null;
-            this.nextTrackInfo = null;
+        if (this.preloadElement) {
+            try {
+                this.preloadElement.pause();
+                this.preloadElement.removeAttribute('src');
+                this.preloadElement.load();
+            } catch (error) {
+                console.warn('⚠️ 清理预加载媒体元素失败:', error);
+            }
         }
+
+        this.nextTrack = null;
     }
 
-    private async loadNextTrackBuffer(filePath: string, trackInfo: TrackSource): Promise<boolean> {
+    private async loadNextTrackElement(filePath: string, trackInfo: TrackSource): Promise<boolean> {
         try {
             console.log(`🔄 预加载下一首歌曲: ${getTrackTitle(trackInfo) || filePath}`);
+            this.clear();
 
-            let arrayBuffer: ArrayBuffer | null = await audioFileReaderService.readAudioFile(filePath);
-            const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-            arrayBuffer = null;
-
-            this.nextAudioBuffer = audioBuffer;
-            this.nextTrackInfo = {
-                ...(typeof trackInfo === 'string' ? {} : trackInfo),
-                filePath,
-                duration: audioBuffer.duration
+            const preloadElement = this.getOrCreatePreloadElement();
+            const loadedTrack = await this.trackLoader.load(filePath, preloadElement, true);
+            this.nextTrack = {
+                element: preloadElement,
+                trackInfo: {
+                    ...(typeof trackInfo === 'string' ? {} : trackInfo),
+                    filePath,
+                    sourceUrl: loadedTrack.track.sourceUrl,
+                    duration: loadedTrack.duration
+                }
             };
 
             console.log(`✅ 下一首歌曲预加载完成: ${getTrackTitle(trackInfo) || filePath}`);
@@ -94,6 +96,17 @@ class WebAudioPreloadCoordinator {
             this.clear();
             return false;
         }
+    }
+
+    private getOrCreatePreloadElement(): HTMLAudioElement {
+        if (!this.preloadElement) {
+            this.preloadElement = new Audio();
+            this.preloadElement.crossOrigin = 'anonymous';
+            this.preloadElement.preload = 'auto';
+            this.preloadElement.muted = true;
+        }
+
+        return this.preloadElement;
     }
 }
 

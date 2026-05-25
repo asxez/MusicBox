@@ -39,6 +39,7 @@ class WebAudioEngine {
     private readonly coverUrlStore: WebAudioObjectUrlStore;
     private visibilityCoordinator: WebAudioVisibilityCoordinator | null;
     private trackLoader: WebAudioTrackLoader | null;
+    private mediaElement: HTMLAudioElement | null;
 
     constructor() {
         this.audioContext = null;
@@ -65,7 +66,7 @@ class WebAudioEngine {
         });
         this.transportController = new WebAudioTransportController({
             getAudioContext: () => this.audioContext,
-            getAudioBuffer: () => this.currentTrackStore.getBuffer(),
+            getMediaElement: () => this.mediaElement,
             getDuration: () => this.currentTrackStore.getDuration(),
             connectSourceToChain: (sourceNode) => this.mixerController.connectSource(sourceNode),
             onTrackEnded: () => this.onTrackEnded(),
@@ -85,9 +86,6 @@ class WebAudioEngine {
             setCurrentIndex: (index) => {
                 this.currentIndex = index;
             },
-            setCurrentBuffer: (buffer) => {
-                this.currentTrackStore.setBuffer(buffer);
-            },
             setDuration: (duration) => {
                 this.currentTrackStore.setDuration(duration);
             },
@@ -105,6 +103,7 @@ class WebAudioEngine {
         this.coverUrlStore = new WebAudioObjectUrlStore();
         this.visibilityCoordinator = null;
         this.trackLoader = null;
+        this.mediaElement = null;
     }
 
     async initialize(): Promise<boolean> {
@@ -118,9 +117,13 @@ class WebAudioEngine {
             });
             this.visibilityCoordinator.start();
             this.audioContext = new window.AudioContext();
+            this.mediaElement = new Audio();
+            this.mediaElement.crossOrigin = 'anonymous';
+            this.mediaElement.preload = 'metadata';
             this.mixerController.initialize(this.audioContext);
-            this.trackLoader = new WebAudioTrackLoader(this.audioContext);
-            this.preloadCoordinator = new WebAudioPreloadCoordinator(this.audioContext);
+            this.transportController.initialize();
+            this.trackLoader = new WebAudioTrackLoader();
+            this.preloadCoordinator = new WebAudioPreloadCoordinator();
             return true;
         } catch (error) {
             console.error('❌ Web Audio Engine 初始化失败:', error);
@@ -138,8 +141,11 @@ class WebAudioEngine {
             if (!this.trackLoader) {
                 throw new Error('Web Audio track loader is not initialized');
             }
+            if (!this.mediaElement) {
+                throw new Error('Web Audio media element is not initialized');
+            }
 
-            const loadedTrack = await this.trackLoader.load(filePath);
+            const loadedTrack = await this.trackLoader.load(filePath, this.mediaElement);
             this.currentTrackStore.setLoadedTrack(loadedTrack);
 
             // 触发事件
@@ -294,9 +300,12 @@ class WebAudioEngine {
         return true;
     }
 
-    // 清理当前音频缓冲区
+    // 清理当前媒体源
     clearCurrentAudioBuffer(): void {
-        if (this.currentTrackStore.clearBuffer()) {
+        const clearedMedia = this.transportController.clearMediaSource();
+        const clearedTrack = this.currentTrackStore.clearTrack();
+
+        if (clearedMedia || clearedTrack) {
             // 在窗口隐藏时强制垃圾回收
             this.visibilityCoordinator?.requestGarbageCollectionIfHidden();
         }
@@ -379,10 +388,11 @@ class WebAudioEngine {
         // 清理封面URL
         this.coverUrlStore.cleanup();
 
-        // 清理所有音频缓冲区
+        // 清理所有音频资源
         this.currentTrackStore.clear();
         this.clearNextTrackBuffer();
         this.sessionStore.clear();
+        this.mediaElement = null;
 
         this.mixerController.destroy();
 

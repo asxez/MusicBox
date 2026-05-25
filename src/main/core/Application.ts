@@ -9,6 +9,7 @@ import {ServiceContainer} from './ServiceContainer';
 import {WindowManager} from './WindowManager';
 import {ConfigManager} from './ConfigManager';
 import {BaseController} from '../decorators/IpcHandler';
+import {registerAudioStreamProtocol} from '../services/audio/AudioStreamProtocol';
 
 /**
  * 性能计时器
@@ -342,6 +343,7 @@ export class Application {
         const metadataHandler = await this.container.get<any>('metadataHandler');
         const extensionInstaller = await this.container.get<any>('extensionInstaller');
         const extensionStorageService = await this.container.get<any>('extensionStorageService');
+        registerAudioStreamProtocol(networkFileAdapter);
 
         const boundParseMetadata = (filePath: string) =>
             parseMetadata(filePath, networkFileAdapter.isNetworkPath(filePath) ? networkFileAdapter : null, {skipCover: true});

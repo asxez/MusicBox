@@ -3,10 +3,22 @@
  * 使用新架构的 Application 类替代旧的全局变量模式
  */
 
-import {app, BrowserWindow} from 'electron';
+import {app, BrowserWindow, protocol} from 'electron';
 import {Application} from './core/Application';
+import {getAudioStreamScheme} from './services/audio/AudioStreamProtocol';
 
 // 必须在 app ready 之前调用（硬件加速设置在 Application.applyConfiguration 中处理）
+protocol.registerSchemesAsPrivileged([{
+    scheme: getAudioStreamScheme(),
+    privileges: {
+        standard: true,
+        secure: true,
+        supportFetchAPI: true,
+        corsEnabled: true,
+        stream: true
+    }
+}]);
+
 const application = new Application();
 
 app.whenReady().then(async () => {

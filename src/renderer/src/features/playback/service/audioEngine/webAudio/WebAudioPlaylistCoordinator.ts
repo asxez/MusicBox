@@ -1,8 +1,6 @@
 import {
-    getTrackDuration,
     getTrackFilePath,
     getTrackTitle,
-    normalizeTrack,
     type TrackSource
 } from '../AudioTrack';
 import type WebAudioPreloadCoordinator from './WebAudioPreloadCoordinator';
@@ -21,7 +19,6 @@ type WebAudioPlaylistState = {
 type WebAudioPlaylistActions = {
     getState: () => WebAudioPlaylistState;
     setCurrentIndex: (index: number) => void;
-    setCurrentBuffer: (buffer: AudioBuffer | null) => void;
     setDuration: (duration: number) => void;
     setCurrentTrack: (track: WebAudioTrack | null) => void;
     clearCurrentAudioBuffer: () => void;
@@ -75,7 +72,7 @@ class WebAudioPlaylistCoordinator {
             return false;
         }
 
-        this.prepareForTrackSwitch();
+        this.prepareForTrackSwitch(false);
 
         const latestState = this.actions.getState();
         const resolvedIndex = this.resolveNextIndex(nextIndex, latestState);
@@ -106,7 +103,7 @@ class WebAudioPlaylistCoordinator {
             return false;
         }
 
-        this.prepareForTrackSwitch();
+        this.prepareForTrackSwitch(true);
 
         const latestState = this.actions.getState();
         const resolvedIndex = this.resolvePreviousIndex(prevIndex, latestState);
@@ -137,9 +134,11 @@ class WebAudioPlaylistCoordinator {
         return true;
     }
 
-    private prepareForTrackSwitch(): void {
+    private prepareForTrackSwitch(clearPreload: boolean): void {
         this.actions.clearCurrentAudioBuffer();
-        this.actions.clearNextTrackBuffer();
+        if (clearPreload) {
+            this.actions.clearNextTrackBuffer();
+        }
         this.actions.stop();
     }
 
@@ -168,27 +167,9 @@ class WebAudioPlaylistCoordinator {
     }
 
     private async playPreloadedTrack(filePath: string): Promise<boolean> {
-        console.log('🎵 使用预加载的音频缓冲区进行无间隙播放');
-        this.actions.stop();
-        this.actions.setCurrentBuffer(null);
-
-        const preloadedTrack = this.actions.getState().preloadCoordinator?.getPreloaded();
-        if (!preloadedTrack) {
-            return false;
-        }
-
-        const duration = getTrackDuration(preloadedTrack.trackInfo) || preloadedTrack.buffer.duration || 0;
-        this.actions.setCurrentBuffer(preloadedTrack.buffer);
-        this.actions.setDuration(duration);
-        this.actions.setCurrentTrack(normalizeTrack(preloadedTrack.trackInfo, filePath, duration));
+        console.log('🎵 使用预加载的媒体元素缓存进行连续播放');
+        const playResult = await this.loadAndPlayTrack(filePath, true);
         this.actions.clearNextTrackBuffer();
-
-        const playResult = await this.actions.play();
-        if (playResult) {
-            await this.actions.notifyTrackChanged();
-            this.schedulePreloadIfGapless();
-        }
-
         return playResult;
     }
 

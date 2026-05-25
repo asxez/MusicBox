@@ -66,7 +66,7 @@ class WebAudioMixerController {
 
     setEqualizerEnabled(
         enabled: boolean,
-        currentSourceNode: AudioBufferSourceNode | null,
+        currentSourceNode: AudioNode | null,
         isPlaying: boolean
     ): void {
         if (this.equalizerEnabled === enabled) {
@@ -85,7 +85,7 @@ class WebAudioMixerController {
         }
     }
 
-    connectSource(sourceNode: AudioBufferSourceNode): void {
+    connectSource(sourceNode: AudioNode | null): void {
         if (!this.audioContext || !sourceNode || !this.gainNode) {
             console.warn('⚠️ sourceNode不存在，无法连接音频链');
             return;
@@ -100,7 +100,7 @@ class WebAudioMixerController {
         });
     }
 
-    reconnectSource(sourceNode: AudioBufferSourceNode | null): boolean {
+    reconnectSource(sourceNode: AudioNode | null): boolean {
         if (!this.audioContext || !sourceNode || !this.gainNode) {
             console.warn('⚠️ sourceNode不存在，无法重新连接音频链');
             return false;

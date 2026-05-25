@@ -21,3 +21,4 @@ dosdel.bat
 *.doc
 README - 副本.md
 package-lock.json
+.codegraph

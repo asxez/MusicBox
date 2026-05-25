@@ -5,9 +5,9 @@ type PositionChangedCallback = ((position: number) => void | Promise<void>) | nu
 
 type WebAudioTransportOptions = {
     getAudioContext: () => AudioContext | null;
-    getAudioBuffer: () => AudioBuffer | null;
+    getMediaElement: () => HTMLAudioElement | null;
     getDuration: () => number;
-    connectSourceToChain: (sourceNode: AudioBufferSourceNode) => void;
+    connectSourceToChain: (sourceNode: AudioNode | null) => void;
     onTrackEnded: () => void | Promise<void>;
     getPlaybackStateChangedCallback: () => PlaybackStateChangedCallback;
     getPositionChangedCallback: () => PositionChangedCallback;
@@ -15,10 +15,9 @@ type WebAudioTransportOptions = {
 
 class WebAudioTransportController {
     private readonly options: WebAudioTransportOptions;
-    private sourceNode: AudioBufferSourceNode | null;
+    private sourceNode: MediaElementAudioSourceNode | null;
     private playing: boolean;
     private paused: boolean;
-    private startTime: number;
     private pauseTime: number;
     private readonly progressTicker: WebAudioProgressTicker;
 
@@ -27,9 +26,24 @@ class WebAudioTransportController {
         this.sourceNode = null;
         this.playing = false;
         this.paused = false;
-        this.startTime = 0;
         this.pauseTime = 0;
         this.progressTicker = new WebAudioProgressTicker();
+    }
+
+    initialize(): void {
+        const audioContext = this.options.getAudioContext();
+        const mediaElement = this.options.getMediaElement();
+
+        if (!audioContext || !mediaElement) {
+            throw new Error('Web Audio transport requires an AudioContext and media element');
+        }
+
+        if (!this.sourceNode) {
+            this.sourceNode = audioContext.createMediaElementSource(mediaElement);
+            this.options.connectSourceToChain(this.sourceNode);
+        }
+
+        mediaElement.onended = () => this.handleSourceEnded();
     }
 
     isPlaying(): boolean {
@@ -44,17 +58,16 @@ class WebAudioTransportController {
         return !!this.sourceNode;
     }
 
-    getSourceNode(): AudioBufferSourceNode | null {
+    getSourceNode(): MediaElementAudioSourceNode | null {
         return this.sourceNode;
     }
 
     async play(): Promise<boolean> {
         try {
             const audioContext = this.options.getAudioContext();
-            const audioBuffer = this.options.getAudioBuffer();
-            const duration = this.options.getDuration();
+            const mediaElement = this.options.getMediaElement();
 
-            if (!audioContext || !audioBuffer) {
+            if (!audioContext || !mediaElement || !mediaElement.src) {
                 return false;
             }
 
@@ -62,40 +75,14 @@ class WebAudioTransportController {
                 await audioContext.resume();
             }
 
-            if (this.playing && !this.paused) {
+            if (this.playing && !this.paused && !mediaElement.paused) {
                 return true;
             }
 
-            this.releaseSourceNode();
-
-            this.sourceNode = this.createSourceNode(audioContext, audioBuffer);
-            this.options.connectSourceToChain(this.sourceNode);
-            this.sourceNode.onended = () => this.handleSourceEnded();
-
-            const offset = this.paused ? this.pauseTime : 0;
-            const validOffset = this.clampPosition(offset, duration - 0.1);
-            console.log(`▶️ 开始播放，原始偏移量: ${offset.toFixed(2)}s, 有效偏移量: ${validOffset.toFixed(2)}s, 音频时长: ${duration.toFixed(2)}s`);
-
-            try {
-                this.sourceNode.start(0, validOffset);
-                this.startTime = audioContext.currentTime - validOffset;
-
-                if (validOffset !== offset) {
-                    this.pauseTime = validOffset;
-                }
-            } catch (startError) {
-                console.error('❌ 音频源启动失败:', startError);
-                this.sourceNode = this.createSourceNode(audioContext, audioBuffer);
-                this.options.connectSourceToChain(this.sourceNode);
-                this.sourceNode.onended = () => this.handleSourceEnded();
-                this.sourceNode.start(0, 0);
-                this.startTime = audioContext.currentTime;
-                this.pauseTime = 0;
-                this.paused = false;
-            }
-
+            await mediaElement.play();
             this.playing = true;
             this.paused = false;
+            this.pauseTime = mediaElement.currentTime || 0;
             this.startProgressUpdates();
             await this.notifyPlaybackStateChanged(true);
 
@@ -108,45 +95,24 @@ class WebAudioTransportController {
 
     async pause(): Promise<boolean> {
         try {
-            const audioContext = this.options.getAudioContext();
-            const duration = this.options.getDuration();
-
-            if (!audioContext) {
+            const mediaElement = this.options.getMediaElement();
+            if (!mediaElement || !mediaElement.src) {
                 return false;
             }
 
-            if (!this.playing && !this.sourceNode) {
-                console.log('⚠️ 音频未在播放且无音频源，无法暂停');
+            if (!this.playing && mediaElement.paused) {
+                console.log('⚠️ 音频未在播放，无法暂停');
                 return false;
             }
 
-            if (!this.playing) {
-                console.log('⚠️ 状态显示未播放，但仍尝试暂停');
-            }
-
-            const currentPosition = audioContext.currentTime - this.startTime;
-            this.pauseTime = this.clampPosition(currentPosition, duration - 0.1);
-            console.log(`🔄 暂停位置计算: currentTime=${audioContext.currentTime.toFixed(2)}, startTime=${this.startTime.toFixed(2)}, 计算位置=${currentPosition.toFixed(2)}, 最终位置=${this.pauseTime.toFixed(2)}`);
-
-            if (this.pauseTime < 0 || this.pauseTime >= duration) {
-                const fallbackPosition = await this.getPosition();
-                console.log(`⚠️ 暂停位置异常，使用备用位置: ${fallbackPosition.toFixed(2)}s`);
-                this.pauseTime = this.clampPosition(fallbackPosition, duration - 0.1);
-            }
-
-            this.releaseSourceNode();
+            mediaElement.pause();
+            this.pauseTime = this.clampPosition(mediaElement.currentTime || 0, this.getMaxPosition());
             this.playing = false;
             this.paused = true;
             this.stopProgressUpdates();
 
             console.log(`⏸️ 暂停播放，位置: ${this.pauseTime.toFixed(2)}s`);
-            const onPlaybackStateChanged = this.options.getPlaybackStateChangedCallback();
-            if (onPlaybackStateChanged) {
-                console.log('🔄 Web Audio Engine: 触发暂停状态变化事件');
-                await onPlaybackStateChanged(false);
-            } else {
-                console.warn('⚠️ Web Audio Engine: onPlaybackStateChanged 回调未设置');
-            }
+            await this.notifyPlaybackStateChanged(false);
 
             return true;
         } catch (error) {
@@ -157,10 +123,14 @@ class WebAudioTransportController {
 
     stop(): boolean {
         try {
-            this.releaseSourceNode();
+            const mediaElement = this.options.getMediaElement();
+            if (mediaElement) {
+                mediaElement.pause();
+                this.setMediaElementPosition(mediaElement, 0);
+            }
+
             this.playing = false;
             this.paused = false;
-            this.startTime = 0;
             this.pauseTime = 0;
             this.stopProgressUpdates();
             void this.notifyPlaybackStateChanged(false);
@@ -173,26 +143,47 @@ class WebAudioTransportController {
         }
     }
 
+    clearMediaSource(): boolean {
+        const mediaElement = this.options.getMediaElement();
+        if (!mediaElement || !mediaElement.src) {
+            return false;
+        }
+
+        try {
+            mediaElement.pause();
+            mediaElement.removeAttribute('src');
+            mediaElement.load();
+            this.playing = false;
+            this.paused = false;
+            this.pauseTime = 0;
+            this.stopProgressUpdates();
+            return true;
+        } catch (error) {
+            console.warn('⚠️ 清理媒体元素源失败:', error);
+            return false;
+        }
+    }
+
     async seek(position: number): Promise<boolean> {
         try {
-            if (!this.options.getAudioBuffer()) {
+            const mediaElement = this.options.getMediaElement();
+            if (!mediaElement || !mediaElement.src) {
                 return false;
             }
 
-            const wasPlaying = this.playing;
-            this.releaseSourceNode();
-            this.stopProgressUpdates();
+            const wasPlaying = this.playing && !mediaElement.paused;
+            const boundedPosition = this.clampPosition(position, this.getMaxPosition());
+            this.setMediaElementPosition(mediaElement, boundedPosition);
+            this.pauseTime = boundedPosition;
+            this.paused = !wasPlaying;
+            this.playing = wasPlaying;
+            console.log(`⏭️ 跳转到: ${boundedPosition.toFixed(2)}s`);
 
-            this.pauseTime = this.clampPosition(position, this.options.getDuration());
-            this.paused = true;
-            this.playing = false;
-            console.log(`⏭️ 跳转到: ${position.toFixed(2)}s`);
-
-            if (wasPlaying) {
+            if (wasPlaying && mediaElement.paused) {
                 await this.play();
             }
 
-            await this.notifyPositionChanged(this.pauseTime);
+            await this.notifyPositionChanged(boundedPosition);
             return true;
         } catch (error) {
             console.error('❌ 跳转失败:', error);
@@ -201,31 +192,18 @@ class WebAudioTransportController {
     }
 
     async getPosition(): Promise<number> {
-        if (!this.playing && !this.paused) {
+        const mediaElement = this.options.getMediaElement();
+        if (!mediaElement || !mediaElement.src) {
             return 0;
         }
 
-        if (this.paused) {
-            return this.pauseTime;
-        }
-
-        const audioContext = this.options.getAudioContext();
-        if (!audioContext) {
-            return 0;
-        }
-
-        return audioContext.currentTime - this.startTime;
+        return mediaElement.currentTime || 0;
     }
 
     destroy(): void {
+        this.clearMediaSource();
         this.releaseSourceNode();
         this.stopProgressUpdates();
-    }
-
-    private createSourceNode(audioContext: AudioContext, audioBuffer: AudioBuffer): AudioBufferSourceNode {
-        const sourceNode = audioContext.createBufferSource();
-        sourceNode.buffer = audioBuffer;
-        return sourceNode;
     }
 
     private releaseSourceNode(): void {
@@ -234,11 +212,9 @@ class WebAudioTransportController {
         }
 
         try {
-            this.sourceNode.onended = null;
-            this.sourceNode.stop();
             this.sourceNode.disconnect();
-        } catch (error) {
-            // AudioBufferSourceNode can only be stopped once.
+        } catch {
+            // MediaElementAudioSourceNode may already be disconnected.
         }
 
         this.sourceNode = null;
@@ -249,10 +225,11 @@ class WebAudioTransportController {
             return;
         }
 
-        this.sourceNode = null;
         this.playing = false;
         this.paused = false;
+        this.pauseTime = 0;
         this.stopProgressUpdates();
+        void this.notifyPlaybackStateChanged(false);
         void this.options.onTrackEnded();
     }
 
@@ -279,6 +256,27 @@ class WebAudioTransportController {
         const onPositionChanged = this.options.getPositionChangedCallback();
         if (onPositionChanged) {
             await onPositionChanged(position);
+        }
+    }
+
+    private getMaxPosition(): number {
+        const duration = this.options.getDuration();
+        if (!Number.isFinite(duration) || duration <= 0) {
+            return 0;
+        }
+
+        return Math.max(0, duration - 0.05);
+    }
+
+    private setMediaElementPosition(mediaElement: HTMLAudioElement, position: number): void {
+        if (!Number.isFinite(position)) {
+            return;
+        }
+
+        try {
+            mediaElement.currentTime = position;
+        } catch (error) {
+            console.warn('⚠️ 设置媒体播放位置失败:', error);
         }
     }
 

@@ -2,7 +2,7 @@ import type WebAudioEqualizer from '@/features/equalizer/service/WebAudioEqualiz
 
 type WebAudioChainOptions = {
     audioContext: AudioContext;
-    sourceNode: AudioBufferSourceNode;
+    sourceNode: AudioNode;
     gainNode: GainNode;
     equalizer: WebAudioEqualizer | null;
     equalizerEnabled: boolean;
@@ -96,7 +96,7 @@ class WebAudioChain {
         }
     }
 
-    private connectDirect(sourceNode: AudioBufferSourceNode, gainNode: GainNode, fallback = false): void {
+    private connectDirect(sourceNode: AudioNode, gainNode: GainNode, fallback = false): void {
         const prefix = fallback ? '🔄 回退到直接连接' : '🔗 使用直接路径';
         console.log(`${prefix}: sourceNode -> gainNode -> destination`);
         try {

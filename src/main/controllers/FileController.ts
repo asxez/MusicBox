@@ -3,6 +3,7 @@
 import * as fs from 'fs';
 import {BaseController, Controller, IpcHandle} from '../decorators/IpcHandler';
 import {NetworkFileAdapter} from '../services/network/NetworkFileAdapter';
+import {createAudioStreamUrl} from '../services/audio/AudioStreamProtocol';
 import {assertReadableAudioFilePath} from '../utils/audioFileSecurity';
 
 @Controller('file')
@@ -30,5 +31,11 @@ export class FileController extends BaseController {
             console.error('❌ 读取音频文件失败:', error);
             throw error;
         }
+    }
+
+    @IpcHandle('file:createAudioStreamUrl')
+    async createAudioStreamUrl(filePath: string): Promise<string> {
+        const isNetworkPath = this.networkFileAdapter.isNetworkPath(filePath);
+        return createAudioStreamUrl(filePath, isNetworkPath);
     }
 }

@@ -3,22 +3,20 @@ import {trackMetadataLookupService} from '../TrackMetadataLookupService';
 import type {LoadedWebAudioTrack, TrackMetadata, WebAudioTrack} from './WebAudioTypes';
 
 class WebAudioTrackLoader {
-    private readonly audioContext: AudioContext;
+    async load(filePath: string, audioElement: HTMLAudioElement, preload = false): Promise<LoadedWebAudioTrack> {
+        const sourceUrl = await audioFileReaderService.createAudioStreamUrl(filePath);
+        this.prepareElement(audioElement, sourceUrl, preload);
+        await this.waitForMetadata(audioElement);
 
-    constructor(audioContext: AudioContext) {
-        this.audioContext = audioContext;
-    }
-
-    async load(filePath: string): Promise<LoadedWebAudioTrack> {
-        let arrayBuffer: ArrayBuffer | null = await this.readAudioData(filePath);
-        const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-        const webAudioDuration = audioBuffer.duration;
-        arrayBuffer = null;
+        const mediaDuration = Number.isFinite(audioElement.duration) && audioElement.duration > 0
+            ? audioElement.duration
+            : 0;
 
         const metadata = await this.getTrackMetadata(filePath);
-        const duration = (metadata.duration && metadata.duration > 0) ? metadata.duration : webAudioDuration;
+        const duration = (metadata.duration && metadata.duration > 0) ? metadata.duration : mediaDuration;
         const track: WebAudioTrack = {
             filePath,
+            sourceUrl,
             title: metadata.title,
             artist: metadata.artist,
             album: metadata.album,
@@ -33,23 +31,48 @@ class WebAudioTrackLoader {
         };
 
         return {
-            buffer: audioBuffer,
             duration,
             track
         };
     }
 
-    private async readAudioData(filePath: string): Promise<ArrayBuffer> {
-        try {
-            return await audioFileReaderService.readAudioFile(filePath);
-        } catch {
-            const fileUrl = filePath.startsWith('file://') ? filePath : `file:///${filePath.replace(/\\/g, '/')}`;
-            const response = await fetch(fileUrl);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch audio file: ${response.status}`);
-            }
-            return await response.arrayBuffer();
+    private prepareElement(audioElement: HTMLAudioElement, sourceUrl: string, preload: boolean): void {
+        audioElement.pause();
+        audioElement.crossOrigin = 'anonymous';
+        audioElement.preload = preload ? 'auto' : 'metadata';
+        audioElement.src = sourceUrl;
+        audioElement.load();
+    }
+
+    private async waitForMetadata(audioElement: HTMLAudioElement): Promise<void> {
+        if (audioElement.readyState >= 1) {
+            return;
         }
+
+        await new Promise<void>((resolve, reject) => {
+            const cleanup = () => {
+                audioElement.removeEventListener('loadedmetadata', handleMetadata);
+                audioElement.removeEventListener('error', handleError);
+                audioElement.removeEventListener('abort', handleAbort);
+            };
+            const handleMetadata = () => {
+                cleanup();
+                resolve();
+            };
+            const handleError = () => {
+                cleanup();
+                const mediaError = audioElement.error;
+                reject(new Error(mediaError?.message || `Media element failed to load source: ${audioElement.src}`));
+            };
+            const handleAbort = () => {
+                cleanup();
+                reject(new Error(`Media element load aborted: ${audioElement.src}`));
+            };
+
+            audioElement.addEventListener('loadedmetadata', handleMetadata, {once: true});
+            audioElement.addEventListener('error', handleError, {once: true});
+            audioElement.addEventListener('abort', handleAbort, {once: true});
+        });
     }
 
     private async getTrackMetadata(filePath: string): Promise<TrackMetadata> {
