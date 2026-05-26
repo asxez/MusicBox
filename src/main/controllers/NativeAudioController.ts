@@ -158,9 +158,9 @@ export class NativeAudioController extends BaseController {
     }
 
     @IpcHandle('native-audio:seek')
-    async seek(position: number): Promise<any> {
+    seek(position: number): any {
         try {
-            return this.engine ? await this.engine.seek(position) : {success: false, error: '引擎未初始化'};
+            return this.engine ? this.engine.seek(position) : {success: false, error: '引擎未初始化'};
         } catch (e: any) {
             return {success: false, error: e.message};
         }

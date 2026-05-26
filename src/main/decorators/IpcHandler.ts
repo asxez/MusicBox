@@ -126,9 +126,16 @@ export abstract class BaseController {
             }
 
             if (handler.type === 'handle') {
-                ipcMain.handle(handler.channel, async (_event: IpcMainInvokeEvent, ...args: any[]) => {
+                ipcMain.handle(handler.channel, (_event: IpcMainInvokeEvent, ...args: any[]) => {
                     try {
-                        return await method.apply(this, args);
+                        const result = method.apply(this, args);
+                        if (result && typeof result.then === 'function') {
+                            return result.catch((error: unknown) => {
+                                console.error(`❌ IPC 处理器错误 [${handler.channel}]:`, error);
+                                throw error;
+                            });
+                        }
+                        return result;
                     } catch (error) {
                         console.error(`❌ IPC 处理器错误 [${handler.channel}]:`, error);
                         throw error;

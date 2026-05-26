@@ -749,8 +749,6 @@ impl AudioEngine {
     }
 
     pub fn seek(&mut self, position: f64) -> Result<(), String> {
-        println!("🎵 AudioEngine: 跳转到 {:.2}秒", position);
-
         if self.current_file.is_none() {
             return Err("未加载音频文件".to_string());
         }
@@ -767,10 +765,6 @@ impl AudioEngine {
                 .map_err(|e| format!("发送跳转请求失败: {}", e))?;
 
             self.tracker.lock().set_position(clamped_position);
-            println!(
-                "✅ AudioEngine: 已请求跳转到 {:.2}秒 (seek #{})",
-                clamped_position, generation
-            );
         } else {
             return Err("跳转功能未就绪".to_string());
         }

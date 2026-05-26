@@ -67,13 +67,6 @@ pub fn decode_direct(
 
     loop {
         if let Some(seek) = drain_latest_seek(seek_receiver) {
-            println!(
-                "🎯 解码: 收到跳转请求 {:.2}秒 (seek #{})",
-                seek.position, seek.generation
-            );
-
-            notify_renderer_seek_clear(error_sender, seek, is_playing)?;
-
             sample_batch.clear();
             sample_count = seek_decoder(
                 &mut source,
@@ -89,10 +82,23 @@ pub fn decode_direct(
                 continue;
             }
 
-            println!(
-                "✅ 解码: 跳转完成,当前位置 {:.2}秒",
-                sample_count as f64 / (source_sample_rate as f64 * source_channels as f64)
+            prefill_direct_samples(
+                &mut source,
+                &mut sample_count,
+                &mut sample_batch,
+                DIRECT_DECODE_BATCH_SAMPLES,
             );
+
+            notify_renderer_seek_clear(error_sender, seek, is_playing)?;
+            if !is_current_seek(seek_generation, seek.generation) {
+                sample_batch.clear();
+                continue;
+            }
+
+            if !sample_batch.is_empty() {
+                push_samples_blocking(producer, &sample_batch, is_playing, is_paused)?;
+                sample_batch.clear();
+            }
             continue;
         }
 
@@ -177,13 +183,6 @@ pub fn decode_with_resampling(
 
     loop {
         if let Some(seek) = drain_latest_seek(seek_receiver) {
-            println!(
-                "🎯 解码: 收到跳转请求 {:.2}秒 (seek #{})",
-                seek.position, seek.generation
-            );
-
-            notify_renderer_seek_clear(error_sender, seek, is_playing)?;
-
             sample_count = seek_decoder(
                 &mut source,
                 &file_path,
@@ -198,17 +197,58 @@ pub fn decode_with_resampling(
                 continue;
             }
 
-            println!(
-                "✅ 解码: 跳转完成,当前位置 {:.2}秒",
-                sample_count as f64 / (source_sample_rate as f64 * source_channels as f64)
-            );
-
-            // 清空缓冲区和重采样器
             interleaved_samples.clear();
             output_samples.clear();
 
             // 重置重采样器，清除 seek 前的滤波器历史状态。
             resampler.reset();
+
+            prefill_direct_samples(
+                &mut source,
+                &mut sample_count,
+                &mut interleaved_samples,
+                samples_per_chunk,
+            );
+
+            if interleaved_samples.len() >= samples_per_chunk {
+                process_chunk_samples(
+                    &mut resampler,
+                    &interleaved_samples[..samples_per_chunk],
+                    &mut deinterleaved_samples,
+                    &mut resampled_output,
+                    &mut output_samples,
+                    source_channels,
+                    device_channels,
+                    chunk_size,
+                    false,
+                )?;
+                interleaved_samples.clear();
+            } else if !interleaved_samples.is_empty() {
+                interleaved_samples.resize(samples_per_chunk, 0.0);
+                process_chunk_samples(
+                    &mut resampler,
+                    &interleaved_samples,
+                    &mut deinterleaved_samples,
+                    &mut resampled_output,
+                    &mut output_samples,
+                    source_channels,
+                    device_channels,
+                    chunk_size,
+                    true,
+                )?;
+                interleaved_samples.clear();
+            }
+
+            notify_renderer_seek_clear(error_sender, seek, is_playing)?;
+            if !is_current_seek(seek_generation, seek.generation) {
+                output_samples.clear();
+                continue;
+            }
+
+            if !output_samples.is_empty() {
+                push_samples_blocking(producer, &output_samples, is_playing, is_paused)?;
+                output_samples.clear();
+            }
             continue;
         }
 
@@ -313,6 +353,33 @@ fn process_chunk(
     chunk_size: usize,
     zero_fill_input: bool,
 ) -> Result<(), String> {
+    process_chunk_samples(
+        resampler,
+        interleaved_samples,
+        deinterleaved,
+        resampled_output,
+        output_samples,
+        source_channels,
+        device_channels,
+        chunk_size,
+        zero_fill_input,
+    )?;
+
+    push_samples_blocking(producer, output_samples, is_playing, is_paused)?;
+    Ok(())
+}
+
+fn process_chunk_samples(
+    resampler: &mut AudioResampler,
+    interleaved_samples: &[f32],
+    deinterleaved: &mut [Vec<f32>],
+    resampled_output: &mut [Vec<f32>],
+    output_samples: &mut Vec<f32>,
+    source_channels: u16,
+    device_channels: u16,
+    chunk_size: usize,
+    zero_fill_input: bool,
+) -> Result<(), String> {
     deinterleave_samples(
         interleaved_samples,
         source_channels as usize,
@@ -330,7 +397,6 @@ fn process_chunk(
         output_samples,
     );
 
-    push_samples_blocking(producer, output_samples, is_playing, is_paused)?;
     Ok(())
 }
 
@@ -506,19 +572,35 @@ fn notify_renderer_seek_clear(
             ack_sender,
         })
         .map_err(|e| format!("通知渲染器清空缓冲区失败: {}", e))?;
-    println!("📣 解码: 已通知渲染器清空缓冲区");
 
     while is_playing.load(Ordering::SeqCst) {
         if ack_receiver
             .recv_timeout(StdDuration::from_millis(5))
             .is_ok()
         {
-            println!("✅ 解码: 渲染器已确认清空缓冲区");
             return Ok(());
         }
     }
 
     Ok(())
+}
+
+fn prefill_direct_samples(
+    source: &mut Decoder<Box<dyn ReadSeek>>,
+    sample_count: &mut u64,
+    output: &mut Vec<f32>,
+    target_samples: usize,
+) {
+    output.clear();
+    while output.len() < target_samples {
+        match source.next() {
+            Some(sample) => {
+                *sample_count += 1;
+                output.push(sample);
+            }
+            None => break,
+        }
+    }
 }
 
 fn wait_for_decode_buffer_space(

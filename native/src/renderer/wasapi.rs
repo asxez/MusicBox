@@ -476,14 +476,8 @@ fn run_render_loop(
                     command,
                     ack_sender,
                 } => {
-                    println!(
-                        "🔄 渲染器: 收到跳转请求 {:.2}秒 (seek #{}), 清空缓冲区",
-                        command.position, command.generation
-                    );
-
-                    let cleared_count = consumer.clear();
-
-                    println!("✅ 渲染器: 已清空 {} 个样本", cleared_count);
+                    let _ = command;
+                    consumer.clear();
                     pending_stats.seek_clears += 1;
 
                     // 重置抖动器状态，避免跳转时的伪影
