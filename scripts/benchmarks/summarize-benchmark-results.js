@@ -259,10 +259,26 @@ function inputWorkloadClass(audioFile, repeatLabel = '') {
     return 'unknown';
 }
 
-function comparisonScope(backend) {
+function isMediaElementWebAudioRun(data) {
+    const semantics = [
+        data.metricsSemantics?.webAudioStats,
+        data.metricsSemantics?.loadTrackTiming
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    return semantics.includes('htmlaudioelement')
+        || semantics.includes('mediaelementaudiosourcenode')
+        || semantics.includes('range-capable media stream url')
+        || semantics.includes('media metadata');
+}
+
+function comparisonScope(data, backend) {
     if (backend === 'none') return 'ipc_control_boundary';
     if (backend === 'native') return 'direct_ipc_rust_wasapi_path';
-    if (backend === 'webaudio') return 'benchmark_webaudio_audiobuffer_path';
+    if (backend === 'webaudio') {
+        return isMediaElementWebAudioRun(data)
+            ? 'benchmark_webaudio_media_element_stream_path'
+            : 'benchmark_webaudio_audiobuffer_path';
+    }
     return 'unknown';
 }
 
@@ -300,7 +316,11 @@ function seekMeasurementScope(data) {
 }
 
 function loadTrackScope(data, backend) {
-    if (backend === 'webaudio') return 'full_file_read_ipc_audiobuffer_decode';
+    if (backend === 'webaudio') {
+        return isMediaElementWebAudioRun(data)
+            ? 'stream_url_setup_media_metadata_ready'
+            : 'full_file_read_ipc_audiobuffer_decode';
+    }
     if (backend === 'native') return 'native_file_probe_streaming_decode_path';
     return 'not_applicable';
 }
@@ -589,7 +609,7 @@ function parseRun(fullPath, rawDir) {
         backend,
         shareMode: data.config?.shareMode || '',
         inputWorkloadClass: inputWorkloadClass(audioFile, repeatLabel),
-        comparisonScope: comparisonScope(backend),
+        comparisonScope: comparisonScope(data, backend),
         measurementFairnessClass: measurementFairnessClass(data, backend),
         renderStatsScope: renderStatsScope(data, backend),
         ipcMeasurementPhase: ipcMeasurementPhase(data),

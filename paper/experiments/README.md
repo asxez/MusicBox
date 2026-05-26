@@ -116,12 +116,13 @@ for the run.
 Formal matrices set `strictFairness: true`. In this mode the matrix runner
 rejects comparative playback configurations that mix measured durations, sample
 intervals, measured repetitions, warm-up settings, audio-file sets, playback IPC
-probing, missing native share modes, or blocked execution order. This does not make every metric semantically
-equivalent: WebAudio `loadTrack` still measures full-file IPC read plus
-`decodeAudioData`, while native `loadTrack` measures the native probe/open path
-and then streams decode during playback. The CSV files therefore include
-fairness and comparability columns so that memory and steady-playback metrics
-are not confused with decoder microbenchmarks.
+probing, missing native share modes, or blocked execution order. This does not
+make every metric semantically equivalent: WebAudio `loadTrack` resolves a
+range-capable media stream URL and waits for `HTMLAudioElement` metadata, while
+native `loadTrack` measures the native probe/open path and then streams decode
+during playback. The CSV files therefore include fairness and comparability
+columns so that memory and steady-playback metrics are not confused with decoder
+microbenchmarks.
 
 For long-stability results, use at least five repetitions when the batch is
 intended for manuscript claims about continuity or rare underrun events. Three
@@ -152,11 +153,11 @@ The benchmark records:
   module file fingerprint.
 
 Load and seek timing fields are benchmark API/lifecycle measurements. They are
-not acoustic output-latency measurements. WebAudio `loadTrack` uses a full-file
-read over the Electron path followed by `decodeAudioData`; native `loadTrack`
-uses the Rust/WASAPI path and streams decoding during playback. These timings
-therefore characterize the tested MusicBox implementation strategies rather
-than intrinsic limits of WebAudio or WASAPI.
+not acoustic output-latency measurements. WebAudio `loadTrack` resolves the
+stream URL and waits for media metadata readiness; native `loadTrack` uses the
+Rust/WASAPI path and streams decoding during playback. These timings therefore
+characterize the tested MusicBox implementation strategies rather than intrinsic
+limits of WebAudio or WASAPI.
 
 ## Quality Controls
 

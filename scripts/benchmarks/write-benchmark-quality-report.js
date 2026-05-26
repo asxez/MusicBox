@@ -299,8 +299,8 @@ function main() {
             {label: 'Seek success', value: row => row.seekSuccessRate_mean},
             {label: 'Seek mean ms', value: row => row.seekLatencyMeanMs_mean},
             {label: 'Load ms', value: row => row.loadTrackMs_mean},
-            {label: 'Load read ms', value: row => row.loadTrackReadMs_mean || '0.000'},
-            {label: 'Load decode ms', value: row => row.loadTrackDecodeMs_mean || '0.000'},
+            {label: 'Load setup ms', value: row => row.loadTrackReadMs_mean || '0.000'},
+            {label: 'Load ready ms', value: row => row.loadTrackDecodeMs_mean || '0.000'},
             {label: 'IPC 1 MB ms', value: row => row.ipc1MBMeanMs_mean},
             {label: 'IPC 4 MB ms', value: row => row.ipc4MBMeanMs_mean || '0.000'},
             {label: 'IPC 8 MB ms', value: row => row.ipc8MBMeanMs_mean || '0.000'}
