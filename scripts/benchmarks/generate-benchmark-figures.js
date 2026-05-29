@@ -500,6 +500,67 @@ function main() {
         });
     }
 
+    if (playbackRows.some(row => number(row.appCpuPercentMean_mean) > 0)) {
+        barChart({
+            title: 'Mean Application CPU% by Condition',
+            rows: playbackRows,
+            valueKey: 'appCpuPercentMean_mean',
+            errorKey: 'appCpuPercentMean_sd',
+            labelKey: conditionFigureLabel,
+            yLabel: 'CPU% mean, SD',
+            outPath: path.join(args.outDir, 'cpu-percent-by-condition.svg'),
+            valueFormatter: value => value.toFixed(2)
+        });
+    }
+
+    if (playbackRows.some(row => number(row.mainCpuPercentMean_mean) > 0)) {
+        barChart({
+            title: 'Mean Main Process CPU% by Condition',
+            rows: playbackRows,
+            valueKey: 'mainCpuPercentMean_mean',
+            errorKey: 'mainCpuPercentMean_sd',
+            labelKey: conditionFigureLabel,
+            yLabel: 'Main process CPU% mean, SD',
+            outPath: path.join(args.outDir, 'main-cpu-percent-by-condition.svg')
+        });
+    }
+
+    if (playbackRows.some(row => number(row.rendererCpuPercentMean_mean) > 0)) {
+        barChart({
+            title: 'Mean Renderer CPU% by Condition',
+            rows: playbackRows,
+            valueKey: 'rendererCpuPercentMean_mean',
+            errorKey: 'rendererCpuPercentMean_sd',
+            labelKey: conditionFigureLabel,
+            yLabel: 'Renderer CPU% mean, SD',
+            outPath: path.join(args.outDir, 'renderer-cpu-percent-by-condition.svg')
+        });
+    }
+
+    if (playbackRows.some(row => number(row.gpuCpuPercentMean_mean) > 0)) {
+        barChart({
+            title: 'Mean GPU Process CPU% by Condition',
+            rows: playbackRows,
+            valueKey: 'gpuCpuPercentMean_mean',
+            labelKey: conditionFigureLabel,
+            yLabel: 'GPU process CPU% mean',
+            outPath: path.join(args.outDir, 'gpu-cpu-percent-by-condition.svg')
+        });
+    }
+
+    if (playbackRows.some(row => number(row.cpuTimeTotalSec_mean) > 0)) {
+        barChart({
+            title: 'Cumulative CPU Time by Condition',
+            rows: playbackRows,
+            valueKey: 'cpuTimeTotalSec_mean',
+            errorKey: 'cpuTimeTotalSec_sd',
+            labelKey: conditionFigureLabel,
+            yLabel: 'CPU time (s), SD',
+            outPath: path.join(args.outDir, 'cpu-time-by-condition.svg'),
+            valueFormatter: value => value.toFixed(2)
+        });
+    }
+
     if (playbackRows.some(row => number(row.seekEvents_mean) > 0)) {
         barChart({
             title: 'Mean Seek API Duration by Condition',

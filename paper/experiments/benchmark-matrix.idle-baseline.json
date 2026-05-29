@@ -1,0 +1,21 @@
+{
+  "experimentName": "idle-baseline",
+  "executionOrder": "round_robin",
+  "warmupRepetitions": 1,
+  "warmupDurationSec": 10,
+  "strictFairness": true,
+  "repetitions": 10,
+  "durationSec": 60,
+  "sampleIntervalMs": 1000,
+  "ipcIterations": 0,
+  "payloadBytes": [],
+  "audioFiles": [],
+  "conditions": [
+    {
+      "id": "idle_no_audio",
+      "backend": "none",
+      "ipcIterations": 0,
+      "payloadBytes": []
+    }
+  ]
+}

@@ -19,7 +19,7 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#-安装)
 [![Electron](https://img.shields.io/badge/Electron-41.2.1-47848f.svg)](https://electronjs.org/)
-[![Node](https://img.shields.io/badge/Node-%3E%3D24.15.0-green.svg)](https://nodejs.org/)
+[![Node](https://img.shields.io/badge/Node-%3E%3D22-green.svg)](https://nodejs.org/)
 
 ---
 

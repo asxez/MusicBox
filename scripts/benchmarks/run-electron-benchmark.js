@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const os = require('os');
-const {spawn} = require('child_process');
+const {spawn, spawnSync} = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULT_OUT_DIR = path.join(ROOT, 'paper', 'experiments', 'raw');
@@ -44,6 +44,7 @@ function parseArgs(argv) {
         seekPositions: [],
         warmup: false,
         noBuild: false,
+        deviceName: '',
     };
 
     for (let i = 0; i < argv.length; i++) {
@@ -67,6 +68,7 @@ function parseArgs(argv) {
         else if (arg === '--seek-positions') args.seekPositions = next().split(',').map(Number).filter(Number.isFinite);
         else if (arg === '--warmup') args.warmup = true;
         else if (arg === '--no-build') args.noBuild = true;
+        else if (arg === '--device-name') args.deviceName = next();
         else if (arg === '--help' || arg === '-h') {
             printHelp();
             process.exit(0);
@@ -96,6 +98,7 @@ Options:
   --seek-every-sec <n>        Seek periodically during playback, disabled by default
   --seek-positions <list>     Comma-separated seek positions in seconds, used with --seek-every-sec
   --warmup                    Mark this run as warm-up; summarizers exclude it from condition statistics
+  --device-name <name>        Audio playback device name for multi-device experiments; auto-detected on Windows if omitted
   --out-dir <path>            Raw output root. Each run gets its own subdirectory, default paper/experiments/raw
   --electron <path>           Electron executable
   --main <path>               Built main entry, default dist/main/main.js
@@ -162,6 +165,7 @@ function readPackageVersion(packagePath) {
 }
 
 function collectRunEnvironment(args) {
+    const deviceName = args.deviceName || detectAudioDeviceName();
     return {
         platform: process.platform,
         arch: process.arch,
@@ -174,8 +178,27 @@ function collectRunEnvironment(args) {
         electronPackageVersion: readPackageVersion(path.join(ROOT, 'node_modules', 'electron', 'package.json')),
         mainEntry: describeFile(args.main),
         nativeAudioNode: describeFile(path.join(ROOT, 'dist', 'main', 'NativeAudio.node')),
-        audioFile: describeFile(args.audioFile)
+        audioFile: describeFile(args.audioFile),
+        audioDeviceName: deviceName
     };
+}
+
+function detectAudioDeviceName() {
+    if (process.platform !== 'win32') return process.platform;
+    try {
+        const result = spawnSync('powershell', [
+            '-NoProfile', '-Command',
+            'Get-CimInstance -ClassName Win32_SoundDevice | Where-Object {$_.Status -eq "OK"} | Select-Object -First 1 -ExpandProperty Name'
+        ], {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'pipe'],
+            timeout: 5000
+        });
+        const name = (result.stdout || '').trim();
+        return name || 'unknown-device';
+    } catch {
+        return 'unknown-device';
+    }
 }
 
 function buildRendererScript(args) {
@@ -545,7 +568,8 @@ function runBenchmark(args) {
             repeatLabel: args.repeatLabel,
             seekEverySec: args.seekEverySec,
             seekPositions: args.seekPositions,
-            warmup: args.warmup
+            warmup: args.warmup,
+            deviceName: args.deviceName || detectAudioDeviceName()
         },
         environment: collectRunEnvironment(args),
         output: {

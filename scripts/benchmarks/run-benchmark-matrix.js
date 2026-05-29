@@ -41,6 +41,7 @@ function parseArgs(argv) {
         outDir: '',
         experimentDir: '',
         experimentName: '',
+        deviceName: '',
         summarize: true,
         figures: true,
         logCheck: true,
@@ -54,13 +55,14 @@ function parseArgs(argv) {
         else if (arg === '--out-dir') args.outDir = path.resolve(argv[++i]);
         else if (arg === '--experiment-dir') args.experimentDir = path.resolve(argv[++i]);
         else if (arg === '--experiment-name') args.experimentName = argv[++i];
+        else if (arg === '--device-name') args.deviceName = argv[++i];
         else if (arg === '--no-summary') args.summarize = false;
         else if (arg === '--no-figures') args.figures = false;
         else if (arg === '--no-log-check') args.logCheck = false;
         else if (arg === '--dry-run') args.dryRun = true;
         else if (arg === '--require-clean-git') args.requireCleanGit = true;
         else if (arg === '--help' || arg === '-h') {
-            console.log('Usage: node scripts/benchmarks/run-benchmark-matrix.js --config paper/experiments/benchmark-matrix.json [--experiment-name name] [--experiment-dir path] [--out-dir rawPath] [--no-log-check] [--no-summary] [--no-figures] [--dry-run] [--require-clean-git]');
+            console.log('Usage: node scripts/benchmarks/run-benchmark-matrix.js --config paper/experiments/benchmark-matrix.json [--experiment-name name] [--experiment-dir path] [--device-name name] [--out-dir rawPath] [--no-log-check] [--no-summary] [--no-figures] [--dry-run] [--require-clean-git]');
             process.exit(0);
         }
     }
@@ -372,7 +374,8 @@ function resolveExperimentPaths(args, config) {
         return {
             experimentDir: path.dirname(args.outDir),
             rawDir: args.outDir,
-            explicitOutDir: true
+            explicitOutDir: true,
+            deviceName: ''
         };
     }
 
@@ -381,7 +384,8 @@ function resolveExperimentPaths(args, config) {
         return {
             experimentDir: path.dirname(configuredOutDir),
             rawDir: configuredOutDir,
-            explicitOutDir: true
+            explicitOutDir: true,
+            deviceName: ''
         };
     }
 
@@ -389,17 +393,22 @@ function resolveExperimentPaths(args, config) {
         return {
             experimentDir: args.experimentDir,
             rawDir: path.join(args.experimentDir, 'raw'),
-            explicitOutDir: false
+            explicitOutDir: false,
+            deviceName: ''
         };
     }
 
     const configName = path.basename(args.config, path.extname(args.config));
     const experimentName = args.experimentName || config.experimentName || configName;
-    const experimentDir = path.join(DEFAULT_RUNS_DIR, `${timestampSlug()}__${slugify(experimentName)}`);
+    const batchDir = path.join(DEFAULT_RUNS_DIR, `${timestampSlug()}__${slugify(experimentName)}`);
+    const deviceName = args.deviceName || '';
+    const experimentDir = deviceName ? path.join(batchDir, slugify(deviceName)) : batchDir;
     return {
         experimentDir,
         rawDir: path.join(experimentDir, 'raw'),
-        explicitOutDir: false
+        explicitOutDir: false,
+        deviceName,
+        batchDir: deviceName ? batchDir : ''
     };
 }
 
@@ -465,12 +474,13 @@ function readPackageVersion(packagePath) {
     }
 }
 
-function writeManifest({experimentDir, rawDir, configPath, config, resolvedConfig, commands}) {
+function writeManifest({experimentDir, rawDir, configPath, config, resolvedConfig, commands, deviceName = ''}) {
     fs.mkdirSync(experimentDir, {recursive: true});
     const manifest = {
         createdAt: new Date().toISOString(),
         configPath,
         rawDir,
+        deviceName: deviceName || '',
         repetitions: pickValue(config.repetitions, 1),
         durationSec: pickValue(config.durationSec, 30),
         sampleIntervalMs: pickValue(config.sampleIntervalMs, 1000),
@@ -527,11 +537,13 @@ function main() {
             configPath: args.config,
             config,
             resolvedConfig,
-            commands
+            commands,
+            deviceName: paths.deviceName
         });
     }
 
     console.log(`Benchmark matrix: ${commands.length} runs`);
+    if (paths.deviceName) console.log(`Device: ${paths.deviceName}`);
     console.log(`Experiment directory: ${paths.experimentDir}`);
     console.log(`Raw directory: ${paths.rawDir}`);
     console.log(`Tables directory: ${path.join(paths.experimentDir, 'tables')}`);

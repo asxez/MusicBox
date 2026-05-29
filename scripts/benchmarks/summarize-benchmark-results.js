@@ -184,7 +184,7 @@ function metricValue(sample, type, field) {
 
     for (const key of candidates) {
         const value = Number(summary[key]?.[field]);
-        if (Number.isFinite(value) && value > 0) return value;
+        if (Number.isFinite(value) && value >= 0) return value;
     }
 
     return 0;
@@ -225,6 +225,19 @@ function linearSlopePerMinute(samples, values) {
     const denominator = xs.reduce((acc, x) => acc + (x - xMean) ** 2, 0);
     if (!denominator) return 0;
     return xs.reduce((acc, x, index) => acc + (x - xMean) * (ys[index] - yMean), 0) / denominator;
+}
+
+function cpuTimeDelta(userMicros, sysMicros, kind) {
+    const userClean = userMicros.filter(Number.isFinite);
+    const sysClean = sysMicros.filter(Number.isFinite);
+    if (userClean.length < 2 || sysClean.length < 2) return 0;
+
+    const userDelta = (userClean[userClean.length - 1] - userClean[0]) / 1e6;
+    const sysDelta = (sysClean[sysClean.length - 1] - sysClean[0]) / 1e6;
+
+    if (kind === 'user') return Math.max(0, userDelta);
+    if (kind === 'system') return Math.max(0, sysDelta);
+    return Math.max(0, userDelta + sysDelta);
 }
 
 function lifecycleDuration(data, suffix) {
@@ -377,6 +390,13 @@ const RUN_HEADER = [
     'heapMeanMB',
     'appCpuPercentMean',
     'appCpuPercentMax',
+    'appCpuPercentSd',
+    'mainCpuPercentMean',
+    'rendererCpuPercentMean',
+    'gpuCpuPercentMean',
+    'cpuTimeTotalSec',
+    'cpuTimeUserSec',
+    'cpuTimeSystemSec',
     'appWorkingSetMeanMB',
     'appWorkingSetMaxMB',
     'appWorkingSetDeltaMB',
@@ -443,7 +463,17 @@ const CONDITION_HEADER = [
     'rssSlopeMBPerMin_sd',
     'heapMeanMB_mean',
     'appCpuPercentMean_mean',
+    'appCpuPercentMean_sd',
     'appCpuPercentMax_mean',
+    'mainCpuPercentMean_mean',
+    'mainCpuPercentMean_sd',
+    'rendererCpuPercentMean_mean',
+    'rendererCpuPercentMean_sd',
+    'gpuCpuPercentMean_mean',
+    'cpuTimeTotalSec_mean',
+    'cpuTimeTotalSec_sd',
+    'cpuTimeUserSec_mean',
+    'cpuTimeSystemSec_mean',
     'appWorkingSetMeanMB_mean',
     'appWorkingSetMeanMB_sd',
     'appWorkingSetMeanMB_ci95',
@@ -522,6 +552,13 @@ function rowToCsvValues(row) {
         formatNumber(row.heapMeanMB),
         formatNumber(row.appCpuPercentMean),
         formatNumber(row.appCpuPercentMax),
+        formatNumber(row.appCpuPercentSd),
+        formatNumber(row.mainCpuPercentMean),
+        formatNumber(row.rendererCpuPercentMean),
+        formatNumber(row.gpuCpuPercentMean),
+        formatNumber(row.cpuTimeTotalSec),
+        formatNumber(row.cpuTimeUserSec),
+        formatNumber(row.cpuTimeSystemSec),
         formatNumber(row.appWorkingSetMeanMB),
         formatNumber(row.appWorkingSetMaxMB),
         formatNumber(row.appWorkingSetDeltaMB),
@@ -588,6 +625,11 @@ function parseRun(fullPath, rawDir) {
     const gpuWorkingSet = samples.map(sample => kbToMb(metricValue(sample, 'gpu', 'workingSetSizeKB')));
     const utilityWorkingSet = samples.map(sample => kbToMb(metricValue(sample, 'utility', 'workingSetSizeKB')));
     const appCpuPercent = samples.map(sample => metricValue(sample, 'total', 'cpuPercent'));
+    const mainCpuPercent = samples.map(sample => metricValue(sample, 'main', 'cpuPercent'));
+    const rendererCpuPercent = samples.map(sample => metricValue(sample, 'renderer', 'cpuPercent'));
+    const gpuCpuPercent = samples.map(sample => metricValue(sample, 'gpu', 'cpuPercent'));
+    const cpuUserMicros = samples.map(sample => Number(sample.processSnapshot?.cpu?.user || 0));
+    const cpuSystemMicros = samples.map(sample => Number(sample.processSnapshot?.cpu?.system || 0));
     const sampleDurations = samples.map(sample => Number(sample.sampleDurationMs || 0));
     const processSnapshotDurations = samples.map(sample => Number(sample.sampleTimings?.processSnapshotMs || 0));
     const finalStats = data.finalNativeStats || {};
@@ -633,6 +675,13 @@ function parseRun(fullPath, rawDir) {
         heapMeanMB: summarize(heap).mean,
         appCpuPercentMean: summarize(appCpuPercent).mean,
         appCpuPercentMax: summarize(appCpuPercent).max,
+        appCpuPercentSd: stdev(appCpuPercent),
+        mainCpuPercentMean: summarize(mainCpuPercent).mean,
+        rendererCpuPercentMean: summarize(rendererCpuPercent).mean,
+        gpuCpuPercentMean: summarize(gpuCpuPercent).mean,
+        cpuTimeTotalSec: cpuTimeDelta(cpuUserMicros, cpuSystemMicros, 'total'),
+        cpuTimeUserSec: cpuTimeDelta(cpuUserMicros, cpuSystemMicros, 'user'),
+        cpuTimeSystemSec: cpuTimeDelta(cpuUserMicros, cpuSystemMicros, 'system'),
         appWorkingSetMeanMB: summarize(appWorkingSet).mean,
         appWorkingSetMaxMB: summarize(appWorkingSet).max,
         appWorkingSetDeltaMB: seriesDelta(appWorkingSet),
@@ -706,7 +755,17 @@ function conditionCsvValues(rows) {
         formatNumber(stdev(rows.map(row => row.rssSlopeMBPerMin))),
         formatNumber(mean(rows.map(row => row.heapMeanMB))),
         formatNumber(mean(rows.map(row => row.appCpuPercentMean))),
+        formatNumber(stdev(rows.map(row => row.appCpuPercentMean))),
         formatNumber(mean(rows.map(row => row.appCpuPercentMax))),
+        formatNumber(mean(rows.map(row => row.mainCpuPercentMean))),
+        formatNumber(stdev(rows.map(row => row.mainCpuPercentMean))),
+        formatNumber(mean(rows.map(row => row.rendererCpuPercentMean))),
+        formatNumber(stdev(rows.map(row => row.rendererCpuPercentMean))),
+        formatNumber(mean(rows.map(row => row.gpuCpuPercentMean))),
+        formatNumber(mean(rows.map(row => row.cpuTimeTotalSec))),
+        formatNumber(stdev(rows.map(row => row.cpuTimeTotalSec))),
+        formatNumber(mean(rows.map(row => row.cpuTimeUserSec))),
+        formatNumber(mean(rows.map(row => row.cpuTimeSystemSec))),
         formatNumber(mean(rows.map(row => row.appWorkingSetMeanMB))),
         formatNumber(stdev(rows.map(row => row.appWorkingSetMeanMB))),
         formatNumber(ci95(rows.map(row => row.appWorkingSetMeanMB))),
