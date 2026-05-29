@@ -250,29 +250,22 @@ node scripts/benchmarks/run-benchmark-matrix.js --config paper/experiments/bench
 
 ```bash
 # 1. Main architecture comparison
-node scripts/benchmarks/run-benchmark-matrix.js \
-  --config paper/experiments/benchmark-matrix.paper.json \
-  --experiment-name paper-main-matrix
+node scripts/benchmarks/run-benchmark-matrix.js --config paper/experiments/benchmark-matrix.paper.json --experiment-name paper-main-matrix
 
 # 2. Format generalization
-node scripts/benchmarks/run-benchmark-matrix.js \
-  --config paper/experiments/benchmark-matrix.format-generalization.json
+node scripts/benchmarks/run-benchmark-matrix.js --config paper/experiments/benchmark-matrix.format-generalization.json
 
 # 3. Seek robustness
-node scripts/benchmarks/run-benchmark-matrix.js \
-  --config paper/experiments/benchmark-matrix.seek-robustness.json
+node scripts/benchmarks/run-benchmark-matrix.js --config paper/experiments/benchmark-matrix.seek-robustness.json
 
 # 4. IPC payload sweep
-node scripts/benchmarks/run-benchmark-matrix.js \
-  --config paper/experiments/benchmark-matrix.ipc-sweep.json
+node scripts/benchmarks/run-benchmark-matrix.js --config paper/experiments/benchmark-matrix.ipc-sweep.json
 
 # 5. Long-running stability
-node scripts/benchmarks/run-benchmark-matrix.js \
-  --config paper/experiments/benchmark-matrix.long-stability.json
+node scripts/benchmarks/run-benchmark-matrix.js --config paper/experiments/benchmark-matrix.long-stability.json
 
 # 6. Idle baseline
-node scripts/benchmarks/run-benchmark-matrix.js \
-  --config paper/experiments/benchmark-matrix.idle-baseline.json
+node scripts/benchmarks/run-benchmark-matrix.js --config paper/experiments/benchmark-matrix.idle-baseline.json
 ```
 
 The post-processing steps (log check → summarize → figures → quality report)
