@@ -22,51 +22,32 @@ paper/experiments/
   benchmark-matrix.idle-baseline.json       # No-audio idle baseline
 
   runs/
-    <timestamp>__<experiment-name>/         # Single-device layout (no --device-name)
-      manifest.json                         # Planned runs, environment snapshot
-      config.snapshot.json                  # Resolved config at run time
-      raw/                                  # Raw per-run output directories
-        <condition>__<audio>__<rep>__<ts>/
-          result.json                       # Full renderer-collected result
-          samples.csv                       # Per-sample timeseries (UTF-8 BOM, CRLF)
-          run-meta.json                     # Run-level environment & config
-          console.log                       # Merged stdout + stderr
-          stdout.log                        # Electron stdout
-          stderr.log                        # Electron stderr
-      tables/                               # Generated summaries
-        benchmark-runs.csv                  # One row per individual run
-        benchmark-conditions.csv            # One row per grouped condition
-        benchmark-log-check.csv             # Log-audit per run
-        benchmark-log-check.json            # Log-audit structured data
-        benchmark-excluded-runs.csv         # Runs excluded from statistics
-      figures/                              # SVG charts
-        working-set-mean-by-condition.svg
-        renderer-working-set-by-condition.svg
-        cpu-percent-by-condition.svg
-        main-cpu-percent-by-condition.svg
-        renderer-cpu-percent-by-condition.svg
-        gpu-cpu-percent-by-condition.svg
-        cpu-time-by-condition.svg
-        sample-coverage-by-condition.svg
-        load-track-time-by-condition.svg
-        native-underruns-by-condition.svg
-        ipc-payload-sweep.svg
-        ipc-1mb-latency-by-condition.svg
-        ipc-4mb-latency-by-condition.svg
-        working-set-slope-by-condition.svg
-        seek-latency-by-condition.svg
-      quality-report.md                     # Human-readable quality assessment
-      statistical-tests.csv                 # Pairwise significance tests
-      statistical-tests.json                # Machine-readable stats output
+    <device-name>/                          # Audio playback device (auto-detected on Windows)
+      <timestamp>__<experiment-name>/       # One batch per matrix run
+        manifest.json                       # Planned runs, environment snapshot
+        config.snapshot.json                # Resolved config at run time
+        raw/                                # Raw per-run output directories
+          <condition>__<audio>__<rep>__<ts>/
+            result.json                     # Full renderer-collected result
+            samples.csv                     # Per-sample timeseries (UTF-8 BOM, CRLF)
+            run-meta.json                   # Run-level environment & config
+            console.log                     # Merged stdout + stderr
+            stdout.log                      # Electron stdout
+            stderr.log                      # Electron stderr
+        tables/                             # Generated summaries
+          benchmark-runs.csv                # One row per individual run
+          benchmark-conditions.csv          # One row per grouped condition
+          benchmark-log-check.csv           # Log-audit per run
+          benchmark-log-check.json          # Log-audit structured data
+          benchmark-excluded-runs.csv       # Runs excluded from statistics
+        figures/                            # SVG charts
+          ...
+        quality-report.md                   # Human-readable quality assessment
+        statistical-tests.csv               # Pairwise significance tests
+        statistical-tests.json              # Machine-readable stats output
 
-    <timestamp>__<experiment-name>/         # Multi-device layout (with --device-name)
-      <device-name>/                        # e.g. "Realtek-R-High-Definition-Audio"
-        raw/                                # (same structure as single-device above)
-        tables/
-        figures/
-        quality-report.md
-        statistical-tests.csv
-      aggregated/                           # Cross-device merged output
+    _aggregated/                            # Cross-device merged output (generated)
+      <experiment-name>/
         device-index.md
         benchmark-runs-all-devices.csv
         benchmark-conditions-all-devices.csv
@@ -262,8 +243,7 @@ are compared.
 Always run the sanity matrix first to verify the pipeline:
 
 ```bash
-node scripts/benchmarks/run-benchmark-matrix.js \
-  --config paper/experiments/benchmark-matrix.sanity.json
+node scripts/benchmarks/run-benchmark-matrix.js --config paper/experiments/benchmark-matrix.sanity.json
 ```
 
 ### Full Experiment Suite (Single Device)
@@ -445,23 +425,30 @@ Outputs: `statistical-tests.csv` and `statistical-tests.json`.
 ## Multi-Device Aggregation
 
 After running experiments across multiple devices, use the aggregation tool to
-produce cross-device merged outputs:
+produce cross-device merged outputs. The tool discovers all device directories
+under `runs/` and finds batches matching the experiment name:
 
 ```bash
+# Aggregate a specific experiment across all devices
 node scripts/benchmarks/aggregate-multi-device.js \
-  --batch-dir paper/experiments/runs/2026-05-29T12-00-00-000Z__paper-main-matrix \
-  --out-dir paper/experiments/runs/2026-05-29T12-00-00-000Z__paper-main-matrix/aggregated
+  --runs-dir paper/experiments/runs \
+  --experiment-name paper-main-matrix
+
+# Aggregate all experiments across all devices
+node scripts/benchmarks/aggregate-multi-device.js \
+  --runs-dir paper/experiments/runs
 ```
 
 This script:
 
-1. Discovers all device subdirectories under the batch directory
-2. Runs log check + summarize + figures + quality report for each device
-3. Merges per-device CSVs into aggregated CSVs with a `device_name` column
-4. Writes `device-index.md` with device inventory
+1. Walks `runs/{device_name}/` to discover all device directories
+2. Within each device, finds batches matching `--experiment-name`
+3. Runs log check + summarize + figures + quality report for each (device, batch)
+4. Groups batches by experiment name and merges per-device CSVs with a
+   `device_name` column
+5. Writes aggregated output to `runs/_aggregated/{experiment_name}/`
 
-The aggregated CSVs are suitable for cross-device statistical analysis and for
-generating multi-device comparison figures.
+Aggregated CSVs are suitable for cross-device statistical analysis.
 
 ---
 
@@ -685,15 +672,23 @@ for device in "Realtek-HD-Audio" "Focusrite-Scarlett-2i2" "USB-Audio-Device"; do
   done
 done
 
-# 5. Aggregate across devices
-for batch in paper/experiments/runs/*/; do
-  node scripts/benchmarks/aggregate-multi-device.js --batch-dir "$batch"
+# 5. Aggregate across devices (per experiment)
+for config in \
+  paper-main-matrix \
+  format-generalization \
+  seek-robustness \
+  ipc-sweep \
+  long-stability \
+  idle-baseline; do
+  node scripts/benchmarks/aggregate-multi-device.js \
+    --runs-dir paper/experiments/runs \
+    --experiment-name "$config"
 done
 
-# 6. Run statistical tests per device + per aggregated set
-for tables_dir in paper/experiments/runs/*/*/tables; do
+# 6. Run statistical tests per device batch
+for batch_dir in paper/experiments/runs/*/*/; do
   node scripts/benchmarks/statistical-tests.js \
-    --table-dir "$tables_dir" --out-dir "$tables_dir"
+    --table-dir "${batch_dir}tables" --out-dir "${batch_dir}tables"
 done
 
 # 7. Review quality reports and statistical outputs before manuscript claims

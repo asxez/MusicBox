@@ -369,6 +369,24 @@ function rotatedConditionRank(command, conditionCount) {
     return (command.conditionIndex - rotation + conditionCount) % conditionCount;
 }
 
+function detectDeviceName() {
+    if (process.platform !== 'win32') return process.platform;
+    try {
+        const result = spawnSync('powershell', [
+            '-NoProfile', '-Command',
+            'Get-CimInstance -ClassName Win32_SoundDevice | Where-Object {$_.Status -eq "OK"} | Select-Object -First 1 -ExpandProperty Name'
+        ], {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'pipe'],
+            timeout: 5000
+        });
+        const name = (result.stdout || '').trim();
+        return name || 'unknown-device';
+    } catch {
+        return 'unknown-device';
+    }
+}
+
 function resolveExperimentPaths(args, config) {
     if (args.outDir) {
         return {
@@ -400,15 +418,16 @@ function resolveExperimentPaths(args, config) {
 
     const configName = path.basename(args.config, path.extname(args.config));
     const experimentName = args.experimentName || config.experimentName || configName;
-    const batchDir = path.join(DEFAULT_RUNS_DIR, `${timestampSlug()}__${slugify(experimentName)}`);
-    const deviceName = args.deviceName || '';
-    const experimentDir = deviceName ? path.join(batchDir, slugify(deviceName)) : batchDir;
+    const batchName = `${timestampSlug()}__${slugify(experimentName)}`;
+    const deviceName = args.deviceName || detectDeviceName();
+    const deviceDir = deviceName ? path.join(DEFAULT_RUNS_DIR, slugify(deviceName)) : DEFAULT_RUNS_DIR;
+    const experimentDir = path.join(deviceDir, batchName);
     return {
         experimentDir,
         rawDir: path.join(experimentDir, 'raw'),
         explicitOutDir: false,
         deviceName,
-        batchDir: deviceName ? batchDir : ''
+        batchDir: deviceDir
     };
 }
 

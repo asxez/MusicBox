@@ -9,7 +9,8 @@ const DEFAULT_RUNS_DIR = path.join(ROOT, 'paper', 'experiments', 'runs');
 
 function parseArgs(argv) {
     const args = {
-        batchDir: '',
+        runsDir: DEFAULT_RUNS_DIR,
+        experimentName: '',
         outDir: '',
         summarize: true,
         figures: true,
@@ -18,13 +19,20 @@ function parseArgs(argv) {
 
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
-        if (arg === '--batch-dir') args.batchDir = path.resolve(argv[++i]);
+        if (arg === '--runs-dir') args.runsDir = path.resolve(argv[++i]);
+        else if (arg === '--experiment-name') args.experimentName = argv[++i];
         else if (arg === '--out-dir') args.outDir = path.resolve(argv[++i]);
         else if (arg === '--no-summary') args.summarize = false;
         else if (arg === '--no-figures') args.figures = false;
         else if (arg === '--no-log-check') args.logCheck = false;
         else if (arg === '--help' || arg === '-h') {
-            console.log('Usage: node scripts/benchmarks/aggregate-multi-device.js --batch-dir paper/experiments/runs/<batch> [--out-dir path]');
+            console.log('Usage: node scripts/benchmarks/aggregate-multi-device.js [--runs-dir path] [--experiment-name name] [--out-dir path]');
+            console.log('');
+            console.log('Discovers all device directories under --runs-dir, finds experiment batches');
+            console.log('matching --experiment-name, and produces cross-device aggregated CSVs.');
+            console.log('');
+            console.log('Directory layout expected: runs/{device_name}/{timestamp}__{experiment_name}/');
+            console.log('If --experiment-name is omitted, all batches across all devices are aggregated.');
             process.exit(0);
         }
     }
@@ -37,185 +45,189 @@ const LOG_CHECKER = path.join(ROOT, 'scripts', 'benchmarks', 'check-benchmark-lo
 const FIGURE_GENERATOR = path.join(ROOT, 'scripts', 'benchmarks', 'generate-benchmark-figures.js');
 const QUALITY_REPORTER = path.join(ROOT, 'scripts', 'benchmarks', 'write-benchmark-quality-report.js');
 
-function runNode(args) {
-    const result = spawnSync(process.execPath, args, {
+function runNode(cmdArgs) {
+    const result = spawnSync(process.execPath, cmdArgs, {
         cwd: ROOT,
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'pipe']
     });
     if (result.status !== 0) {
-        console.error(`ERROR: ${args.join(' ')}`);
+        console.error(`ERROR: ${cmdArgs.join(' ')}`);
         console.error(result.stderr || '');
     }
     return result;
 }
 
-function discoverDevices(batchDir) {
-    if (!fs.existsSync(batchDir)) return [];
+function resolveDeviceName(deviceDir, batchDir) {
+    const manifestPath = path.join(batchDir, 'manifest.json');
+    if (fs.existsSync(manifestPath)) {
+        try {
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+            if (manifest.deviceName) return manifest.deviceName;
+        } catch {}
+    }
+    return path.basename(deviceDir);
+}
 
-    const entries = fs.readdirSync(batchDir, {withFileTypes: true});
-    const devices = [];
+function discoverBatches(runsDir, experimentFilter) {
+    if (!fs.existsSync(runsDir)) return [];
 
-    for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        const subPath = path.join(batchDir, entry.name);
-        const manifestPath = path.join(subPath, 'manifest.json');
-        const rawDir = path.join(subPath, 'raw');
-        if (fs.existsSync(rawDir)) {
-            let deviceName = entry.name;
-            if (fs.existsSync(manifestPath)) {
-                try {
-                    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-                    deviceName = manifest.deviceName || entry.name;
-                } catch {}
-            }
-            devices.push({dirName: entry.name, deviceName, dir: subPath, rawDir});
+    const batches = [];
+    const deviceEntries = fs.readdirSync(runsDir, {withFileTypes: true});
+
+    for (const deviceEntry of deviceEntries) {
+        if (!deviceEntry.isDirectory()) continue;
+        const deviceDir = path.join(runsDir, deviceEntry.name);
+        const batchEntries = fs.readdirSync(deviceDir, {withFileTypes: true});
+
+        for (const batchEntry of batchEntries) {
+            if (!batchEntry.isDirectory()) continue;
+            if (experimentFilter && !batchEntry.name.includes(experimentFilter)) continue;
+
+            const batchDir = path.join(deviceDir, batchEntry.name);
+            const rawDir = path.join(batchDir, 'raw');
+            if (!fs.existsSync(rawDir)) continue;
+
+            const deviceName = resolveDeviceName(deviceDir, batchDir);
+            batches.push({
+                deviceDirName: deviceEntry.name,
+                deviceName,
+                batchName: batchEntry.name,
+                dir: batchDir,
+                rawDir
+            });
         }
     }
 
-    return devices;
+    return batches;
+}
+
+function groupByExperiment(batches) {
+    const groups = new Map();
+    for (const batch of batches) {
+        const key = batch.batchName;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(batch);
+    }
+    return groups;
+}
+
+function readCsvAsRows(filePath) {
+    if (!fs.existsSync(filePath)) return [];
+    const text = fs.readFileSync(filePath, 'utf8').trim();
+    if (!text) return [];
+    const lines = text.split(/\r?\n/);
+    return lines;
 }
 
 function main() {
     const args = parseArgs(process.argv.slice(2));
 
-    const batchDir = args.batchDir;
-    if (!batchDir || !fs.existsSync(batchDir)) {
-        console.error('Missing or invalid --batch-dir');
+    const batches = discoverBatches(args.runsDir, args.experimentName);
+    if (!batches.length) {
+        console.error(`No device/batch directories found under ${args.runsDir}`);
+        console.error('Expected structure: runs/{device_name}/{timestamp}__{experiment_name}/');
         process.exit(1);
     }
 
-    const devices = discoverDevices(batchDir);
-    if (!devices.length) {
-        console.error(`No device subdirectories found under ${batchDir}`);
-        console.error('Expected structure: batchDir/{deviceName}/raw/...');
-        process.exit(1);
+    console.log(`Discovered ${batches.length} batch(es) across devices:`);
+    for (const batch of batches) {
+        console.log(`  ${batch.deviceName} → ${batch.batchName}`);
     }
 
-    console.log(`Multi-device aggregation: ${devices.length} device(s)`);
-    for (const device of devices) {
-        console.log(`  - ${device.deviceName} (${device.dirName})`);
-    }
+    const groups = groupByExperiment(batches);
+    console.log(`\nExperiment groups: ${groups.size}`);
 
-    const outDir = args.outDir || path.join(batchDir, 'aggregated');
-    fs.mkdirSync(outDir, {recursive: true});
-
-    const allDeviceRows = [];
-    const allConditionRows = [];
-    const allLogRows = [];
-    const allExcludedRows = [];
-
-    for (const device of devices) {
-        console.log(`\nProcessing device: ${device.deviceName}`);
-
-        if (args.logCheck) {
-            runNode([LOG_CHECKER, '--raw-dir', device.rawDir, '--out-dir', path.join(device.dir, 'tables'), '--no-fail']);
+    for (const [expName, groupBatches] of groups) {
+        if (groupBatches.length < 2) {
+            console.log(`  ${expName}: ${groupBatches.length} device — skipping (need ≥2 for cross-device aggregation)`);
+            continue;
         }
+        console.log(`\n=== Aggregating: ${expName} (${groupBatches.length} devices) ===`);
 
-        if (args.summarize) {
-            runNode([SUMMARIZER, '--raw-dir', device.rawDir, '--out-dir', path.join(device.dir, 'tables')]);
-        }
+        const aggDir = args.outDir || path.join(args.runsDir, '_aggregated', expName);
+        fs.mkdirSync(aggDir, {recursive: true});
 
-        if (args.summarize && args.figures) {
-            runNode([FIGURE_GENERATOR, '--table-dir', path.join(device.dir, 'tables'), '--out-dir', path.join(device.dir, 'figures')]);
-        }
+        for (const batch of groupBatches) {
+            console.log(`  Processing: ${batch.deviceName}`);
 
-        if (args.summarize) {
-            runNode([QUALITY_REPORTER, '--experiment-dir', device.dir]);
-        }
-
-        const tablesDir = path.join(device.dir, 'tables');
-        const runPath = path.join(tablesDir, 'benchmark-runs.csv');
-        const conditionPath = path.join(tablesDir, 'benchmark-conditions.csv');
-        const logPath = path.join(tablesDir, 'benchmark-log-check.csv');
-        const excludedPath = path.join(tablesDir, 'benchmark-excluded-runs.csv');
-
-        if (fs.existsSync(runPath)) {
-            const rows = fs.readFileSync(runPath, 'utf8').trim().split(/\r?\n/);
-            const deviceHeader = rows[0];
-            for (let i = 1; i < rows.length; i++) {
-                allDeviceRows.push(deviceHeader);
-                allDeviceRows.push(`${device.deviceName},${rows[i]}`);
+            if (args.logCheck) {
+                runNode([LOG_CHECKER, '--raw-dir', batch.rawDir, '--out-dir', path.join(batch.dir, 'tables'), '--no-fail']);
+            }
+            if (args.summarize) {
+                runNode([SUMMARIZER, '--raw-dir', batch.rawDir, '--out-dir', path.join(batch.dir, 'tables')]);
+            }
+            if (args.summarize && args.figures) {
+                runNode([FIGURE_GENERATOR, '--table-dir', path.join(batch.dir, 'tables'), '--out-dir', path.join(batch.dir, 'figures')]);
+            }
+            if (args.summarize) {
+                runNode([QUALITY_REPORTER, '--experiment-dir', batch.dir]);
             }
         }
 
-        if (fs.existsSync(conditionPath)) {
-            const rows = fs.readFileSync(conditionPath, 'utf8').trim().split(/\r?\n/);
-            const deviceHeader = rows[0];
-            for (let i = 1; i < rows.length; i++) {
-                allConditionRows.push(deviceHeader);
-                allConditionRows.push(`${device.deviceName},${rows[i]}`);
+        const fileTypes = [
+            {name: 'benchmark-runs.csv', csvKey: 'runs'},
+            {name: 'benchmark-conditions.csv', csvKey: 'conditions'},
+            {name: 'benchmark-log-check.csv', csvKey: 'logCheck'},
+            {name: 'benchmark-excluded-runs.csv', csvKey: 'excluded'},
+        ];
+
+        for (const fileType of fileTypes) {
+            const allRows = [];
+            for (const batch of groupBatches) {
+                const filePath = path.join(batch.dir, 'tables', fileType.name);
+                const rows = readCsvAsRows(filePath);
+                if (!rows.length) continue;
+
+                const header = rows[0];
+                const deviceTag = batch.deviceName;
+                for (let i = 1; i < rows.length; i++) {
+                    allRows.push({deviceName: deviceTag, header, row: rows[i]});
+                }
             }
+
+            if (!allRows.length) continue;
+
+            const firstHeader = allRows[0].header;
+            const aggHeader = `device_name,${firstHeader}`;
+            const aggRows = allRows.map(e => `${csvEscape(e.deviceName)},${e.row}`);
+
+            const outPath = path.join(aggDir, fileType.name.replace('.csv', '-all-devices.csv'));
+            fs.writeFileSync(outPath, `﻿${aggHeader}\n${aggRows.join('\n')}`, 'utf8');
+            console.log(`  ${fileType.name}: ${aggRows.length} rows → ${path.relative(ROOT, outPath)}`);
         }
 
-        if (fs.existsSync(logPath)) {
-            const rows = fs.readFileSync(logPath, 'utf8').trim().split(/\r?\n/);
-            const deviceHeader = rows[0];
-            for (let i = 1; i < rows.length; i++) {
-                allLogRows.push(deviceHeader);
-                allLogRows.push(`${device.deviceName},${rows[i]}`);
+        const indexLines = [
+            '# Multi-Device Aggregation',
+            '',
+            `Experiment: \`${expName}\``,
+            `Generated: ${new Date().toISOString()}`,
+            `Devices: ${groupBatches.length}`,
+            '',
+            '## Device Inventory',
+            ''
+        ];
+        for (const batch of groupBatches) {
+            const manifestPath = path.join(batch.dir, 'manifest.json');
+            let runs = '?';
+            if (fs.existsSync(manifestPath)) {
+                try {
+                    const m = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+                    runs = String(m.plannedMeasuredRuns?.length || m.plannedRuns?.length || '?');
+                } catch {}
             }
+            indexLines.push(`- **${batch.deviceName}** → \`${batch.batchName}\` — ${runs} runs`);
         }
-
-        if (fs.existsSync(excludedPath)) {
-            const rows = fs.readFileSync(excludedPath, 'utf8').trim().split(/\r?\n/);
-            const deviceHeader = rows[0];
-            for (let i = 1; i < rows.length; i++) {
-                allExcludedRows.push(deviceHeader);
-                allExcludedRows.push(`${device.deviceName},${rows[i]}`);
-            }
-        }
+        fs.writeFileSync(path.join(aggDir, 'device-index.md'), indexLines.join('\n'), 'utf8');
     }
 
-    function writeAggregated(filename, rows) {
-        if (!rows.length) return;
-        const firstRow = rows[0];
-        const parts = firstRow.split(',');
-        const header = `device_name,${parts.join(',')}`;
-        const dataRows = [];
-        let currentHeader = '';
-        for (const row of rows) {
-            const rowParts = row.split(',');
-            const rowHeader = rowParts[0];
-            if (rowHeader !== currentHeader) {
-                currentHeader = rowHeader;
-                dataRows.push(row);
-            }
-        }
-        const outPath = path.join(outDir, filename);
-        fs.writeFileSync(outPath, `﻿${header}\n${dataRows.join('\n')}`, 'utf8');
-        console.log(`Aggregated ${filename}: ${outPath} (${dataRows.length} data rows)`);
-    }
+    console.log('\nMulti-device aggregation complete.');
+}
 
-    writeAggregated('benchmark-runs-all-devices.csv', allDeviceRows);
-    writeAggregated('benchmark-conditions-all-devices.csv', allConditionRows);
-    writeAggregated('benchmark-log-check-all-devices.csv', allLogRows);
-    writeAggregated('benchmark-excluded-all-devices.csv', allExcludedRows);
-
-    const indexLines = [
-        '# Multi-Device Aggregation',
-        '',
-        `Batch: \`${batchDir}\``,
-        `Generated: ${new Date().toISOString()}`,
-        `Devices: ${devices.length}`,
-        '',
-        '## Device Inventory',
-        ''
-    ];
-    for (const device of devices) {
-        const manifestPath = path.join(device.dir, 'manifest.json');
-        let runs = '?';
-        if (fs.existsSync(manifestPath)) {
-            try {
-                const m = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-                runs = String(m.plannedMeasuredRuns?.length || m.plannedRuns?.length || '?');
-            } catch {}
-        }
-        indexLines.push(`- **${device.deviceName}** (\`${device.dirName}\`) — ${runs} runs`);
-    }
-
-    fs.writeFileSync(path.join(outDir, 'device-index.md'), indexLines.join('\n'), 'utf8');
-    console.log(`\nMulti-device aggregation complete: ${outDir}`);
+function csvEscape(value) {
+    const text = String(value ?? '');
+    if (/[",\r\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+    return text;
 }
 
 main();
