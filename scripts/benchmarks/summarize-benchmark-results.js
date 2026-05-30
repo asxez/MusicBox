@@ -284,7 +284,14 @@ function isMediaElementWebAudioRun(data) {
         || semantics.includes('media metadata');
 }
 
+function isIdleBaselineRun(data, backend) {
+    return backend === 'none'
+        && Number(data.config?.durationSec || 0) > 0
+        && Number(data.config?.ipcIterations || 0) === 0;
+}
+
 function comparisonScope(data, backend) {
+    if (isIdleBaselineRun(data, backend)) return 'idle_application_no_audio_no_ipc';
     if (backend === 'none') return 'ipc_control_boundary';
     if (backend === 'native') return 'direct_ipc_rust_wasapi_path';
     if (backend === 'webaudio') {
@@ -296,6 +303,7 @@ function comparisonScope(data, backend) {
 }
 
 function measurementFairnessClass(data, backend) {
+    if (isIdleBaselineRun(data, backend)) return 'idle_sampling_baseline';
     if (backend === 'none') return 'boundary_only_control_plane';
     if (backend === 'native') return 'steady_playback_architecture_comparison';
     if (backend === 'webaudio') return 'steady_playback_architecture_comparison';
@@ -314,7 +322,7 @@ function renderStatsScope(data, backend) {
 function ipcMeasurementPhase(data) {
     const note = String(data.metricsSemantics?.ipcPayloadLatency || '').toLowerCase();
     if (note.includes('disabled')) {
-        return 'disabled_for_playback_run';
+        return 'disabled_for_non_ipc_run';
     }
     if (note.includes('before backend initialization')) {
         return 'pre_backend_initialization';
@@ -348,7 +356,7 @@ function nativeCounterApplicability(backend) {
 }
 
 function qualityFlag(row) {
-    if (row.backend === 'none') return 'ipc_only';
+    if (row.measurementFairnessClass === 'boundary_only_control_plane') return 'ipc_only';
     if (row.backend === 'native' && row.renderStatsScope === 'native_final_stats_timing_unknown') {
         return 'native_stats_timing_unknown';
     }

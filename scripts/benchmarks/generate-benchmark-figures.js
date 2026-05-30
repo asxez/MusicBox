@@ -93,8 +93,10 @@ function backendLabel(row) {
     const condition = String(row.condition || '').toLowerCase();
     const backend = String(row.backend || '').toLowerCase();
     const shareMode = String(row.shareMode || '').toLowerCase();
+    const fairness = String(row.measurementFairnessClass || '').toLowerCase();
 
-    if (backend === 'none' || condition.includes('payload')) return 'IPC boundary';
+    if (fairness === 'idle_sampling_baseline') return 'Idle baseline';
+    if (fairness === 'boundary_only_control_plane' || condition.includes('payload')) return 'IPC boundary';
     if (backend === 'webaudio' || condition.includes('webaudio')) return 'WebAudio';
     if (shareMode === 'exclusive' || condition.includes('exclusive')) return 'WASAPI excl.';
     if (shareMode === 'shared' || condition.includes('shared')) return 'WASAPI shared';
@@ -187,8 +189,10 @@ function colorForRow(row) {
     const condition = String(row.condition || '').toLowerCase();
     const backend = String(row.backend || '').toLowerCase();
     const shareMode = String(row.shareMode || '').toLowerCase();
+    const fairness = String(row.measurementFairnessClass || '').toLowerCase();
 
-    if (backend === 'none' || condition.includes('payload')) return '#7c3aed';
+    if (fairness === 'idle_sampling_baseline') return '#6b7280';
+    if (fairness === 'boundary_only_control_plane' || condition.includes('payload')) return '#7c3aed';
     if (backend === 'webaudio' || condition.includes('webaudio')) return '#dc2626';
     if (shareMode === 'exclusive' || condition.includes('exclusive')) return '#0f766e';
     if (shareMode === 'shared' || condition.includes('shared')) return '#2563eb';
@@ -349,6 +353,15 @@ function isNativePlaybackRow(row) {
     return backend === 'native' || condition.includes('wasapi');
 }
 
+function isSampledResourceRow(row) {
+    return number(row.durationSec) > 0
+        && String(row.measurementFairnessClass || '') !== 'boundary_only_control_plane';
+}
+
+function isPlaybackRow(row) {
+    return isSampledResourceRow(row) && String(row.backend || '').toLowerCase() !== 'none';
+}
+
 function main() {
     const args = parseArgs(process.argv.slice(2));
     fs.mkdirSync(args.outDir, {recursive: true});
@@ -365,18 +378,19 @@ function main() {
         return;
     }
 
-    const playbackRows = nonEmptyRows.filter(row => row.backend !== 'none' && number(row.durationSec) > 0);
-    const workingSetKey = playbackRows.some(row => number(row.appWorkingSetMeanMB_mean) > 0)
+    const resourceRows = nonEmptyRows.filter(isSampledResourceRow);
+    const playbackRows = nonEmptyRows.filter(isPlaybackRow);
+    const workingSetKey = resourceRows.some(row => number(row.appWorkingSetMeanMB_mean) > 0)
         ? 'appWorkingSetMeanMB_mean'
         : 'rssMeanMB_mean';
     const workingSetErrorKey = workingSetKey === 'appWorkingSetMeanMB_mean'
         ? 'appWorkingSetMeanMB_ci95'
         : 'rssMeanMB_ci95';
 
-    if (playbackRows.length) {
+    if (resourceRows.length) {
         barChart({
             title: 'Mean Application Working Set by Condition',
-            rows: playbackRows,
+            rows: resourceRows,
             valueKey: workingSetKey,
             errorKey: workingSetErrorKey,
             labelKey: conditionFigureLabel,
@@ -384,10 +398,10 @@ function main() {
             outPath: path.join(args.outDir, 'working-set-mean-by-condition.svg')
         });
 
-        if (playbackRows.some(row => number(row.rendererWorkingSetMeanMB_mean) > 0)) {
+        if (resourceRows.some(row => number(row.rendererWorkingSetMeanMB_mean) > 0)) {
             barChart({
                 title: 'Mean Renderer Working Set by Condition',
-                rows: playbackRows,
+                rows: resourceRows,
                 valueKey: 'rendererWorkingSetMeanMB_mean',
                 errorKey: 'rendererWorkingSetMeanMB_ci95',
                 labelKey: conditionFigureLabel,
@@ -398,7 +412,7 @@ function main() {
 
         barChart({
             title: 'Mean Sample Coverage by Condition',
-            rows: playbackRows,
+            rows: resourceRows,
             valueKey: 'sampleCoverage_mean',
             labelKey: conditionFigureLabel,
             yLabel: 'Sample coverage',
@@ -489,10 +503,10 @@ function main() {
         });
     }
 
-    if (playbackRows.some(row => number(row.appWorkingSetSlopeMBPerMin_mean) !== 0)) {
+    if (resourceRows.some(row => number(row.appWorkingSetSlopeMBPerMin_mean) !== 0)) {
         barChart({
             title: 'Mean Application Working-Set Slope by Condition',
-            rows: playbackRows,
+            rows: resourceRows,
             valueKey: 'appWorkingSetSlopeMBPerMin_mean',
             labelKey: conditionFigureLabel,
             yLabel: 'Slope (MB/min)',
@@ -500,10 +514,10 @@ function main() {
         });
     }
 
-    if (playbackRows.some(row => number(row.appCpuPercentMean_mean) > 0)) {
+    if (resourceRows.some(row => number(row.appCpuPercentMean_mean) > 0)) {
         barChart({
             title: 'Mean Application CPU% by Condition',
-            rows: playbackRows,
+            rows: resourceRows,
             valueKey: 'appCpuPercentMean_mean',
             errorKey: 'appCpuPercentMean_sd',
             labelKey: conditionFigureLabel,
@@ -513,10 +527,10 @@ function main() {
         });
     }
 
-    if (playbackRows.some(row => number(row.mainCpuPercentMean_mean) > 0)) {
+    if (resourceRows.some(row => number(row.mainCpuPercentMean_mean) > 0)) {
         barChart({
             title: 'Mean Main Process CPU% by Condition',
-            rows: playbackRows,
+            rows: resourceRows,
             valueKey: 'mainCpuPercentMean_mean',
             errorKey: 'mainCpuPercentMean_sd',
             labelKey: conditionFigureLabel,
@@ -525,10 +539,10 @@ function main() {
         });
     }
 
-    if (playbackRows.some(row => number(row.rendererCpuPercentMean_mean) > 0)) {
+    if (resourceRows.some(row => number(row.rendererCpuPercentMean_mean) > 0)) {
         barChart({
             title: 'Mean Renderer CPU% by Condition',
-            rows: playbackRows,
+            rows: resourceRows,
             valueKey: 'rendererCpuPercentMean_mean',
             errorKey: 'rendererCpuPercentMean_sd',
             labelKey: conditionFigureLabel,
@@ -537,10 +551,10 @@ function main() {
         });
     }
 
-    if (playbackRows.some(row => number(row.gpuCpuPercentMean_mean) > 0)) {
+    if (resourceRows.some(row => number(row.gpuCpuPercentMean_mean) > 0)) {
         barChart({
             title: 'Mean GPU Process CPU% by Condition',
-            rows: playbackRows,
+            rows: resourceRows,
             valueKey: 'gpuCpuPercentMean_mean',
             labelKey: conditionFigureLabel,
             yLabel: 'GPU process CPU% mean',
@@ -548,10 +562,10 @@ function main() {
         });
     }
 
-    if (playbackRows.some(row => number(row.cpuTimeTotalSec_mean) > 0)) {
+    if (resourceRows.some(row => number(row.cpuTimeTotalSec_mean) > 0)) {
         barChart({
             title: 'Cumulative CPU Time by Condition',
-            rows: playbackRows,
+            rows: resourceRows,
             valueKey: 'cpuTimeTotalSec_mean',
             errorKey: 'cpuTimeTotalSec_sd',
             labelKey: conditionFigureLabel,

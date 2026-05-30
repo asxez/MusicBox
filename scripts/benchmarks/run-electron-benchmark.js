@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const os = require('os');
-const {spawn, spawnSync} = require('child_process');
+const {spawn} = require('child_process');
+const {detectAudioDeviceName} = require('./audio-device');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULT_OUT_DIR = path.join(ROOT, 'paper', 'experiments', 'raw');
@@ -164,8 +165,7 @@ function readPackageVersion(packagePath) {
     }
 }
 
-function collectRunEnvironment(args) {
-    const deviceName = args.deviceName || detectAudioDeviceName();
+function collectRunEnvironment(args, deviceName = '') {
     return {
         platform: process.platform,
         arch: process.arch,
@@ -179,26 +179,8 @@ function collectRunEnvironment(args) {
         mainEntry: describeFile(args.main),
         nativeAudioNode: describeFile(path.join(ROOT, 'dist', 'main', 'NativeAudio.node')),
         audioFile: describeFile(args.audioFile),
-        audioDeviceName: deviceName
+        audioDeviceName: deviceName || args.deviceName || detectAudioDeviceName()
     };
-}
-
-function detectAudioDeviceName() {
-    if (process.platform !== 'win32') return process.platform;
-    try {
-        const result = spawnSync('powershell', [
-            '-NoProfile', '-Command',
-            'Get-CimInstance -ClassName Win32_SoundDevice | Where-Object {$_.Status -eq "OK"} | Select-Object -First 1 -ExpandProperty Name'
-        ], {
-            encoding: 'utf8',
-            stdio: ['ignore', 'pipe', 'pipe'],
-            timeout: 5000
-        });
-        const name = (result.stdout || '').trim();
-        return name || 'unknown-device';
-    } catch {
-        return 'unknown-device';
-    }
 }
 
 function buildRendererScript(args) {
@@ -254,8 +236,9 @@ function buildRendererScript(args) {
                 metricsSemantics: {
                     ipcPayloadLatency: config.ipcIterations > 0
                         ? 'IPC payload latencies are measured before backend initialization and playback; they are control-plane probes, not audio-output latency.'
-                        : 'IPC payload probing is disabled for this playback run to avoid contaminating playback memory, CPU, and garbage-collection state.',
+                        : 'IPC payload probing is disabled for this non-IPC run to avoid contaminating memory, CPU, and garbage-collection state.',
                     processSnapshot: 'Electron process metrics are sampled from the renderer-side benchmark loop and may include scheduler jitter.',
+                    idleBaselineStats: 'No-audio idle baseline samples Electron process metrics without backend initialization, audio files, playback, or IPC payload probing.',
                     nativeSampleRenderStats: 'Native per-sample render counters are read through IPC and may lag because the render thread flushes counters in batches.',
                     nativeFinalRenderStats: 'Native final render counters are captured after native.stop so pending render-thread counters have been flushed.',
                     webAudioStats: 'WebAudio uses a benchmark-local HTMLAudioElement + MediaElementAudioSourceNode path and does not expose native-style render callback or underrun counters.',
@@ -340,6 +323,26 @@ function buildRendererScript(args) {
                         processSnapshot,
                         renderStats: null,
                         position: {success: true, position: webAudio.position()},
+                        sampleDurationMs: now() - sampleStart,
+                        sampleTimings: {
+                            processSnapshotMs: processDurationMs,
+                            renderStatsMs: 0,
+                            positionMs: 0
+                        }
+                    };
+                };
+
+                const sampleIdleApplication = async () => {
+                    const sampleStart = now();
+                    const processStart = now();
+                    const processSnapshot = await window.electronAPI.benchmark.getProcessSnapshot();
+                    const processDurationMs = now() - processStart;
+
+                    return {
+                        timestamp: Date.now(),
+                        processSnapshot,
+                        renderStats: null,
+                        position: {success: true, position: 0},
                         sampleDurationMs: now() - sampleStart,
                         sampleTimings: {
                             processSnapshotMs: processDurationMs,
@@ -520,6 +523,10 @@ function buildRendererScript(args) {
                     await mark('webaudio.stop', () => webAudio.stop());
                 }
 
+                if (config.backend === 'none' && config.durationSec > 0) {
+                    await runSamplingLoop(sampleIdleApplication);
+                }
+
                 await mark('processSnapshot.after', () => window.electronAPI.benchmark.getProcessSnapshot());
             } catch (error) {
                 result.errors.push(String(error && error.stack || error));
@@ -534,6 +541,7 @@ function buildRendererScript(args) {
 function runBenchmark(args) {
     const runId = new Date().toISOString().replace(/[:.]/g, '-');
     const runLabel = slugify(args.repeatLabel || `${args.backend}_${args.shareMode}`, 'run');
+    const deviceName = args.deviceName || detectAudioDeviceName();
     const runDir = path.join(args.outDir, `${runLabel}__${runId}`);
     const jsonPath = path.join(runDir, 'result.json');
     const csvPath = path.join(runDir, 'samples.csv');
@@ -569,9 +577,9 @@ function runBenchmark(args) {
             seekEverySec: args.seekEverySec,
             seekPositions: args.seekPositions,
             warmup: args.warmup,
-            deviceName: args.deviceName || detectAudioDeviceName()
+            deviceName
         },
-        environment: collectRunEnvironment(args),
+        environment: collectRunEnvironment(args, deviceName),
         output: {
             jsonPath,
             csvPath,

@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const {spawnSync} = require('child_process');
 const os = require('os');
+const {detectAudioDeviceName} = require('./audio-device');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULT_CONFIG = path.join(ROOT, 'paper', 'experiments', 'benchmark-matrix.example.json');
@@ -251,21 +252,33 @@ function validateFairnessConfig(configPath, config) {
         const ipcIterations = Number(config.ipcIterations || 0);
         const payloadBytes = Array.isArray(config.payloadBytes) ? config.payloadBytes : [];
         requireFairness(
-            durationSec === 0,
-            `${configPath}: boundary-only matrices must set durationSec to 0`
-        );
-        requireFairness(
-            ipcIterations > 0 && payloadBytes.length > 0,
-            `${configPath}: boundary-only matrices must configure IPC iterations and payload sizes`
-        );
-        requireFairness(
             Array.isArray(config.audioFiles) && config.audioFiles.length === 0,
-            `${configPath}: boundary-only matrices must not configure audio files`
+            `${configPath}: no-audio matrices must not configure audio files`
         );
+
+        if (durationSec === 0) {
+            requireFairness(
+                ipcIterations > 0 && payloadBytes.length > 0,
+                `${configPath}: boundary-only matrices must configure IPC iterations and payload sizes`
+            );
+        } else {
+            requireFairness(
+                ipcIterations === 0,
+                `${configPath}: idle-baseline matrices must set ipcIterations to 0`
+            );
+            requireFairness(
+                payloadBytes.length === 0,
+                `${configPath}: idle-baseline matrices must not configure IPC payload bytes`
+            );
+            requireFairness(
+                Number(config.sampleIntervalMs || 0) > 0,
+                `${configPath}: idle-baseline matrices must configure sampleIntervalMs`
+            );
+        }
     }
 }
 
-function buildCommands(config, outDir) {
+function buildCommands(config, outDir, deviceName = '') {
     const commands = [];
     let sequence = 0;
 
@@ -303,6 +316,10 @@ function buildCommands(config, outDir) {
                 const effectiveOutDir = outDir || config.outDir;
                 if (effectiveOutDir) {
                     args.push('--out-dir', effectiveOutDir);
+                }
+
+                if (deviceName) {
+                    args.push('--device-name', deviceName);
                 }
 
                 if (condition.shareMode) {
@@ -369,31 +386,17 @@ function rotatedConditionRank(command, conditionCount) {
     return (command.conditionIndex - rotation + conditionCount) % conditionCount;
 }
 
-function detectDeviceName() {
-    if (process.platform !== 'win32') return process.platform;
-    try {
-        const result = spawnSync('powershell', [
-            '-NoProfile', '-Command',
-            'Get-CimInstance -ClassName Win32_SoundDevice | Where-Object {$_.Status -eq "OK"} | Select-Object -First 1 -ExpandProperty Name'
-        ], {
-            encoding: 'utf8',
-            stdio: ['ignore', 'pipe', 'pipe'],
-            timeout: 5000
-        });
-        const name = (result.stdout || '').trim();
-        return name || 'unknown-device';
-    } catch {
-        return 'unknown-device';
-    }
-}
-
 function resolveExperimentPaths(args, config) {
+    const configName = path.basename(args.config, path.extname(args.config));
+    const experimentName = args.experimentName || config.experimentName || configName;
+
     if (args.outDir) {
         return {
             experimentDir: path.dirname(args.outDir),
             rawDir: args.outDir,
             explicitOutDir: true,
-            deviceName: ''
+            deviceName: args.deviceName || '',
+            experimentName
         };
     }
 
@@ -403,7 +406,8 @@ function resolveExperimentPaths(args, config) {
             experimentDir: path.dirname(configuredOutDir),
             rawDir: configuredOutDir,
             explicitOutDir: true,
-            deviceName: ''
+            deviceName: args.deviceName || '',
+            experimentName
         };
     }
 
@@ -412,22 +416,22 @@ function resolveExperimentPaths(args, config) {
             experimentDir: args.experimentDir,
             rawDir: path.join(args.experimentDir, 'raw'),
             explicitOutDir: false,
-            deviceName: ''
+            deviceName: args.deviceName || '',
+            experimentName
         };
     }
 
-    const configName = path.basename(args.config, path.extname(args.config));
-    const experimentName = args.experimentName || config.experimentName || configName;
     const batchName = `${timestampSlug()}__${slugify(experimentName)}`;
-    const deviceName = args.deviceName || detectDeviceName();
-    const deviceDir = deviceName ? path.join(DEFAULT_RUNS_DIR, slugify(deviceName)) : DEFAULT_RUNS_DIR;
+    const deviceName = args.deviceName || detectAudioDeviceName();
+    const deviceDir = deviceName ? path.join(DEFAULT_RUNS_DIR, slugify(deviceName, 'audio-device')) : DEFAULT_RUNS_DIR;
     const experimentDir = path.join(deviceDir, batchName);
     return {
         experimentDir,
         rawDir: path.join(experimentDir, 'raw'),
         explicitOutDir: false,
         deviceName,
-        batchDir: deviceDir
+        batchDir: deviceDir,
+        experimentName
     };
 }
 
@@ -460,7 +464,7 @@ function describeFile(filePath) {
     };
 }
 
-function collectEnvironment(config) {
+function collectEnvironment(config, deviceName = '') {
     const nativeNodePath = path.join(ROOT, 'dist', 'main', 'NativeAudio.node');
     const audioFiles = (config.audioFiles || []).map(audio => ({
         id: audio.id || '',
@@ -478,6 +482,7 @@ function collectEnvironment(config) {
         totalMemoryBytes: os.totalmem(),
         nodeVersion: process.version,
         electronPackageVersion: readPackageVersion(path.join(ROOT, 'node_modules', 'electron', 'package.json')),
+        audioDeviceName: deviceName || '',
         gitCommit: runGit(['rev-parse', 'HEAD']),
         gitStatusShort: runGit(['status', '--short']),
         nativeAudioNode: describeFile(nativeNodePath),
@@ -493,10 +498,11 @@ function readPackageVersion(packagePath) {
     }
 }
 
-function writeManifest({experimentDir, rawDir, configPath, config, resolvedConfig, commands, deviceName = ''}) {
+function writeManifest({experimentDir, rawDir, configPath, config, resolvedConfig, commands, deviceName = '', experimentName = ''}) {
     fs.mkdirSync(experimentDir, {recursive: true});
     const manifest = {
         createdAt: new Date().toISOString(),
+        experimentName: experimentName || config.experimentName || path.basename(configPath, path.extname(configPath)),
         configPath,
         rawDir,
         deviceName: deviceName || '',
@@ -512,7 +518,7 @@ function writeManifest({experimentDir, rawDir, configPath, config, resolvedConfi
         audioFiles: config.audioFiles || [],
         resolvedAudioFiles: resolvedConfig.audioFiles || [],
         conditions: config.conditions || [],
-        environment: collectEnvironment(resolvedConfig),
+        environment: collectEnvironment(resolvedConfig, deviceName),
         plannedRuns: commands.map(command => command.label),
         plannedWarmupRuns: commands.filter(command => command.isWarmup).map(command => command.label),
         plannedMeasuredRuns: commands.filter(command => !command.isWarmup).map(command => command.label)
@@ -548,7 +554,7 @@ function main() {
         }
     }
     const paths = resolveExperimentPaths(args, config);
-    const commands = buildCommands(resolvedConfig, paths.rawDir);
+    const commands = buildCommands(resolvedConfig, paths.rawDir, paths.deviceName);
     if (!args.dryRun) {
         writeManifest({
             experimentDir: paths.experimentDir,
@@ -557,7 +563,8 @@ function main() {
             config,
             resolvedConfig,
             commands,
-            deviceName: paths.deviceName
+            deviceName: paths.deviceName,
+            experimentName: paths.experimentName
         });
     }
 

@@ -173,8 +173,11 @@ conditions** within a matrix share the same:
 - `payloadBytes` must be `[]` (no payload sizes configured)
 
 A native condition must also explicitly set `shareMode`. A boundary-only matrix
-(with `backend: "none"` conditions) must have `durationSec: 0` and must
-configure `ipcIterations > 0` with `payloadBytes`.
+with `backend: "none"` conditions and IPC payload probing must have
+`durationSec: 0` and must configure `ipcIterations > 0` with `payloadBytes`.
+An idle-baseline matrix also uses `backend: "none"`, but must set
+`durationSec > 0`, `ipcIterations: 0`, `payloadBytes: []`, and no audio files;
+it samples Electron resource use without backend initialization or IPC payloads.
 
 ### Matrix-by-Matrix Reference
 
@@ -276,24 +279,22 @@ run automatically after each matrix completes.
 To organize results by audio playback device:
 
 ```bash
-# Auto-detect device name via PowerShell (Windows only)
+# Windows auto-detects the current default audio render endpoint when omitted.
+node scripts/benchmarks/run-benchmark-matrix.js \
+  --config paper/experiments/benchmark-matrix.paper.json
+
+# Override the recorded endpoint label when the OS name is not specific enough.
 node scripts/benchmarks/run-benchmark-matrix.js \
   --config paper/experiments/benchmark-matrix.paper.json \
   --device-name "Focusrite-Scarlett-2i2"
 
-# If --device-name is omitted on Windows, the device is auto-detected.
-# On non-Windows platforms, --device-name is required for multi-device runs.
+# On non-Windows platforms, the platform name is used unless --device-name is set.
 ```
 
-With `--device-name`, the output structure changes:
+By default, matrix runs are saved under the detected or specified device name:
 
 ```text
-# Without --device-name:
-runs/2026-05-29T12-00-00-000Z__paper-main-matrix/raw/...
-
-# With --device-name "Focusrite-Scarlett-2i2":
-runs/2026-05-29T12-00-00-000Z__paper-main-matrix/
-  Focusrite-Scarlett-2i2/raw/...
+runs/<device-name>/2026-05-29T12-00-00-000Z__paper-main-matrix/raw/...
 ```
 
 To run the full suite across multiple devices, repeat the 6 commands with each
@@ -436,6 +437,7 @@ This script:
 
 1. Walks `runs/{device_name}/` to discover all device directories
 2. Within each device, finds batches matching `--experiment-name`
+   and groups them by manifest `experimentName` rather than timestamp
 3. Runs log check + summarize + figures + quality report for each (device, batch)
 4. Groups batches by experiment name and merges per-device CSVs with a
    `device_name` column

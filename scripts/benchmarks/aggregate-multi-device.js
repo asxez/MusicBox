@@ -69,6 +69,19 @@ function resolveDeviceName(deviceDir, batchDir) {
     return path.basename(deviceDir);
 }
 
+function resolveExperimentName(batchName, batchDir) {
+    const manifestPath = path.join(batchDir, 'manifest.json');
+    if (fs.existsSync(manifestPath)) {
+        try {
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+            if (manifest.experimentName) return manifest.experimentName;
+        } catch {}
+    }
+
+    const match = batchName.match(/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z__(.+)$/);
+    return match ? match[1] : batchName;
+}
+
 function discoverBatches(runsDir, experimentFilter) {
     if (!fs.existsSync(runsDir)) return [];
 
@@ -89,9 +102,11 @@ function discoverBatches(runsDir, experimentFilter) {
             if (!fs.existsSync(rawDir)) continue;
 
             const deviceName = resolveDeviceName(deviceDir, batchDir);
+            const experimentName = resolveExperimentName(batchEntry.name, batchDir);
             batches.push({
                 deviceDirName: deviceEntry.name,
                 deviceName,
+                experimentName,
                 batchName: batchEntry.name,
                 dir: batchDir,
                 rawDir
@@ -105,7 +120,7 @@ function discoverBatches(runsDir, experimentFilter) {
 function groupByExperiment(batches) {
     const groups = new Map();
     for (const batch of batches) {
-        const key = batch.batchName;
+        const key = batch.experimentName || batch.batchName;
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key).push(batch);
     }
